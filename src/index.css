@@ -1901,7 +1901,10 @@ textarea.input {
   color: var(--text-primary);
 }
 
-.ws-empty p { max-width: 420px; margin: 0; }
+.ws-empty p {
+  max-width: 420px;
+  margin: 0;
+}
 
 .ws-empty-small {
   flex: 1;
@@ -1964,8 +1967,13 @@ textarea.input {
   gap: 4px;
 }
 
-.ws-crumb:hover { color: var(--text-primary); }
-.ws-crumb-sep { color: var(--text-muted); }
+.ws-crumb:hover {
+  color: var(--text-primary);
+}
+
+.ws-crumb-sep {
+  color: var(--text-muted);
+}
 
 .ws-drive-body {
   flex: 1;
@@ -2003,12 +2011,18 @@ textarea.input {
   color: var(--text-primary);
 }
 
-.ws-file-icon { display: flex; align-items: center; justify-content: center; }
+.ws-file-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .ws-file-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 .ws-file-meta {
   font-size: 0.65rem;
   color: var(--text-muted);
@@ -2165,7 +2179,11 @@ textarea.input {
   font-size: 0.75rem;
 }
 
-.ws-source-status { display: flex; justify-content: center; }
+.ws-source-status {
+  display: flex;
+  justify-content: center;
+}
+
 .ws-source-name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2205,10 +2223,25 @@ textarea.input {
 }
 
 @media (max-width: 768px) {
-  .ws-drive-body { grid-template-columns: 1fr; }
-  .ws-file-list { max-height: 40vh; border-right: none; border-bottom: 1px solid rgba(201, 168, 76, 0.1); }
-  .ws-notebook { grid-template-columns: 1fr; }
-  .ws-notebook-sources { max-height: 35vh; border-right: none; border-bottom: 1px solid rgba(201, 168, 76, 0.12); }
+  .ws-drive-body {
+    grid-template-columns: 1fr;
+  }
+
+  .ws-file-list {
+    max-height: 40vh;
+    border-right: none;
+    border-bottom: 1px solid rgba(201, 168, 76, 0.1);
+  }
+
+  .ws-notebook {
+    grid-template-columns: 1fr;
+  }
+
+  .ws-notebook-sources {
+    max-height: 35vh;
+    border-right: none;
+    border-bottom: 1px solid rgba(201, 168, 76, 0.12);
+  }
 }
 
 
