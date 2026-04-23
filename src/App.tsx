@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useCharacterStore } from './store/characterStore';
 import { auth, googleProvider } from './firebase';
-import { signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from 'firebase/auth';
+import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { MapBoard } from './components/MapBoard';
 import { AdventureDiary } from './components/AdventureDiary';
@@ -20,7 +20,6 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [userCharacters, setUserCharacters] = useState<CharacterBase[]>([]);
   const [loadingChars, setLoadingChars] = useState(true);
-  const [loginLoading, setLoginLoading] = useState(false);
 
   // ── Auto-save ──────────────────────────────────────────
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -61,20 +60,6 @@ function App() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
-  // ── Handle redirect result after Google login ────────
-  useEffect(() => {
-    setLoginLoading(true);
-    getRedirectResult(auth)
-      .then(result => {
-        // result is null if no redirect happened, non-null on return from Google
-        if (result?.user) {
-          // onAuthStateChanged will handle setting the user
-        }
-      })
-      .catch(err => console.error('Redirect result error', err))
-      .finally(() => setLoginLoading(false));
-  }, []);
-
   // ── Auth listener ──────────────────────────────────────
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -92,7 +77,7 @@ function App() {
   }, [setCharacter]);
 
   const handleLogin = async () => {
-    try { await signInWithRedirect(auth, googleProvider); }
+    try { await signInWithPopup(auth, googleProvider); }
     catch (e) { console.error('Login error', e); }
   };
 
@@ -125,8 +110,8 @@ function App() {
           <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>⚔️</div>
           <h1 className="text-gradient" style={{ fontSize: '2.2rem', marginBottom: '0.5rem' }}>D&D Nexus</h1>
           <p className="text-muted" style={{ marginBottom: '2rem' }}>Gestisci le tue avventure.<br />Accedi per iniziare.</p>
-          <button className="btn-primary w-full" style={{ justifyContent: 'center', fontSize: '1rem', padding: '0.75rem 1.5rem' }} onClick={handleLogin} disabled={loginLoading}>
-            <FaGoogle /> {loginLoading ? 'Caricamento…' : 'Accedi con Google'}
+          <button className="btn-primary w-full" style={{ justifyContent: 'center', fontSize: '1rem', padding: '0.75rem 1.5rem' }} onClick={handleLogin}>
+            <FaGoogle /> Accedi con Google
           </button>
         </div>
       </div>
