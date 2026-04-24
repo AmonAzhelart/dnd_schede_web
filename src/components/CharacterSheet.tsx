@@ -1,7 +1,7 @@
 ﻿import React, { useState } from 'react';
 import { useCharacterStore } from '../store/characterStore';
 import type { CustomAttack } from '../types/dnd';
-import { FaHeart, FaStar, FaPlus, FaMinus, FaEdit, FaSearch, FaPalette, FaCheck } from 'react-icons/fa';
+import { FaHeart, FaStar, FaPlus, FaMinus, FaEdit, FaSearch, FaPalette, FaCheck, FaTrash } from 'react-icons/fa';
 import { GiSwordman, GiAxeSword, GiSpellBook, GiTreasureMap, GiAbstract024, GiUpgrade } from 'react-icons/gi';
 import { Inventory } from './Inventory';
 import { Spellbook } from './Spellbook';
@@ -53,15 +53,6 @@ export const CharacterSheet: React.FC = () => {
   const currentHp = character.hpDetails?.current ?? character.baseStats.hp;
   const hpPercent = Math.max(0, Math.min(100, (currentHp / maxHp) * 100));
 
-  const adjustHp = (amount: number) => {
-    // Snapshot max BEFORE writing so it cannot drift.
-    const newHp = Math.min(maxHp, currentHp + amount);
-    setCharacter({
-      ...character,
-      hpDetails: { ...(character.hpDetails ?? {}), current: newHp, max: maxHp },
-    });
-  };
-
   const tabs: { id: SheetTab; label: string; icon: React.ReactNode }[] = [
     { id: 'overview', label: 'Panoramica', icon: <GiSwordman /> },
     { id: 'combat', label: 'Combattimento', icon: <GiAxeSword /> },
@@ -105,18 +96,10 @@ export const CharacterSheet: React.FC = () => {
                   <FaHeart color="var(--accent-crimson)" size={9} />
                   PUNTI VITA
                 </div>
-                <div className="cs-hp-row">
-                  <button className="cs-hp-btn minus" onClick={() => adjustHp(-1)} title="-1 PV" aria-label="Diminuisci PV">
-                    <FaMinus size={9} />
-                  </button>
-                  <div className="cs-hp-vals">
-                    <span className={`cs-hp-cur ${hpClass}`}>{currentHp}</span>
-                    <span className="cs-hp-sep">/</span>
-                    <span className="cs-hp-max">{maxHp}</span>
-                  </div>
-                  <button className="cs-hp-btn plus" onClick={() => adjustHp(1)} title="+1 PV" aria-label="Aumenta PV">
-                    <FaPlus size={9} />
-                  </button>
+                <div className="cs-hp-vals">
+                  <span className={`cs-hp-cur ${hpClass}`}>{currentHp}</span>
+                  <span className="cs-hp-sep">/</span>
+                  <span className="cs-hp-max">{maxHp}</span>
                 </div>
                 <div className="cs-hp-bar">
                   <div className={`cs-hp-bar-fill ${hpClass}`} style={{ width: `${hpPercent}%` }} />

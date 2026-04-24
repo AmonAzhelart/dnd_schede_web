@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CharacterBase, ClassLevel, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell } from '../types/dnd';
+import type { CharacterBase, ClassLevel, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell, ActiveModifier, DurationUnit } from '../types/dnd';
 import { computeClassBab, computeClassSaveBase } from '../types/dnd';
 
 type SaveKey = 'fortitude' | 'reflex' | 'will';
@@ -79,11 +79,47 @@ interface CharacterState {
   addClassLevel: (entry: ClassLevel) => void;
   updateClassLevel: (entry: ClassLevel) => void;
   deleteClassLevel: (id: string) => void;
+  // Active (user-managed) modifiers
+  addActiveModifier: (mod: ActiveModifier) => void;
+  updateActiveModifier: (mod: ActiveModifier) => void;
+  removeActiveModifier: (id: string) => void;
+  toggleActiveModifierPause: (id: string) => void;
+  /** Decrement `remaining` of all non-paused modifiers whose unit matches `unit` by `by` (default 1). Auto-removes those reaching 0. */
+  tickActiveModifiers: (unit: DurationUnit, by?: number) => void;
+  /** Remove every non-permanent active modifier (used on long rest, etc.). */
+  clearTemporaryActiveModifiers: () => void;
+  /** Sum of bonuses (with 3.5 stacking rules) coming from active modifiers for a target. */
+  getActiveModifierDelta: (target: StatType | string) => number;
+  /** All non-paused active modifiers targeting `target`. */
+  getActiveModifiersFor: (target: StatType | string) => ActiveModifier[];
 }
 
 // Helper to determine if a modifier type stacks
 const doesModifierStack = (type: ModifierType): boolean => {
   return ['dodge', 'circumstance', 'untyped', 'synergy'].includes(type);
+};
+
+/** Apply 3.5 stacking rules to a list of (type, value) pairs and return the
+ *  net bonus. Stacking types sum; non-stacking types contribute the maximum
+ *  bonus AND the minimum (most negative) penalty separately, since penalties
+ *  always stack with bonuses of the same type. */
+const aggregateModifiers = (mods: { type: ModifierType; value: number }[]): number => {
+  const byType: Record<string, number[]> = {};
+  mods.forEach(m => { (byType[m.type] ||= []).push(m.value); });
+  let total = 0;
+  Object.entries(byType).forEach(([type, values]) => {
+    const t = type as ModifierType;
+    if (doesModifierStack(t)) {
+      total += values.reduce((s, v) => s + v, 0);
+    } else {
+      const positives = values.filter(v => v > 0);
+      const negatives = values.filter(v => v < 0);
+      if (positives.length) total += Math.max(...positives);
+      // penalties of the same type DO stack with each other (3.5e rule of thumb)
+      if (negatives.length) total += negatives.reduce((s, v) => s + v, 0);
+    }
+  });
+  return total;
 };
 
 // Calculate stat modifier (e.g., 14 Str -> +2)
@@ -442,6 +478,65 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     return { character: { ...state.character, classLevels: (state.character.classLevels ?? []).filter(cl => cl.id !== id) } };
   }),
 
+  // ── Active (user-managed) modifiers ──────────────────────────────
+  addActiveModifier: (mod) => set((state) => {
+    if (!state.character) return state;
+    const list = state.character.activeModifiers ?? [];
+    return { character: { ...state.character, activeModifiers: [...list, mod] } };
+  }),
+
+  updateActiveModifier: (mod) => set((state) => {
+    if (!state.character) return state;
+    const list = state.character.activeModifiers ?? [];
+    return { character: { ...state.character, activeModifiers: list.map(m => m.id === mod.id ? mod : m) } };
+  }),
+
+  removeActiveModifier: (id) => set((state) => {
+    if (!state.character) return state;
+    const list = state.character.activeModifiers ?? [];
+    return { character: { ...state.character, activeModifiers: list.filter(m => m.id !== id) } };
+  }),
+
+  toggleActiveModifierPause: (id) => set((state) => {
+    if (!state.character) return state;
+    const list = state.character.activeModifiers ?? [];
+    return {
+      character: {
+        ...state.character,
+        activeModifiers: list.map(m => m.id === id ? { ...m, paused: !m.paused } : m),
+      }
+    };
+  }),
+
+  tickActiveModifiers: (unit, by = 1) => set((state) => {
+    if (!state.character) return state;
+    const list = state.character.activeModifiers ?? [];
+    const next = list.flatMap<ActiveModifier>(m => {
+      if (m.unit !== unit || m.unit === 'permanent' || m.paused || m.remaining == null) return [m];
+      const r = m.remaining - by;
+      if (r <= 0) return []; // expired → drop
+      return [{ ...m, remaining: r }];
+    });
+    return { character: { ...state.character, activeModifiers: next } };
+  }),
+
+  clearTemporaryActiveModifiers: () => set((state) => {
+    if (!state.character) return state;
+    const list = state.character.activeModifiers ?? [];
+    return { character: { ...state.character, activeModifiers: list.filter(m => m.unit === 'permanent') } };
+  }),
+
+  getActiveModifiersFor: (target) => {
+    const list = get().character?.activeModifiers ?? [];
+    return list.filter(m => !m.paused && m.target === target);
+  },
+
+  getActiveModifierDelta: (target) => {
+    const list = get().getActiveModifiersFor(target);
+    if (list.length === 0) return 0;
+    return aggregateModifiers(list.map(m => ({ type: m.type, value: m.value })));
+  },
+
   getEffectiveStat: (target: StatType | string): number => {
     const { character } = get();
     if (!character) return 0;
@@ -449,7 +544,7 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     // Saving throws: auto-compute from classLevels + ability mod when present,
     // else fall back to the stored manual breakdown.
     if (target === 'fortitude' || target === 'reflex' || target === 'will') {
-      return get().getSaveBreakdown(target).total;
+      return get().getSaveBreakdown(target).total + get().getActiveModifierDelta(target);
     }
 
     // Base value calculation
@@ -527,6 +622,9 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       }
     });
 
+    // Add free-standing user-managed active modifiers (buffs/malus).
+    totalBonus += get().getActiveModifierDelta(target);
+
     return baseValue + totalBonus;
   },
 
@@ -579,6 +677,10 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         total += Math.max(...values);
       }
     });
+
+    // Free-standing active modifiers (skill.<id> or skill.<name>)
+    total += get().getActiveModifierDelta(`skill.${skillId}`);
+    total += get().getActiveModifierDelta(`skill.${nameLower}`);
 
     return total;
   },

@@ -232,6 +232,39 @@ export interface Modifier {
   source: string; // The id or name of the item/feat providing the modifier
 }
 
+/** Time unit used by an ActiveModifier's duration counter. */
+export type DurationUnit = 'round' | 'minute' | 'hour' | 'turn' | 'permanent';
+
+/** A user-managed temporary buff or malus applied to a single target.
+ *  Differently from `Modifier` (which lives inside items/feats and is gated by
+ *  their `equipped`/`active` flag), an `ActiveModifier` is a free-standing
+ *  effect with its own description, lifecycle and remaining duration. */
+export interface ActiveModifier {
+  id: string;
+  /** Human-readable label (e.g. "Forza del Toro", "Maledizione del Lich"). */
+  name: string;
+  /** Optional source / origin (caster, item, situation). */
+  source?: string;
+  /** Free-form notes. */
+  notes?: string;
+  /** What the effect modifies (StatType key or 'skill.<id|name>'). */
+  target: StatType | string;
+  /** Signed bonus or penalty. */
+  value: number;
+  /** Modifier stacking type (D&D 3.5). */
+  type: ModifierType;
+  /** Unit of the duration counter (`permanent` = never expires). */
+  unit: DurationUnit;
+  /** Remaining ticks of `unit`. Null = permanent / no countdown. */
+  remaining: number | null;
+  /** Initial duration value (for display). */
+  initial: number | null;
+  /** ISO timestamp of creation. */
+  createdAt: string;
+  /** When true the effect is paused (not counted in totals). */
+  paused?: boolean;
+}
+
 export interface WeaponDetails {
   damage: string;          // e.g. "1d6", "2d4+3"
   damageType: string;      // e.g. "p" (piercing), "t" (taglio), "c" (contundente)
@@ -474,4 +507,6 @@ export interface CharacterBase {
   customAttacks?: CustomAttack[];
   /** Multiclass entries. When present, BAB is computed from these instead of baseStats.bab */
   classLevels?: ClassLevel[];
+  /** User-managed temporary buffs / malus applied to any stat. */
+  activeModifiers?: ActiveModifier[];
 }

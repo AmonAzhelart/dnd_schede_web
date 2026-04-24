@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FaSearch } from 'react-icons/fa';
 import { useCharacterStore } from '../../../store/characterStore';
 import type { WidgetRenderProps, WidgetSize } from '../widgetTypes';
+import { ModifierArrows } from './ModifierAura';
 
 const colsFor = (size: WidgetSize) =>
     size.pixelW < 280 ? 1 : size.pixelW < 460 ? 2 : size.pixelW < 720 ? 3 : 4;
@@ -14,7 +15,7 @@ const tier = (n: number): string =>
                     : 'tier-bad';
 
 export const SkillsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
-    const { character, getEffectiveSkill, getSkillBreakdown } = useCharacterStore();
+    const { character, getEffectiveSkill, getSkillBreakdown, getActiveModifierDelta } = useCharacterStore();
     const [q, setQ] = useState('');
     const [trainedOnly, setTrainedOnly] = useState(false);
     if (!character) return null;
@@ -48,8 +49,15 @@ export const SkillsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                 {filtered.map(skill => {
                     const total = getEffectiveSkill(skill.id);
                     const ranks = skill.ranks ?? 0;
+                    const skillDelta =
+                        getActiveModifierDelta(`skill.${skill.id}`) +
+                        getActiveModifierDelta(`skill.${skill.name.toLowerCase()}`);
+                    const auraClass =
+                        skillDelta > 0 ? 'w-mod-aura-buff' :
+                            skillDelta < 0 ? 'w-mod-aura-malus' : '';
                     return (
-                        <div key={skill.id} className="w-skill-row">
+                        <div key={skill.id} className={`w-skill-row ${auraClass}`}>
+                            {auraClass && <ModifierArrows delta={skillDelta} count={3} />}
                             <span className={`w-skill-rank ${ranks > 0 ? 'trained' : ''}`}>{ranks > 0 ? ranks : '·'}</span>
                             <span className="w-skill-name">{skill.name}</span>
                             <span className={`w-skill-mod ${tier(total)}`}>{total >= 0 ? '+' : ''}{total}</span>

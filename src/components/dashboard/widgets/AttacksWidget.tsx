@@ -5,6 +5,7 @@ import { DndIcon } from '../../DndIcon';
 import { useIconCatalog, sanitizeSvg } from '../../../services/iconCache';
 import { GiCrossedSwords } from 'react-icons/gi';
 import { FaMinus, FaPlus } from 'react-icons/fa';
+import { ModifierAura } from './ModifierAura';
 
 const fmtSigned = (v: number) => (v >= 0 ? `+${v}` : `${v}`);
 
@@ -57,15 +58,15 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                 <div className="w-atk2-chips">
                     <div className="w-atk2-chip" title="Bonus Attacco Base">
                         <span className="w-atk2-chip-lbl">BAB</span>
-                        <span className="w-atk2-chip-val">{fmtSigned(bab)}</span>
+                        <ModifierAura target="bab" as="span" className="w-atk2-chip-val">{fmtSigned(bab)}</ModifierAura>
                     </div>
                     <div className="w-atk2-chip" title="Modificatore Forza (mischia)">
                         <span className="w-atk2-chip-lbl">FOR</span>
-                        <span className="w-atk2-chip-val">{fmtSigned(strMod)}</span>
+                        <ModifierAura target="str" as="span" className="w-atk2-chip-val" showArrows={false}>{fmtSigned(strMod)}</ModifierAura>
                     </div>
                     <div className="w-atk2-chip" title="Modificatore Destrezza (distanza)">
                         <span className="w-atk2-chip-lbl">DES</span>
-                        <span className="w-atk2-chip-val">{fmtSigned(dexMod)}</span>
+                        <ModifierAura target="dex" as="span" className="w-atk2-chip-val" showArrows={false}>{fmtSigned(dexMod)}</ModifierAura>
                     </div>
                 </div>
                 {goTo && <button className="w-link" onClick={() => goTo('combat')}>Apri →</button>}

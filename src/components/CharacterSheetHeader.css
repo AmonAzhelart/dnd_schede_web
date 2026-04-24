@@ -93,13 +93,13 @@
     font-style: italic;
 }
 
-/* HP */
+/* HP — read-only reminder in header */
 .cs-hp {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    min-width: 168px;
-    padding: 0.35rem 0.6rem;
+    min-width: 110px;
+    padding: 0.3rem 0.65rem;
     background: rgba(192, 57, 43, 0.06);
     border: 1px solid rgba(192, 57, 43, 0.18);
     border-radius: 8px;
@@ -116,38 +116,24 @@
     color: var(--text-muted);
 }
 
-.cs-hp-row {
+.cs-hp-vals {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     justify-content: center;
-    gap: 6px;
+    gap: 3px;
+    font-family: var(--font-heading);
 }
 
+/* keep legacy .cs-hp-btn rule so old references don't break */
 .cs-hp-btn {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(0, 0, 0, 0.25);
-    color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.12s;
-    padding: 0;
-    flex-shrink: 0;
+    display: none;
 }
 
-.cs-hp-btn.minus:hover {
-    background: rgba(192, 57, 43, 0.18);
-    border-color: rgba(192, 57, 43, 0.5);
-    color: var(--accent-crimson);
-}
-
+.cs-hp-btn.minus:hover,
 .cs-hp-btn.plus:hover {
-    background: rgba(39, 174, 96, 0.18);
-    border-color: rgba(39, 174, 96, 0.5);
+    /* no-op — buttons are hidden */
+    background: transparent;
+    border-color: transparent;
     color: var(--accent-success);
 }
 

@@ -31,7 +31,7 @@ const MIN_FALLBACK_W = 90;
 const MIN_FALLBACK_H = 54;
 
 export const StatsWidget: React.FC<WidgetRenderProps> = ({ size }) => {
-    const { character, setCharacter, getEffectiveStat, getStatModifier } = useCharacterStore();
+    const { character, setCharacter, getEffectiveStat, getStatModifier, getActiveModifierDelta } = useCharacterStore();
     const [editing, setEditing] = useState<string | null>(null);
     const [rolling, setRolling] = useState<string | null>(null);
     if (!character) return null;
@@ -118,6 +118,8 @@ export const StatsWidget: React.FC<WidgetRenderProps> = ({ size }) => {
                                 : 'is-poor';
                 const buffed = effective > base;
                 const debuffed = effective < base;
+                const activeDelta = getActiveModifierDelta(stat);
+                const auraClass = activeDelta > 0 ? 'w-mod-aura-buff' : activeDelta < 0 ? 'w-mod-aura-malus' : '';
                 const modSign = mod >= 0 ? '+' : '−';
                 const modAbs = Math.abs(mod);
                 const tooltip = `${STAT_NAMES[stat]}: ${effective} (${modSign}${modAbs}) — click per tirare d20`;
@@ -125,10 +127,27 @@ export const StatsWidget: React.FC<WidgetRenderProps> = ({ size }) => {
                 return (
                     <div
                         key={stat}
-                        className={`w-stat-cell ${tier} ${rolling === stat ? 'is-rolling' : ''}`}
+                        className={`w-stat-cell ${tier} ${rolling === stat ? 'is-rolling' : ''} ${auraClass}`}
                         title={tooltip}
                         onClick={() => roll(stat, mod)}
                     >
+                        {/* Floating arrow particles when an active modifier is in effect */}
+                        {auraClass && (
+                            <div className={`w-mod-arrows ${activeDelta > 0 ? 'is-buff' : 'is-malus'}`} aria-hidden="true">
+                                {Array.from({ length: 3 }).map((_, i) => (
+                                    <span
+                                        key={i}
+                                        className="w-mod-arrow"
+                                        style={{
+                                            left: `${20 + i * 30}%`,
+                                            animationDelay: `${i * 0.9}s`,
+                                            animationDuration: `${2.8 + (i % 2) * 0.6}s`,
+                                        }}
+                                    >{activeDelta > 0 ? '▲' : '▼'}</span>
+                                ))}
+                            </div>
+                        )}
+
                         {/* LEFT: icon on top, abbreviation below */}
                         <div className="w-stat-cell-left">
                             <div className="w-stat-cell-icon">
