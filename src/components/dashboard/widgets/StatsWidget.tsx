@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { FaDiceD20 } from 'react-icons/fa';
 import { useCharacterStore } from '../../../store/characterStore';
 import type { WidgetRenderProps } from '../widgetTypes';
+import { DndIcon } from '../../DndIcon';
 
 const STAT_NAMES: Record<string, string> = {
     str: 'Forza', dex: 'Destrezza', con: 'Costituzione',
@@ -53,7 +53,7 @@ export const StatsWidget: React.FC<WidgetRenderProps> = ({ size }) => {
                                 onClick={e => { e.stopPropagation(); roll(stat, mod); }}
                                 title={`Tira 1d20 ${mod >= 0 ? '+' : ''}${mod}`}
                             >
-                                <FaDiceD20 />
+                                <DndIcon category="dice" name="d20" size={14} />
                             </button>
                         </div>
 

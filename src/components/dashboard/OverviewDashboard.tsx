@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { FaCheck, FaPalette, FaPlus, FaTimes, FaUndo, FaGripVertical, FaThLarge, FaArrowsAlt, FaDesktop, FaTabletAlt, FaMobileAlt, FaCopy } from 'react-icons/fa';
 import { useCharacterStore } from '../../store/characterStore';
 import { WIDGET_CATALOG, getWidgetDef } from './widgets';
+import { auth } from '../../firebase';
+import { loadDashboardLayout, saveDashboardLayout } from '../../services/db';
 import {
     BREAKPOINTS, COL_PRESETS, ROW_HEIGHT_PRESETS, LAYOUT_VERSION,
     clampRect, collides, findFreeSpot, sizeClassFromWidth,
@@ -10,6 +12,8 @@ import {
 
 interface Props {
     goTo?: (tab: string) => void;
+    editMode?: boolean;
+    setEditMode?: (v: boolean) => void;
 }
 
 const BP_ICONS: Record<Breakpoint, React.ReactNode> = {
@@ -137,17 +141,24 @@ interface DragState {
     valid: boolean;
 }
 
-export const OverviewDashboard: React.FC<Props> = ({ goTo }) => {
+export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModeProp, setEditMode: setEditModeProp }) => {
     const { character } = useCharacterStore();
     const charId = character?.id ?? '_';
 
     const [layout, setLayout] = useState<DashboardLayout>(() => loadLayout(charId));
-    const [editMode, setEditMode] = useState(false);
+    const [editModeInternal, setEditModeInternal] = useState(false);
+    const editMode = editModeProp !== undefined ? editModeProp : editModeInternal;
+    const setEditMode = (v: boolean) => {
+        setEditModeInternal(v);
+        setEditModeProp?.(v);
+    };
     const [paletteOpen, setPaletteOpen] = useState(false);
     const [drag, setDrag] = useState<DragState | null>(null);
     /** Currently focused tile (click-to-activate enables internal scrolling). */
     const [activeUid, setActiveUid] = useState<string | null>(null);
     const dashRef = useRef<HTMLDivElement | null>(null);
+    // Track whether the current layout was loaded from remote (skip saving back on initial hydration)
+    const remoteLoadedRef = useRef(false);
     useEffect(() => {
         const onDown = (e: MouseEvent) => {
             const root = dashRef.current;
@@ -174,8 +185,39 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo }) => {
     const activeBp: Breakpoint = editMode ? editedBp : viewportBp;
     const activeLayout: BreakpointLayout = layout.layouts[activeBp] ?? DEFAULT_LAYOUT.layouts[activeBp];
 
-    useEffect(() => { setLayout(loadLayout(charId)); }, [charId]);
-    useEffect(() => { saveLayout(charId, layout); }, [charId, layout]);
+    // On charId change: reload from localStorage immediately, then hydrate from Firestore
+    useEffect(() => {
+        setLayout(loadLayout(charId));
+        remoteLoadedRef.current = false;
+        const uid = auth.currentUser?.uid;
+        if (!uid) return;
+        loadDashboardLayout(uid, charId).then(remote => {
+            if (!remote) return;
+            remoteLoadedRef.current = true;
+            setLayout(remote);
+            // also update local cache
+            saveLayout(charId, remote);
+        });
+    }, [charId]);
+
+    // Debounced Firestore save on layout changes; skip the initial hydration update
+    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => {
+        // always persist locally
+        saveLayout(charId, layout);
+        // skip saving back right after we just loaded from remote
+        if (remoteLoadedRef.current) {
+            remoteLoadedRef.current = false;
+            return;
+        }
+        const uid = auth.currentUser?.uid;
+        if (!uid) return;
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(() => {
+            saveDashboardLayout(uid, charId, layout);
+        }, 1500);
+        return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+    }, [charId, layout]);
 
     const containerRef = useRef<HTMLDivElement>(null);
     const dragRef = useRef<DragState | null>(null);
@@ -347,8 +389,8 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo }) => {
 
     return (
         <div ref={dashRef} className="dash-root animate-fade-in">
-            {/* TOOLBAR */}
-            <div className="dash-toolbar">
+            {/* TOOLBAR — shown only in edit mode */}
+            {editMode && <div className="dash-toolbar">
                 <div className="flex items-center gap-2">
                     <FaPalette size={11} style={{ color: 'var(--accent-gold)' }} />
                     <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.8rem', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>
@@ -410,15 +452,16 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo }) => {
                             </button>
                         </>
                     )}
+                    {/* "Fatto" button — inside toolbar; clicking also propagates to parent via setEditMode */}
                     <button
-                        className={`btn btn-sm ${editMode ? 'btn-primary' : 'btn-secondary'}`}
-                        onClick={() => { setEditMode(e => !e); setPaletteOpen(false); }}
-                        title={editMode ? 'Termina personalizzazione' : 'Personalizza dashboard'}
+                        className="btn btn-sm btn-primary"
+                        onClick={() => { setEditMode(false); setPaletteOpen(false); }}
+                        title="Termina personalizzazione"
                     >
-                        {editMode ? <><FaCheck size={9} /> Fatto</> : <><FaPalette size={9} /> Personalizza</>}
+                        <FaCheck size={9} /> Fatto
                     </button>
                 </div>
-            </div>
+            </div>}
 
             {editMode && (
                 <div className="dash-edit-hint">

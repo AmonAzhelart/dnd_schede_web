@@ -1,40 +1,59 @@
 ﻿import React, { useState, useEffect } from 'react';
+import './Inventory.css';
 import { useCharacterStore } from '../store/characterStore';
 import { v4 as uuidv4 } from 'uuid';
 import {
-  FaPlus, FaTrash, FaEdit, FaCheck, FaTimes, FaCoins,
-  FaChevronDown, FaChevronRight, FaArrowUp, FaArrowDown,
+  FaPlus, FaTrash, FaEdit, FaCheck, FaTimes,
+  FaArrowUp, FaArrowDown, FaSearch, FaImage,
 } from 'react-icons/fa';
-import { Virtuoso } from 'react-virtuoso';
-import type { Item, WeaponDetails, ArmorDetails, CurrencyTransaction } from '../types/dnd';
+import type { Item, WeaponDetails, ArmorDetails } from '../types/dnd';
+import { type CatalogIcon } from '../services/admin';
+import { useIconCatalog, sanitizeSvg } from '../services/iconCache';
+import { CatalogPicker } from './CatalogPicker';
+
+/** Render an inline SVG with safe HTML insertion. */
+const SvgIcon: React.FC<{ svg: string; size?: number; className?: string }> = ({ svg, size, className }) => (
+  <span
+    className={className}
+    style={{
+      display: 'inline-flex',
+      width: size ?? '100%',
+      height: size ?? '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}
+    dangerouslySetInnerHTML={{ __html: sanitizeSvg(svg) }}
+  />
+);
 
 // ─── Types ────────────────────────────────────────────
 type MainTab = 'items' | 'currency';
 type ItemTabKey = 'all' | Item['type'];
 
 // ─── Constants ────────────────────────────────────────
-const ITEM_TABS: { key: ItemTabKey; label: string; color: string }[] = [
-  { key: 'all', label: 'Tutti', color: 'var(--text-secondary)' },
-  { key: 'weapon', label: 'Armi', color: 'var(--accent-crimson)' },
-  { key: 'armor', label: 'Armature', color: 'var(--accent-gold)' },
-  { key: 'shield', label: 'Scudi', color: 'var(--accent-gold)' },
-  { key: 'protectiveItem', label: 'Oggetti Prot.', color: 'var(--accent-gold)' },
-  { key: 'gear', label: 'Equipaggiamento', color: 'var(--text-muted)' },
-  { key: 'consumable', label: 'Consumabili', color: 'var(--accent-success)' },
-  { key: 'component', label: 'Componenti', color: 'var(--accent-arcane)' },
+const ITEM_TABS: { key: ItemTabKey; label: string; icon: string; color: string }[] = [
+  { key: 'all', label: 'Tutti', icon: '📦', color: 'var(--text-secondary)' },
+  { key: 'weapon', label: 'Armi', icon: '⚔', color: 'var(--accent-crimson)' },
+  { key: 'armor', label: 'Armature', icon: '🛡', color: 'var(--accent-gold)' },
+  { key: 'shield', label: 'Scudi', icon: '🪬', color: 'var(--accent-gold)' },
+  { key: 'protectiveItem', label: 'Prot.', icon: '🔮', color: 'var(--accent-gold)' },
+  { key: 'gear', label: 'Equip.', icon: '🎒', color: 'var(--text-muted)' },
+  { key: 'consumable', label: 'Consumabili', icon: '🧪', color: 'var(--accent-success)' },
+  { key: 'component', label: 'Componenti', icon: '✨', color: 'var(--accent-arcane)' },
+  { key: 'misc', label: 'Misc.', icon: '📜', color: 'var(--text-muted)' },
 ];
 const TYPE_COLOR: Record<Item['type'], string> = {
   weapon: 'var(--accent-crimson)', armor: 'var(--accent-gold)', shield: 'var(--accent-gold)',
   protectiveItem: 'var(--accent-gold)', gear: 'var(--text-muted)', consumable: 'var(--accent-success)',
-  component: 'var(--accent-arcane)',
+  component: 'var(--accent-arcane)', misc: 'var(--text-muted)',
 };
 const TYPE_LABEL: Record<Item['type'], string> = {
   weapon: 'Arma', armor: 'Armatura', shield: 'Scudo', protectiveItem: 'Prot.',
-  gear: 'Equipaggiamento', consumable: 'Consumabile', component: 'Componente',
+  gear: 'Equipaggiamento', consumable: 'Consumabile', component: 'Componente', misc: 'Miscellanea',
 };
 const TYPE_ICON: Record<Item['type'], string> = {
   weapon: '⚔', armor: '🛡', shield: '🛡', protectiveItem: '🔮',
-  gear: '🎒', consumable: '🧪', component: '✨',
+  gear: '🎒', consumable: '🧪', component: '✨', misc: '📜',
 };
 const MOD_TYPES = [
   { value: 'enhancement', label: 'Potenziamento' }, { value: 'armor', label: 'Armatura' },
@@ -82,14 +101,7 @@ const EMPTY_TX = (): { description: string; dir: 'in' | 'out'; platinum: number;
 const needsWeapon = (t: Item['type']) => t === 'weapon';
 const needsArmor = (t: Item['type']) => t === 'armor' || t === 'shield' || t === 'protectiveItem';
 
-// ─── Sub-components ───────────────────────────────────
-const SectionLabel: React.FC<{ label: string; color?: string }> = ({ label, color = 'var(--text-muted)' }) => (
-  <div style={{ padding: '5px 12px', background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-    <span style={{ fontSize: '0.67rem', color, fontFamily: 'var(--font-heading)', letterSpacing: '0.1em' }}>{label}</span>
-  </div>
-);
-
-// ─── Module-level helpers (outside Inventory to prevent focus-loss on re-render) ───
+// ─── Module-level form helpers (outside component to prevent focus-loss) ────
 const addMod = (setter: React.Dispatch<React.SetStateAction<Omit<Item, 'id'>>>) =>
   setter(f => ({ ...f, modifiers: [...f.modifiers, { target: 'str', value: 1, type: 'enhancement', source: '' }] }));
 const removeMod = (setter: React.Dispatch<React.SetStateAction<Omit<Item, 'id'>>>, i: number) =>
@@ -200,8 +212,10 @@ interface EditItemFormProps {
   onSave: () => void;
   onCancel: () => void;
   autoFocus?: boolean;
+  onPickIcon: () => void;
+  previewSvg?: string;
 }
-const EditItemForm: React.FC<EditItemFormProps> = ({ itemForm, setItemForm, editingItemId, onSave, onCancel, autoFocus }) => (
+const EditItemForm: React.FC<EditItemFormProps> = ({ itemForm, setItemForm, editingItemId, onSave, onCancel, autoFocus, onPickIcon, previewSvg }) => (
   <div style={{ padding: '12px', background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, margin: '4px 0' }}>
     {/* Row 1: name, type, weight, quantity */}
     <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
@@ -226,6 +240,7 @@ const EditItemForm: React.FC<EditItemFormProps> = ({ itemForm, setItemForm, edit
         <option value="gear">Equipaggiamento</option>
         <option value="consumable">Consumabile</option>
         <option value="component">Componente</option>
+        <option value="misc">Miscellanea</option>
       </select>
       <input className="input" type="number" min={0} step="0.1" placeholder="Peso (kg)"
         value={itemForm.weight || ''}
@@ -260,6 +275,24 @@ const EditItemForm: React.FC<EditItemFormProps> = ({ itemForm, setItemForm, edit
     <textarea className="input" placeholder="Descrizione (opzionale)..." value={itemForm.description}
       onChange={e => setItemForm(f => ({ ...f, description: e.target.value }))}
       style={{ width: '100%', minHeight: 44, fontSize: '0.82rem', resize: 'vertical', marginTop: 8, marginBottom: 8 }} />
+    {/* Icon picker */}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', letterSpacing: '0.08em' }}>ICONA</span>
+      <div style={{ width: 40, height: 40, borderRadius: 4, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {previewSvg
+          ? <SvgIcon svg={previewSvg} size={28} className="inv-svg-tinted" />
+          : <span style={{ fontSize: '1.2rem' }}>{TYPE_ICON[itemForm.type]}</span>}
+      </div>
+      <button type="button" onClick={onPickIcon} className="btn-secondary" style={{ fontSize: '0.78rem' }}>
+        <FaImage size={11} /> Scegli dal Catalogo
+      </button>
+      {itemForm.iconId && (
+        <button type="button" onClick={() => setItemForm(f => ({ ...f, iconId: undefined }))}
+          className="btn-ghost" style={{ fontSize: '0.75rem', color: 'var(--accent-crimson)' }}>
+          <FaTimes size={10} /> Rimuovi
+        </button>
+      )}
+    </div>
     {/* Modifiers */}
     <div style={{ marginBottom: 8 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
@@ -293,154 +326,211 @@ const EditItemForm: React.FC<EditItemFormProps> = ({ itemForm, setItemForm, edit
   </div>
 );
 
-interface ItemRowProps {
+// ─── ItemCard ──────────────────────────────────────────
+export interface ItemCardProps {
   item: Item;
-  expandedId: string | null;
-  editingItemId: string | null;
-  itemForm: Omit<Item, 'id'>;
-  setItemForm: React.Dispatch<React.SetStateAction<Omit<Item, 'id'>>>;
-  onToggleExpand: (id: string) => void;
-  onEquip: (id: string) => void;
-  onStartEdit: (item: Item) => void;
-  onDelete: (id: string) => void;
-  onSave: () => void;
-  onCancel: () => void;
+  selected: boolean;
+  onClick: () => void;
+  onEquip: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  iconSvg?: string;
 }
-const ItemRow: React.FC<ItemRowProps> = ({ item, expandedId, editingItemId, itemForm, setItemForm, onToggleExpand, onEquip, onStartEdit, onDelete, onSave, onCancel }) => {
-  const isExp = expandedId === item.id;
-  const isEdit = editingItemId === item.id;
+const ItemCard: React.FC<ItemCardProps> = ({ item, selected, onClick, onEquip, onEdit, onDelete, iconSvg }) => {
   const color = TYPE_COLOR[item.type];
-  if (isEdit) return <EditItemForm itemForm={itemForm} setItemForm={setItemForm} editingItemId={editingItemId} onSave={onSave} onCancel={onCancel} />;
+  const wd = item.weaponDetails;
+  const ad = item.armorDetails;
+
+  let statText: string | null = null;
+  let statColor = color;
+  if (wd) {
+    statText = wd.damage + (wd.criticalMultiplier && wd.criticalMultiplier !== 'x2' ? ` ${wd.criticalMultiplier}` : '');
+    statColor = 'var(--accent-crimson)';
+  } else if (ad) {
+    statText = `CA +${ad.armorBonus}`;
+    statColor = 'var(--accent-gold)';
+  }
+
+  const cssVars = { '--eq-color': color, '--eq-glow': `${color}55` } as React.CSSProperties;
+  const classes = ['inv-item-card', item.equipped ? 'equipped' : '', selected ? 'selected' : ''].filter(Boolean).join(' ');
+
+  return (
+    <div className={classes} style={cssVars} onClick={onClick}>
+      <div className="inv-card-badge-row">
+        {item.equipped ? <div className="inv-card-dot" style={cssVars} /> : <span />}
+        {(item.quantity ?? 1) > 1 && <div className="inv-card-qty">×{item.quantity}</div>}
+      </div>
+      <div className="inv-card-icon">
+        {iconSvg ? <SvgIcon svg={iconSvg} /> : TYPE_ICON[item.type]}
+      </div>
+      <div className="inv-card-name">{item.name}</div>
+      {statText && <div className="inv-card-stat" style={{ color: statColor }}>{statText}</div>}
+      {item.weight > 0 && <div className="inv-card-meta">{item.weight} kg</div>}
+      <div className="inv-card-actions">
+        <button className={`inv-card-btn ${item.equipped ? 'unequip' : 'equip'}`}
+          onClick={e => { e.stopPropagation(); onEquip(); }}
+          title={item.equipped ? 'Rimuovi' : 'Equipaggia'}>
+          {item.equipped ? <FaTimes size={10} /> : <FaCheck size={10} />}
+        </button>
+        <button className="inv-card-btn" onClick={e => { e.stopPropagation(); onEdit(); }} title="Modifica">
+          <FaEdit size={10} />
+        </button>
+        <button className="inv-card-btn danger" onClick={e => { e.stopPropagation(); onDelete(); }} title="Elimina">
+          <FaTrash size={9} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ─── ItemDetailPanel ───────────────────────────────────
+interface DetailPanelProps {
+  item: Item;
+  onClose: () => void;
+  onEquip: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  iconSvg?: string;
+}
+const ItemDetailPanel: React.FC<DetailPanelProps> = ({ item, onClose, onEquip, onEdit, onDelete, iconSvg }) => {
+  const color = TYPE_COLOR[item.type];
   const wd = item.weaponDetails;
   const ad = item.armorDetails;
   return (
-    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.035)' }}>
-      <div onClick={() => onToggleExpand(item.id)}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', cursor: 'pointer',
-          background: isExp ? 'rgba(255,255,255,0.025)' : 'transparent', transition: 'background 0.12s'
-        }}
-        onMouseEnter={e => { if (!isExp) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.025)'; }}
-        onMouseLeave={e => { if (!isExp) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
-      >
-        <div style={{ width: 3, height: 26, borderRadius: 2, background: color, flexShrink: 0 }} />
-        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', width: 12, flexShrink: 0 }}>{isExp ? '▼' : '▶'}</span>
-        <span style={{ fontSize: '0.9rem', flexShrink: 0 }}>{TYPE_ICON[item.type]}</span>
-        <span style={{ flex: 1, fontFamily: 'var(--font-heading)', fontSize: '0.88rem', color: item.equipped ? color : 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {item.name}{(item.quantity ?? 1) > 1 ? ` ×${item.quantity}` : ''}
-        </span>
-        {wd && (
-          <span style={{ fontSize: '0.75rem', color: 'var(--accent-crimson)', fontFamily: 'var(--font-heading)', flexShrink: 0 }}>
-            {wd.damage} {wd.criticalMultiplier ? `/${wd.criticalMultiplier}` : ''}
-          </span>
-        )}
-        {ad && (
-          <span style={{ fontSize: '0.75rem', color: 'var(--accent-gold)', fontFamily: 'var(--font-heading)', flexShrink: 0 }}>
-            CA+{ad.armorBonus}
-          </span>
-        )}
-        <span style={{ fontSize: '0.68rem', color, background: `${color}1a`, border: `1px solid ${color}44`, borderRadius: 3, padding: '1px 6px', flexShrink: 0 }}>
-          {TYPE_LABEL[item.type]}
-        </span>
-        <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', width: 50, textAlign: 'right', flexShrink: 0 }}>
-          {item.weight > 0 ? `${item.weight}kg` : '—'}
-        </span>
-        <button onClick={e => { e.stopPropagation(); onEquip(item.id); }}
-          style={{
-            padding: '3px 9px', borderRadius: 4, fontSize: '0.7rem', cursor: 'pointer', flexShrink: 0,
-            background: item.equipped ? 'rgba(192,57,43,0.1)' : 'rgba(39,174,96,0.1)',
-            border: `1px solid ${item.equipped ? 'rgba(192,57,43,0.35)' : 'rgba(39,174,96,0.35)'}`,
-            color: item.equipped ? 'var(--accent-crimson)' : 'var(--accent-success)'
-          }}>
-          {item.equipped ? 'Rimuovi' : 'Equip'}
+    <div className="inv-detail-panel">
+      <button onClick={onClose} style={{ position: 'absolute', top: 10, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4, zIndex: 1 }}>
+        <FaTimes size={12} />
+      </button>
+      {/* Header */}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', paddingRight: 20 }}>
+        <div style={{ fontSize: '2.2rem', lineHeight: 1, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.6))', flexShrink: 0 }}>
+          {iconSvg ? <SvgIcon svg={iconSvg} size={44} className="inv-svg-tinted" /> : TYPE_ICON[item.type]}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.92rem', lineHeight: 1.25, marginBottom: 6, color: item.equipped ? color : 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {item.name}
+            {(item.quantity ?? 1) > 1 && <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginLeft: 5 }}>×{item.quantity}</span>}
+          </div>
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.62rem', color, background: `${color}18`, border: `1px solid ${color}44`, borderRadius: 3, padding: '2px 8px', fontFamily: 'var(--font-heading)', letterSpacing: '0.04em' }}>
+              {TYPE_LABEL[item.type]}
+            </span>
+            {item.equipped && (
+              <span style={{ fontSize: '0.62rem', color: 'var(--accent-success)', background: 'rgba(39,174,96,0.1)', border: '1px solid rgba(39,174,96,0.3)', borderRadius: 3, padding: '2px 8px', fontFamily: 'var(--font-heading)' }}>
+                EQUIPAGGIATO
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+      {item.weight > 0 && (
+        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+          Peso: <span style={{ color: 'var(--text-secondary)' }}>{item.weight} kg</span>
+        </div>
+      )}
+      {/* Weapon stats */}
+      {wd && (
+        <div style={{ padding: '10px 12px', background: 'rgba(192,57,43,0.07)', border: '1px solid rgba(192,57,43,0.2)', borderRadius: 8 }}>
+          <div style={{ fontSize: '0.6rem', color: 'var(--accent-crimson)', fontFamily: 'var(--font-heading)', letterSpacing: '0.1em', marginBottom: 8 }}>⚔ ARMA</div>
+          <div className="inv-detail-stat-grid">
+            {[
+              { label: 'Danno', value: wd.damage, color: 'var(--accent-crimson)' },
+              { label: 'Tipo', value: wd.damageType, color: 'var(--text-secondary)' },
+              { label: 'Critico', value: `${wd.criticalRange ? wd.criticalRange + '/' : ''}${wd.criticalMultiplier}`, color: 'var(--accent-crimson)' },
+              ...(wd.rangeIncrement ? [{ label: 'Gittata', value: wd.rangeIncrement, color: 'var(--text-secondary)' }] : []),
+              ...(wd.attackBonus ? [{ label: 'Bonus Att.', value: `${wd.attackBonus >= 0 ? '+' : ''}${wd.attackBonus}`, color: 'var(--accent-success)' }] : []),
+            ].map(s => (
+              <div key={s.label} className="inv-detail-stat-box">
+                <div className="inv-detail-stat-label">{s.label}</div>
+                <div className="inv-detail-stat-value" style={{ color: s.color }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+          {wd.notes && <div style={{ marginTop: 8, fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{wd.notes}</div>}
+        </div>
+      )}
+      {/* Armor stats */}
+      {ad && (
+        <div style={{ padding: '10px 12px', background: 'rgba(201,168,76,0.07)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8 }}>
+          <div style={{ fontSize: '0.6rem', color: 'var(--accent-gold)', fontFamily: 'var(--font-heading)', letterSpacing: '0.1em', marginBottom: 8 }}>🛡 PROTEZIONE</div>
+          <div className="inv-detail-stat-grid">
+            {[
+              { label: 'Bonus CA', value: `+${ad.armorBonus}`, color: 'var(--accent-gold)' },
+              { label: 'Des. Max', value: ad.maxDex != null ? `+${ad.maxDex}` : '—', color: 'var(--text-secondary)' },
+              { label: 'Pen. Prova', value: String(ad.checkPenalty ?? 0), color: ad.checkPenalty ? 'var(--accent-crimson)' : 'var(--text-secondary)' },
+              { label: 'Fall. Inc.', value: `${ad.spellFailure ?? 0}%`, color: ad.spellFailure ? 'var(--accent-crimson)' : 'var(--text-secondary)' },
+              ...(ad.speed != null ? [{ label: 'Velocità', value: `${ad.speed}m`, color: 'var(--text-secondary)' }] : []),
+            ].map(s => (
+              <div key={s.label} className="inv-detail-stat-box">
+                <div className="inv-detail-stat-label">{s.label}</div>
+                <div className="inv-detail-stat-value" style={{ color: s.color }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+          {ad.specialProperties && <div style={{ marginTop: 8, fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{ad.specialProperties}</div>}
+        </div>
+      )}
+      {item.associatedSpell && (
+        <div style={{ fontSize: '0.76rem' }}>
+          <span style={{ color: 'var(--text-muted)' }}>Incantesimo: </span>
+          <span style={{ color: 'var(--accent-arcane)' }}>{item.associatedSpell}</span>
+        </div>
+      )}
+      {item.modifiers.length > 0 && (
+        <div>
+          <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontFamily: 'var(--font-heading)', letterSpacing: '0.1em', marginBottom: 6 }}>MODIFICATORI</div>
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+            {item.modifiers.map((m, i) => (
+              <span key={i} style={{ fontSize: '0.68rem', padding: '3px 9px', borderRadius: 3, background: 'rgba(39,174,96,0.1)', border: '1px solid rgba(39,174,96,0.28)', color: 'var(--accent-success)', fontFamily: 'var(--font-heading)' }}>
+                {m.value >= 0 ? '+' : ''}{m.value} {m.target.toUpperCase()}<span style={{ opacity: 0.6, fontSize: '0.6rem', marginLeft: 3 }}>({m.type})</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {item.description && (
+        <div>
+          <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontFamily: 'var(--font-heading)', letterSpacing: '0.1em', marginBottom: 5 }}>DESCRIZIONE</div>
+          <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.55 }}>{item.description}</p>
+        </div>
+      )}
+      {/* Actions */}
+      <div style={{ marginTop: 'auto', paddingTop: 8, display: 'flex', gap: 7 }}>
+        <button onClick={onEquip} style={{ flex: 1, padding: '8px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.74rem', fontFamily: 'var(--font-heading)', letterSpacing: '0.05em', background: item.equipped ? 'rgba(192,57,43,0.12)' : 'rgba(39,174,96,0.12)', border: `1px solid ${item.equipped ? 'rgba(192,57,43,0.4)' : 'rgba(39,174,96,0.4)'}`, color: item.equipped ? 'var(--accent-crimson)' : 'var(--accent-success)', minWidth: 0 }}>
+          {item.equipped ? 'Rimuovi' : 'Equipaggia'}
         </button>
-        <button onClick={e => { e.stopPropagation(); onStartEdit(item); }}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px 5px', flexShrink: 0 }}>
-          <FaEdit size={11} />
+        <button onClick={onEdit} style={{ padding: '8px 11px', borderRadius: 6, cursor: 'pointer', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-secondary)' }}>
+          <FaEdit size={12} />
         </button>
-        <button onClick={e => { e.stopPropagation(); onDelete(item.id); }}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-crimson)', padding: '4px 5px', opacity: 0.55, flexShrink: 0 }}>
+        <button onClick={onDelete} style={{ padding: '8px 11px', borderRadius: 6, cursor: 'pointer', background: 'rgba(192,57,43,0.08)', border: '1px solid rgba(192,57,43,0.25)', color: 'var(--accent-crimson)' }}>
           <FaTrash size={11} />
         </button>
       </div>
-      {isExp && (
-        <div style={{ padding: '8px 28px 12px', background: 'rgba(0,0,0,0.18)', borderTop: '1px solid rgba(255,255,255,0.03)' }}>
-          {item.description && <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: 8 }}>{item.description}</p>}
-          {wd && (
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 6 }}>
-              {[
-                { label: 'Danno', value: wd.damage },
-                { label: 'Tipo', value: wd.damageType },
-                { label: 'Critico', value: `${wd.criticalRange ? wd.criticalRange + '/' : ''}${wd.criticalMultiplier}` },
-                { label: 'Gittata', value: wd.rangeIncrement || '—' },
-                ...(wd.attackBonus ? [{ label: 'Bonus', value: `${wd.attackBonus >= 0 ? '+' : ''}${wd.attackBonus}` }] : []),
-                ...(wd.notes ? [{ label: 'Note', value: wd.notes }] : []),
-              ].map(r => (
-                <div key={r.label} style={{ fontSize: '0.78rem' }}>
-                  <span style={{ color: 'var(--text-muted)', marginRight: 4 }}>{r.label}:</span>
-                  <span style={{ color: 'var(--accent-crimson)', fontFamily: 'var(--font-heading)' }}>{r.value}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {ad && (
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 6 }}>
-              {[
-                { label: 'Bonus CA', value: `+${ad.armorBonus}` },
-                { label: 'Des Max', value: ad.maxDex != null ? `+${ad.maxDex}` : '—' },
-                { label: 'Pen. Prova', value: String(ad.checkPenalty ?? 0) },
-                { label: 'Fall. Inc.', value: `${ad.spellFailure ?? 0}%` },
-                ...(ad.speed != null ? [{ label: 'Velocità', value: `${ad.speed}m` }] : []),
-                ...(ad.specialProperties ? [{ label: 'Proprietà', value: ad.specialProperties }] : []),
-              ].map(r => (
-                <div key={r.label} style={{ fontSize: '0.78rem' }}>
-                  <span style={{ color: 'var(--text-muted)', marginRight: 4 }}>{r.label}:</span>
-                  <span style={{ color: 'var(--accent-gold)', fontFamily: 'var(--font-heading)' }}>{r.value}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {item.associatedSpell && (
-            <div style={{ fontSize: '0.78rem', marginBottom: 6 }}>
-              <span style={{ color: 'var(--text-muted)' }}>Incantesimo: </span>
-              <span style={{ color: 'var(--accent-arcane)' }}>{item.associatedSpell}</span>
-            </div>
-          )}
-          {item.modifiers.length > 0 && (
-            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-              {item.modifiers.map((m, i) => (
-                <span key={i} style={{ fontSize: '0.71rem', padding: '2px 8px', borderRadius: 3, background: 'rgba(39,174,96,0.1)', border: '1px solid rgba(39,174,96,0.28)', color: 'var(--accent-success)' }}>
-                  {m.value >= 0 ? '+' : ''}{m.value} {m.target.toUpperCase()} <span style={{ opacity: 0.65 }}>({m.type})</span>
-                </span>
-              ))}
-            </div>
-          )}
-          {!item.description && !wd && !ad && item.modifiers.length === 0 && (
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Nessuna descrizione.</span>
-          )}
-        </div>
-      )}
     </div>
   );
 };
 
 // ─── Main Component ───────────────────────────────────
 export const Inventory: React.FC = () => {
-  const {
-    character, setCharacter, toggleEquipItem,
-    setCurrency, addCurrencyTransaction,
-  } = useCharacterStore();
+  const { character, setCharacter, toggleEquipItem, addCurrencyTransaction } = useCharacterStore();
 
-  // Main tab
   const [mainTab, setMainTab] = useState<MainTab>('items');
-  // Item tab
   const [itemTab, setItemTab] = useState<ItemTabKey>('all');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [itemForm, setItemForm] = useState<Omit<Item, 'id'>>(EMPTY_ITEM());
+  const [search, setSearch] = useState('');
   // Currency
   const [txForm, setTxForm] = useState(EMPTY_TX());
+  // Icon catalog (shared cache, loaded once per session)
+  const { icons: iconCatalogItems, resolveItemSvg, loading: iconCatalogLoading } = useIconCatalog();
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
+  const openIconPicker = () => setIconPickerOpen(true);
+  const pickIcon = (ic: CatalogIcon) => {
+    setItemForm(f => ({ ...f, iconId: ic.id }));
+    setIconPickerOpen(false);
+  };
 
   // Listen for external navigation requests (e.g. from CurrencyWidget)
   useEffect(() => {
@@ -465,7 +555,9 @@ export const Inventory: React.FC = () => {
   (['weapon', 'armor', 'shield', 'protectiveItem', 'gear', 'consumable', 'component'] as Item['type'][]).forEach(t => {
     itemCounts[t] = allItems.filter(i => i.type === t).length;
   });
-  const filtered = itemTab === 'all' ? allItems : allItems.filter(i => i.type === itemTab);
+  const searchQ = search.trim().toLowerCase();
+  const filtered = (itemTab === 'all' ? allItems : allItems.filter(i => i.type === itemTab))
+    .filter(i => !searchQ || i.name.toLowerCase().includes(searchQ) || (i.description ?? '').toLowerCase().includes(searchQ));
   const equipped = filtered.filter(i => i.equipped);
   const backpack = filtered.filter(i => !i.equipped);
   const totalWeight = allItems.reduce((s, i) => s + (i.weight ?? 0), 0);
@@ -490,14 +582,15 @@ export const Inventory: React.FC = () => {
       weaponDetails: item.weaponDetails ? { ...item.weaponDetails } : undefined,
       armorDetails: item.armorDetails ? { ...item.armorDetails } : undefined,
       associatedSpell: item.associatedSpell ?? '',
+      iconId: item.iconId,
     });
-    setEditingItemId(item.id); setIsAddingItem(false); setExpandedId(null);
+    setEditingItemId(item.id); setIsAddingItem(false);
   };
   const cancelEditItem = () => { setEditingItemId(null); setIsAddingItem(false); setItemForm(EMPTY_ITEM()); };
   const deleteItemFn = (id: string) => {
     setCharacter({ ...character, inventory: allItems.filter(i => i.id !== id) });
     if (editingItemId === id) cancelEditItem();
-    if (expandedId === id) setExpandedId(null);
+    if (selectedId === id) setSelectedId(null);
   };
   // ── Currency helper ──
   const submitTx = () => {
@@ -512,161 +605,183 @@ export const Inventory: React.FC = () => {
   };
 
   // ─────────────────────────────── RENDER ───────────────────────────────────
+  const selectedItem = allItems.find(i => i.id === selectedId) ?? null;
+  const commonCardProps = (item: Item) => ({
+    item,
+    selected: selectedId === item.id,
+    onClick: () => setSelectedId(selectedId === item.id ? null : item.id),
+    onEquip: () => toggleEquipItem(item.id),
+    onEdit: () => startEditItem(item),
+    onDelete: () => deleteItemFn(item.id),
+    iconSvg: resolveItemSvg(item),
+  });
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 0 }}>
 
       {/* ── MAIN TABS ── */}
-      <div style={{ display: 'flex', gap: 2, borderBottom: '1px solid rgba(201,168,76,0.15)' }}>
-        {([
-          { key: 'items' as MainTab, label: `Oggetti (${allItems.length})`, color: 'var(--accent-gold)' },
-          { key: 'currency' as MainTab, label: 'Monete', color: 'var(--accent-gold)' },
-        ]).map(t => (
-          <button key={t.key} onClick={() => setMainTab(t.key)}
-            style={{
-              padding: '6px 14px', borderRadius: '4px 4px 0 0', cursor: 'pointer', transition: 'all 0.13s', fontSize: '0.8rem',
-              background: mainTab === t.key ? 'rgba(201,168,76,0.1)' : 'transparent',
-              border: mainTab === t.key ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent',
-              borderBottom: mainTab === t.key ? '1px solid rgba(28,28,39,1)' : '1px solid transparent',
-              color: mainTab === t.key ? t.color : 'var(--text-muted)'
-            }}>
-            {t.label}
-          </button>
-        ))}
+      <div className="inv-main-tabs" style={{ borderBottom: '1px solid rgba(201,168,76,0.12)', marginBottom: 10 }}>
+        <button className={`inv-main-tab-btn${mainTab === 'items' ? ' active' : ''}`} onClick={() => setMainTab('items')}>
+          Oggetti ({allItems.length})
+        </button>
+        <button className={`inv-main-tab-btn${mainTab === 'currency' ? ' active' : ''}`} onClick={() => setMainTab('currency')}>
+          Monete
+        </button>
       </div>
 
-      {/* ═══════════════ TAB: ITEMS ═══════════════ */}
+      {/* ═══════════ TAB: ITEMS ═══════════ */}
       {mainTab === 'items' && (
-        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 8 }}>
+
           {/* Header */}
           <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', color: 'var(--accent-gold)' }}>
-              {totalWeight.toFixed(1)} kg · {allItems.length} oggetti
-            </span>
-            <button className="btn-primary" style={{ fontSize: '0.82rem' }}
-              onClick={() => { setIsAddingItem(true); setEditingItemId(null); setItemForm(EMPTY_ITEM()); }} disabled={isAddingItem}>
-              <FaPlus size={11} /> Nuovo Oggetto
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.8rem', color: 'var(--accent-gold)' }}>{totalWeight.toFixed(1)} kg</span>
+              <span style={{ color: 'rgba(255,255,255,0.1)', fontSize: '0.7rem' }}>·</span>
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>{allItems.length} oggetti</span>
+            </div>
+            <button className="btn-primary" style={{ fontSize: '0.78rem', padding: '5px 12px' }}
+              onClick={() => { setIsAddingItem(true); setEditingItemId(null); setItemForm(EMPTY_ITEM()); }}>
+              <FaPlus size={10} /> Nuovo
             </button>
           </div>
 
-          {/* Item sub-tabs */}
-          <div style={{ flexShrink: 0, display: 'flex', gap: 2, flexWrap: 'wrap', borderBottom: '1px solid rgba(201,168,76,0.1)' }}>
+          {/* Search */}
+          <div className="inv-search-wrap">
+            <FaSearch className="inv-search-icon" size={12} />
+            <input
+              className="inv-search-input"
+              placeholder="Cerca oggetti…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {search && (
+              <button className="inv-search-clear" onClick={() => setSearch('')} title="Cancella">
+                <FaTimes size={10} />
+              </button>
+            )}
+          </div>
+
+          {/* Category pills */}
+          <div className="inv-cat-pills">
             {ITEM_TABS.filter(t => t.key === 'all' || (itemCounts[t.key] ?? 0) > 0).map(t => (
-              <button key={t.key} onClick={() => setItemTab(t.key)}
-                style={{
-                  padding: '4px 10px', borderRadius: '4px 4px 0 0', cursor: 'pointer', transition: 'all 0.13s',
-                  background: itemTab === t.key ? 'rgba(201,168,76,0.08)' : 'transparent',
-                  border: itemTab === t.key ? '1px solid rgba(201,168,76,0.25)' : '1px solid transparent',
-                  borderBottom: itemTab === t.key ? '1px solid rgba(28,28,39,1)' : '1px solid transparent',
-                  color: itemTab === t.key ? t.color : 'var(--text-muted)', fontSize: '0.73rem',
-                  display: 'flex', alignItems: 'center', gap: 4
-                }}>
-                {t.label}
-                <span style={{ fontSize: '0.6rem', opacity: 0.65, background: 'rgba(255,255,255,0.07)', borderRadius: 8, padding: '0 4px', minWidth: 14, textAlign: 'center' }}>
-                  {t.key === 'all' ? allItems.length : (itemCounts[t.key] ?? 0)}
-                </span>
+              <button key={t.key}
+                className={`inv-cat-pill${itemTab === t.key ? ' active' : ''}`}
+                style={itemTab === t.key ? { '--pill-border': `${t.color}66`, '--pill-color': t.color, '--pill-bg': `${t.color}14` } as React.CSSProperties : {}}
+                onClick={() => setItemTab(t.key)}>
+                {t.icon} {t.label}
+                <span className="inv-cat-count">{t.key === 'all' ? allItems.length : (itemCounts[t.key] ?? 0)}</span>
               </button>
             ))}
           </div>
 
-          {isAddingItem && <div style={{ flexShrink: 0 }}><EditItemForm itemForm={itemForm} setItemForm={setItemForm} editingItemId={editingItemId} onSave={saveItem} onCancel={cancelEditItem} autoFocus /></div>}
+          {/* Content: grid + optional detail panel */}
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
 
-          {(() => {
-            type FlatRow =
-              | { kind: 'section'; label: string; color?: string }
-              | { kind: 'item'; item: Item }
-              | { kind: 'empty'; message: string };
-            const rows: FlatRow[] = [];
-            if (equipped.length > 0) {
-              rows.push({ kind: 'section', label: 'EQUIPAGGIATO', color: 'var(--accent-gold)' });
-              equipped.forEach(i => rows.push({ kind: 'item', item: i }));
-            }
-            if (backpack.length > 0) {
-              if (equipped.length > 0) rows.push({ kind: 'section', label: 'ZAINO' });
-              backpack.forEach(i => rows.push({ kind: 'item', item: i }));
-            }
-            if (filtered.length === 0 && !isAddingItem) {
-              rows.push({ kind: 'empty', message: itemTab === 'all' ? 'Inventario vuoto.' : 'Nessun oggetto in questa categoria.' });
-            }
-            const commonProps = {
-              expandedId, editingItemId, itemForm, setItemForm,
-              onToggleExpand: (id: string) => setExpandedId(expandedId === id ? null : id),
-              onEquip: toggleEquipItem,
-              onStartEdit: startEditItem,
-              onDelete: deleteItemFn,
-              onSave: saveItem,
-              onCancel: cancelEditItem,
-            };
-            return (
-              <div className="glass-panel" style={{ flex: 1, overflow: 'hidden', padding: 0 }}>
-                <Virtuoso
-                  style={{ height: '100%' }}
-                  data={rows}
-                  itemContent={(_index, row) => {
-                    if (row.kind === 'section') return <SectionLabel label={row.label} color={row.color} />;
-                    if (row.kind === 'empty') return (
-                      <div style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                        {row.message}
-                      </div>
-                    );
-                    return <ItemRow item={row.item} {...commonProps} />;
-                  }}
+            {/* Scrollable items area */}
+            <div className="inv-scroll" style={{ flex: 1, minWidth: 0 }}>
+
+              {equipped.length > 0 && (
+                <div style={{ marginBottom: 18 }}>
+                  <div className="inv-section-hdr">
+                    <span className="inv-section-hdr-text">EQUIPAGGIATO</span>
+                    <div className="inv-section-hdr-line" />
+                    <span className="inv-section-hdr-count">{equipped.length}</span>
+                  </div>
+                  <div className="inv-item-grid">
+                    {equipped.map(item => <ItemCard key={item.id} {...commonCardProps(item)} />)}
+                  </div>
+                </div>
+              )}
+
+              {backpack.length > 0 && (
+                <div>
+                  {equipped.length > 0 && (
+                    <div className="inv-section-hdr">
+                      <span className="inv-section-hdr-text">ZAINO</span>
+                      <div className="inv-section-hdr-line" />
+                      <span className="inv-section-hdr-count">{backpack.length}</span>
+                    </div>
+                  )}
+                  <div className="inv-item-grid">
+                    {backpack.map(item => <ItemCard key={item.id} {...commonCardProps(item)} />)}
+                  </div>
+                </div>
+              )}
+
+              {filtered.length === 0 && (
+                <div style={{ padding: '3rem 1rem', textAlign: 'center' }}>
+                  <div style={{ fontSize: '2.5rem', marginBottom: 10, opacity: 0.25 }}>🎒</div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                    {searchQ ? `Nessun risultato per "${search}".` : itemTab === 'all' ? 'Inventario vuoto.' : 'Nessun oggetto in questa categoria.'}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Detail panel */}
+            {selectedItem && (
+              <div style={{ width: 'min(230px, 42%)', flexShrink: 0 }}>
+                <ItemDetailPanel
+                  item={selectedItem}
+                  onClose={() => setSelectedId(null)}
+                  onEquip={() => toggleEquipItem(selectedItem.id)}
+                  onEdit={() => startEditItem(selectedItem)}
+                  onDelete={() => deleteItemFn(selectedItem.id)}
+                  iconSvg={resolveItemSvg(selectedItem)}
                 />
               </div>
-            );
-          })()}
+            )}
+          </div>
         </div>
       )}
 
-      {/* ═══════════════ TAB: CURRENCY ═══════════════ */}
+      {/* ═══════════ TAB: CURRENCY ═══════════ */}
       {mainTab === 'currency' && (
-        <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '2rem' }}>
-          {/* Balance */}
-          <div className="glass-panel" style={{ padding: '1rem' }}>
-            <div style={{ fontSize: '0.67rem', color: 'var(--text-muted)', fontFamily: 'var(--font-heading)', letterSpacing: '0.1em', marginBottom: 10 }}>SALDO ATTUALE</div>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 16 }}>
+
+          {/* Coin balance */}
+          <div className="glass-panel" style={{ padding: 16 }}>
+            <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: 'var(--font-heading)', letterSpacing: '0.13em', marginBottom: 14 }}>TESORO</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {COIN_LABELS.map(({ key, label, abbr, color }) => (
-                <div key={key} style={{ textAlign: 'center', minWidth: 70 }}>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: 4 }}>{label}</div>
-                  <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.6rem', color }}>{currency[key] ?? 0}</div>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', opacity: 0.6 }}>{abbr}</div>
+                <div key={key} className="inv-coin-tile" style={{ borderColor: `${color}22` }}>
+                  <div className="inv-coin-orb" style={{ color, background: `${color}18`, borderColor: `${color}40` }}>{abbr}</div>
+                  <div className="inv-coin-amount" style={{ color }}>{currency[key] ?? 0}</div>
+                  <div className="inv-coin-label">{label}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* New transaction form */}
-          <div className="glass-panel" style={{ padding: '1rem' }}>
-            <div style={{ fontSize: '0.67rem', color: 'var(--text-muted)', fontFamily: 'var(--font-heading)', letterSpacing: '0.1em', marginBottom: 10 }}>NUOVA TRANSAZIONE</div>
-            {/* In / Out toggle */}
+          {/* New transaction */}
+          <div className="glass-panel" style={{ padding: 16 }}>
+            <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: 'var(--font-heading)', letterSpacing: '0.13em', marginBottom: 12 }}>NUOVA TRANSAZIONE</div>
             <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
               {(['in', 'out'] as const).map(dir => (
-                <button key={dir} onClick={() => setTxForm(f => ({ ...f, dir }))}
-                  style={{
-                    padding: '4px 16px', borderRadius: 4, cursor: 'pointer', fontSize: '0.8rem',
-                    background: txForm.dir === dir ? (dir === 'in' ? 'rgba(39,174,96,0.15)' : 'rgba(192,57,43,0.15)') : 'transparent',
-                    border: txForm.dir === dir ? `1px solid ${dir === 'in' ? 'rgba(39,174,96,0.5)' : 'rgba(192,57,43,0.5)'}` : '1px solid rgba(255,255,255,0.1)',
-                    color: txForm.dir === dir ? (dir === 'in' ? 'var(--accent-success)' : 'var(--accent-crimson)') : 'var(--text-muted)',
-                    display: 'flex', alignItems: 'center', gap: 5
-                  }}>
+                <button key={dir} onClick={() => setTxForm(f => ({ ...f, dir }))} style={{
+                  padding: '5px 16px', borderRadius: 4, cursor: 'pointer', fontSize: '0.78rem',
+                  background: txForm.dir === dir ? (dir === 'in' ? 'rgba(39,174,96,0.15)' : 'rgba(192,57,43,0.15)') : 'transparent',
+                  border: txForm.dir === dir ? `1px solid ${dir === 'in' ? 'rgba(39,174,96,0.5)' : 'rgba(192,57,43,0.5)'}` : '1px solid rgba(255,255,255,0.1)',
+                  color: txForm.dir === dir ? (dir === 'in' ? 'var(--accent-success)' : 'var(--accent-crimson)') : 'var(--text-muted)',
+                  display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'var(--font-heading)',
+                }}>
                   {dir === 'in' ? <FaArrowDown size={10} /> : <FaArrowUp size={10} />}
                   {dir === 'in' ? 'Entrata' : 'Uscita'}
                 </button>
               ))}
             </div>
-            {/* Amounts */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
               {COIN_LABELS.map(({ key, label, color }) => (
-                <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: '0.72rem', color }}>
+                <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: '0.7rem', color }}>
                   {label}
                   <input className="input" type="number" min={0} value={txForm[key] || ''}
                     onChange={e => setTxForm(f => ({ ...f, [key]: parseInt(e.target.value) || 0 }))}
-                    placeholder="0" style={{ width: 72, textAlign: 'center', fontSize: '0.88rem', fontFamily: 'var(--font-heading)', color }} />
+                    placeholder="0" style={{ width: 68, textAlign: 'center', fontSize: '0.88rem', fontFamily: 'var(--font-heading)', color }} />
                 </label>
               ))}
             </div>
-            {/* Description */}
-            <input className="input" placeholder="Descrizione transazione..."
-              value={txForm.description}
+            <input className="input" placeholder="Descrizione transazione..." value={txForm.description}
               onChange={e => setTxForm(f => ({ ...f, description: e.target.value }))}
               onKeyDown={e => { if (e.key === 'Enter') submitTx(); }}
               style={{ width: '100%', marginBottom: 8, fontSize: '0.85rem' }} />
@@ -680,29 +795,29 @@ export const Inventory: React.FC = () => {
           {/* Transaction log */}
           {txLog.length > 0 && (
             <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
-              <SectionLabel label="STORICO TRANSAZIONI" color="var(--accent-gold)" />
+              <div style={{ padding: '8px 14px 7px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: 'var(--font-heading)', letterSpacing: '0.12em' }}>STORICO TRANSAZIONI</span>
+              </div>
               {txLog.map(tx => {
                 const isPositive = (tx.gold + tx.platinum + tx.silver + tx.copper) >= 0;
                 const parts = COIN_LABELS.map(({ key, abbr, color }) => tx[key] !== 0 ? { label: abbr, value: tx[key], color } : null).filter(Boolean) as { label: string; value: number; color: string }[];
                 return (
-                  <div key={tx.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.035)' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                  <div key={tx.id} className="inv-tx-row">
                     <div style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, flexShrink: 0, background: isPositive ? 'var(--accent-success)' : 'var(--accent-crimson)' }} />
-                    {isPositive ? <FaArrowDown size={10} color="var(--accent-success)" /> : <FaArrowUp size={10} color="var(--accent-crimson)" />}
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '0.83rem', color: 'var(--text-primary)' }}>{tx.description || '—'}</div>
-                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{new Date(tx.date).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                    {isPositive ? <FaArrowDown size={9} color="var(--accent-success)" /> : <FaArrowUp size={9} color="var(--accent-crimson)" />}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.description || '—'}</div>
+                      <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>{new Date(tx.date).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
                     </div>
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end', flexShrink: 0 }}>
                       {parts.map(p => (
-                        <span key={p.label} style={{ fontFamily: 'var(--font-heading)', fontSize: '0.85rem', color: p.color }}>
+                        <span key={p.label} style={{ fontFamily: 'var(--font-heading)', fontSize: '0.82rem', color: p.color }}>
                           {p.value > 0 ? '+' : ''}{p.value} {p.label}
                         </span>
                       ))}
                     </div>
                     <button onClick={() => setCharacter({ ...character, currencyLog: txLog.filter(t => t.id !== tx.id) })}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-crimson)', padding: '3px 5px', opacity: 0.45, flexShrink: 0 }}>
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-crimson)', padding: '3px 5px', opacity: 0.4, flexShrink: 0 }}>
                       <FaTrash size={10} />
                     </button>
                   </div>
@@ -711,11 +826,46 @@ export const Inventory: React.FC = () => {
             </div>
           )}
           {txLog.length === 0 && (
-            <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem', padding: '1rem 0' }}>
-              Nessuna transazione registrata.
-            </div>
+            <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '0.5rem 0' }}>Nessuna transazione registrata.</div>
           )}
         </div>
+      )}
+
+      {/* ─── Edit / Add Modal ─── */}
+      {(isAddingItem || editingItemId !== null) && (
+        <div className="inv-modal-backdrop" onClick={e => { if (e.target === e.currentTarget) cancelEditItem(); }}>
+          <div className="inv-modal-box">
+            <div className="inv-modal-header">
+              <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.88rem', color: 'var(--accent-gold)', letterSpacing: '0.08em' }}>
+                {editingItemId ? '⚙ MODIFICA OGGETTO' : '＋ NUOVO OGGETTO'}
+              </div>
+              <button onClick={cancelEditItem} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}>
+                <FaTimes size={13} />
+              </button>
+            </div>
+            <EditItemForm itemForm={itemForm} setItemForm={setItemForm} editingItemId={editingItemId} onSave={saveItem} onCancel={cancelEditItem} onPickIcon={openIconPicker} previewSvg={resolveItemSvg({ type: itemForm.type, iconId: itemForm.iconId, weaponDetails: itemForm.weaponDetails })} autoFocus />
+          </div>
+        </div>
+      )}
+
+      {iconPickerOpen && (
+        <CatalogPicker<CatalogIcon>
+          title="Scegli un'icona"
+          items={iconCatalogItems}
+          loading={iconCatalogLoading}
+          onClose={() => setIconPickerOpen(false)}
+          onPick={pickIcon}
+          groupBy={ic => ic.category?.trim() || undefined}
+          uncategorisedLabel="Senza cartella"
+          map={ic => ({
+            id: ic.id,
+            name: ic.name,
+            subtitle: ic.category,
+            tags: ic.tags,
+            previewSvg: ic.svg,
+            raw: ic,
+          })}
+        />
       )}
     </div>
   );

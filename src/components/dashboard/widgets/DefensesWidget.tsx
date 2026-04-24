@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { GiShield, GiBiceps, GiRunningNinja, GiBrain } from 'react-icons/gi';
 import { FaEdit } from 'react-icons/fa';
 import { useCharacterStore } from '../../../store/characterStore';
 import type { WidgetRenderProps } from '../widgetTypes';
+import { DndIcon } from '../../DndIcon';
 
 const SAVES = [
-    { key: 'fortitude', name: 'Tempra', short: 'TEM', icon: <GiBiceps /> },
-    { key: 'reflex', name: 'Riflessi', short: 'RIF', icon: <GiRunningNinja /> },
-    { key: 'will', name: 'Volontà', short: 'VOL', icon: <GiBrain /> },
+    { key: 'fortitude', name: 'Tempra', short: 'TEM', iconCat: 'attribute', iconName: 'saving-throw' },
+    { key: 'reflex', name: 'Riflessi', short: 'RIF', iconCat: 'movement', iconName: 'walking' },
+    { key: 'will', name: 'Volontà', short: 'VOL', iconCat: 'game', iconName: 'concentration' },
 ] as const;
 
 export const DefensesWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
@@ -22,7 +22,7 @@ export const DefensesWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
     return (
         <div className="w-def-root">
             <div className="w-def-shield" onClick={() => goTo?.('combat')}>
-                <GiShield className="w-def-shield-icon" />
+                <DndIcon category="attribute" name="ac" size={48} className="w-def-shield-icon" />
                 <div className="w-def-shield-info">
                     <div className="w-def-shield-label">Classe Armatura</div>
                     <div className="w-def-shield-value">{getEffectiveStat('ac')}</div>
@@ -30,7 +30,7 @@ export const DefensesWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
             </div>
 
             <div className="w-def-saves">
-                {SAVES.map(({ key, name, short, icon }) => {
+                {SAVES.map(({ key, name, short, iconCat, iconName }) => {
                     const total = getEffectiveStat(key);
                     const breakdown = character.savingThrows?.[key];
                     return (
@@ -41,7 +41,9 @@ export const DefensesWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                                     onClick={e => { e.stopPropagation(); setEditSave(editSave === key ? null : key); }}
                                     aria-label="Modifica"
                                 ><FaEdit size={8} /></button>
-                                <div className="w-def-save-icon">{icon}</div>
+                                <div className="w-def-save-icon">
+                                    <DndIcon category={iconCat} name={iconName} size={18} />
+                                </div>
                                 <div className="w-def-save-val">{total >= 0 ? '+' : ''}{total}</div>
                                 <div className="w-def-save-name">{wide ? name : short}</div>
                             </div>

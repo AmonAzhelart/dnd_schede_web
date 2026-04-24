@@ -45,6 +45,8 @@ export const ItemModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               <option value="shield">Scudo</option>
               <option value="gear">Equipaggiamento</option>
               <option value="consumable">Consumabile</option>
+              <option value="component">Componente</option>
+              <option value="misc">Miscellanea</option>
             </select>
             <input className="input" type="number" placeholder="Peso (lb)" value={weight} onChange={e => setWeight(+e.target.value)} style={{ width: 100 }} />
           </div>
@@ -70,7 +72,7 @@ export const ItemModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                   <option value="circumstance">Circostanza</option>
                   <option value="untyped">Senza tipo</option>
                 </select>
-                <button className="btn-ghost" style={{ color: 'var(--accent-crimson)' }} onClick={() => removeMod(i)}><FaTrash size={12}/></button>
+                <button className="btn-ghost" style={{ color: 'var(--accent-crimson)' }} onClick={() => removeMod(i)}><FaTrash size={12} /></button>
               </div>
             ))}
           </div>

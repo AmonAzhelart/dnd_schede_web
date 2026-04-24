@@ -1,5 +1,36 @@
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
 
+/* ────────────────────────────────────────────────────────────────────
+   Cross-device palette lock — keep OUR colors on every browser.
+   Prevents Chrome "Auto Dark", Samsung Internet "Night mode", Edge
+   "Force Dark", iOS Safari "Smart Invert" and printed/forced-color
+   modes from rewriting our hand-tuned dark fantasy palette.
+   ──────────────────────────────────────────────────────────────────── */
+:root {
+  color-scheme: dark;
+  forced-color-adjust: none;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  forced-color-adjust: none;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* Windows High-Contrast Mode (Edge): keep our gradients/borders intact */
+@media (forced-colors: active) {
+  :root,
+  body,
+  #root,
+  * {
+    forced-color-adjust: none !important;
+  }
+}
+
 html,
 body {
   height: 100%;
@@ -2194,6 +2225,29 @@ textarea.input {
 .ws-source-browser {
   border-top: 1px solid rgba(201, 168, 76, 0.15);
   background: rgba(0, 0, 0, 0.25);
+}
+
+/* === SVG ICON TINT (global utility) ============================
+   Tints inline SVGs to match the dark theme so black/dark
+   icons remain visible. Apply on a wrapper element. */
+.inv-svg-tinted {
+  color: #e8e0d0;
+}
+
+.inv-svg-tinted svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  color: inherit;
+  fill: currentColor;
+}
+
+.inv-svg-tinted svg [fill]:not([fill="none"]) {
+  fill: currentColor;
+}
+
+.inv-svg-tinted svg [stroke]:not([stroke="none"]) {
+  stroke: currentColor;
 }
 
 .ws-source-pick {

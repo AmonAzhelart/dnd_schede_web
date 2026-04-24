@@ -5,6 +5,23 @@ import { v4 as uuidv4 } from 'uuid';
 import { FaPlus, FaTrash, FaEdit, FaCheck, FaMoon, FaBookOpen, FaCalendarDay, FaMinus, FaSearch, FaClock, FaArrowsAltH, FaHourglass, FaShieldAlt, FaFeather, FaBolt, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { GiSpellBook, GiCrystalBall, GiBookmarklet } from 'react-icons/gi';
 import type { Spell } from '../types/dnd';
+import { spellCatalog, type CatalogSpell } from '../services/admin';
+import { useIconCatalog } from '../services/iconCache';
+import { CatalogPicker } from './CatalogPicker';
+import { DndIcon, getDndIconSvg } from './DndIcon';
+
+/** Italian school name → english slug for `src/assets/icons/spell/<slug>.svg`. */
+const SCHOOL_ICON_SLUG: Record<string, string> = {
+  'Abiurazione': 'abjuration',
+  'Ammaliamento': 'enchantment',
+  'Divinazione': 'divination',
+  'Evocazione': 'conjuration',
+  'Illusione': 'illusion',
+  'Invocazione': 'evocation',
+  'Necromanzia': 'necromancy',
+  'Trasmutazione': 'transmutation',
+};
+import './Spellbook.css';
 
 type SpellTab = 'grimoire' | 'daily';
 
@@ -70,20 +87,20 @@ interface SpellRowProps {
 
 // ── Sub-components at module level (prevents remount on parent re-render) ─────
 const SpellEditForm: React.FC<SpellEditFormProps> = ({ form, setForm, saveSpell, cancelEdit, editingId, autoFocus }) => (
-  <div style={{ padding: '12px', background: 'rgba(155,89,182,0.06)', border: '1px solid rgba(155,89,182,0.25)', borderRadius: 6, margin: '4px 0' }}>
-    <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+  <div className="sb-edit-form">
+    <div className="sb-form-row">
       <input className="input" autoFocus={autoFocus} placeholder="Nome incantesimo *" value={form.name}
         onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
         onKeyDown={e => { if (e.key === 'Enter') saveSpell(); if (e.key === 'Escape') cancelEdit(); }}
         style={{ flex: '1 1 200px', fontSize: '0.85rem' }} />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <label style={{ fontSize: '0.67rem', color: 'var(--text-muted)', letterSpacing: '0.06em' }}>LIVELLO</label>
+      <div className="sb-form-field">
+        <label className="sb-form-label">Livello</label>
         <input className="input" type="number" min={0} max={9} value={form.level}
           onChange={e => setForm(f => ({ ...f, level: Math.min(9, Math.max(0, +e.target.value)) }))}
           style={{ width: 64, fontSize: '0.85rem', textAlign: 'center' }} />
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <label style={{ fontSize: '0.67rem', color: 'var(--text-muted)', letterSpacing: '0.06em' }}>SCUOLA</label>
+      <div className="sb-form-field">
+        <label className="sb-form-label">Scuola</label>
         <select className="input" value={form.school} onChange={e => setForm(f => ({ ...f, school: e.target.value }))}
           style={{ flex: '0 0 145px', fontSize: '0.85rem' }}>
           {SCHOOLS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -92,17 +109,17 @@ const SpellEditForm: React.FC<SpellEditFormProps> = ({ form, setForm, saveSpell,
     </div>
     <textarea className="input" placeholder="Descrizione ed effetti..." value={form.description}
       onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-      style={{ width: '100%', minHeight: 56, fontSize: '0.82rem', resize: 'vertical', marginBottom: 8 }} />
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+      style={{ width: '100%', minHeight: 56, fontSize: '0.82rem', resize: 'vertical' }} />
+    <div className="sb-form-row">
       {([['castingTime', 'Tempo di lancio'], ['range', 'Gittata'], ['duration', 'Durata'], ['savingThrow', 'Tiro Salvezza'], ['components', 'Componenti']] as [keyof Omit<Spell, 'id'>, string][]).map(([field, label]) => (
-        <div key={field} style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: '1 1 120px' }}>
-          <label style={{ fontSize: '0.67rem', color: 'var(--text-muted)', letterSpacing: '0.06em' }}>{label.toUpperCase()}</label>
+        <div key={field} className="sb-form-field" style={{ flex: '1 1 120px' }}>
+          <label className="sb-form-label">{label}</label>
           <input className="input" value={(form[field] as string) ?? ''} onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
             style={{ fontSize: '0.8rem' }} />
         </div>
       ))}
     </div>
-    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+    <div className="sb-form-actions">
       <button onClick={cancelEdit} className="btn-secondary" style={{ fontSize: '0.8rem' }}>Annulla</button>
       <button onClick={saveSpell} className="btn-primary" style={{ fontSize: '0.8rem', justifyContent: 'center', opacity: form.name.trim() ? 1 : 0.5 }}>
         <FaCheck size={10} /> {editingId ? 'Aggiorna' : 'Aggiungi al Grimorio'}
@@ -111,7 +128,7 @@ const SpellEditForm: React.FC<SpellEditFormProps> = ({ form, setForm, saveSpell,
   </div>
 );
 
-// ── Bookmark tab (rubrica style) ─────────────────────────────────────────────
+// ── Bookmark tab ─────────────────────────────────────────────────────────────
 const BookmarkTab: React.FC<{
   active: boolean;
   onClick: () => void;
@@ -119,31 +136,35 @@ const BookmarkTab: React.FC<{
   count: number;
   icon?: React.ReactNode;
 }> = ({ active, onClick, label, count, icon }) => (
-  <button onClick={onClick}
-    style={{
-      padding: '6px 12px', cursor: 'pointer', transition: 'all 0.13s',
-      borderRadius: '6px 6px 0 0',
-      background: active
-        ? 'linear-gradient(180deg, rgba(155,89,182,0.25), rgba(155,89,182,0.08))'
-        : 'rgba(255,255,255,0.02)',
-      border: active ? '1px solid rgba(155,89,182,0.4)' : '1px solid rgba(255,255,255,0.05)',
-      borderBottom: active ? '1px solid rgba(28,28,39,1)' : '1px solid transparent',
-      color: active ? 'var(--accent-arcane)' : 'var(--text-muted)',
-      fontFamily: 'var(--font-heading)', fontSize: '0.78rem', letterSpacing: '0.04em',
-      display: 'flex', alignItems: 'center', gap: 6,
-      marginBottom: -1, position: 'relative', zIndex: active ? 2 : 1,
-      boxShadow: active ? '0 -2px 6px rgba(155,89,182,0.2)' : 'none',
-    }}>
+  <button onClick={onClick} className={`sb-bookmark${active ? ' active' : ''}`}>
     {icon}
     {label}
-    <span style={{
-      fontSize: '0.6rem', opacity: active ? 0.85 : 0.6,
-      background: active ? 'rgba(155,89,182,0.25)' : 'rgba(255,255,255,0.06)',
-      borderRadius: 8, padding: '0 5px', minWidth: 16, textAlign: 'center',
-      fontFamily: 'var(--font-base, inherit)',
-    }}>{count}</span>
+    <span className="sb-bookmark-count">{count}</span>
   </button>
 );
+
+// ── Slot pips (visual indicator of used vs available slots) ──────────────────
+const SlotPips: React.FC<{ total: number; used: number; color: string }> = ({ total, used, color }) => {
+  const safeTotal = Math.max(0, Math.min(total, 12));
+  return (
+    <div className="sb-slot-pips" aria-label={`${used}/${total} slot usati`}>
+      {Array.from({ length: safeTotal }, (_, i) => {
+        const isUsed = i < used;
+        return (
+          <span
+            key={i}
+            className="sb-pip"
+            style={{
+              background: isUsed ? 'transparent' : color,
+              border: `1px solid ${color}`,
+              opacity: isUsed ? 0.35 : 1,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+};
 
 // ── Level picker popover (choose any level 0-9) ──────────────────────────────
 const LevelPickerPopover: React.FC<{
@@ -213,12 +234,12 @@ const LevelPickerPopover: React.FC<{
   );
 };
 
-// ── Spell card (always-expanded, premium) ─────────────────────────────────────
+// ── Spell card ─────────────────────────────────────────────────────────────────
 const SpellCard: React.FC<SpellRowProps> = ({ spell, editingId, prepCountFor, slots, prepareWizardSpell, unprepareSpellOne, startEdit, deleteSpell, formProps }) => {
   const prepCount = prepCountFor(spell.id);
   const isEdit = editingId === spell.id;
-  const color = SCHOOL_COLOR[spell.school] ?? 'var(--text-muted)';
-  const [descExpanded, setDescExpanded] = useState(false);
+  const color = SCHOOL_COLOR[spell.school] ?? 'var(--text-muted)'; const { resolveSchoolSvg, sanitizeSvg } = useIconCatalog();
+  const schoolSvg = resolveSchoolSvg(spell.school); const [descExpanded, setDescExpanded] = useState(false);
   const MAX_DESC = 120;
   const needsTruncation = (spell.description?.length ?? 0) > MAX_DESC;
   const slot = slots[String(spell.level)];
@@ -236,205 +257,112 @@ const SpellCard: React.FC<SpellRowProps> = ({ spell, editingId, prepCountFor, sl
   const visibleStats = stats.filter(([, v]) => v && v.trim());
 
   return (
-    <div style={{
-      position: 'relative',
-      background: `
-        linear-gradient(160deg, ${color}14 0%, rgba(255,255,255,0.025) 45%, rgba(0,0,0,0.18) 100%),
-        rgba(20,20,30,0.55)
-      `,
-      border: `1px solid ${color}40`,
-      borderRadius: 10,
-      padding: 0,
-      display: 'flex', flexDirection: 'column',
-      overflow: 'hidden',
-      transition: 'transform 0.18s, box-shadow 0.18s, border-color 0.18s',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)',
-    }}
+    <div className="sb-card" style={{
+      '--c': color,
+      borderColor: `${color}33`,
+      background: `linear-gradient(160deg, ${color}10 0%, rgba(255,255,255,0.02) 40%, rgba(0,0,0,0.18) 100%), rgba(20,20,30,0.55)`,
+      boxShadow: `0 2px 8px rgba(0,0,0,0.35)`,
+    } as React.CSSProperties}
       onMouseEnter={e => {
         const el = e.currentTarget as HTMLDivElement;
-        el.style.transform = 'translateY(-2px)';
-        el.style.boxShadow = `0 6px 18px ${color}40, inset 0 1px 0 rgba(255,255,255,0.06)`;
-        el.style.borderColor = `${color}80`;
+        el.style.boxShadow = `0 6px 20px ${color}35, 0 2px 8px rgba(0,0,0,0.4)`;
+        el.style.borderColor = `${color}60`;
       }}
       onMouseLeave={e => {
         const el = e.currentTarget as HTMLDivElement;
-        el.style.transform = 'translateY(0)';
-        el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)';
-        el.style.borderColor = `${color}40`;
+        el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.35)';
+        el.style.borderColor = `${color}33`;
       }}>
 
       {/* Top accent bar */}
-      <div style={{ height: 3, background: `linear-gradient(90deg, ${color}, ${color}55, transparent)` }} />
+      <div className="sb-card-accent" style={{ background: `linear-gradient(90deg, ${color}, ${color}44, transparent)` }} />
 
-      {/* Floating edit/delete (top-right) */}
-      <div style={{
-        position: 'absolute', top: 8, right: 8, display: 'flex', gap: 4, zIndex: 2,
-      }}>
-        <button onClick={() => startEdit(spell)} title="Modifica"
-          style={{ width: 24, height: 24, borderRadius: 4, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}
-          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--accent-arcane)'; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'; }}>
-          <FaEdit size={10} />
-        </button>
-        <button onClick={() => deleteSpell(spell.id)} title="Elimina"
-          style={{ width: 24, height: 24, borderRadius: 4, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}
-          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--accent-crimson)'; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'; }}>
-          <FaTrash size={10} />
-        </button>
+      {/* Edit / delete buttons */}
+      <div className="sb-card-btns">
+        <button className="sb-icon-btn edit" onClick={() => startEdit(spell)} title="Modifica"><FaEdit size={10} /></button>
+        <button className="sb-icon-btn del" onClick={() => deleteSpell(spell.id)} title="Elimina"><FaTrash size={10} /></button>
       </div>
 
-      {/* Header band */}
-      <div style={{
-        padding: '10px 70px 8px 12px',
-        background: `linear-gradient(180deg, ${color}12, transparent)`,
-        borderBottom: `1px solid ${color}1f`,
-        display: 'flex', alignItems: 'center', gap: 8,
-      }}>
-        {/* Level chip */}
-        <div style={{
-          width: 30, height: 30, borderRadius: 6,
-          background: `linear-gradient(135deg, ${color}, ${color}88)`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#fff', fontFamily: 'var(--font-heading)',
-          fontSize: spell.level === 0 ? '0.62rem' : '1rem',
-          boxShadow: `0 2px 6px ${color}55`, flexShrink: 0,
-          letterSpacing: spell.level === 0 ? '0.05em' : 0,
-        }}>
+      {/* Header */}
+      <div className="sb-card-header" style={{ background: `linear-gradient(180deg, ${color}0e, transparent)`, borderBottomColor: `${color}18` }}>
+        <div className="sb-card-level" style={{ background: `linear-gradient(135deg, ${color}, ${color}77)`, boxShadow: `0 2px 6px ${color}44`, fontSize: spell.level === 0 ? undefined : '1rem' }}
+          {...(spell.level === 0 ? { className: 'sb-card-level trucchetto' } : {})}>
           {spell.level === 0 ? 'TR' : spell.level}
         </div>
-        <div style={{ flex: 1, minWidth: 100, display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', color: 'var(--text-primary)', lineHeight: 1.15, letterSpacing: '0.01em' }}>
-            {spell.name}
-          </span>
-          <span style={{ fontSize: '0.66rem', color, opacity: 0.95, letterSpacing: '0.04em' }}>
-            {spell.school}
+        <div className="sb-card-info">
+          <span className="sb-card-name">{spell.name}</span>
+          <span className="sb-card-school" style={{ color }}>
+            {schoolSvg ? (
+              <span
+                className="sb-card-school-svg inv-svg-tinted"
+                style={{ color }}
+                dangerouslySetInnerHTML={{ __html: sanitizeSvg(schoolSvg) }}
+              />
+            ) : SCHOOL_ICON_SLUG[spell.school] && getDndIconSvg('spell', SCHOOL_ICON_SLUG[spell.school]) ? (
+              <DndIcon
+                category="spell"
+                name={SCHOOL_ICON_SLUG[spell.school]}
+                size={14}
+                style={{ color }}
+              />
+            ) : (
+              SCHOOL_ICON[spell.school] ?? ''
+            )} {spell.school}
           </span>
         </div>
       </div>
 
       {/* Description */}
       {spell.description && (
-        <div style={{ padding: '10px 12px 4px' }}>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.55, margin: 0 }}>
-            {needsTruncation && !descExpanded
-              ? spell.description.slice(0, MAX_DESC) + '…'
-              : spell.description}
+        <div className="sb-card-desc-wrap">
+          <p className="sb-card-desc">
+            {needsTruncation && !descExpanded ? spell.description.slice(0, MAX_DESC) + '…' : spell.description}
           </p>
           {needsTruncation && (
-            <button onClick={() => setDescExpanded(e => !e)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color, fontSize: '0.7rem', padding: '3px 0 0', opacity: 0.8, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button className="sb-desc-toggle" style={{ color }} onClick={() => setDescExpanded(e => !e)}>
               {descExpanded ? <><FaEyeSlash size={9} /> Meno</> : <><FaEye size={9} /> Mostra di più</>}
             </button>
           )}
         </div>
       )}
 
-      {/* Stats grid */}
+      {/* Stats */}
       {visibleStats.length > 0 && (
-        <div style={{
-          margin: '8px 12px',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(95px, 1fr))',
-          gap: 5,
-        }}>
+        <div className="sb-card-stats">
           {visibleStats.map(([icon, val, label]) => (
-            <div key={label} style={{
-              background: 'rgba(0,0,0,0.28)',
-              border: '1px solid rgba(255,255,255,0.05)',
-              borderRadius: 5, padding: '5px 7px',
-              display: 'flex', flexDirection: 'column', gap: 1,
-            }}>
-              <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.85, display: 'flex', alignItems: 'center', gap: 3 }}>
-                <span style={{ opacity: 0.8, display: 'flex', alignItems: 'center' }}>{icon}</span>{label}
-              </span>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500, lineHeight: 1.15 }}>
-                {val}
-              </span>
+            <div key={label} className="sb-stat">
+              <span className="sb-stat-icon">{icon}</span>
+              <span className="sb-stat-label">{label}</span>
+              <span className="sb-stat-value">{val}</span>
             </div>
           ))}
         </div>
       )}
 
-      {/* Footer: prep controls only (clean) */}
-      <div style={{
-        marginTop: 'auto',
-        padding: '8px 10px',
-        background: `linear-gradient(180deg, transparent, ${color}10)`,
-        borderTop: `1px solid ${color}1f`,
-        display: 'flex', alignItems: 'stretch', gap: 6,
-      }}>
-        {/* Prep counter group: [-] N× */}
-        <div style={{
-          display: 'flex', alignItems: 'center',
-          background: prepCount > 0 ? `${color}1a` : 'rgba(255,255,255,0.04)',
-          border: `1px solid ${prepCount > 0 ? color + '44' : 'rgba(255,255,255,0.08)'}`,
-          borderRadius: 5, overflow: 'hidden', flexShrink: 0,
-        }}>
-          <button onClick={() => unprepareSpellOne(spell.id)}
-            disabled={prepCount === 0}
-            title="Rimuovi una preparazione"
-            style={{
-              width: 26, height: 30,
-              background: 'transparent', border: 'none',
-              borderRight: `1px solid ${prepCount > 0 ? color + '33' : 'transparent'}`,
-              cursor: prepCount > 0 ? 'pointer' : 'not-allowed',
-              color: prepCount > 0 ? 'var(--accent-crimson)' : 'rgba(255,255,255,0.15)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
+      {/* Footer: prep controls */}
+      <div className="sb-card-footer" style={{ background: `linear-gradient(180deg, transparent, ${color}0c)`, borderTopColor: `${color}18` }}>
+        <div className={`sb-prep-counter${prepCount > 0 ? ' has-preps' : ''}`}
+          style={prepCount > 0 ? { '--c-border': `${color}44`, '--c-bg': `${color}14`, '--c-color': color } as React.CSSProperties : {}}>
+          <button className="sb-prep-minus" onClick={() => unprepareSpellOne(spell.id)} disabled={prepCount === 0} title="Rimuovi una preparazione">
             <FaMinus size={9} />
           </button>
-          <span style={{
-            minWidth: 30, padding: '0 6px',
-            fontFamily: 'var(--font-heading)', fontSize: '0.85rem',
-            color: prepCount > 0 ? color : 'var(--text-muted)',
-            textAlign: 'center', lineHeight: '30px',
-          }}>{prepCount}×</span>
+          <span className="sb-prep-count">{prepCount}×</span>
         </div>
-
-        {/* Prepara button (large) */}
-        <button onClick={() => { if (canPrepare) prepareWizardSpell(spell.level, spell.id); }}
+        <button
+          className={`sb-prepare-btn${canPrepare ? ' can-prepare' : ''}`}
+          onClick={() => { if (canPrepare) prepareWizardSpell(spell.level, spell.id); }}
           disabled={!canPrepare}
-          style={{
-            flex: '1 1 auto',
-            padding: '6px 12px', borderRadius: 5,
-            background: canPrepare ? `linear-gradient(135deg, ${color}55, ${color}22)` : 'rgba(255,255,255,0.04)',
-            border: `1px solid ${canPrepare ? color + '88' : 'rgba(255,255,255,0.08)'}`,
-            cursor: canPrepare ? 'pointer' : 'not-allowed',
-            color: canPrepare ? '#fff' : 'var(--text-muted)',
-            fontFamily: 'var(--font-heading)', fontSize: '0.82rem', letterSpacing: '0.05em',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            transition: 'filter 0.15s, transform 0.1s',
-            textShadow: canPrepare ? `0 1px 2px ${color}` : 'none',
-          }}
-          onMouseEnter={e => { if (canPrepare) (e.currentTarget as HTMLButtonElement).style.filter = 'brightness(1.2)'; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.filter = 'brightness(1)'; }}
-          title={canPrepare ? 'Prepara una copia di questo incantesimo' : 'Nessuno slot disponibile'}>
+          title={canPrepare ? 'Prepara una copia di questo incantesimo' : 'Nessuno slot disponibile'}
+          style={canPrepare ? {
+            '--c-btn-bg': `${color}22`,
+            '--c-btn-border': `${color}66`,
+          } as React.CSSProperties : {}}>
           <FaPlus size={10} /> Prepara
         </button>
       </div>
     </div>
   );
 };
-
-// ── Slot pips visualizer ──────────────────────────────────────────────────────
-const SlotPips: React.FC<{ total: number; used: number; color: string }> = ({ total, used, color }) => (
-  <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
-    {Array.from({ length: Math.min(total, 10) }, (_, i) => {
-      const spent = i < used;
-      return (
-        <div key={i} style={{
-          width: 11, height: 11, borderRadius: '50%',
-          background: spent ? 'rgba(255,255,255,0.06)' : color,
-          border: `1px solid ${spent ? 'rgba(255,255,255,0.12)' : color}`,
-          boxShadow: spent ? 'none' : `0 0 5px ${color}88`,
-          transition: 'all 0.25s',
-          flexShrink: 0,
-        }} />
-      );
-    })}
-  </div>
-);
 
 export const Spellbook: React.FC = () => {
   const {
@@ -446,14 +374,40 @@ export const Spellbook: React.FC = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [pickerLvl, setPickerLvl] = useState<number | null>(null);
   const [form, setForm] = useState<Omit<Spell, 'id'>>(EMPTY_SPELL());
-  // Grimorie rubrica
   const [grimSelected, setGrimSelected] = useState<number | 'all'>('all');
   const [grimSearch, setGrimSearch] = useState('');
   const [grimLvlPickerOpen, setGrimLvlPickerOpen] = useState(false);
-  // Daily tab
   const [dailyLvlPickerOpen, setDailyLvlPickerOpen] = useState(false);
   const grimLvlBtnRef = useRef<HTMLButtonElement>(null);
   const dailyLvlBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Catalog picker
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [catalogItems, setCatalogItems] = useState<CatalogSpell[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const openCatalogPicker = async () => {
+    setCatalogOpen(true);
+    if (catalogItems.length === 0) {
+      setCatalogLoading(true);
+      setCatalogItems(await spellCatalog.list());
+      setCatalogLoading(false);
+    }
+  };
+  const importFromCatalog = (cs: CatalogSpell) => {
+    addSpell({
+      id: uuidv4(),
+      name: cs.name,
+      level: cs.level,
+      school: cs.school,
+      description: cs.description,
+      castingTime: cs.castingTime ?? '',
+      range: cs.range ?? '',
+      duration: cs.duration ?? '',
+      savingThrow: cs.savingThrow ?? '',
+      components: cs.components ?? '',
+    });
+    setCatalogOpen(false);
+  };
 
   if (!character) return null;
 
@@ -539,29 +493,15 @@ export const Spellbook: React.FC = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 12 }}>
       {/* Tab switcher */}
-      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid rgba(155,89,182,0.15)' }}>
+      <div className="sb-tabs">
         {([['grimoire', <><FaBookOpen size={11} /> Grimorio</>, spells.length],
         ['daily', <><FaCalendarDay size={11} /> Incantesimi del Giorno</>, totalPreps]] as [SpellTab, React.ReactNode, number][]).map(([key, label, cnt]) => (
-          <button key={key} onClick={() => setSpellTab(key)}
-            style={{
-              padding: '6px 14px', borderRadius: '4px 4px 0 0', cursor: 'pointer', transition: 'all 0.13s',
-              background: spellTab === key ? 'rgba(155,89,182,0.12)' : 'transparent',
-              border: spellTab === key ? '1px solid rgba(155,89,182,0.35)' : '1px solid transparent',
-              borderBottom: spellTab === key ? '1px solid rgba(28,28,39,1)' : '1px solid transparent',
-              color: spellTab === key ? 'var(--accent-arcane)' : 'var(--text-muted)',
-              fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: 6
-            }}>
+          <button key={key} className={`sb-tab${spellTab === key ? ' active' : ''}`} onClick={() => setSpellTab(key)}>
             {label}
-            <span style={{ fontSize: '0.62rem', opacity: 0.65, background: 'rgba(255,255,255,0.07)', borderRadius: 8, padding: '0 4px', minWidth: 16, textAlign: 'center' }}>{cnt}</span>
+            <span className="sb-tab-badge">{cnt}</span>
           </button>
         ))}
-        <div style={{ flex: 1 }} />
-        <button onClick={restWizardSpells} title="Riposo lungo: ripristina slot e annulla i lanci"
-          style={{
-            padding: '4px 12px', borderRadius: '4px 4px 0 0', fontSize: '0.75rem', cursor: 'pointer',
-            background: 'rgba(52,152,219,0.08)', border: '1px solid rgba(52,152,219,0.2)', color: 'var(--accent-ice)',
-            display: 'flex', alignItems: 'center', gap: 5, marginBottom: 0, transition: 'all 0.15s'
-          }}>
+        <button className="sb-rest-btn" onClick={restWizardSpells} title="Riposo lungo: ripristina slot e annulla i lanci">
           <FaMoon size={10} /> Riposo Lungo
         </button>
       </div>
@@ -571,12 +511,11 @@ export const Spellbook: React.FC = () => {
         <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 10 }}>
 
           {/* Action bar: search + add */}
-          <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <div style={{ position: 'relative', flex: '1 1 220px', minWidth: 180 }}>
-              <FaSearch size={11} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', opacity: 0.6 }} />
-              <input className="input" value={grimSearch} onChange={e => setGrimSearch(e.target.value)}
-                placeholder="Cerca per nome o scuola..."
-                style={{ width: '100%', fontSize: '0.82rem', paddingLeft: 28 }} />
+          <div className="sb-action-bar">
+            <div className="sb-search-wrap">
+              <FaSearch size={11} className="sb-search-icon" />
+              <input className="sb-search-input" value={grimSearch} onChange={e => setGrimSearch(e.target.value)}
+                placeholder="Cerca per nome o scuola..." />
             </div>
             <button className="btn-primary" style={{ fontSize: '0.8rem' }}
               onClick={() => {
@@ -586,60 +525,28 @@ export const Spellbook: React.FC = () => {
               disabled={isAdding}>
               <FaPlus size={10} /> Aggiungi Incantesimo
             </button>
+            <button className="btn-secondary" style={{ fontSize: '0.8rem' }}
+              onClick={openCatalogPicker} disabled={isAdding}>
+              <GiBookmarklet size={11} /> Dal Catalogo
+            </button>
           </div>
 
           {/* Bookmarks strip (rubrica tabs) */}
-          <div style={{ flexShrink: 0, display: 'flex', alignItems: 'flex-end', gap: 3, flexWrap: 'wrap', borderBottom: '1px solid rgba(155,89,182,0.15)', paddingBottom: 0 }}>
-            <BookmarkTab
-              active={grimSelected === 'all'}
-              onClick={() => setGrimSelected('all')}
-              label="Tutti"
-              count={spells.length}
-              icon={<GiBookmarklet size={11} />}
-            />
+          <div className="sb-bookmarks">
+            <BookmarkTab active={grimSelected === 'all'} onClick={() => setGrimSelected('all')} label="Tutti" count={spells.length} icon={<GiBookmarklet size={11} />} />
             {levels.map(lv => (
-              <BookmarkTab
-                key={lv}
-                active={grimSelected === lv}
-                onClick={() => setGrimSelected(lv)}
-                label={lv === 0 ? 'Trucch.' : `Lv ${lv}`}
-                count={spells.filter(s => s.level === lv).length}
-              />
+              <BookmarkTab key={lv} active={grimSelected === lv} onClick={() => setGrimSelected(lv)} label={lv === 0 ? 'Trucch.' : `Lv ${lv}`} count={spells.filter(s => s.level === lv).length} />
             ))}
-            {/* Show bookmark for selected level even if it has no spells yet */}
             {typeof grimSelected === 'number' && !levels.includes(grimSelected) && (
-              <BookmarkTab
-                active={true}
-                onClick={() => setGrimSelected(grimSelected)}
-                label={grimSelected === 0 ? 'Trucch.' : `Lv ${grimSelected}`}
-                count={0}
-              />
+              <BookmarkTab active={true} onClick={() => setGrimSelected(grimSelected)} label={grimSelected === 0 ? 'Trucch.' : `Lv ${grimSelected}`} count={0} />
             )}
-            {/* Add level bookmark */}
-            <button ref={grimLvlBtnRef} onClick={() => setGrimLvlPickerOpen(o => !o)}
-              title="Aggiungi un nuovo segnalibro di livello"
-              style={{
-                padding: '5px 10px', borderRadius: '6px 6px 0 0', cursor: 'pointer',
-                background: 'transparent', border: '1px dashed rgba(155,89,182,0.35)',
-                borderBottom: 'none',
-                color: 'var(--accent-arcane)', fontSize: '0.75rem',
-                display: 'flex', alignItems: 'center', gap: 4,
-              }}>
+            <button ref={grimLvlBtnRef} className="sb-bookmark-add" onClick={() => setGrimLvlPickerOpen(o => !o)} title="Aggiungi un nuovo segnalibro di livello">
               <FaPlus size={9} /> Livello
             </button>
             {grimLvlPickerOpen && (
-              <LevelPickerPopover
-                anchorRef={grimLvlBtnRef}
-                taken={levels}
-                onPick={(lvl) => {
-                  setGrimSelected(lvl);
-                  setIsAdding(true); setEditingId(null);
-                  setForm({ ...EMPTY_SPELL(), level: lvl });
-                }}
-                onClose={() => setGrimLvlPickerOpen(false)}
-                align="left"
-                title="Aggiungi un livello al grimorio"
-              />
+              <LevelPickerPopover anchorRef={grimLvlBtnRef} taken={levels}
+                onPick={(lvl) => { setGrimSelected(lvl); setIsAdding(true); setEditingId(null); setForm({ ...EMPTY_SPELL(), level: lvl }); }}
+                onClose={() => setGrimLvlPickerOpen(false)} align="left" title="Aggiungi un livello al grimorio" />
             )}
           </div>
 
@@ -648,45 +555,39 @@ export const Spellbook: React.FC = () => {
 
           {/* Cards area */}
           {spells.length === 0 && !isAdding ? (
-            <div className="glass-panel" style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>
-              <GiSpellBook size={32} style={{ marginBottom: 12, opacity: 0.4 }} />
-              <p style={{ marginBottom: 12 }}>Il grimorio è vuoto.</p>
+            <div className="sb-empty">
+              <GiSpellBook size={32} className="sb-empty-icon" />
+              <p className="sb-empty-text">Il grimorio è vuoto.</p>
               <button className="btn-primary" style={{ justifyContent: 'center' }} onClick={() => { setIsAdding(true); setForm({ ...EMPTY_SPELL(), level: 1 }); }}>
                 <FaPlus size={10} /> Aggiungi il primo incantesimo
               </button>
             </div>
           ) : filteredGrimSpells.length === 0 ? (
-            <div className="glass-panel" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-              {grimSearchLower
-                ? <>Nessun incantesimo corrisponde a <strong>"{grimSearch}"</strong>.</>
-                : <>Nessun incantesimo di {grimSelected === 'all' ? 'questo grimorio' : (grimSelected === 0 ? 'trucchetto' : `livello ${grimSelected}`)}.</>}
+            <div className="sb-empty">
+              <p className="sb-empty-text">
+                {grimSearchLower
+                  ? <>Nessun incantesimo corrisponde a <strong>"{grimSearch}"</strong>.</>
+                  : <>Nessun incantesimo di {grimSelected === 'all' ? 'questo grimorio' : (grimSelected === 0 ? 'trucchetto' : `livello ${grimSelected}`)}.</>}
+              </p>
             </div>
           ) : (
             <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4, paddingBottom: 8 }}>
               {grimSelected === 'all' ? (
-                /* Grouped by level */
                 filteredLevelKeys.map(lv => (
                   <div key={lv} style={{ marginBottom: 14 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, padding: '0 2px' }}>
-                      <div style={{ width: 26, height: 26, borderRadius: 5, background: 'linear-gradient(135deg, #9b59b6, #6c3483)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontFamily: 'var(--font-heading)', fontSize: '0.85rem', boxShadow: '0 2px 6px rgba(155,89,182,0.4)', flexShrink: 0 }}>
-                        {lv}
-                      </div>
-                      <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.85rem', color: 'var(--accent-arcane)', letterSpacing: '0.05em' }}>
-                        {LevelLabel(lv)}
-                      </span>
-                      <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, rgba(155,89,182,0.25), transparent)' }} />
-                      <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>
-                        {filteredByLevel.get(lv)!.length} {filteredByLevel.get(lv)!.length === 1 ? 'incantesimo' : 'incantesimi'}
-                      </span>
+                    <div className="sb-level-hdr">
+                      <div className="sb-level-badge">{lv === 0 ? 'TR' : lv}</div>
+                      <span className="sb-level-label">{LevelLabel(lv)}</span>
+                      <div className="sb-level-line" />
+                      <span className="sb-level-count">{filteredByLevel.get(lv)!.length} {filteredByLevel.get(lv)!.length === 1 ? 'incantesimo' : 'incantesimi'}</span>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+                    <div className="sb-cards-grid">
                       {filteredByLevel.get(lv)!.map(s => <SpellCard key={s.id} spell={s} {...cardProps} />)}
                     </div>
                   </div>
                 ))
               ) : (
-                /* Single level grid */
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+                <div className="sb-cards-grid">
                   {filteredGrimSpells.map(s => <SpellCard key={s.id} spell={s} {...cardProps} />)}
                 </div>
               )}
@@ -700,37 +601,29 @@ export const Spellbook: React.FC = () => {
         <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '2rem', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
           {/* Header / actions */}
-          <div className="glass-panel" style={{ padding: '0.85rem 1rem', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <GiSpellBook size={22} style={{ color: 'var(--accent-arcane)' }} />
-            <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 200 }}>
-              <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.95rem', color: 'var(--accent-arcane)', letterSpacing: '0.05em' }}>
-                Preparazione del Mago
-              </span>
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                Prepara più copie dello stesso incantesimo: ognuna può essere lanciata una sola volta.
-              </span>
+          <div className="sb-daily-hdr">
+            <GiSpellBook size={22} style={{ color: 'var(--accent-arcane)', flexShrink: 0 }} />
+            <div className="sb-daily-hdr-info">
+              <span className="sb-daily-hdr-title">Preparazione del Mago</span>
+              <span className="sb-daily-hdr-sub">Prepara più copie dello stesso incantesimo: ognuna può essere lanciata una sola volta.</span>
             </div>
-            <button ref={dailyLvlBtnRef} onClick={() => setDailyLvlPickerOpen(o => !o)}
-              style={{ background: 'rgba(155,89,182,0.1)', border: '1px solid rgba(155,89,182,0.3)', borderRadius: 4, padding: '5px 10px', cursor: 'pointer', color: 'var(--accent-arcane)', fontSize: '0.74rem', display: 'flex', alignItems: 'center', gap: 5 }}>
+            <button ref={dailyLvlBtnRef}
+              style={{ background: 'rgba(155,89,182,0.1)', border: '1px solid rgba(155,89,182,0.3)', borderRadius: 4, padding: '5px 10px', cursor: 'pointer', color: 'var(--accent-arcane)', fontSize: '0.74rem', display: 'flex', alignItems: 'center', gap: 5 }}
+              onClick={() => setDailyLvlPickerOpen(o => !o)}>
               <FaPlus size={9} /> Aggiungi livello
             </button>
             {dailyLvlPickerOpen && (
-              <LevelPickerPopover
-                anchorRef={dailyLvlBtnRef}
-                taken={slotLevels}
+              <LevelPickerPopover anchorRef={dailyLvlBtnRef} taken={slotLevels}
                 onPick={(lvl) => setSpellSlotTotal(lvl, Math.max(1, slots[String(lvl)]?.total ?? 1))}
-                onClose={() => setDailyLvlPickerOpen(false)}
-                align="right"
-                title="Aggiungi un livello (anche trucchetti)"
-              />
+                onClose={() => setDailyLvlPickerOpen(false)} align="right" title="Aggiungi un livello (anche trucchetti)" />
             )}
           </div>
 
           {slotLevels.length === 0 && (
-            <div className="glass-panel" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-              <GiCrystalBall size={32} style={{ marginBottom: 12, opacity: 0.4 }} />
-              <p style={{ marginBottom: 6 }}>Nessuno slot configurato.</p>
-              <p style={{ fontSize: '0.78rem' }}>Aggiungi un livello qui sopra per cominciare a preparare gli incantesimi.</p>
+            <div className="sb-empty">
+              <GiCrystalBall size={32} className="sb-empty-icon" />
+              <p className="sb-empty-text">Nessuno slot configurato.</p>
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Aggiungi un livello qui sopra per cominciare a preparare gli incantesimi.</p>
             </div>
           )}
 
@@ -745,60 +638,52 @@ export const Spellbook: React.FC = () => {
             const accent = LEVEL_COLOR[lv] ?? 'var(--accent-arcane)';
 
             return (
-              <div key={lv} className="glass-panel" style={{ padding: 0, overflow: 'hidden', borderLeft: `3px solid ${accent}` }}>
+              <div key={lv} className="sb-slot-section" style={{ borderLeft: `3px solid ${accent}` }}>
                 {/* Level header */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: `linear-gradient(90deg, ${accent}18, transparent)`, borderBottom: `1px solid ${accent}22`, flexWrap: 'wrap' }}>
-                  <div style={{ width: 34, height: 34, borderRadius: 8, background: `linear-gradient(135deg, ${accent}, ${accent}88)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontFamily: 'var(--font-heading)', fontSize: lv === 0 ? '0.6rem' : '1.05rem', boxShadow: `0 2px 10px ${accent}55`, flexShrink: 0, letterSpacing: lv === 0 ? '0.04em' : 0 }}>
+                <div className="sb-slot-hdr" style={{ background: `linear-gradient(90deg, ${accent}18, transparent)`, borderBottom: `1px solid ${accent}22` }}>
+                  <div className={`sb-slot-level-badge${lv === 0 ? ' trucchetto' : ''}`}
+                    style={{ background: `linear-gradient(135deg, ${accent}, ${accent}88)`, boxShadow: `0 2px 10px ${accent}55` }}>
                     {lv === 0 ? 'TR' : lv}
                   </div>
-                  <div style={{ flex: 1, minWidth: 100, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9rem', color: accent, letterSpacing: '0.04em' }}>
-                      {lvName}
-                    </span>
+                  <div className="sb-slot-info">
+                    <span className="sb-slot-name" style={{ color: accent }}>{lvName}</span>
                     {s.total > 0 && <SlotPips total={s.total} used={s.used} color={accent} />}
                   </div>
-
-                  {/* Slot count badge */}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, background: `${accent}18`, border: `1px solid ${accent}33`, borderRadius: 6, padding: '4px 10px', minWidth: 52 }}>
-                    <span style={{ fontSize: '1.1rem', color: available > 0 ? accent : 'var(--text-muted)', fontFamily: 'var(--font-heading)', lineHeight: 1 }}>
-                      {available}
-                    </span>
-                    <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>/ {s.total} slot</span>
+                  <div className="sb-slot-counter" style={{ background: `${accent}16`, border: `1px solid ${accent}30` }}>
+                    <span className="sb-slot-available" style={{ color: available > 0 ? accent : 'var(--text-muted)' }}>{available}</span>
+                    <span className="sb-slot-total">/ {s.total} slot</span>
                   </div>
-                  {/* Adjust total */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <button onClick={() => setSpellSlotTotal(lv, s.total + 1)} disabled={s.total >= 9}
-                      style={{ width: 22, height: 18, borderRadius: '3px 3px 0 0', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
-                    <button onClick={() => setSpellSlotTotal(lv, Math.max(0, s.total - 1))}
-                      style={{ width: 22, height: 18, borderRadius: '0 0 3px 3px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderTop: 'none', cursor: 'pointer', color: 'var(--accent-crimson)', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.75 }}>−</button>
+                  <div className="sb-slot-adjust">
+                    <button className="sb-adj-btn" onClick={() => setSpellSlotTotal(lv, s.total + 1)} disabled={s.total >= 9}>+</button>
+                    <button className="sb-adj-btn" onClick={() => setSpellSlotTotal(lv, Math.max(0, s.total - 1))}>−</button>
                   </div>
-
-                  <button onClick={() => setPickerLvl(isPickerOpen ? null : lv)}
-                    style={{ background: isPickerOpen ? `${accent}33` : `${accent}18`, border: `1px solid ${accent}55`, borderRadius: 6, padding: '5px 12px', cursor: 'pointer', color: accent, fontSize: '0.74rem', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'var(--font-heading)', letterSpacing: '0.03em', transition: 'all 0.15s' }}>
+                  <button className="sb-prep-toggle-btn" onClick={() => setPickerLvl(isPickerOpen ? null : lv)}
+                    style={{ background: isPickerOpen ? `${accent}33` : `${accent}18`, border: `1px solid ${accent}55`, color: accent }}>
                     <FaPlus size={9} /> {isPickerOpen ? 'Chiudi' : 'Prepara'}
                   </button>
                 </div>
 
                 {/* Picker (grimoire spells of this level) */}
                 {isPickerOpen && (
-                  <div style={{ padding: '10px 14px', background: 'rgba(0,0,0,0.22)', borderBottom: `1px solid ${accent}18` }}>
+                  <div className="sb-picker">
                     {grimoireForLevel.length === 0 ? (
-                      <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', fontStyle: 'italic', margin: 0 }}>
+                      <p className="sb-picker-empty">
                         Nessun incantesimo di livello {lv} nel grimorio. Aggiungilo dalla scheda Grimorio.
                       </p>
                     ) : (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 6 }}>
+                      <div className="sb-picker-grid">
                         {grimoireForLevel.map(sp => {
                           const spColor = SCHOOL_COLOR[sp.school] ?? 'var(--text-muted)';
                           return (
-                            <button key={sp.id} onClick={() => prepareWizardSpell(lv, sp.id)}
-                              title={`Prepara una copia di ${sp.name}`}
-                              style={{ background: `${spColor}0d`, border: `1px solid ${spColor}33`, borderLeft: `3px solid ${spColor}`, borderRadius: 5, padding: '7px 10px', cursor: 'pointer', color: 'var(--text-primary)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 7, textAlign: 'left', transition: 'background 0.15s' }}
+                            <button key={sp.id} className="sb-pick-btn"
+                              style={{ background: `${spColor}0d`, borderLeftColor: spColor }}
                               onMouseEnter={e => (e.currentTarget.style.background = `${spColor}22`)}
-                              onMouseLeave={e => (e.currentTarget.style.background = `${spColor}0d`)}>
+                              onMouseLeave={e => (e.currentTarget.style.background = `${spColor}0d`)}
+                              onClick={() => prepareWizardSpell(lv, sp.id)}
+                              title={`Prepara una copia di ${sp.name}`}>
                               <FaPlus size={8} style={{ color: spColor, flexShrink: 0 }} />
-                              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sp.name}</span>
-                              <span style={{ fontSize: '0.62rem', color: spColor, opacity: 0.85, flexShrink: 0 }}>{SCHOOL_ICON[sp.school] ?? ''}</span>
+                              <span className="sb-pick-btn-name">{sp.name}</span>
+                              <span className="sb-pick-btn-school" style={{ color: spColor }}>{SCHOOL_ICON[sp.school] ?? ''}</span>
                             </button>
                           );
                         })}
@@ -808,59 +693,37 @@ export const Spellbook: React.FC = () => {
                 )}
 
                 {/* Prepared instances list */}
-                <div style={{ padding: preps.length === 0 ? '12px 14px' : '10px' }}>
+                <div className="sb-prep-list" style={preps.length === 0 ? { padding: '12px 14px' } : {}}>
                   {preps.length === 0 ? (
-                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic', margin: 0 }}>
+                    <p className="sb-prep-list-empty">
                       Nessun incantesimo preparato per questo livello. Clicca <strong>Prepara</strong> per scegliere dal grimorio.
                     </p>
                   ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 7 }}>
+                    <div className="sb-prep-grid">
                       {preps.map(p => {
                         const sp = spellById.get(p.spellId);
                         if (!sp) return null;
                         const spColor = SCHOOL_COLOR[sp.school] ?? 'var(--text-muted)';
                         return (
-                          <div key={p.id}
+                          <div key={p.id} className={`sb-prep-item${p.cast ? ' cast' : ''}`}
                             style={{
-                              background: p.cast
-                                ? 'rgba(255,255,255,0.02)'
-                                : `linear-gradient(135deg, ${spColor}12, rgba(0,0,0,0.18))`,
-                              border: `1px solid ${p.cast ? 'rgba(255,255,255,0.06)' : spColor + '35'}`,
-                              borderLeft: `3px solid ${p.cast ? 'rgba(255,255,255,0.1)' : spColor}`,
-                              borderRadius: 7, padding: '8px 10px',
-                              display: 'flex', alignItems: 'center', gap: 9,
-                              opacity: p.cast ? 0.5 : 1, transition: 'all 0.2s',
+                              background: p.cast ? 'rgba(255,255,255,0.02)' : `linear-gradient(135deg, ${spColor}12, rgba(0,0,0,0.18))`,
+                              borderLeftColor: p.cast ? 'rgba(255,255,255,0.1)' : spColor,
+                              borderRightColor: p.cast ? 'rgba(255,255,255,0.06)' : `${spColor}30`,
+                              borderTopColor: p.cast ? 'rgba(255,255,255,0.06)' : `${spColor}30`,
+                              borderBottomColor: p.cast ? 'rgba(255,255,255,0.06)' : `${spColor}30`,
                             }}>
-                            {/* Cast toggle button */}
-                            <button
+                            <button className={`sb-cast-btn${!p.cast ? ' active' : ''}`}
                               onClick={() => p.cast ? restorePreparedSpell(lv, p.id) : castPreparedSpell(lv, p.id)}
                               title={p.cast ? 'Ripristina slot' : 'Lancia (consuma uno slot)'}
-                              style={{
-                                width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-                                background: p.cast ? 'rgba(255,255,255,0.05)' : `radial-gradient(circle at 35% 35%, ${spColor}cc, ${spColor}55)`,
-                                border: `2px solid ${p.cast ? 'rgba(255,255,255,0.12)' : spColor}`,
-                                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                color: p.cast ? 'var(--text-muted)' : '#fff',
-                                boxShadow: p.cast ? 'none' : `0 2px 8px ${spColor}55`,
-                                transition: 'all 0.2s',
-                              }}
-                              onMouseEnter={e => { if (!p.cast) (e.currentTarget as HTMLButtonElement).style.filter = 'brightness(1.25)'; }}
-                              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.filter = 'brightness(1)'; }}>
+                              style={!p.cast ? { background: `radial-gradient(circle at 35% 35%, ${spColor}cc, ${spColor}55)`, border: `2px solid ${spColor}`, boxShadow: `0 2px 8px ${spColor}55` } : {}}>
                               {p.cast ? <FaMinus size={9} /> : <FaBolt size={9} />}
                             </button>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: '0.83rem', color: p.cast ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: p.cast ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500, lineHeight: 1.2 }}>
-                                {sp.name}
-                              </div>
-                              <div style={{ fontSize: '0.63rem', color: spColor, opacity: 0.85, letterSpacing: '0.03em', marginTop: 2 }}>
-                                {SCHOOL_ICON[sp.school] ?? ''} {sp.school}
-                              </div>
+                            <div className="sb-prep-item-info">
+                              <div className="sb-prep-item-name">{sp.name}</div>
+                              <div className="sb-prep-item-school" style={{ color: spColor }}>{SCHOOL_ICON[sp.school] ?? ''} {sp.school}</div>
                             </div>
-                            <button onClick={() => unprepareWizardSpell(lv, p.id)}
-                              title="Rimuovi questa preparazione"
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.18)', padding: 4, lineHeight: 1, flexShrink: 0, borderRadius: 4, transition: 'color 0.15s' }}
-                              onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--accent-crimson)')}
-                              onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.18)')}>
+                            <button className="sb-remove-btn" onClick={() => unprepareWizardSpell(lv, p.id)} title="Rimuovi questa preparazione">
                               <FaTrash size={9} />
                             </button>
                           </div>
@@ -873,6 +736,24 @@ export const Spellbook: React.FC = () => {
             );
           })}
         </div>
+      )}
+
+      {catalogOpen && (
+        <CatalogPicker<CatalogSpell>
+          title="Importa dal Catalogo Magie"
+          items={catalogItems}
+          loading={catalogLoading}
+          onClose={() => setCatalogOpen(false)}
+          onPick={importFromCatalog}
+          map={cs => ({
+            id: cs.id,
+            name: cs.name,
+            subtitle: `Liv. ${cs.level}${cs.school ? ' — ' + cs.school : ''}`,
+            description: cs.description,
+            tags: cs.tags,
+            raw: cs,
+          })}
+        />
       )}
     </div>
   );

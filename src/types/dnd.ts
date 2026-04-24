@@ -1,3 +1,34 @@
+/** BAB progression rate for a class */
+export type BabProgression = 'high' | 'medium' | 'low';
+
+/** A single class entry for a multiclass character */
+export interface ClassLevel {
+  id: string;
+  className: string;
+  level: number;
+  babProgression: BabProgression;
+}
+
+/** Preset class → BAB progression mappings for D&D 3.5 */
+export const CLASS_BAB_PRESETS: Record<string, BabProgression> = {
+  // High
+  'Guerriero': 'high', 'Fighter': 'high',
+  'Paladino': 'high', 'Paladin': 'high',
+  'Ranger': 'high',
+  'Barbaro': 'high', 'Barbarian': 'high',
+  // Medium
+  'Chierico': 'medium', 'Cleric': 'medium',
+  'Ladro': 'medium', 'Rogue': 'medium',
+  'Monaco': 'medium', 'Monk': 'medium',
+  'Druido': 'medium', 'Druid': 'medium',
+  'Bardo': 'medium', 'Bard': 'medium',
+  // Low
+  'Mago': 'low', 'Wizard': 'low',
+  'Stregone': 'low', 'Sorcerer': 'low',
+  'Negromante': 'low', 'Warlock': 'low',
+  'Fattucchiere': 'low',
+};
+
 export type ModifierType =
   | 'enhancement'
   | 'morale'
@@ -40,6 +71,93 @@ export interface MapTile {
   isFloor: boolean;
 }
 
+// ────────────────────────────── VECTOR MAP MODEL ──────────────────────────────
+// Dungeon-Scrawl-style vector model. Coordinates are in "world units" (1 unit
+// ≈ 1 cell of the conceptual grid, but shapes are NOT snapped unless the user
+// asks for it). Coexists with the legacy `tiles`/`tokens` for back-compat.
+
+export interface MapPoint { x: number; y: number; }
+
+export type MapShapeKind = 'rect' | 'polygon' | 'ellipse' | 'line' | 'stamp' | 'text' | 'door' | 'stair';
+
+export type MapLayerKind = 'floor' | 'walls' | 'objects' | 'notes';
+
+export interface MapLayer {
+  id: string;
+  name: string;
+  kind: MapLayerKind;
+  visible: boolean;
+  locked: boolean;
+}
+
+interface MapShapeBase {
+  id: string;
+  layerId: string;
+  name?: string;
+  description?: string;
+  fill?: string;
+  stroke?: string;
+  strokeWidth?: number;
+  opacity?: number;
+  rotation?: number;
+  locked?: boolean;
+}
+
+export interface MapRectShape extends MapShapeBase { kind: 'rect'; x: number; y: number; w: number; h: number; }
+export interface MapEllipseShape extends MapShapeBase { kind: 'ellipse'; x: number; y: number; rx: number; ry: number; }
+export interface MapPolygonShape extends MapShapeBase { kind: 'polygon'; points: MapPoint[]; closed?: boolean; }
+export interface MapLineShape extends MapShapeBase { kind: 'line'; points: MapPoint[]; }
+export interface MapStampShape extends MapShapeBase {
+  kind: 'stamp';
+  x: number; y: number; size: number;
+  /** Bundled icon (DndIcon catalog): `iconCategory`+`iconName`. */
+  iconCategory?: string;
+  iconName?: string;
+  /** Or back-office uploaded icon id (CatalogIcon). */
+  iconId?: string;
+  /** Optional CSS color tint applied via currentColor. */
+  tint?: string;
+}
+export interface MapTextShape extends MapShapeBase { kind: 'text'; x: number; y: number; text: string; fontSize: number; }
+
+/** Door / opening that "cuts" the wall produced by the union of floor shapes.
+ *  Rendered as: a rect filled with the floor color (masking the wall stroke)
+ *  plus a small swing/door line on top. Can be rotated to align with diagonal walls. */
+export interface MapDoorShape extends MapShapeBase {
+    kind: 'door';
+    x: number; y: number;          // top-left in world coords
+    w: number; h: number;          // bounding box (h ≈ wall thickness, w ≈ door span)
+    /** Color of the floor that masks the wall under the door. */
+    maskFill?: string;
+}
+
+/** Stair / ladder / portal that links two map levels.
+ *  Click while in select tool teleports to `linkLevelId` (and selects `linkShapeId` if set).
+ *  Two stairs on different floors with mutual links form a "round-trip" connection. */
+export interface MapStairShape extends MapShapeBase {
+    kind: 'stair';
+    x: number; y: number;          // top-left in world coords
+    w: number; h: number;          // footprint (typically 1×2 cells)
+    /** Visual sub-type. */
+    stairKind?: 'stairs' | 'ladder' | 'portal' | 'trapdoor';
+    /** up = goes to floor above, down = below, both = either. */
+    direction?: 'up' | 'down' | 'both';
+    /** Linked level (other end of the stair). */
+    linkLevelId?: string;
+    /** Optional linked stair on that level — selected & centered on teleport. */
+    linkShapeId?: string;
+}
+
+export type MapShape =
+    | MapRectShape
+    | MapEllipseShape
+    | MapPolygonShape
+    | MapLineShape
+    | MapStampShape
+    | MapTextShape
+    | MapDoorShape
+    | MapStairShape;
+
 /** A single floor/level inside a dungeon map */
 export interface MapLevel {
   id: string;
@@ -47,8 +165,14 @@ export interface MapLevel {
   floor: number;
   /** Display name, e.g. "Piano Terra", "Interrato 1" */
   label: string;
+  /** @deprecated kept for back-compat with grid-based maps */
   tiles: Record<string, MapTile>;
+  /** @deprecated kept for back-compat */
   tokens: MapToken[];
+  /** Vector layers (new). */
+  layers?: MapLayer[];
+  /** Vector shapes (new). */
+  shapes?: MapShape[];
 }
 
 /** A named dungeon map with multiple vertical levels */
@@ -97,7 +221,7 @@ export interface Item {
   id: string;
   name: string;
   description: string;
-  type: 'weapon' | 'armor' | 'shield' | 'protectiveItem' | 'gear' | 'consumable' | 'component';
+  type: 'weapon' | 'armor' | 'shield' | 'protectiveItem' | 'gear' | 'consumable' | 'component' | 'misc';
   weight: number;
   modifiers: Modifier[];
   equipped: boolean;
@@ -110,6 +234,8 @@ export interface Item {
   associatedSpell?: string;
   /** Which container: 'indossato' | 'zaino' | 'tasca' */
   location?: string;
+  /** Optional icon: id of a `CatalogIcon` from the shared catalog. */
+  iconId?: string;
 }
 
 export interface Feat {
@@ -239,6 +365,30 @@ export interface Npc {
   description: string;
 }
 
+export interface CustomAttack {
+  id: string;
+  name: string;
+  /** Stat modifier added to the attack roll (e.g. 'cha' for Warlock spell attacks) */
+  attackStat?: StatType;
+  /** Whether to add BAB to the attack roll */
+  useBab?: boolean;
+  /** Flat extra bonus to attack (e.g. proficiency bonus) */
+  attackBonusExtra?: number;
+  /** Base damage dice expression (e.g. "1d10") */
+  damageDice: string;
+  /** Stat modifier added to damage (e.g. 'cha' via Scoppio Aggraviante) */
+  damageStat?: StatType;
+  /** Flat extra bonus to damage */
+  damageBonusExtra?: number;
+  damageType: string;
+  criticalRange?: string;       // e.g. "20", "19-20"
+  criticalMultiplier?: string;  // e.g. "×2"
+  range?: string;               // e.g. "Mischia", "18m"
+  /** IDs of ClassFeature / Feat entries that contribute to this attack (display only) */
+  linkedFeatureIds?: string[];
+  notes?: string;
+}
+
 export interface CharacterBase {
   id: string;
   userId: string;
@@ -275,4 +425,7 @@ export interface CharacterBase {
   /** @deprecated */
   mapState?: MapState;
   classFeatures?: ClassFeature[];
+  customAttacks?: CustomAttack[];
+  /** Multiclass entries. When present, BAB is computed from these instead of baseStats.bab */
+  classLevels?: ClassLevel[];
 }
