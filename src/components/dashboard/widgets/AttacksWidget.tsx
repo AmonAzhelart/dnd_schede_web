@@ -1,62 +1,226 @@
 import React, { useState } from 'react';
-import { FaDiceD20 } from 'react-icons/fa';
 import { useCharacterStore } from '../../../store/characterStore';
-import type { WidgetRenderProps, WidgetSize } from '../widgetTypes';
+import type { WidgetRenderProps } from '../widgetTypes';
+import { DndIcon } from '../../DndIcon';
+import { useIconCatalog, sanitizeSvg } from '../../../services/iconCache';
+import { GiCrossedSwords } from 'react-icons/gi';
+import { FaMinus, FaPlus } from 'react-icons/fa';
 
-const colsFor = (size: WidgetSize, widthPerCol = 320, max = 3) =>
-    Math.max(1, Math.min(max, Math.floor(size.pixelW / widthPerCol)));
+const fmtSigned = (v: number) => (v >= 0 ? `+${v}` : `${v}`);
 
 export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
-    const { character, getStatModifier } = useCharacterStore();
+    const { character, setCharacter, getStatModifier, getTotalBab, getMultipleAttacks } = useCharacterStore();
+    const { resolveItemSvg } = useIconCatalog();
     const [diceRolling, setDiceRolling] = useState<string | null>(null);
+    const [expanded, setExpanded] = useState<string | null>(null);
+
     if (!character) return null;
-    const bab = character.baseStats.bab || 0;
+
+    const adjustAmmoQty = (ammoId: string, delta: number) => {
+        const inv = character.inventory.map(i => {
+            if (i.id !== ammoId) return i;
+            const qty = Math.max(0, (i.quantity ?? 1) + delta);
+            return { ...i, quantity: qty };
+        });
+        setCharacter({ ...character, inventory: inv });
+    };
+    const bab = getTotalBab();
     const strMod = getStatModifier('str');
+    const dexMod = getStatModifier('dex');
     const equippedWeapons = character.inventory.filter(i => i.equipped && i.type === 'weapon');
-    const cols = colsFor(size);
+    const customAttacks = character.customAttacks ?? [];
+    const hasAny = equippedWeapons.length > 0 || customAttacks.length > 0;
+    const narrow = size.pixelW < 320;
+
+    const fmtList = (arr: number[]) => arr.map(fmtSigned).join(' / ');
+
+    /** Roll d20 and notify the user with the result. */
+    const rollAttack = (id: string, label: string, bonus: number, damage: string | undefined, primaryAttacks: number[]) => {
+        const roll = Math.floor(Math.random() * 20) + 1;
+        const total = roll + bonus;
+        setDiceRolling(id);
+        setTimeout(() => setDiceRolling(null), 600);
+        const progStr = primaryAttacks.length > 1
+            ? `\nProgressione: ${fmtList(primaryAttacks)}`
+            : '';
+        alert(`⚔️ ${label}\nDado: ${roll}  Bonus: ${fmtSigned(bonus)}  =  ${total}${progStr}${damage ? `\nDanno: ${damage}` : ''}`);
+    };
 
     return (
-        <div className="w-atk-root">
-            <div className="w-atk-stats">
-                <div className="w-atk-stat"><div className="w-atk-stat-label">BAB</div><span className="w-atk-stat-value">+{bab}</span></div>
-                <div className="w-atk-stat"><div className="w-atk-stat-label">Iniziativa</div><span className="w-atk-stat-value">{getStatModifier('dex') >= 0 ? '+' : ''}{getStatModifier('dex')}</span></div>
-                {goTo && (
-                    <button className="w-link" onClick={() => goTo('combat')}>Vai →</button>
-                )}
+        <div className="w-atk2-root">
+            {/* Compact header: BAB + FOR + DES chips */}
+            <div className="w-atk2-header">
+                <div className="w-atk2-chips">
+                    <div className="w-atk2-chip" title="Bonus Attacco Base">
+                        <span className="w-atk2-chip-lbl">BAB</span>
+                        <span className="w-atk2-chip-val">{fmtSigned(bab)}</span>
+                    </div>
+                    <div className="w-atk2-chip" title="Modificatore Forza (mischia)">
+                        <span className="w-atk2-chip-lbl">FOR</span>
+                        <span className="w-atk2-chip-val">{fmtSigned(strMod)}</span>
+                    </div>
+                    <div className="w-atk2-chip" title="Modificatore Destrezza (distanza)">
+                        <span className="w-atk2-chip-lbl">DES</span>
+                        <span className="w-atk2-chip-val">{fmtSigned(dexMod)}</span>
+                    </div>
+                </div>
+                {goTo && <button className="w-link" onClick={() => goTo('combat')}>Apri →</button>}
             </div>
 
-            {equippedWeapons.length === 0 ? (
-                <div className="w-empty">Nessuna arma equipaggiata.</div>
+            {!hasAny ? (
+                <div className="w-empty"><GiCrossedSwords style={{ marginRight: 6 }} />Nessuna arma equipaggiata.</div>
             ) : (
-                <div className="w-atk-grid w-scroll" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+                <div className="w-atk2-list w-scroll">
                     {equippedWeapons.map(w => {
-                        const bonus = bab + strMod + (w.weaponDetails?.attackBonus ?? 0);
                         const isRanged = !!(w.weaponDetails?.rangeIncrement);
+                        const loadedAmmo = isRanged && w.equippedAmmoId
+                            ? character.inventory.find(i => i.id === w.equippedAmmoId)
+                            : undefined;
+                        const ammoAtkBonus = loadedAmmo?.ammoDetails?.attackBonus ?? 0;
+                        const abilityMod = isRanged ? dexMod : strMod;
+                        const weaponBonus = (w.weaponDetails?.attackBonus ?? 0) + ammoAtkBonus;
+                        const attacks = getMultipleAttacks(abilityMod + weaponBonus);
+                        const primary = attacks[0];
+                        const wSvg = resolveItemSvg(w);
+                        const isExpanded = expanded === w.id;
+                        const ammoDmgExtra = loadedAmmo?.ammoDetails?.extraDamage;
+                        const ammoDmgType = loadedAmmo?.ammoDetails?.extraDamageType;
+                        const baseDamage = w.weaponDetails?.damage ?? '';
+                        const fullDamage = baseDamage && ammoDmgExtra
+                            ? `${baseDamage} + ${ammoDmgExtra}${ammoDmgType ? ` (${ammoDmgType})` : ''}`
+                            : baseDamage || undefined;
+                        const meta = `${isRanged ? 'Distanza' : 'Mischia'}${w.weaponDetails?.damageType ? ` · ${w.weaponDetails.damageType}` : ''}${isRanged && w.weaponDetails?.rangeIncrement ? ` · ${w.weaponDetails.rangeIncrement}` : ''}${loadedAmmo ? ` · 🏹 ${loadedAmmo.name}` : ''}`;
+
                         return (
-                            <button
-                                key={w.id} className="w-atk-card"
-                                onClick={() => {
-                                    const roll = Math.floor(Math.random() * 20) + 1;
-                                    const total = roll + bonus;
-                                    setDiceRolling(w.id);
-                                    setTimeout(() => setDiceRolling(null), 600);
-                                    alert(`⚔️ ${w.name}\nDado: ${roll}  Bonus: ${bonus >= 0 ? '+' : ''}${bonus}  = Totale: ${total}\nDanno: ${w.weaponDetails?.damage ?? '?'}`);
-                                }}
-                            >
-                                <div className="w-atk-card-body">
-                                    <div className="w-atk-card-name">{w.name}</div>
-                                    <div className="w-atk-card-type">
-                                        {w.weaponDetails?.damageType ?? ''}{isRanged ? ` · Gittata ${w.weaponDetails?.rangeIncrement}` : ' · Mischia'}
-                                    </div>
+                            <div key={w.id} className={`w-atk2-row ${isRanged ? 'ranged' : 'melee'}`}>
+                                <div className="w-atk2-row-top">
+                                    <span className="w-atk2-row-icon">
+                                        {wSvg ? (
+                                            <span className="inv-svg-tinted" dangerouslySetInnerHTML={{ __html: sanitizeSvg(wSvg) }} />
+                                        ) : (
+                                            <DndIcon category="combat" name={isRanged ? 'ranged' : 'melee'} size={18} />
+                                        )}
+                                    </span>
+                                    <div className="w-atk2-row-name" title={w.name}>{w.name}</div>
                                 </div>
-                                <div className="w-atk-card-stats">
-                                    <div className="w-atk-card-stat"><span className="v">{bonus >= 0 ? '+' : ''}{bonus}</span><span className="l">colpire</span></div>
-                                    {w.weaponDetails?.damage && (
-                                        <div className="w-atk-card-stat"><span className="v">{w.weaponDetails.damage}</span><span className="l">danno</span></div>
+                                <div className="w-atk2-row-bot">
+                                    {!narrow && <div className="w-atk2-row-meta">{meta}</div>}
+                                    <div className="w-atk2-row-spacer" />
+                                    <button
+                                        className="w-atk2-row-stat atk"
+                                        onClick={() => attacks.length > 1 ? setExpanded(isExpanded ? null : w.id) : rollAttack(w.id, w.name, primary, fullDamage, attacks)}
+                                        title={attacks.length > 1 ? 'Mostra progressione' : 'Tira d20'}
+                                    >
+                                        <span className="v">{fmtSigned(primary)}</span>
+                                        <span className="l">colpire</span>
+                                    </button>
+                                    {fullDamage && (
+                                        <div className="w-atk2-row-stat dmg">
+                                            <span className="v">{fullDamage}</span>
+                                            <span className="l">danno</span>
+                                        </div>
                                     )}
+                                    <button
+                                        className={`w-atk2-roll ${diceRolling === w.id ? 'rolling' : ''}`}
+                                        onClick={(e) => { e.stopPropagation(); rollAttack(w.id, w.name, primary, fullDamage, attacks); }}
+                                        title="Tira d20"
+                                        aria-label="Tira d20"
+                                    >
+                                        <DndIcon category="dice" name="d20" size={20} className={diceRolling === w.id ? 'animate-spin' : ''} />
+                                    </button>
                                 </div>
-                                <FaDiceD20 className={`w-atk-card-die ${diceRolling === w.id ? 'animate-spin' : ''}`} />
-                            </button>
+                                {isExpanded && attacks.length > 1 && (
+                                    <div className="w-atk2-row-detail">
+                                        <span className="w-atk2-detail-lbl">Progressione full-attack:</span>
+                                        <span className="w-atk2-detail-val">{fmtList(attacks)}</span>
+                                    </div>
+                                )}
+                                {/* Ammo strip for ranged weapons */}
+                                {isRanged && (
+                                    <div className="w-atk2-ammo-strip">
+                                        <span className="w-atk2-ammo-label">🏹</span>
+                                        {loadedAmmo ? (
+                                            <>
+                                                <span className="w-atk2-ammo-name" title={loadedAmmo.name}>{loadedAmmo.name}</span>
+                                                {/* Bonus tags */}
+                                                {!!loadedAmmo.ammoDetails?.attackBonus && (
+                                                    <span className="w-atk2-ammo-tag atk" title="Bonus attacco munizione">
+                                                        {loadedAmmo.ammoDetails.attackBonus > 0 ? '+' : ''}{loadedAmmo.ammoDetails.attackBonus} att.
+                                                    </span>
+                                                )}
+                                                {loadedAmmo.ammoDetails?.extraDamage && (
+                                                    <span className="w-atk2-ammo-tag dmg" title="Danno extra munizione">
+                                                        +{loadedAmmo.ammoDetails.extraDamage}{loadedAmmo.ammoDetails.extraDamageType ? ` ${loadedAmmo.ammoDetails.extraDamageType}` : ''}
+                                                    </span>
+                                                )}
+                                                <span className="w-atk2-ammo-spacer" />
+                                                {/* Qty controls */}
+                                                <button
+                                                    className="w-atk2-ammo-btn"
+                                                    title="Spara (–1)"
+                                                    onClick={e => { e.stopPropagation(); adjustAmmoQty(loadedAmmo.id, -1); }}
+                                                    disabled={(loadedAmmo.quantity ?? 1) <= 0}
+                                                >
+                                                    <FaMinus size={8} />
+                                                </button>
+                                                <span className={`w-atk2-ammo-qty${(loadedAmmo.quantity ?? 1) === 0 ? ' empty' : ''}`}>
+                                                    {loadedAmmo.quantity ?? 1}
+                                                </span>
+                                                <button
+                                                    className="w-atk2-ammo-btn"
+                                                    title="Aggiungi (+1)"
+                                                    onClick={e => { e.stopPropagation(); adjustAmmoQty(loadedAmmo.id, +1); }}
+                                                >
+                                                    <FaPlus size={8} />
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <span className="w-atk2-ammo-none">Nessuna munizione</span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+
+                    {customAttacks.map(atk => {
+                        const bonus = (atk.useBab ? bab : 0)
+                            + (atk.attackStat ? getStatModifier(atk.attackStat) : 0)
+                            + (atk.attackBonusExtra ?? 0);
+                        const dmgExtra = (atk.damageStat ? getStatModifier(atk.damageStat) : 0) + (atk.damageBonusExtra ?? 0);
+                        const dmgDisplay = dmgExtra !== 0
+                            ? `${atk.damageDice} ${fmtSigned(dmgExtra)}`
+                            : atk.damageDice;
+                        const meta = `${atk.range ? atk.range : 'Mischia'}${atk.damageType ? ` · ${atk.damageType}` : ''}`;
+                        return (
+                            <div key={atk.id} className="w-atk2-row custom">
+                                <div className="w-atk2-row-top">
+                                    <span className="w-atk2-row-icon arcane">
+                                        <DndIcon category="dice" name="d20" size={18} />
+                                    </span>
+                                    <div className="w-atk2-row-name" title={atk.name}>{atk.name}</div>
+                                </div>
+                                <div className="w-atk2-row-bot">
+                                    {!narrow && <div className="w-atk2-row-meta arcane">{meta}</div>}
+                                    <div className="w-atk2-row-spacer" />
+                                    <div className="w-atk2-row-stat atk">
+                                        <span className="v">{fmtSigned(bonus)}</span>
+                                        <span className="l">colpire</span>
+                                    </div>
+                                    <div className="w-atk2-row-stat dmg">
+                                        <span className="v">{dmgDisplay}</span>
+                                        <span className="l">danno</span>
+                                    </div>
+                                    <button
+                                        className={`w-atk2-roll ${diceRolling === atk.id ? 'rolling' : ''}`}
+                                        onClick={(e) => { e.stopPropagation(); rollAttack(atk.id, atk.name, bonus, dmgDisplay, [bonus]); }}
+                                        title="Tira d20"
+                                        aria-label="Tira d20"
+                                    >
+                                        <DndIcon category="dice" name="d20" size={20} className={diceRolling === atk.id ? 'animate-spin' : ''} />
+                                    </button>
+                                </div>
+                            </div>
                         );
                     })}
                 </div>

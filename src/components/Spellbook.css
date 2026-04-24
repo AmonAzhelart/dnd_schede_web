@@ -1,0 +1,928 @@
+/* ═══════════════════════════════════════════════════
+   Spellbook.css  —  RPG Dark Fantasy Style
+   ═══════════════════════════════════════════════════ */
+
+/* ─── Tab bar ─────────────────────────────────── */
+.sb-tabs {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    border-bottom: 1px solid rgba(155, 89, 182, 0.18);
+    flex-shrink: 0;
+}
+
+.sb-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    font-family: 'Cinzel', serif;
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-muted);
+    transition: all 0.13s;
+    position: relative;
+    z-index: 1;
+    margin-bottom: -1px;
+}
+
+.sb-tab.active {
+    background: linear-gradient(180deg, rgba(155, 89, 182, 0.22), rgba(155, 89, 182, 0.06));
+    border-color: rgba(155, 89, 182, 0.38);
+    border-bottom-color: var(--bg-base, #0d0d0f);
+    color: var(--accent-arcane, #9b59b6);
+    z-index: 3;
+}
+
+.sb-tab:hover:not(.active) {
+    color: var(--text-secondary, #c0b8d0);
+    background: rgba(155, 89, 182, 0.06);
+}
+
+.sb-tab-badge {
+    font-size: 0.6rem;
+    font-family: inherit;
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    padding: 0 5px;
+    min-width: 16px;
+    text-align: center;
+    opacity: 0.7;
+}
+
+.sb-tab.active .sb-tab-badge {
+    background: rgba(155, 89, 182, 0.25);
+    opacity: 0.9;
+}
+
+.sb-rest-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: auto;
+    margin-bottom: 4px;
+    padding: 5px 12px;
+    border-radius: 5px;
+    font-size: 0.74rem;
+    cursor: pointer;
+    background: rgba(52, 152, 219, 0.07);
+    border: 1px solid rgba(52, 152, 219, 0.2);
+    color: var(--accent-ice, #74b9ff);
+    transition: all 0.15s;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.03em;
+}
+
+.sb-rest-btn:hover {
+    background: rgba(52, 152, 219, 0.14);
+    border-color: rgba(52, 152, 219, 0.38);
+}
+
+/* ─── Grimoire search + action bar ───────────── */
+.sb-action-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.sb-search-wrap {
+    position: relative;
+    flex: 1 1 200px;
+    min-width: 160px;
+}
+
+.sb-search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.sb-search-input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 7px;
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    padding: 7px 12px 7px 30px;
+    outline: none;
+    transition: border-color 0.15s, background 0.15s;
+    font-family: 'Inter', sans-serif;
+}
+
+.sb-search-input::placeholder {
+    color: var(--text-muted);
+}
+
+.sb-search-input:focus {
+    border-color: rgba(155, 89, 182, 0.45);
+    background: rgba(255, 255, 255, 0.07);
+}
+
+/* ─── Bookmark strip ─────────────────────────── */
+.sb-bookmarks {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid rgba(155, 89, 182, 0.15);
+    flex-shrink: 0;
+}
+
+.sb-bookmark {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 11px;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    font-family: 'Cinzel', serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.03em;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom-color: transparent;
+    color: var(--text-muted);
+    transition: all 0.12s;
+    position: relative;
+    margin-bottom: -1px;
+}
+
+.sb-bookmark.active {
+    background: linear-gradient(180deg, rgba(155, 89, 182, 0.22), rgba(155, 89, 182, 0.07));
+    border-color: rgba(155, 89, 182, 0.38);
+    border-bottom-color: var(--bg-base, #0d0d0f);
+    color: var(--accent-arcane, #9b59b6);
+    z-index: 2;
+    box-shadow: 0 -2px 6px rgba(155, 89, 182, 0.2);
+}
+
+.sb-bookmark:hover:not(.active) {
+    background: rgba(155, 89, 182, 0.07);
+    color: var(--text-secondary, #c0b8d0);
+}
+
+.sb-bookmark-count {
+    font-size: 0.58rem;
+    font-family: inherit;
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 8px;
+    padding: 0 4px;
+    min-width: 14px;
+    text-align: center;
+    opacity: 0.7;
+}
+
+.sb-bookmark.active .sb-bookmark-count {
+    background: rgba(155, 89, 182, 0.25);
+    opacity: 0.9;
+}
+
+.sb-bookmark-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    background: transparent;
+    border: 1px dashed rgba(155, 89, 182, 0.3);
+    border-bottom: none;
+    color: rgba(155, 89, 182, 0.65);
+    font-size: 0.7rem;
+    transition: all 0.13s;
+    margin-bottom: -1px;
+}
+
+.sb-bookmark-add:hover {
+    background: rgba(155, 89, 182, 0.08);
+    color: var(--accent-arcane);
+}
+
+/* ─── Level section header ───────────────────── */
+.sb-level-hdr {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding: 0 2px;
+}
+
+.sb-level-badge {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #9b59b6, #6c3483);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-family: 'Cinzel', serif;
+    font-size: 0.82rem;
+    box-shadow: 0 2px 6px rgba(155, 89, 182, 0.4);
+    flex-shrink: 0;
+}
+
+.sb-level-label {
+    font-family: 'Cinzel', serif;
+    font-size: 0.82rem;
+    color: var(--accent-arcane, #9b59b6);
+    letter-spacing: 0.05em;
+}
+
+.sb-level-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(155, 89, 182, 0.25), transparent);
+}
+
+.sb-level-count {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+}
+
+/* ─── Spell cards grid ───────────────────────── */
+.sb-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 10px;
+}
+
+/* ─── Spell card ─────────────────────────────── */
+.sb-card {
+    position: relative;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.025) 0%, rgba(0, 0, 0, 0.18) 100%),
+        rgba(20, 20, 30, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.sb-card:hover {
+    transform: translateY(-2px);
+}
+
+.sb-card-accent {
+    height: 3px;
+    flex-shrink: 0;
+}
+
+.sb-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 42px 9px 12px;
+    /* right padding for edit/delete btns */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.sb-card-level {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    flex-shrink: 0;
+    letter-spacing: 0.02em;
+}
+
+.sb-card-level.trucchetto {
+    font-size: 0.58rem;
+    letter-spacing: 0.04em;
+}
+
+.sb-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.sb-card-name {
+    font-family: 'Cinzel', serif;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sb-card-school {
+    font-size: 0.64rem;
+    letter-spacing: 0.04em;
+    opacity: 0.9;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.sb-card-school-svg {
+    display: inline-flex;
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    vertical-align: middle;
+}
+
+.sb-card-btns {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 3px;
+    z-index: 2;
+}
+
+.sb-icon-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.38);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    cursor: pointer;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+    transition: color 0.12s, background 0.12s;
+}
+
+.sb-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sb-icon-btn.edit:hover {
+    color: var(--accent-arcane, #9b59b6);
+}
+
+.sb-icon-btn.del:hover {
+    color: var(--accent-crimson, #c0392b);
+}
+
+/* Description */
+.sb-card-desc-wrap {
+    padding: 9px 12px 4px;
+}
+
+.sb-card-desc {
+    font-size: 0.79rem;
+    color: var(--text-secondary, #c0b8d0);
+    line-height: 1.55;
+    margin: 0;
+}
+
+.sb-desc-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.68rem;
+    padding: 3px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    opacity: 0.8;
+    transition: opacity 0.12s;
+}
+
+.sb-desc-toggle:hover {
+    opacity: 1;
+}
+
+/* Stats row */
+.sb-card-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 7px 12px;
+}
+
+.sb-stat {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 5px;
+    padding: 4px 7px;
+    font-size: 0.74rem;
+}
+
+.sb-stat-icon {
+    opacity: 0.55;
+    display: flex;
+    align-items: center;
+}
+
+.sb-stat-label {
+    font-size: 0.58rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-right: 2px;
+}
+
+.sb-stat-value {
+    color: var(--text-secondary, #c0b8d0);
+    font-weight: 500;
+    line-height: 1.15;
+}
+
+/* Prep footer */
+.sb-card-footer {
+    margin-top: auto;
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+    padding: 8px 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.sb-prep-counter {
+    display: flex;
+    align-items: center;
+    border-radius: 5px;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.sb-prep-counter.has-preps {
+    border-color: var(--c-border, rgba(155, 89, 182, 0.44));
+    background: var(--c-bg, rgba(155, 89, 182, 0.1));
+}
+
+.sb-prep-minus {
+    width: 26px;
+    height: 30px;
+    background: transparent;
+    border: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.12s;
+}
+
+.sb-prep-minus:not(:disabled) {
+    color: var(--accent-crimson, #c0392b);
+    border-right-color: rgba(192, 57, 43, 0.2);
+}
+
+.sb-prep-minus:not(:disabled):hover {
+    background: rgba(192, 57, 43, 0.12);
+}
+
+.sb-prep-count {
+    min-width: 32px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.85rem;
+    text-align: center;
+    line-height: 30px;
+    padding: 0 6px;
+    color: var(--text-muted);
+}
+
+.sb-prep-counter.has-preps .sb-prep-count {
+    color: var(--c-color, #9b59b6);
+}
+
+.sb-prepare-btn {
+    flex: 1;
+    padding: 6px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'Cinzel', serif;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: filter 0.15s;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-muted);
+}
+
+.sb-prepare-btn.can-prepare {
+    background: var(--c-btn-bg, rgba(155, 89, 182, 0.18));
+    border-color: var(--c-btn-border, rgba(155, 89, 182, 0.55));
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.sb-prepare-btn.can-prepare:hover {
+    filter: brightness(1.2);
+}
+
+.sb-prepare-btn:disabled {
+    cursor: not-allowed;
+}
+
+/* ─── Edit form ──────────────────────────────── */
+.sb-edit-form {
+    padding: 14px;
+    background: rgba(155, 89, 182, 0.06);
+    border: 1px solid rgba(155, 89, 182, 0.22);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sb-form-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.sb-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.sb-form-label {
+    font-size: 0.64rem;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.sb-form-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+/* ─── Daily tab: header panel ────────────────── */
+.sb-daily-hdr {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(155, 89, 182, 0.06);
+    border: 1px solid rgba(155, 89, 182, 0.18);
+    border-radius: 8px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.sb-daily-hdr-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+    min-width: 180px;
+}
+
+.sb-daily-hdr-title {
+    font-family: 'Cinzel', serif;
+    font-size: 0.92rem;
+    color: var(--accent-arcane, #9b59b6);
+    letter-spacing: 0.05em;
+}
+
+.sb-daily-hdr-sub {
+    font-size: 0.71rem;
+    color: var(--text-muted);
+}
+
+/* ─── Slot section ───────────────────────────── */
+.sb-slot-section {
+    border-radius: 9px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sb-slot-hdr {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    flex-wrap: wrap;
+}
+
+.sb-slot-level-badge {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-family: 'Cinzel', serif;
+    font-size: 1.05rem;
+    flex-shrink: 0;
+}
+
+.sb-slot-level-badge.trucchetto {
+    font-size: 0.6rem;
+    letter-spacing: 0.04em;
+}
+
+.sb-slot-info {
+    flex: 1;
+    min-width: 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sb-slot-name {
+    font-family: 'Cinzel', serif;
+    font-size: 0.88rem;
+    letter-spacing: 0.04em;
+}
+
+.sb-slot-pips {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.sb-pip {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: all 0.25s;
+}
+
+.sb-slot-counter {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    border-radius: 6px;
+    padding: 4px 10px;
+    min-width: 52px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.sb-slot-available {
+    font-family: 'Cinzel', serif;
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+.sb-slot-total {
+    font-size: 0.58rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.sb-slot-adjust {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sb-adj-btn {
+    width: 22px;
+    height: 18px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s;
+}
+
+.sb-adj-btn:first-child {
+    border-radius: 3px 3px 0 0;
+}
+
+.sb-adj-btn:last-child {
+    border-radius: 0 0 3px 3px;
+    border-top: none;
+}
+
+.sb-adj-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sb-prep-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Cinzel', serif;
+    font-size: 0.74rem;
+    letter-spacing: 0.03em;
+    transition: all 0.15s;
+}
+
+/* Picker grid */
+.sb-picker {
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.22);
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.sb-picker-empty {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    font-style: italic;
+    margin: 0;
+}
+
+.sb-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 5px;
+}
+
+.sb-pick-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    text-align: left;
+    transition: background 0.13s;
+    border-left-width: 3px;
+    border-left-style: solid;
+    border-right: 1px solid transparent;
+    border-top: 1px solid transparent;
+    border-bottom: 1px solid transparent;
+    overflow: hidden;
+}
+
+.sb-pick-btn-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sb-pick-btn-school {
+    font-size: 0.62rem;
+    opacity: 0.85;
+    flex-shrink: 0;
+}
+
+/* Prepared list */
+.sb-prep-list {
+    padding: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.sb-prep-list-empty {
+    font-size: 0.77rem;
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 6px 4px;
+    margin: 0;
+}
+
+.sb-prep-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 6px;
+}
+
+.sb-prep-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    border-radius: 7px;
+    padding: 8px 10px;
+    transition: all 0.2s;
+    border-left-width: 3px;
+    border-left-style: solid;
+    border-right: 1px solid transparent;
+    border-top: 1px solid transparent;
+    border-bottom: 1px solid transparent;
+}
+
+.sb-prep-item.cast {
+    opacity: 0.45;
+}
+
+.sb-cast-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: filter 0.18s;
+    border: 2px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+}
+
+.sb-cast-btn.active {
+    color: #fff;
+}
+
+.sb-cast-btn.active:hover {
+    filter: brightness(1.25);
+}
+
+.sb-prep-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.sb-prep-item-name {
+    font-size: 0.83rem;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+    line-height: 1.2;
+}
+
+.sb-prep-item.cast .sb-prep-item-name {
+    color: var(--text-muted);
+    text-decoration: line-through;
+}
+
+.sb-prep-item-school {
+    font-size: 0.62rem;
+    opacity: 0.85;
+    letter-spacing: 0.03em;
+    margin-top: 2px;
+}
+
+.sb-remove-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.17);
+    padding: 4px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    transition: color 0.13s, background 0.13s;
+    display: flex;
+    align-items: center;
+}
+
+.sb-remove-btn:hover {
+    color: var(--accent-crimson, #c0392b);
+    background: rgba(192, 57, 43, 0.1);
+}
+
+/* ─── Empty states ───────────────────────────── */
+.sb-empty {
+    text-align: center;
+    padding: 2.5rem 1rem;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.01);
+}
+
+.sb-empty-icon {
+    opacity: 0.3;
+}
+
+.sb-empty-text {
+    font-size: 0.85rem;
+    margin: 0;
+}

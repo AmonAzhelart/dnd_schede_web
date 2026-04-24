@@ -1,0 +1,66 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  D&D Nexus — Firestore security rules
+//  Deploy with:  firebase deploy --only firestore:rules
+//
+//  Model
+//  ─────
+//  • SuperAdmin = the single account with email fonti.alessandro98@gmail.com
+//  • Allowed users = SuperAdmin OR an entry in /invites/{lowercased-email}
+//  • Per-character documents are owned by the creator (userId field)
+//  • Shared catalogs (spells, skills, icons, widgets) are READ by any allowed
+//    user and WRITE only by the SuperAdmin.
+// ─────────────────────────────────────────────────────────────────────────────
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userEmail() {
+      return request.auth.token.email.lower();
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && userEmail() == 'fonti.alessandro98@gmail.com';
+    }
+
+    function isInvited() {
+      return isSignedIn() && exists(/databases/$(database)/documents/invites/$(userEmail()));
+    }
+
+    function isAllowed() {
+      return isSuperAdmin() || isInvited();
+    }
+
+    // ── Invites: only the SuperAdmin can read/write the allowlist.
+    //    Allowed users may read their *own* invite doc to confirm access.
+    match /invites/{email} {
+      allow read: if isSuperAdmin() || (isSignedIn() && email == userEmail());
+      allow write: if isSuperAdmin();
+    }
+
+    // ── Characters: owned by their creator, gated by allowlist.
+    match /characters/{charId} {
+      allow read, update, delete: if isAllowed()
+        && resource.data.userId == request.auth.uid;
+      allow create: if isAllowed()
+        && request.resource.data.userId == request.auth.uid;
+    }
+
+    // ── Per-user settings: owned by uid, gated by allowlist.
+    match /userSettings/{uid} {
+      allow read, write: if isAllowed() && request.auth.uid == uid;
+    }
+
+    // ── Shared catalogs: any allowed user can read; only SuperAdmin writes.
+    match /catalog_spells/{id}   { allow read: if isAllowed(); allow write: if isSuperAdmin(); }
+    match /catalog_skills/{id}   { allow read: if isAllowed(); allow write: if isSuperAdmin(); }
+    match /catalog_feats/{id}    { allow read: if isAllowed(); allow write: if isSuperAdmin(); }
+    match /catalog_icons/{id}    { allow read: if isAllowed(); allow write: if isSuperAdmin(); }
+    match /catalog_widgets/{id}  { allow read: if isAllowed(); allow write: if isSuperAdmin(); }
+  }
+}

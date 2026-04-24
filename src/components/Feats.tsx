@@ -1,9 +1,11 @@
 ﻿import React, { useState } from 'react';
 import { useCharacterStore } from '../store/characterStore';
 import { v4 as uuidv4 } from 'uuid';
-import { FaPlus, FaTrash, FaEdit, FaCheck, FaTimes } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaEdit, FaCheck, FaTimes, FaBookOpen } from 'react-icons/fa';
 import { Virtuoso } from 'react-virtuoso';
 import type { Feat } from '../types/dnd';
+import { featCatalog, type CatalogFeat } from '../services/admin';
+import { CatalogPicker } from './CatalogPicker';
 
 const MOD_TYPES = [
     { value: 'enhancement', label: 'Potenziamento' }, { value: 'armor', label: 'Armatura' },
@@ -201,6 +203,29 @@ export const Feats: React.FC = () => {
     const [isAdding, setIsAdding] = useState(false);
     const [form, setForm] = useState<Omit<Feat, 'id'>>(EMPTY_FEAT());
     const [isDefectForm, setIsDefectForm] = useState(false);
+    const [catalogOpen, setCatalogOpen] = useState(false);
+    const [catalogItems, setCatalogItems] = useState<CatalogFeat[]>([]);
+    const [catalogLoading, setCatalogLoading] = useState(false);
+
+    const openCatalog = async () => {
+        setCatalogOpen(true);
+        if (catalogItems.length === 0) {
+            setCatalogLoading(true);
+            setCatalogItems(await featCatalog.list());
+            setCatalogLoading(false);
+        }
+    };
+    const importCatalog = (cf: CatalogFeat) => {
+        const finalName = cf.isDefect ? `[D] ${cf.name}` : cf.name;
+        addFeat({
+            id: uuidv4(),
+            name: finalName,
+            description: cf.description,
+            modifiers: cf.modifiers ?? [],
+            active: true,
+        });
+        setCatalogOpen(false);
+    };
 
     if (!character) return null;
 
@@ -266,11 +291,17 @@ export const Feats: React.FC = () => {
                         </span>
                     )}
                 </div>
-                <button className="btn-primary" style={{ fontSize: '0.82rem' }}
-                    onClick={() => { setIsAdding(true); setEditingId(null); setForm(EMPTY_FEAT()); setIsDefectForm(false); }}
-                    disabled={isAdding}>
-                    <FaPlus size={11} /> Nuovo
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn-secondary" style={{ fontSize: '0.82rem' }}
+                        onClick={openCatalog} disabled={isAdding}>
+                        <FaBookOpen size={11} /> Dal Catalogo
+                    </button>
+                    <button className="btn-primary" style={{ fontSize: '0.82rem' }}
+                        onClick={() => { setIsAdding(true); setEditingId(null); setForm(EMPTY_FEAT()); setIsDefectForm(false); }}
+                        disabled={isAdding}>
+                        <FaPlus size={11} /> Nuovo
+                    </button>
+                </div>
             </div>
 
             {isAdding && <div style={{ flexShrink: 0 }}><EditForm {...editFormProps} /></div>}
@@ -294,6 +325,28 @@ export const Feats: React.FC = () => {
                     />
                 )}
             </div>
+
+            {catalogOpen && (
+                <CatalogPicker<CatalogFeat>
+                    title="Importa dal Catalogo Talenti"
+                    items={catalogItems}
+                    loading={catalogLoading}
+                    onClose={() => setCatalogOpen(false)}
+                    onPick={importCatalog}
+                    filters={[
+                        { label: 'Solo Talenti', predicate: f => !f.isDefect },
+                        { label: 'Solo Difetti', predicate: f => !!f.isDefect },
+                    ]}
+                    map={cf => ({
+                        id: cf.id,
+                        name: cf.name,
+                        subtitle: cf.isDefect ? 'Difetto' : 'Talento',
+                        description: cf.description,
+                        tags: cf.tags,
+                        raw: cf,
+                    })}
+                />
+            )}
         </div>
     );
 };

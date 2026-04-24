@@ -10,9 +10,11 @@ import { SkeletonCharacterCard, SkeletonSheet } from './components/Skeleton';
 import { getUserCharacters, createNewCharacterDb, saveCharacterToDb } from './services/db';
 import type { CharacterBase } from './types/dnd';
 import { GiSwordman, GiTreasureMap } from 'react-icons/gi';
-import { FaBookOpen, FaGoogle, FaSignOutAlt, FaPlus, FaChevronLeft } from 'react-icons/fa';
+import { FaBookOpen, FaGoogle, FaSignOutAlt, FaPlus, FaChevronLeft, FaCog } from 'react-icons/fa';
+import { isEmailAllowed, isSuperAdmin } from './services/admin';
+import { BackOffice } from './components/backoffice/BackOffice';
 
-type Tab = 'scheda' | 'diario' | 'mappe';
+type Tab = 'scheda' | 'diario' | 'mappe' | 'backoffice';
 
 function App() {
   const { character, setCharacter } = useCharacterStore();
@@ -20,6 +22,8 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [userCharacters, setUserCharacters] = useState<CharacterBase[]>([]);
   const [loadingChars, setLoadingChars] = useState(true);
+  const [accessChecked, setAccessChecked] = useState(false);
+  const [accessAllowed, setAccessAllowed] = useState(false);
 
   // ── Auto-save ──────────────────────────────────────────
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -65,11 +69,22 @@ function App() {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
+        setAccessChecked(false);
+        const allowed = await isEmailAllowed(u.email);
+        setAccessAllowed(allowed);
+        setAccessChecked(true);
+        if (!allowed) {
+          setLoadingChars(false);
+          setUserCharacters([]);
+          return;
+        }
         setLoadingChars(true);
         const chars = await getUserCharacters(u.uid);
         setUserCharacters(chars);
         setLoadingChars(false);
       } else {
+        setAccessChecked(true);
+        setAccessAllowed(false);
         setCharacter(null as any);
       }
     });
@@ -102,6 +117,25 @@ function App() {
     selectCharacter(c);
   };
 
+  // ── ACCESS DENIED (non-invited user) ──────────────────
+  if (user && accessChecked && !accessAllowed) {
+    return (
+      <div className="app-container centered">
+        <div className="glass-panel animate-fade-in" style={{ width: 440, textAlign: 'center' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🔒</div>
+          <h1 className="text-gradient" style={{ fontSize: '1.6rem', marginBottom: '0.5rem' }}>Accesso solo su invito</h1>
+          <p className="text-muted" style={{ marginBottom: '1.5rem' }}>
+            L'account <strong>{user.email}</strong> non è autorizzato.<br />
+            Contatta l'amministratore per richiedere un invito.
+          </p>
+          <button className="btn-secondary w-full" style={{ justifyContent: 'center' }} onClick={handleLogout}>
+            <FaSignOutAlt /> Esci
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // ── LOGIN SCREEN ───────────────────────────────────────
   if (!user) {
     return (
@@ -109,10 +143,32 @@ function App() {
         <div className="glass-panel animate-fade-in" style={{ width: 400, textAlign: 'center' }}>
           <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>⚔️</div>
           <h1 className="text-gradient" style={{ fontSize: '2.2rem', marginBottom: '0.5rem' }}>D&D Nexus</h1>
-          <p className="text-muted" style={{ marginBottom: '2rem' }}>Gestisci le tue avventure.<br />Accedi per iniziare.</p>
+          <p className="text-muted" style={{ marginBottom: '2rem' }}>Gestisci le tue avventure.<br />Accesso solo su invito.</p>
           <button className="btn-primary w-full" style={{ justifyContent: 'center', fontSize: '1rem', padding: '0.75rem 1.5rem' }} onClick={handleLogin}>
             <FaGoogle /> Accedi con Google
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  const superAdmin = isSuperAdmin(user.email);
+
+  // ── BACKOFFICE-ONLY VIEW (no character required) ──────
+  if (superAdmin && activeTab === 'backoffice' && !character) {
+    return (
+      <div className="app-container centered">
+        <div className="glass-panel animate-fade-in flex-col gap-3" style={{ width: 'min(1000px, 95vw)', height: '85vh' }}>
+          <div className="section-header">
+            <h2 style={{ fontSize: '1.4rem', margin: 0 }}>Back-Office</h2>
+            <div className="flex gap-2">
+              <button className="btn-secondary text-sm" onClick={() => setActiveTab('scheda')}><FaChevronLeft /> Torna ai personaggi</button>
+              <button className="btn-ghost text-sm" style={{ color: 'var(--accent-crimson)' }} onClick={handleLogout}><FaSignOutAlt /> Logout</button>
+            </div>
+          </div>
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
+            <BackOffice currentUserEmail={user.email ?? ''} />
+          </div>
         </div>
       </div>
     );
@@ -170,6 +226,11 @@ function App() {
           </div>
 
           <div className="divider" />
+          {superAdmin && (
+            <button className="btn-secondary w-full" style={{ justifyContent: 'center' }} onClick={() => setActiveTab('backoffice')}>
+              <FaCog /> Back-Office
+            </button>
+          )}
           <button className="btn-ghost text-sm" style={{ justifyContent: 'center', color: 'var(--accent-crimson)' }} onClick={handleLogout}>
             <FaSignOutAlt /> Logout
           </button>
@@ -183,6 +244,7 @@ function App() {
     { id: 'scheda', label: 'Scheda', icon: <GiSwordman size={18} /> },
     { id: 'diario', label: 'Diario & NPC', icon: <FaBookOpen size={16} /> },
     { id: 'mappe', label: 'Mappe', icon: <GiTreasureMap size={18} /> },
+    ...(superAdmin ? [{ id: 'backoffice' as Tab, label: 'Back-Office', icon: <FaCog size={16} /> }] : []),
   ];
 
   return (
@@ -244,13 +306,12 @@ function App() {
           </div>
         )}
         {activeTab === 'mappe' && (
-          <div style={{ flex: 1, overflow: 'hidden', padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: '1rem' }} className="animate-fade-in">
-            <div className="section-header" style={{ flexShrink: 0 }}>
-              <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Mappe Tattiche</h2>
-              <span className="text-muted text-sm">Disegna il tuo dungeon</span>
-            </div>
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }} className="animate-fade-in">
             <MapBoard />
           </div>
+        )}
+        {activeTab === 'backoffice' && superAdmin && (
+          <BackOffice currentUserEmail={user.email ?? ''} />
         )}
       </main>
 

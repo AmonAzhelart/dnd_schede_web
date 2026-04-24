@@ -1,5 +1,37 @@
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
 
+/* ────────────────────────────────────────────────────────────────────
+   Cross-device palette lock — keep OUR colors on every browser.
+   Prevents Chrome "Auto Dark", Samsung Internet "Night mode", Edge
+   "Force Dark", iOS Safari "Smart Invert" and printed/forced-color
+   modes from rewriting our hand-tuned dark fantasy palette.
+   ──────────────────────────────────────────────────────────────────── */
+:root {
+  color-scheme: dark;
+  forced-color-adjust: none;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  forced-color-adjust: none;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* Windows High-Contrast Mode (Edge): keep our gradients/borders intact */
+@media (forced-colors: active) {
+
+  :root,
+  body,
+  #root,
+  * {
+    forced-color-adjust: none !important;
+  }
+}
+
 html,
 body {
   height: 100%;
@@ -1380,7 +1412,7 @@ textarea.input {
   flex-direction: column;
   overflow: hidden;
   position: relative;
-  transition: border-color 0.18s, box-shadow 0.18s, opacity 0.18s;
+  transition: border-color 0.18s, box-shadow 0.18s, opacity 0.18s, transform 0.18s ease;
   min-height: 0;
   min-width: 0;
 }
@@ -1401,14 +1433,160 @@ textarea.input {
 }
 
 .dash-tile.dragging {
-  opacity: 0.55;
-  z-index: 3;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  opacity: 0.85;
+  z-index: 5;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 0 2px rgba(201, 168, 76, 0.55);
   cursor: grabbing !important;
+  transform: scale(1.02);
+  transition: box-shadow 0.18s, transform 0.12s ease;
+}
+
+/* Source tile while dragging: stays in place as a dimmed dashed placeholder.
+   The phantom clone (below) is what actually follows the pointer. */
+.dash-tile.dragging-source {
+  opacity: 0.35;
+  filter: saturate(0.6);
+  border-style: dashed !important;
+  border-color: rgba(201, 168, 76, 0.55) !important;
+  box-shadow: none !important;
+  pointer-events: none;
+}
+
+/* Floating phantom clone — fixed-position visual that follows the cursor. */
+.dash-phantom {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background: var(--bg-panel);
+  border: 1px solid rgba(201, 168, 76, 0.65);
+  border-radius: var(--radius-md);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(201, 168, 76, 0.45);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  opacity: 0.92;
+  transform-origin: top left;
+  will-change: transform;
+  transition: box-shadow 0.18s;
+}
+
+.dash-phantom-header {
+  cursor: grabbing;
+}
+
+.dash-phantom-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background:
+    repeating-linear-gradient(135deg,
+      rgba(201, 168, 76, 0.06) 0,
+      rgba(201, 168, 76, 0.06) 8px,
+      transparent 8px,
+      transparent 16px);
+}
+
+/* Phantom body when it directly hosts the minimal content. */
+.dash-phantom>.dash-tile-minimal {
+  background:
+    repeating-linear-gradient(135deg,
+      rgba(201, 168, 76, 0.06) 0,
+      rgba(201, 168, 76, 0.06) 8px,
+      transparent 8px,
+      transparent 16px);
+  border-radius: calc(var(--radius-md) - 1px);
+}
+
+/* Minimal-mode tile body — shown while dragging so the user sees only
+   the widget's identity and footprint, with maximum free space.
+   The CSS var --dash-zoom-comp inverts the dashboard zoom so text stays
+   readable even when the whole frame is scaled down. */
+.dash-tile-minimal {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  text-align: center;
+  /* Counter-scale: when the parent frame is at scale=z, this puts the
+     label back at visually-1x size, but only up to a sane cap. */
+  --label-scale: min(var(--dash-zoom-comp, 1), 2.4);
+}
+
+.dash-tile-minimal-icon {
+  font-size: calc(1.4rem * var(--label-scale));
+  line-height: 1;
+  opacity: 0.95;
+  display: inline-flex;
+}
+
+.dash-tile-minimal-name {
+  font-family: var(--font-heading);
+  font-size: calc(0.85rem * var(--label-scale));
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  text-transform: uppercase;
+  line-height: 1.1;
+  word-break: break-word;
+  max-width: 100%;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.dash-tile-minimal-size {
+  font-family: var(--font-heading);
+  font-size: calc(0.7rem * var(--label-scale));
+  letter-spacing: 0.14em;
+  opacity: 0.7;
+  line-height: 1;
+}
+
+/* Phantom variant — same minimal layout but the inner content is NOT
+   counter-scaled (the phantom itself is scaled by transform to match
+   the dashboard zoom, so the on-screen label size matches the tiles). */
+.dash-phantom-content {
+  --label-scale: 1;
+  background:
+    repeating-linear-gradient(135deg,
+      rgba(201, 168, 76, 0.06) 0,
+      rgba(201, 168, 76, 0.06) 8px,
+      transparent 8px,
+      transparent 16px);
+  border-radius: var(--radius-md);
+}
+
+/* When the dashboard is in drag mode, give every tile a clear
+   "slot card" look so the available space is unambiguous. */
+.dash-frame.is-dragging .dash-tile {
+  background: rgba(20, 18, 14, 0.7);
+  border: 2px dashed rgba(201, 168, 76, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+.dash-grid.is-edit .dash-tile {
+  transition: border-color 0.18s, box-shadow 0.18s, opacity 0.18s, transform 0.2s ease, background-color 0.18s;
 }
 
 .dash-tile.invalid {
   border-color: rgba(192, 57, 43, 0.6) !important;
+}
+
+/* Edit-mode tile header acts as a drag handle: prevent the browser from
+   hijacking touch gestures for scrolling so PointerEvents can drive drag. */
+.dash-grid.is-edit .dash-tile-header {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.dash-grid.is-edit .dash-resize-handle {
+  touch-action: none;
 }
 
 /* Ghost preview shown while dragging/resizing */
@@ -1584,6 +1762,33 @@ textarea.input {
 .dash-resize-handle:hover {
   opacity: 1;
   transform: scale(1.1);
+}
+
+/* Touch-friendly tweaks for the dashboard editor */
+@media (pointer: coarse) {
+  .dash-resize-handle {
+    width: 28px;
+    height: 28px;
+    opacity: 0.8;
+  }
+
+  .dash-grid.is-edit .dash-tile-header {
+    min-height: 34px;
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+  }
+
+  .dash-grid.is-edit .dash-grip {
+    opacity: 1;
+    color: var(--accent-gold);
+    font-size: 0.95rem;
+  }
+
+  /* Larger remove button so it's easy to tap without triggering a drag. */
+  .dash-grid.is-edit .dash-icon-btn {
+    width: 26px;
+    height: 26px;
+  }
 }
 
 .dash-empty {
@@ -2194,6 +2399,29 @@ textarea.input {
 .ws-source-browser {
   border-top: 1px solid rgba(201, 168, 76, 0.15);
   background: rgba(0, 0, 0, 0.25);
+}
+
+/* === SVG ICON TINT (global utility) ============================
+   Tints inline SVGs to match the dark theme so black/dark
+   icons remain visible. Apply on a wrapper element. */
+.inv-svg-tinted {
+  color: #e8e0d0;
+}
+
+.inv-svg-tinted svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  color: inherit;
+  fill: currentColor;
+}
+
+.inv-svg-tinted svg [fill]:not([fill="none"]) {
+  fill: currentColor;
+}
+
+.inv-svg-tinted svg [stroke]:not([stroke="none"]) {
+  stroke: currentColor;
 }
 
 .ws-source-pick {

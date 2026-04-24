@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CharacterBase, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell } from '../types/dnd';
+import type { CharacterBase, ClassLevel, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell } from '../types/dnd';
 
 interface CharacterState {
   character: CharacterBase | null;
@@ -59,6 +59,15 @@ interface CharacterState {
   castPreparedSpell: (level: number, prepId: string) => void;
   restorePreparedSpell: (level: number, prepId: string) => void;
   restWizardSpells: () => void;
+  // BAB
+  /** Returns the computed total BAB (from classLevels if present, else baseStats.bab) */
+  getTotalBab: () => number;
+  /** Returns the list of attack bonuses including multiple attacks, e.g. [+8, +3] */
+  getMultipleAttacks: (extraBonus?: number) => number[];
+  // ClassLevel management
+  addClassLevel: (entry: ClassLevel) => void;
+  updateClassLevel: (entry: ClassLevel) => void;
+  deleteClassLevel: (id: string) => void;
 }
 
 // Helper to determine if a modifier type stacks
@@ -362,6 +371,49 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     const slots = state.character.spellSlots ?? {};
     const resetSlots = Object.fromEntries(Object.entries(slots).map(([k, v]) => [k, { ...v, used: 0 }]));
     return { character: { ...state.character, preparedSpellsByLevel: reset, spellSlots: resetSlots } };
+  }),
+
+  // ── BAB ──────────────────────────────────────────────────────────
+  getTotalBab: (): number => {
+    const { character } = get();
+    if (!character) return 0;
+    const levels = character.classLevels;
+    if (levels && levels.length > 0) {
+      return levels.reduce((sum, cl) => {
+        const lvl = cl.level;
+        if (cl.babProgression === 'high') return sum + lvl;
+        if (cl.babProgression === 'medium') return sum + Math.floor(lvl * 3 / 4);
+        /* low */                           return sum + Math.floor(lvl / 2);
+      }, 0);
+    }
+    return character.baseStats.bab || 0;
+  },
+
+  getMultipleAttacks: (extraBonus = 0): number[] => {
+    const bab = get().getTotalBab() + extraBonus;
+    const attacks: number[] = [bab];
+    let next = bab - 5;
+    while (next > 0 && attacks.length < 4) {
+      attacks.push(next);
+      next -= 5;
+    }
+    return attacks;
+  },
+
+  // ── ClassLevel management ────────────────────────────────────────
+  addClassLevel: (entry: ClassLevel) => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, classLevels: [...(state.character.classLevels ?? []), entry] } };
+  }),
+
+  updateClassLevel: (entry: ClassLevel) => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, classLevels: (state.character.classLevels ?? []).map(cl => cl.id === entry.id ? entry : cl) } };
+  }),
+
+  deleteClassLevel: (id: string) => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, classLevels: (state.character.classLevels ?? []).filter(cl => cl.id !== id) } };
   }),
 
   getEffectiveStat: (target: StatType | string): number => {

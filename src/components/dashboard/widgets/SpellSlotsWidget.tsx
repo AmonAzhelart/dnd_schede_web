@@ -1,44 +1,40 @@
-import React, { useMemo, useState, useEffect } from 'react';
+﻿import React, { useMemo, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { GiSpellBook, GiCrystalBall, GiNightSleep } from 'react-icons/gi';
-import { FaInfoCircle } from 'react-icons/fa';
+import { FaInfoCircle, FaTimes } from 'react-icons/fa';
 import { useCharacterStore } from '../../../store/characterStore';
 import type { WidgetRenderProps } from '../widgetTypes';
 import type { Spell } from '../../../types/dnd';
+import { DndIcon, getDndIconSvg } from '../../DndIcon';
 
-const LEVEL_LABEL = (lvl: number, narrow: boolean) =>
-    narrow
-        ? (lvl === 0 ? 'Trucch.' : `Lv ${lvl}`)
-        : (lvl === 0 ? 'Trucchetti' : `Livello ${lvl}`);
+const SCHOOL_ICON_SLUG: Record<string, string> = {
+    'Abiurazione': 'abjuration', 'Ammaliamento': 'enchantment', 'Divinazione': 'divination',
+    'Evocazione': 'conjuration', 'Illusione': 'illusion', 'Invocazione': 'evocation',
+    'Necromanzia': 'necromancy', 'Trasmutazione': 'transmutation',
+};
 
-// Popover with rich spell details, anchored to a DOM element via fixed positioning.
-const SpellInfoPopover: React.FC<{ spell: Spell; anchor: HTMLElement; onClose: () => void }> = ({ spell, anchor, onClose }) => {
-    const [pos, setPos] = useState<{ top: number; left: number }>(() => {
-        const r = anchor.getBoundingClientRect();
-        return { top: r.bottom + 6, left: r.left };
-    });
+const TAB_LABEL = (lvl: number): string => lvl === 0 ? 'Tr' : String(lvl);
+const SECTION_LABEL = (lvl: number): string => lvl === 0 ? 'Trucchetti' : `Livello ${lvl}`;
+
+/**
+ * Modal (auto-becomes a bottom-sheet on narrow viewports) showing full spell details.
+ */
+const SpellInfoModal: React.FC<{ spell: Spell; onClose: () => void }> = ({ spell, onClose }) => {
+    const [isMobile, setIsMobile] = useState(() => window.innerWidth < 600);
     useEffect(() => {
-        const update = () => {
-            const r = anchor.getBoundingClientRect();
-            const W = 280;
-            let left = r.left;
-            if (left + W > window.innerWidth - 8) left = Math.max(8, window.innerWidth - W - 8);
-            let top = r.bottom + 6;
-            // If overflow bottom, flip above.
-            if (top + 200 > window.innerHeight) top = Math.max(8, r.top - 200 - 6);
-            setPos({ top, left });
-        };
-        update();
-        window.addEventListener('resize', update);
-        window.addEventListener('scroll', update, true);
+        const onResize = () => setIsMobile(window.innerWidth < 600);
         const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        window.addEventListener('resize', onResize);
         window.addEventListener('keydown', onKey);
+        // Lock body scroll while modal is open
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
         return () => {
-            window.removeEventListener('resize', update);
-            window.removeEventListener('scroll', update, true);
+            window.removeEventListener('resize', onResize);
             window.removeEventListener('keydown', onKey);
+            document.body.style.overflow = prev;
         };
-    }, [anchor, onClose]);
+    }, [onClose]);
 
     const stats: [string, string | undefined][] = [
         ['Scuola', spell.school],
@@ -49,41 +45,121 @@ const SpellInfoPopover: React.FC<{ spell: Spell; anchor: HTMLElement; onClose: (
         ['Componenti', spell.components],
     ];
 
+    const overlayStyle: React.CSSProperties = {
+        position: 'fixed', inset: 0, zIndex: 9998,
+        background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(3px)',
+        display: 'flex',
+        alignItems: isMobile ? 'flex-end' : 'center',
+        justifyContent: 'center',
+        padding: isMobile ? 0 : 16,
+    };
+    const dialogStyle: React.CSSProperties = isMobile
+        ? {
+            width: '100%', maxHeight: '85vh',
+            borderTopLeftRadius: 16, borderTopRightRadius: 16,
+            background: 'linear-gradient(160deg, rgba(40,30,55,0.98), rgba(20,20,30,0.98))',
+            borderTop: '2px solid var(--accent-arcane)',
+            boxShadow: '0 -10px 40px rgba(0,0,0,0.7)',
+            display: 'flex', flexDirection: 'column',
+        }
+        : {
+            width: 'min(480px, 100%)', maxHeight: '85vh',
+            borderRadius: 12,
+            background: 'linear-gradient(160deg, rgba(40,30,55,0.98), rgba(20,20,30,0.98))',
+            border: '1px solid var(--accent-arcane)',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(155,89,182,0.2)',
+            display: 'flex', flexDirection: 'column',
+        };
+
+    const schoolSlug = spell.school ? SCHOOL_ICON_SLUG[spell.school] : undefined;
+
     return createPortal(
-        <>
-            <div onClick={onClose} style={{
-                position: 'fixed', inset: 0, zIndex: 9998, background: 'transparent',
-            }} />
-            <div role="dialog" style={{
-                position: 'fixed', top: pos.top, left: pos.left, width: 280, zIndex: 9999,
-                background: 'linear-gradient(160deg, rgba(40,30,55,0.98), rgba(20,20,30,0.98))',
-                border: '1px solid var(--accent-arcane)',
-                borderRadius: 8, padding: '10px 12px',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.6), 0 0 0 1px rgba(155,89,182,0.2)',
-                color: 'var(--text-primary)',
-                fontSize: '0.78rem', lineHeight: 1.4,
-            }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 6, paddingBottom: 6, borderBottom: '1px solid rgba(155,89,182,0.25)' }}>
-                    <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.95rem', color: 'var(--accent-arcane)', flex: 1 }}>{spell.name}</span>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                        {spell.level === 0 ? 'Trucchetto' : `Liv. ${spell.level}`}
-                    </span>
-                </div>
-                {spell.description && (
-                    <p style={{ margin: '0 0 8px', color: 'var(--text-secondary)', fontSize: '0.74rem', maxHeight: 120, overflow: 'auto' }}>
-                        {spell.description}
-                    </p>
+        <div onClick={onClose} role="dialog" aria-modal="true" style={overlayStyle}>
+            <div onClick={e => e.stopPropagation()} style={dialogStyle}>
+                {/* Drag handle for sheet */}
+                {isMobile && (
+                    <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0 0' }}>
+                        <span style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.25)' }} />
+                    </div>
                 )}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                    {stats.filter(([, v]) => v).map(([k, v]) => (
-                        <div key={k} style={{ background: 'rgba(0,0,0,0.3)', padding: '4px 6px', borderRadius: 4 }}>
-                            <div style={{ fontSize: '0.55rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{k}</div>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{v}</div>
+
+                {/* Header */}
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '12px 16px',
+                    borderBottom: '1px solid rgba(155,89,182,0.25)',
+                }}>
+                    {schoolSlug && getDndIconSvg('spell', schoolSlug) && (
+                        <DndIcon category="spell" name={schoolSlug} size={22} style={{ color: 'var(--accent-arcane)' }} />
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.05rem', color: 'var(--accent-arcane)' }}>
+                            {spell.name}
                         </div>
-                    ))}
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                            {spell.level === 0 ? 'Trucchetto' : `Livello ${spell.level}`}
+                            {spell.school && ` Â· ${spell.school}`}
+                        </div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        aria-label="Chiudi"
+                        style={{
+                            background: 'transparent', border: 'none',
+                            color: 'var(--text-muted)', cursor: 'pointer',
+                            padding: 6, borderRadius: 4,
+                        }}
+                    >
+                        <FaTimes size={14} />
+                    </button>
+                </div>
+
+                {/* Body */}
+                <div style={{ overflowY: 'auto', padding: '12px 16px', flex: 1 }}>
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                        gap: 6,
+                        marginBottom: 12,
+                    }}>
+                        {stats.filter(([, v]) => v && v.trim()).map(([k, v]) => (
+                            <div key={k} style={{
+                                background: 'rgba(0,0,0,0.3)',
+                                padding: '6px 8px',
+                                borderRadius: 6,
+                                border: '1px solid rgba(155,89,182,0.15)',
+                            }}>
+                                <div style={{
+                                    fontSize: '0.55rem', color: 'var(--text-muted)',
+                                    textTransform: 'uppercase', letterSpacing: '0.08em',
+                                    marginBottom: 2,
+                                }}>{k}</div>
+                                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{v}</div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {spell.description && (
+                        <div>
+                            <div style={{
+                                fontSize: '0.6rem', color: 'var(--text-muted)',
+                                textTransform: 'uppercase', letterSpacing: '0.08em',
+                                marginBottom: 4,
+                            }}>Descrizione</div>
+                            <p style={{
+                                margin: 0,
+                                color: 'var(--text-primary)',
+                                fontSize: '0.85rem',
+                                lineHeight: 1.5,
+                                whiteSpace: 'pre-wrap',
+                            }}>
+                                {spell.description}
+                            </p>
+                        </div>
+                    )}
                 </div>
             </div>
-        </>,
+        </div>,
         document.body
     );
 };
@@ -91,12 +167,13 @@ const SpellInfoPopover: React.FC<{ spell: Spell; anchor: HTMLElement; onClose: (
 export const SpellSlotsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
     const {
         character, setSpellSlotTotal,
-        prepareWizardSpell, unprepareWizardSpell,
+        prepareWizardSpell,
         castPreparedSpell, restorePreparedSpell, restWizardSpells,
     } = useCharacterStore();
-    const [pickerLvl, setPickerLvl] = useState<number | null>(null);
-    const [editLvl, setEditLvl] = useState<number | null>(null);
-    const [infoSpell, setInfoSpell] = useState<{ spell: Spell; anchor: HTMLElement } | null>(null);
+    const [pickerOpen, setPickerOpen] = useState(false);
+    const [editingSlots, setEditingSlots] = useState(false);
+    const [infoSpell, setInfoSpell] = useState<Spell | null>(null);
+    const [activeLvl, setActiveLvl] = useState<number>(0);
 
     if (!character) return null;
     const slots = character.spellSlots ?? {};
@@ -113,11 +190,26 @@ export const SpellSlotsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) =>
         return Array.from(set).sort((a, b) => a - b);
     }, [slots, prep]);
 
+    // Ensure activeLvl is always valid
+    useEffect(() => {
+        if (!levels.includes(activeLvl) && levels.length > 0) {
+            setActiveLvl(levels[0]);
+        }
+    }, [levels, activeLvl]);
+
     const spellById = useMemo(() => {
         const m = new Map<string, typeof spells[number]>();
         spells.forEach(s => m.set(s.id, s));
         return m;
     }, [spells]);
+
+    const lvl = activeLvl;
+    const key = String(lvl);
+    const slot = slots[key] ?? { total: 0, used: 0 };
+    const list = prep[key] ?? [];
+    const remaining = slot.total - slot.used;
+    const slotsExhausted = slot.total > 0 && remaining <= 0;
+    const availableSpells = spells.filter(s => s.level === lvl);
 
     return (
         <div className="w-spell-root">
@@ -128,125 +220,136 @@ export const SpellSlotsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) =>
                 <button className="w-spell-rest" onClick={restWizardSpells} title="Riposo (8 ore): ripristina tutti gli incantesimi preparati">
                     <GiNightSleep /> {veryNarrow ? '' : 'Riposo'}
                 </button>
-                {goTo && !veryNarrow && <button className="w-link" onClick={() => goTo('spells')}>Libro →</button>}
+                {goTo && !veryNarrow && <button className="w-link" onClick={() => goTo('spells')}>Libro â†’</button>}
             </div>
 
-            <div className="w-spell-levels w-scroll">
-                {levels.map(lvl => {
-                    const key = String(lvl);
-                    const slot = slots[key] ?? { total: 0, used: 0 };
-                    const list = prep[key] ?? [];
-                    const remaining = slot.total - slot.used;
-                    const slotsExhausted = slot.total > 0 && remaining <= 0;
-                    const editing = editLvl === lvl;
-                    const availableSpells = spells.filter(s => s.level === lvl);
-
+            {/* Level tabs */}
+            <div className="w-spell-tabs" role="tablist">
+                {levels.map(l => {
+                    const s = slots[String(l)];
+                    const p = prep[String(l)] ?? [];
+                    const isActive = l === lvl;
                     return (
-                        <section key={lvl} className="w-spell-section" data-level={lvl}>
-                            <header className="w-spell-section-head">
-                                <span className="w-spell-lv-badge">{lvl}</span>
-                                <span className="w-spell-lv-name">{LEVEL_LABEL(lvl, narrow)}</span>
-                                <div
-                                    className="w-spell-slot-counter"
-                                    onClick={() => setEditLvl(editing ? null : lvl)}
-                                    title="Click per modificare gli slot totali"
-                                >
-                                    {editing ? (
-                                        <input
-                                            type="number" min={0} className="input w-spell-slot-input"
-                                            defaultValue={slot.total} autoFocus
-                                            onClick={e => e.stopPropagation()}
-                                            onBlur={e => { setSpellSlotTotal(lvl, Math.max(0, parseInt(e.target.value) || 0)); setEditLvl(null); }}
-                                            onKeyDown={e => {
-                                                if (e.key === 'Enter') { setSpellSlotTotal(lvl, Math.max(0, parseInt((e.target as HTMLInputElement).value) || 0)); setEditLvl(null); }
-                                                if (e.key === 'Escape') setEditLvl(null);
-                                            }}
-                                        />
-                                    ) : (
-                                        <>
-                                            <span className={`w-spell-slot-rem ${slotsExhausted ? 'spent' : ''}`}>{remaining}</span>
-                                            <span className="w-spell-slot-sep">/</span>
-                                            <span className="w-spell-slot-tot">{slot.total}</span>
-                                            {!narrow && <span className="w-spell-slot-lbl">slot</span>}
-                                        </>
-                                    )}
-                                </div>
-                                <button
-                                    className="w-spell-add"
-                                    onClick={() => setPickerLvl(pickerLvl === lvl ? null : lvl)}
-                                    disabled={availableSpells.length === 0}
-                                    title={availableSpells.length === 0 ? 'Aggiungi incantesimi al libro per prepararli' : 'Prepara un incantesimo'}
-                                >+ {narrow ? '' : 'Prepara'}</button>
-                            </header>
-
-                            {pickerLvl === lvl && (
-                                <div className="w-spell-picker">
-                                    {availableSpells.length === 0 ? (
-                                        <div className="w-empty">Nessun incantesimo di livello {lvl} nel libro.</div>
-                                    ) : (
-                                        <div className="w-spell-picker-grid">
-                                            {availableSpells.map(s => (
-                                                <button
-                                                    key={s.id} className="w-spell-picker-item"
-                                                    onClick={() => prepareWizardSpell(lvl, s.id)}
-                                                    title={s.description}
-                                                >
-                                                    <GiCrystalBall /> {s.name}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                    <button className="w-spell-picker-close" onClick={() => setPickerLvl(null)}>Fine</button>
-                                </div>
+                        <button
+                            key={l}
+                            role="tab"
+                            aria-selected={isActive}
+                            className={`w-spell-tab ${isActive ? 'active' : ''}`}
+                            onClick={() => { setActiveLvl(l); setPickerOpen(false); setEditingSlots(false); }}
+                            title={SECTION_LABEL(l)}
+                        >
+                            <span className="w-spell-tab-lv">{TAB_LABEL(l)}</span>
+                            {(s?.total ?? 0) > 0 && (
+                                <span className="w-spell-tab-slot">{(s.total - s.used)}/{s.total}</span>
                             )}
-
-                            {list.length === 0 ? (
-                                <div className="w-spell-empty">Nessun incantesimo preparato</div>
-                            ) : (
-                                <div className="w-spell-prep-grid">
-                                    {list.map(p => {
-                                        const s = spellById.get(p.spellId);
-                                        if (!s) return null;
-                                        return (
-                                            <div key={p.id} className={`w-spell-prep ${p.cast ? 'is-cast' : ''}`}>
-                                                <button
-                                                    className="w-spell-prep-main"
-                                                    onClick={() => p.cast ? restorePreparedSpell(lvl, p.id) : castPreparedSpell(lvl, p.id)}
-                                                    title={p.cast ? 'Ripristina (annulla lancio)' : 'Lancia incantesimo'}
-                                                >
-                                                    <span className="w-spell-prep-check">{p.cast ? '✓' : ''}</span>
-                                                    <span className="w-spell-prep-name">{s.name}</span>
-                                                    {s.school && <span className="w-spell-prep-school">{s.school.slice(0, 3)}</span>}
-                                                </button>
-                                                <button
-                                                    className="w-spell-prep-info"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setInfoSpell({ spell: s, anchor: e.currentTarget });
-                                                    }}
-                                                    title={s.description || 'Dettagli incantesimo'}
-                                                    aria-label="Dettagli incantesimo"
-                                                >
-                                                    <FaInfoCircle size={11} />
-                                                </button>
-                                                <button
-                                                    className="w-spell-prep-x"
-                                                    onClick={() => unprepareWizardSpell(lvl, p.id)}
-                                                    title="Rimuovi preparazione"
-                                                >×</button>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                            {p.length > 0 && (
+                                <span className="w-spell-tab-prep">{p.length}</span>
                             )}
-                        </section>
+                        </button>
                     );
                 })}
             </div>
+
+            {/* Active level body */}
+            <section className="w-spell-section w-scroll" data-level={lvl}>
+                <header className="w-spell-section-head">
+                    <span className="w-spell-lv-name">{SECTION_LABEL(lvl)}</span>
+                    <div
+                        className="w-spell-slot-counter"
+                        onClick={() => setEditingSlots(e => !e)}
+                        title="Click per modificare gli slot totali"
+                    >
+                        {editingSlots ? (
+                            <input
+                                type="number" min={0} className="input w-spell-slot-input"
+                                defaultValue={slot.total} autoFocus
+                                onClick={e => e.stopPropagation()}
+                                onBlur={e => { setSpellSlotTotal(lvl, Math.max(0, parseInt(e.target.value) || 0)); setEditingSlots(false); }}
+                                onKeyDown={e => {
+                                    if (e.key === 'Enter') { setSpellSlotTotal(lvl, Math.max(0, parseInt((e.target as HTMLInputElement).value) || 0)); setEditingSlots(false); }
+                                    if (e.key === 'Escape') setEditingSlots(false);
+                                }}
+                            />
+                        ) : (
+                            <>
+                                <span className={`w-spell-slot-rem ${slotsExhausted ? 'spent' : ''}`}>{remaining}</span>
+                                <span className="w-spell-slot-sep">/</span>
+                                <span className="w-spell-slot-tot">{slot.total}</span>
+                                <span className="w-spell-slot-lbl">slot</span>
+                            </>
+                        )}
+                    </div>
+                    <button
+                        className="w-spell-add"
+                        onClick={() => setPickerOpen(p => !p)}
+                        disabled={availableSpells.length === 0}
+                        title={availableSpells.length === 0 ? 'Aggiungi incantesimi al libro per prepararli' : 'Prepara un incantesimo'}
+                    >+ Prepara</button>
+                </header>
+
+                {pickerOpen && (
+                    <div className="w-spell-picker">
+                        {availableSpells.length === 0 ? (
+                            <div className="w-empty">Nessun incantesimo di livello {lvl} nel libro.</div>
+                        ) : (
+                            <div className="w-spell-picker-grid">
+                                {availableSpells.map(s => (
+                                    <button
+                                        key={s.id} className="w-spell-picker-item"
+                                        onClick={() => prepareWizardSpell(lvl, s.id)}
+                                        title={s.description}
+                                    >
+                                        <GiCrystalBall /> {s.name}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        <button className="w-spell-picker-close" onClick={() => setPickerOpen(false)}>Fine</button>
+                    </div>
+                )}
+
+                {list.length === 0 ? (
+                    <div className="w-spell-empty">Nessun incantesimo preparato</div>
+                ) : (
+                    <div className="w-spell-prep-list">
+                        {list.map(p => {
+                            const s = spellById.get(p.spellId);
+                            if (!s) return null;
+                            const slug = s.school ? SCHOOL_ICON_SLUG[s.school] : undefined;
+                            return (
+                                <div key={p.id} className={`w-spell-prep ${p.cast ? 'is-cast' : ''}`}>
+                                    <button
+                                        className="w-spell-prep-main"
+                                        onClick={() => p.cast ? restorePreparedSpell(lvl, p.id) : castPreparedSpell(lvl, p.id)}
+                                        title={p.cast ? 'Ripristina (annulla lancio)' : 'Lancia incantesimo'}
+                                    >
+                                        <span className="w-spell-prep-check">{p.cast ? '✓' : ''}</span>
+                                        {slug && getDndIconSvg('spell', slug) && (
+                                            <DndIcon category="spell" name={slug} size={14} className="w-spell-prep-school" />
+                                        )}
+                                        <span className="w-spell-prep-name">{s.name}</span>
+                                    </button>
+                                    <button
+                                        className="w-spell-prep-info"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setInfoSpell(s);
+                                        }}
+                                        title={s.description || 'Dettagli incantesimo'}
+                                        aria-label="Dettagli incantesimo"
+                                    >
+                                        <FaInfoCircle size={12} />
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </section>
+
             {infoSpell && (
-                <SpellInfoPopover
-                    spell={infoSpell.spell}
-                    anchor={infoSpell.anchor}
+                <SpellInfoModal
+                    spell={infoSpell}
                     onClose={() => setInfoSpell(null)}
                 />
             )}

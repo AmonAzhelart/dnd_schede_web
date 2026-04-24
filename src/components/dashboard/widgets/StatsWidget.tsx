@@ -1,11 +1,21 @@
 import React, { useState } from 'react';
-import { FaDiceD20 } from 'react-icons/fa';
 import { useCharacterStore } from '../../../store/characterStore';
 import type { WidgetRenderProps } from '../widgetTypes';
+import { DndIcon } from '../../DndIcon';
 
 const STAT_NAMES: Record<string, string> = {
     str: 'Forza', dex: 'Destrezza', con: 'Costituzione',
     int: 'Intelligenza', wis: 'Saggezza', cha: 'Carisma',
+};
+
+const STAT_ABBR: Record<string, string> = {
+    str: 'FOR', dex: 'DES', con: 'COS',
+    int: 'INT', wis: 'SAG', cha: 'CAR',
+};
+
+const STAT_ICONS: Record<string, string> = {
+    str: 'strength', dex: 'dexterity', con: 'constitution',
+    int: 'intelligence', wis: 'wisdom', cha: 'charisma',
 };
 
 export const StatsWidget: React.FC<WidgetRenderProps> = ({ size }) => {
@@ -26,11 +36,23 @@ export const StatsWidget: React.FC<WidgetRenderProps> = ({ size }) => {
         setCharacter({ ...character, baseStats: { ...character.baseStats, [stat]: num } });
     };
 
-    // Adaptive grid: 3 cols when narrow, 6 when wide, 2 when very narrow
+    const gap = 6;
+    const pad = 8;
     const cols = size.pixelW < 180 ? 2 : size.pixelW < 360 ? 3 : 6;
+    const rows = Math.ceil(6 / cols);
+    const cellW = Math.max(30, (size.pixelW - pad * 2 - gap * (cols - 1)) / cols);
+    const cellH = Math.max(50, (size.pixelH - pad * 2 - gap * (rows - 1)) / rows);
+    const iconSize = Math.max(14, Math.min(Math.floor(cellW * 0.36), Math.floor(cellH * 0.30), 34));
+    const iconWrap = iconSize + 10;
+    const modPx = Math.max(13, Math.min(Math.floor(cellH * 0.30), Math.floor(cellW * 0.44), 38));
+    const scorePx = Math.max(9, Math.floor(modPx * 0.50));
+    const cardPad = Math.max(4, Math.min(Math.floor(cellH * 0.07), 10));
 
     return (
-        <div className="w-stat-root" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+        <div className="w-stat-root" style={{
+            gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+            gridTemplateRows: `repeat(${rows}, 1fr)`,
+        }}>
             {(['str', 'dex', 'con', 'int', 'wis', 'cha'] as const).map(stat => {
                 const base = character.baseStats[stat];
                 const effective = getEffectiveStat(stat);
@@ -44,21 +66,30 @@ export const StatsWidget: React.FC<WidgetRenderProps> = ({ size }) => {
                     <div
                         key={stat}
                         className={`w-stat-card ${tier} ${rolling === stat ? 'is-rolling' : ''}`}
+                        style={{ padding: `${cardPad}px 6px` }}
                     >
-                        <div className="w-stat-card-head">
-                            <span className="w-stat-card-label">{STAT_NAMES[stat].slice(0, 3)}</span>
-                            <button
-                                type="button"
-                                className="w-stat-card-die"
-                                onClick={e => { e.stopPropagation(); roll(stat, mod); }}
-                                title={`Tira 1d20 ${mod >= 0 ? '+' : ''}${mod}`}
-                            >
-                                <FaDiceD20 />
-                            </button>
+                        {/* Floating dice button */}
+                        <button
+                            type="button"
+                            className="w-stat-card-die"
+                            onClick={e => { e.stopPropagation(); roll(stat, mod); }}
+                            title={`Tira 1d20 ${mod >= 0 ? '+' : ''}${mod}`}
+                        >
+                            <DndIcon category="dice" name="d20" size={12} />
+                        </button>
+
+                        {/* Ability icon */}
+                        <div className="w-stat-icon-wrap" style={{ width: iconWrap, height: iconWrap }}>
+                            <DndIcon category="ability" name={STAT_ICONS[stat]} size={iconSize} />
                         </div>
 
+                        {/* Abbreviated label */}
+                        <span className="w-stat-card-label">{STAT_ABBR[stat]}</span>
+
+                        {/* Big modifier */}
                         <div
                             className="w-stat-card-mod"
+                            style={{ fontSize: modPx }}
                             onClick={() => !isEditing && setEditing(stat)}
                             title="Click per modificare il valore base"
                         >
@@ -66,6 +97,7 @@ export const StatsWidget: React.FC<WidgetRenderProps> = ({ size }) => {
                             <span className="w-stat-card-mod-num">{Math.abs(mod)}</span>
                         </div>
 
+                        {/* Base score */}
                         <div className="w-stat-card-foot">
                             {isEditing ? (
                                 <input
@@ -84,6 +116,7 @@ export const StatsWidget: React.FC<WidgetRenderProps> = ({ size }) => {
                                 <button
                                     type="button"
                                     className={`w-stat-card-score ${buffed ? 'is-buffed' : ''} ${debuffed ? 'is-debuffed' : ''}`}
+                                    style={{ fontSize: scorePx, padding: `1px ${Math.max(5, scorePx * 0.7)}px` }}
                                     onClick={() => setEditing(stat)}
                                     title={effective !== base ? `Base ${base} → effettivo ${effective}` : 'Click per modificare'}
                                 >

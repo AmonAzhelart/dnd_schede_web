@@ -4,7 +4,21 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <!-- ── Force consistent app palette across all devices/browsers ── -->
+  <!-- Tell the UA we paint our own colors (dark by default). Prevents Samsung Internet,
+       Edge "Force Dark Mode", Chrome auto-dark, iOS Smart Invert from re-tinting our UI. -->
+  <meta name="color-scheme" content="dark" />
+  <meta name="supported-color-schemes" content="dark" />
+  <!-- Status bar / address bar tint (Android Chrome, Samsung Internet, iOS Safari PWA) -->
+  <meta name="theme-color" content="#1a1410" />
+  <meta name="msapplication-navbutton-color" content="#1a1410" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <!-- Disable Samsung Internet's "Night mode" CSS rewriting and Chrome's dark surface override -->
+  <meta name="darkreader-lock" />
+
   <title>dnd_web_app</title>
   <!-- Google Identity Services (OAuth token client) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>

@@ -1,6 +1,7 @@
 import { doc, setDoc, getDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { CharacterBase } from '../types/dnd';
+import type { DashboardLayout } from '../components/dashboard/widgetTypes';
 
 export const saveCharacterToDb = async (character: CharacterBase) => {
   if (!character.id) return;
@@ -71,10 +72,11 @@ export const createNewCharacterDb = async (userId: string, name: string): Promis
   return newChar as CharacterBase;
 };
 
-// === User settings (Drive folder, ...) ===
+// === User settings (Drive folder, dashboard layouts ...) ===
 export interface UserSettings {
   driveFolderId?: string;
   driveFolderName?: string;
+  dashboardLayouts?: Record<string, DashboardLayout>;
 }
 
 export const getUserSettings = async (uid: string): Promise<UserSettings> => {
@@ -93,5 +95,31 @@ export const saveUserSettings = async (uid: string, patch: Partial<UserSettings>
     await setDoc(doc(db, 'userSettings', uid), { ...current, ...patch }, { merge: true });
   } catch (e) {
     console.error('saveUserSettings', e);
+  }
+};
+
+// === Dashboard layout per-character, stored in user preferences ===
+export const loadDashboardLayout = async (uid: string, charId: string): Promise<DashboardLayout | null> => {
+  try {
+    const snap = await getDoc(doc(db, 'userSettings', uid));
+    if (!snap.exists()) return null;
+    const settings = snap.data() as UserSettings;
+    return settings.dashboardLayouts?.[charId] ?? null;
+  } catch (e) {
+    console.error('loadDashboardLayout', e);
+    return null;
+  }
+};
+
+export const saveDashboardLayout = async (uid: string, charId: string, layout: DashboardLayout) => {
+  try {
+    const sanitized = JSON.parse(JSON.stringify(layout));
+    await setDoc(
+      doc(db, 'userSettings', uid),
+      { dashboardLayouts: { [charId]: sanitized } },
+      { merge: true },
+    );
+  } catch (e) {
+    console.error('saveDashboardLayout', e);
   }
 };

@@ -1,14 +1,14 @@
 import React from 'react';
-import { GiWalk, GiFeather, GiWaveSurfer, GiMountainClimbing, GiMineralPearls } from 'react-icons/gi';
 import { useCharacterStore } from '../../../store/characterStore';
 import type { WidgetRenderProps } from '../widgetTypes';
+import { DndIcon } from '../../DndIcon';
 
 const MODES = [
-    { key: 'base', label: 'Terra', icon: <GiWalk /> },
-    { key: 'fly', label: 'Volo', icon: <GiFeather /> },
-    { key: 'swim', label: 'Nuoto', icon: <GiWaveSurfer /> },
-    { key: 'climb', label: 'Scalata', icon: <GiMountainClimbing /> },
-    { key: 'burrow', label: 'Scavare', icon: <GiMineralPearls /> },
+    { key: 'base', label: 'Terra', iconName: 'walking' },
+    { key: 'fly', label: 'Volo', iconName: 'flying' },
+    { key: 'swim', label: 'Nuoto', iconName: 'swimming' },
+    { key: 'climb', label: 'Scalata', iconName: 'climbing' },
+    { key: 'burrow', label: 'Scavare', iconName: 'burrowing' },
 ] as const;
 
 const MAX_FOR_BAR = 30;
@@ -21,12 +21,14 @@ export const MovementWidget: React.FC<WidgetRenderProps> = () => {
 
     return (
         <div className="w-move-root">
-            {MODES.map(({ key, label, icon }) => {
+            {MODES.map(({ key, label, iconName }) => {
                 const val = movement[key] ?? 0;
                 const pct = Math.min(100, (val / max) * 100);
                 return (
                     <div key={key} className="w-move-row">
-                        <span className="w-move-icon">{icon}</span>
+                        <span className="w-move-icon">
+                            <DndIcon category="movement" name={iconName} size={18} />
+                        </span>
                         <span className="w-move-label">{label}</span>
                         <div className="w-move-bar">
                             <div className="w-move-bar-fill" style={{ width: `${pct}%`, opacity: val > 0 ? 1 : 0.2 }} />

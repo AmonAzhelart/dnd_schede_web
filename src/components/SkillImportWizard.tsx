@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useCharacterStore } from '../store/characterStore';
 import { v4 as uuidv4 } from 'uuid';
 import { SKILL_PRESETS } from '../data/skillPresets';
 import type { Skill } from '../types/dnd';
 import { FaTimes, FaCheck } from 'react-icons/fa';
+import { skillCatalog } from '../services/admin';
 
 interface WizardRow {
     preset: typeof SKILL_PRESETS[number];
@@ -26,6 +27,30 @@ export const SkillImportWizard: React.FC<{ onClose: () => void }> = ({ onClose }
         SKILL_PRESETS.map(p => ({ preset: p, included: true, classSkill: false, ranks: 0 }))
     );
     const [filter, setFilter] = useState('');
+
+    // Merge in shared catalog skills (managed via Back-Office) on mount.
+    useEffect(() => {
+        skillCatalog.list().then(catalog => {
+            if (catalog.length === 0) return;
+            setRows(prev => {
+                const known = new Set(prev.map(r => r.preset.name.toLowerCase()));
+                const extra: WizardRow[] = catalog
+                    .filter(c => !known.has(c.name.toLowerCase()))
+                    .map(c => ({
+                        preset: {
+                            name: c.name,
+                            stat: c.stat,
+                            canUseUntrained: c.canUseUntrained,
+                            armorCheckPenalty: c.armorCheckPenalty,
+                        },
+                        included: true,
+                        classSkill: false,
+                        ranks: 0,
+                    }));
+                return [...prev, ...extra];
+            });
+        });
+    }, []);
 
     const existingNames = useMemo(
         () => new Set(Object.values(character?.skills ?? {}).map(s => s.name.toLowerCase())),

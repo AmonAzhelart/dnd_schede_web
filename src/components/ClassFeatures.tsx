@@ -350,7 +350,14 @@ const FeatureRow: React.FC<FeatureRowProps> = ({
 };
 
 // ── Main Component ─────────────────────────────────────────────────────────────
-export const ClassFeatures: React.FC = () => {
+interface ClassFeaturesProps {
+    /** When set, render only that subcategory's section without the wrapping header/chevron. */
+    restrictTo?: ClassFeatureSubcategory;
+    /** Hide the outer toolbar (counts + Reset). Useful when embedding inside a tabbed page. */
+    hideToolbar?: boolean;
+}
+
+export const ClassFeatures: React.FC<ClassFeaturesProps> = ({ restrictTo, hideToolbar }) => {
     const {
         character,
         addClassFeature, updateClassFeature, deleteClassFeature,
@@ -453,12 +460,17 @@ export const ClassFeatures: React.FC = () => {
     );
 
     const totalCount = features.length;
+    const visibleMeta = restrictTo
+        ? SUBCATEGORY_META.filter(m => m.key === restrictTo)
+        : SUBCATEGORY_META;
+    const isRestricted = !!restrictTo;
+    const restrictMeta = isRestricted ? SUBCATEGORY_META.find(m => m.key === restrictTo) : null;
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 14 }}>
 
             {/* ── Header ─────────────────────────────── */}
-            <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+            {!hideToolbar && <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                     {totalCount === 0 ? (
                         <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
@@ -485,21 +497,50 @@ export const ClassFeatures: React.FC = () => {
                         Reset Risorse
                     </button>
                 )}
-            </div>
+            </div>}
+
+            {/* When restricted: show a clean inline action bar instead of section headers */}
+            {isRestricted && restrictMeta && (
+                <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.95rem', color: restrictMeta.color }}>
+                        {features.filter(f => f.subcategory === restrictTo).length} {restrictMeta.label}
+                    </span>
+                    {restrictTo === 'active' && hasSpentResources && (
+                        <button
+                            className="btn-secondary"
+                            style={{ fontSize: '0.78rem' }}
+                            onClick={() => resetClassFeatureResources()}
+                        >
+                            Reset Risorse
+                        </button>
+                    )}
+                    <button
+                        onClick={() => startAdd(restrictTo!)}
+                        disabled={addingTo !== null || editingId !== null}
+                        className="btn-primary"
+                        style={{
+                            marginLeft: 'auto', fontSize: '0.82rem',
+                            opacity: (addingTo !== null || editingId !== null) ? 0.5 : 1,
+                        }}
+                    >
+                        <FaPlus size={11} /> Nuovo
+                    </button>
+                </div>
+            )}
 
             {/* ── Sections ───────────────────────────── */}
             <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '2rem', display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {SUBCATEGORY_META.map(meta => {
+                {visibleMeta.map(meta => {
                     const sectionFeatures = features.filter(f => f.subcategory === meta.key);
                     const isCollapsed = collapsed.has(meta.key);
                     const isAddingHere = addingTo === meta.key;
-                    const bodyVisible = !isCollapsed || isAddingHere;
+                    const bodyVisible = isRestricted ? true : (!isCollapsed || isAddingHere);
 
                     return (
                         <div key={meta.key} className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
 
-                            {/* Section header */}
-                            <div
+                            {/* Section header (hidden when restricted) */}
+                            {!isRestricted && <div
                                 style={{
                                     display: 'flex', alignItems: 'center', gap: 8,
                                     padding: '8px 14px',
@@ -540,7 +581,7 @@ export const ClassFeatures: React.FC = () => {
                                 >
                                     <FaPlus size={9} /> Aggiungi
                                 </button>
-                            </div>
+                            </div>}
 
                             {/* Section body */}
                             {bodyVisible && (
