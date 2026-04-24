@@ -67,17 +67,17 @@ const DEFAULT_MOBILE: BreakpointLayout = {
     widgets: [
         { uid: 'w-hp', type: 'hp', x: 0, y: 0, w: 4, h: 4 },
         { uid: 'w-defenses', type: 'defenses', x: 0, y: 4, w: 4, h: 5 },
-        { uid: 'w-stats', type: 'stats', x: 0, y: 9, w: 4, h: 4 },
-        { uid: 'w-cond', type: 'conditions', x: 0, y: 13, w: 4, h: 4 },
-        { uid: 'w-attacks', type: 'attacks', x: 0, y: 17, w: 4, h: 6 },
-        { uid: 'w-spells', type: 'spellSlots', x: 0, y: 23, w: 4, h: 6 },
-        { uid: 'w-class', type: 'classFeatures', x: 0, y: 29, w: 4, h: 6 },
-        { uid: 'w-skills', type: 'skills', x: 0, y: 35, w: 4, h: 8 },
-        { uid: 'w-inv', type: 'inventory', x: 0, y: 43, w: 4, h: 7 },
-        { uid: 'w-feats', type: 'feats', x: 0, y: 50, w: 4, h: 6 },
-        { uid: 'w-currency', type: 'currency', x: 0, y: 56, w: 4, h: 4 },
-        { uid: 'w-movement', type: 'movement', x: 0, y: 60, w: 4, h: 4 },
-        { uid: 'w-langs', type: 'languages', x: 0, y: 64, w: 4, h: 4 },
+        { uid: 'w-stats', type: 'stats', x: 0, y: 9, w: 4, h: 7 },
+        { uid: 'w-cond', type: 'conditions', x: 0, y: 16, w: 4, h: 4 },
+        { uid: 'w-attacks', type: 'attacks', x: 0, y: 20, w: 4, h: 6 },
+        { uid: 'w-spells', type: 'spellSlots', x: 0, y: 26, w: 4, h: 6 },
+        { uid: 'w-class', type: 'classFeatures', x: 0, y: 32, w: 4, h: 6 },
+        { uid: 'w-skills', type: 'skills', x: 0, y: 38, w: 4, h: 8 },
+        { uid: 'w-inv', type: 'inventory', x: 0, y: 46, w: 4, h: 7 },
+        { uid: 'w-feats', type: 'feats', x: 0, y: 53, w: 4, h: 6 },
+        { uid: 'w-currency', type: 'currency', x: 0, y: 59, w: 4, h: 4 },
+        { uid: 'w-movement', type: 'movement', x: 0, y: 63, w: 4, h: 4 },
+        { uid: 'w-langs', type: 'languages', x: 0, y: 67, w: 4, h: 4 },
     ],
 };
 
@@ -354,8 +354,9 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
         const minH = def?.minH ?? 2;
 
         // Compute a zoom-out factor so the whole dashboard fits in the viewport.
-        // Leaves room for the toolbar at the top and a safety margin at the
-        // bottom. Only zoom out when actually needed.
+        // Only meaningful for MOVE: when resizing, the user is interacting with
+        // a single tile and zooming out (plus minimalising every other tile)
+        // is disorienting and makes the gesture feel laggy.
         const viewportH = window.innerHeight;
         const viewportW = window.innerWidth;
         const reservedTop = 120;   // toolbar + edit hint
@@ -365,7 +366,9 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
         const targetW = Math.max(200, viewportW - reservedSides * 2);
         const scaleH = targetH / contentH;
         const scaleW = targetW / contentW;
-        const zoom = Math.max(0.4, Math.min(1, scaleH, scaleW));
+        const zoom = mode === 'resize'
+            ? 1
+            : Math.max(0.4, Math.min(1, scaleH, scaleW));
         setDragZoom(zoom);
 
         // If we're zooming out, scroll the dashboard frame to the top of the
@@ -424,24 +427,28 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
             document.body.style.overscrollBehavior = 'contain';
         }
 
-        const onMove = (ev: PointerEvent) => {
-            if (ev.pointerId !== e.pointerId) return;
-            ev.preventDefault();
+        // rAF-throttle pointermove: touch devices fire many events per frame
+        // and re-running resolveLayout for each is what makes the gesture
+        // feel "scattoso". We coalesce to one update per animation frame.
+        let rafId: number | null = null;
+        let lastEvent: PointerEvent | null = null;
+        const flush = () => {
+            rafId = null;
+            const ev = lastEvent;
+            if (!ev) return;
+            lastEvent = null;
 
             // Re-read the container's visual rect each frame: when the zoom
             // transform applies, getBoundingClientRect() returns the *scaled*
             // box. We project the pointer back into UNSCALED grid coordinates
             // so snap math always matches the underlying logical grid.
             const liveRect = cont.getBoundingClientRect();
-            // Avoid div-by-zero / weird states during the first frame.
             const safeZoom = zoom > 0 ? zoom : 1;
             const gridX = (ev.clientX - liveRect.left) / safeZoom;
             const gridY = (ev.clientY - liveRect.top) / safeZoom;
 
             let next: { x: number; y: number; w: number; h: number };
             if (mode === 'move') {
-                // Position of the phantom's top-left in unscaled grid coords,
-                // then snap to the nearest cell using the unscaled pitch.
                 const phantomLeft = gridX - grabOffset.x;
                 const phantomTop = gridY - grabOffset.y;
                 next = {
@@ -451,7 +458,6 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
                     h: start.h,
                 };
             } else {
-                // Resize: convert the pointer delta into unscaled cells.
                 const dx = (ev.clientX - initial.startPointer.x) / safeZoom;
                 const dy = (ev.clientY - initial.startPointer.y) / safeZoom;
                 next = {
@@ -463,9 +469,13 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
             }
             next = clampRect(next, activeLayout.cols, minW, minH);
 
-            // Re-flow every other widget around the dragged ghost (gravity up).
-            // Re-running from scratch each frame keeps the preview deterministic
-            // and matches exactly what compactLayout will commit on drop.
+            // Skip the recompute if the snapped target hasn't changed: avoids
+            // pointless React renders during sub-cell finger movement.
+            const prev = dragRef.current?.ghost;
+            if (prev && prev.x === next.x && prev.y === next.y && prev.w === next.w && prev.h === next.h) {
+                return;
+            }
+
             const preview = resolveLayout(activeLayout.widgets, uid, next);
             const newState: DragState = {
                 ...initial,
@@ -478,10 +488,21 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
             setDrag(newState);
         };
 
+        const onMove = (ev: PointerEvent) => {
+            if (ev.pointerId !== e.pointerId) return;
+            ev.preventDefault();
+            lastEvent = ev;
+            if (rafId == null) {
+                rafId = requestAnimationFrame(flush);
+            }
+        };
+
         const cleanup = () => {
             window.removeEventListener('pointermove', onMove);
             window.removeEventListener('pointerup', onUp);
             window.removeEventListener('pointercancel', onUp);
+            if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
+            lastEvent = null;
             try { captureEl.releasePointerCapture?.(e.pointerId); } catch { /* ignore */ }
             document.body.style.touchAction = prevTouchAction;
             document.body.style.overscrollBehavior = prevOverscroll;
@@ -653,7 +674,7 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
                         ? `-${(1 - dragZoom) * (containerRef.current?.scrollHeight ?? 0)}px`
                         : undefined,
                     transition: 'transform 0.2s ease, margin-bottom 0.2s ease',
-                    willChange: drag ? 'transform' : undefined,
+                    willChange: drag && drag.mode === 'move' ? 'transform' : undefined,
                 }}>
                 <div ref={containerRef} className={`dash-grid ${editMode ? 'is-edit' : ''}`} style={gridStyle}>
                     {(drag ? drag.preview : activeLayout.widgets).map(w => {
@@ -681,7 +702,7 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
                         return (
                             <div
                                 key={w.uid}
-                                className={`dash-tile ${isResizing ? 'dragging' : ''} ${activeUid === w.uid ? 'is-active' : ''} ${drag ? 'is-minimal' : ''}`}
+                                className={`dash-tile ${isResizing ? 'dragging is-resizing' : ''} ${activeUid === w.uid ? 'is-active' : ''} ${drag && drag.mode === 'move' ? 'is-minimal' : ''}`}
                                 style={{
                                     gridColumn: `${visualRect.x + 1} / span ${visualRect.w}`,
                                     gridRow: `${visualRect.y + 1} / span ${visualRect.h}`,
@@ -692,9 +713,11 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
                                 }}
                                 onMouseDown={() => { if (!editMode) setActiveUid(w.uid); }}
                             >
-                                {/* Hide the chrome header during a drag — the
-                                    minimal body shows a big readable label. */}
-                                {!drag && (
+                                {/* Hide the chrome header during a MOVE — the
+                                    minimal body shows a big readable label.
+                                    During a RESIZE we keep the header so the
+                                    user still sees what they're resizing. */}
+                                {!(drag && drag.mode === 'move') && (
                                     <div
                                         className="dash-tile-header"
                                         style={{ borderBottomColor: def.accent ? `${def.accent}33` : undefined, cursor: editMode ? 'grab' : 'default', touchAction: editMode ? 'none' : undefined }}
@@ -723,7 +746,7 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
                                     </div>
                                 )}
                                 <div className="dash-tile-body">
-                                    {drag ? (
+                                    {drag && drag.mode === 'move' ? (
                                         <div className="dash-tile-minimal" style={{ color: def.accent || 'var(--accent-gold)' }}>
                                             <span className="dash-tile-minimal-icon">{def.icon}</span>
                                             <span className="dash-tile-minimal-name">{def.title}</span>
@@ -733,7 +756,7 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
                                         <Body goTo={goTo} size={widgetSize} />
                                     )}
                                 </div>
-                                {editMode && !drag && (
+                                {editMode && !(drag && drag.mode === 'move') && (
                                     <div
                                         className="dash-resize-handle"
                                         onPointerDown={startDrag(w.uid, 'resize')}

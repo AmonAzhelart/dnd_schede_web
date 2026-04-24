@@ -1,11 +1,11 @@
-/* ============================================================================
-   DASHBOARD WIDGETS — premium design system
+﻿/* ============================================================================
+   DASHBOARD WIDGETS â€” premium design system
    Each widget owns a unique aesthetic. Class prefixes:
      w-hp, w-def, w-cond, w-atk, w-spell, w-cf, w-feat,
      w-stat, w-skill, w-inv, w-coin, w-lang, w-move, w-note
    ============================================================================ */
 
-/* ─── Shared utilities (scoped for widgets only) ─── */
+/* â”€â”€â”€ Shared utilities (scoped for widgets only) â”€â”€â”€ */
 .w-empty {
     display: flex;
     flex-direction: column;
@@ -117,7 +117,7 @@
 }
 
 /* ============================================================================
-   ❤  HP — Compact bar (xs/sm) + Refined ring (md+)
+   â¤  HP â€” Compact bar (xs/sm) + Refined ring (md+)
    ============================================================================ */
 .w-hp2-root {
     display: flex;
@@ -415,7 +415,7 @@
 }
 
 /* ============================================================================
-   🛡 DEFENSES — heraldic shield + colored save crests
+   ðŸ›¡ DEFENSES â€” heraldic shield + colored save crests
    ============================================================================ */
 .w-def-root {
     display: flex;
@@ -634,132 +634,274 @@
 }
 
 /* ============================================================================
-   🧪 CONDITIONS — glowing potion vials
+   CONDITIONS -- severity-coded cards + responsive icon grid
    ============================================================================ */
+
 .w-cond-root {
+    --sev-minor-clr: #6eb8e8;
+    --sev-minor-bg: rgba(110, 184, 232, 0.12);
+    --sev-minor-border: rgba(110, 184, 232, 0.35);
+    --sev-mod-clr: #e6ac39;
+    --sev-mod-bg: rgba(230, 172, 57, 0.12);
+    --sev-mod-border: rgba(230, 172, 57, 0.38);
+    --sev-sev-clr: #e05c5c;
+    --sev-sev-bg: rgba(224, 92, 92, 0.14);
+    --sev-sev-border: rgba(224, 92, 92, 0.45);
     display: flex;
     flex-direction: column;
     height: 100%;
-    padding: 10px;
-    gap: 10px;
+    padding: 8px 10px;
+    gap: 8px;
+    overflow: hidden;
 }
 
-.w-cond-active {
-    min-height: 50px;
-    padding: 8px;
-    background:
-        radial-gradient(ellipse at 50% 0%, rgba(46, 204, 113, 0.08), transparent 70%),
-        rgba(0, 0, 0, 0.25);
-    border: 1px dashed rgba(46, 204, 113, 0.25);
+.w-cond-active-section {
+    flex-shrink: 0;
+}
+
+.w-cond-empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 10px 8px;
+    background: rgba(0, 0, 0, 0.18);
+    border: 1px dashed rgba(255, 255, 255, 0.08);
     border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    font-style: italic;
+}
+
+.w-cond-chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    align-content: flex-start;
-}
-
-.w-cond-empty {
-    width: 100%;
-    text-align: center;
-    font-size: 0.72rem;
-    color: var(--text-muted);
-    font-style: italic;
-    padding: 6px 0;
+    gap: 5px;
 }
 
 .w-cond-chip {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 3px 8px 3px 10px;
-    background: linear-gradient(180deg, rgba(231, 76, 60, 0.25), rgba(231, 76, 60, 0.1));
-    border: 1px solid rgba(231, 76, 60, 0.45);
+    padding: 4px 8px 4px 7px;
     border-radius: 99px;
-    font-size: 0.7rem;
-    color: #ffd5cf;
+    font-size: 0.68rem;
     font-family: var(--font-heading);
     letter-spacing: 0.03em;
-    box-shadow: 0 0 12px rgba(231, 76, 60, 0.18);
-    animation: wCondFloat 3s ease-in-out infinite;
+    animation: wCondPulse 3.5s ease-in-out infinite;
+    transition: filter 0.15s;
 }
 
-@keyframes wCondFloat {
+.w-cond-chip:hover {
+    filter: brightness(1.15);
+}
+
+.w-cond-chip.sev-minor {
+    background: var(--sev-minor-bg);
+    border: 1px solid var(--sev-minor-border);
+    color: var(--sev-minor-clr);
+    box-shadow: 0 0 10px rgba(110, 184, 232, 0.12);
+}
+
+.w-cond-chip.sev-moderate {
+    background: var(--sev-mod-bg);
+    border: 1px solid var(--sev-mod-border);
+    color: var(--sev-mod-clr);
+    box-shadow: 0 0 10px rgba(230, 172, 57, 0.14);
+}
+
+.w-cond-chip.sev-severe {
+    background: var(--sev-sev-bg);
+    border: 1px solid var(--sev-sev-border);
+    color: var(--sev-sev-clr);
+    box-shadow: 0 0 12px rgba(224, 92, 92, 0.2);
+}
+
+.w-cond-chip-icon {
+    flex-shrink: 0;
+    opacity: 0.9;
+}
+
+.w-cond-chip-label {
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.w-cond-chip-hint {
+    font-family: var(--font-body, sans-serif);
+    font-size: 0.58rem;
+    opacity: 0.72;
+    letter-spacing: 0;
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.w-cond-root.is-compact .w-cond-chip-hint {
+    display: none;
+}
+
+.w-cond-chip-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: inherit;
+    opacity: 0.6;
+    border-radius: 50%;
+    transition: opacity 0.15s, background 0.15s;
+    margin-left: 1px;
+}
+
+.w-cond-chip-remove:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+@keyframes wCondPulse {
 
     0%,
     100% {
         transform: translateY(0);
+        opacity: 1;
     }
 
     50% {
-        transform: translateY(-2px);
+        transform: translateY(-1px);
+        opacity: 0.92;
     }
 }
 
-.w-cond-chip-x {
-    background: none;
-    border: none;
-    color: inherit;
-    cursor: pointer;
-    padding: 0;
-    font-size: 1rem;
-    line-height: 1;
-    opacity: 0.7;
+.w-cond-divider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
 }
 
-.w-cond-chip-x:hover {
-    opacity: 1;
-    color: #fff;
+.w-cond-divider::before,
+.w-cond-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.w-cond-divider span {
+    font-size: 0.58rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    white-space: nowrap;
+    font-family: var(--font-heading);
 }
 
 .w-cond-pool {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 5px;
+    align-content: start;
+}
+
+.w-cond-root.is-compact .w-cond-pool {
+    grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
     gap: 4px;
-    align-content: flex-start;
 }
 
-.w-cond-add {
-    font-size: 0.6rem;
-    padding: 3px 9px;
-    border: 1px dashed rgba(255, 255, 255, 0.12);
-    border-radius: 99px;
-    background: transparent;
-    color: var(--text-muted);
+.w-cond-root.is-wide .w-cond-pool {
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+}
+
+.w-cond-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 4px 5px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 8px;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: background 0.15s, border-color 0.15s, transform 0.12s;
     font-family: var(--font-heading);
-    letter-spacing: 0.04em;
 }
 
-.w-cond-add:hover {
-    color: var(--accent-crimson);
-    border-color: rgba(231, 76, 60, 0.5);
-    background: rgba(231, 76, 60, 0.08);
-    border-style: solid;
+.w-cond-tile:hover {
+    transform: translateY(-1px);
+}
+
+.w-cond-tile.sev-minor:hover {
+    background: var(--sev-minor-bg);
+    border-color: var(--sev-minor-border);
+}
+
+.w-cond-tile.sev-moderate:hover {
+    background: var(--sev-mod-bg);
+    border-color: var(--sev-mod-border);
+}
+
+.w-cond-tile.sev-severe:hover {
+    background: var(--sev-sev-bg);
+    border-color: var(--sev-sev-border);
+}
+
+.w-cond-tile-icon {
+    opacity: 0.55;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+}
+
+.w-cond-tile:hover .w-cond-tile-icon {
+    opacity: 0.9;
+}
+
+.w-cond-tile-label {
+    font-size: 0.54rem;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.2;
+    transition: color 0.15s;
+    white-space: normal;
+    word-break: break-word;
+    max-width: 100%;
+    padding: 0 2px;
+}
+
+.w-cond-tile:hover .w-cond-tile-label {
+    color: var(--text-primary);
 }
 
 /* ============================================================================
-   ⚔ ATTACKS — header chips + clean weapon row list
+   âš” ATTACKS â€” header chips + clean weapon row list
    ============================================================================ */
 .w-atk2-root {
     display: flex;
     flex-direction: column;
     height: 100%;
-    padding: 8px 10px;
-    gap: 8px;
+    padding: 0.5em 0.65em;
+    gap: 0.5em;
 }
 
 .w-atk2-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding-bottom: 6px;
+    gap: 0.5em;
+    padding-bottom: 0.4em;
     border-bottom: 1px solid rgba(192, 57, 43, 0.18);
 }
 
 .w-atk2-chips {
     display: flex;
-    gap: 5px;
+    gap: 0.35em;
     flex: 1;
     flex-wrap: wrap;
 }
@@ -767,8 +909,8 @@
 .w-atk2-chip {
     display: inline-flex;
     align-items: baseline;
-    gap: 5px;
-    padding: 4px 10px;
+    gap: 0.35em;
+    padding: 0.3em 0.7em;
     border-radius: 999px;
     background: linear-gradient(180deg, rgba(231, 76, 60, 0.12), rgba(0, 0, 0, 0.25));
     border: 1px solid rgba(231, 76, 60, 0.25);
@@ -777,14 +919,14 @@
 }
 
 .w-atk2-chip-lbl {
-    font-size: 0.55rem;
+    font-size: 0.55em;
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--text-muted);
 }
 
 .w-atk2-chip-val {
-    font-size: 0.95rem;
+    font-size: 0.95em;
     color: var(--accent-crimson);
     letter-spacing: -0.01em;
 }
@@ -793,7 +935,7 @@
 .w-atk2-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 0.4em;
     flex: 1;
     min-height: 0;
 }
@@ -804,7 +946,7 @@
     flex-direction: column;
     background: linear-gradient(110deg, rgba(192, 57, 43, 0.1) 0%, rgba(0, 0, 0, 0.25) 50%);
     border: 1px solid rgba(192, 57, 43, 0.2);
-    border-radius: 8px;
+    border-radius: 0.55em;
     overflow: hidden;
     transition: all 0.18s;
 }
@@ -839,8 +981,8 @@
 .w-atk2-row-top {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 10px 2px;
+    gap: 0.5em;
+    padding: 0.4em 0.65em 0.15em;
     min-width: 0;
 }
 
@@ -857,21 +999,21 @@
 }
 
 .w-atk2-row-icon {
-    width: 22px;
-    height: 22px;
+    width: 1.5em;
+    height: 1.5em;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    border-radius: 5px;
+    border-radius: 0.35em;
     background: rgba(0, 0, 0, 0.35);
     color: var(--text-secondary);
 }
 
 .w-atk2-row-icon .inv-svg-tinted,
 .w-atk2-row-icon svg {
-    width: 16px;
-    height: 16px;
+    width: 1.1em;
+    height: 1.1em;
 }
 
 .w-atk2-row-icon.arcane {
@@ -880,7 +1022,7 @@
 
 .w-atk2-row-name {
     font-family: var(--font-heading);
-    font-size: 0.9rem;
+    font-size: 0.9em;
     color: var(--text-primary);
     line-height: 1.2;
     flex: 1;
@@ -890,12 +1032,12 @@
 }
 
 .w-atk2-row-meta {
-    font-size: 0.6rem;
+    font-size: 0.6em;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     align-self: center;
-    padding: 0 10px;
+    padding: 0 0.65em;
 }
 
 .w-atk2-row-meta.arcane {
@@ -909,7 +1051,7 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    padding: 4px 10px;
+    padding: 0.3em 0.65em;
     border-left: 1px solid rgba(255, 255, 255, 0.06);
     background: transparent;
     color: inherit;
@@ -930,7 +1072,7 @@ button.w-atk2-row-stat:hover {
 
 .w-atk2-row-stat .v {
     font-family: var(--font-heading);
-    font-size: 1rem;
+    font-size: 1em;
     line-height: 1;
 }
 
@@ -940,22 +1082,22 @@ button.w-atk2-row-stat:hover {
 
 .w-atk2-row-stat.dmg .v {
     color: var(--text-primary);
-    font-size: 0.85rem;
+    font-size: 0.85em;
 }
 
 .w-atk2-row-stat .l {
-    font-size: 0.5rem;
+    font-size: 0.5em;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    margin-top: 2px;
+    margin-top: 0.2em;
 }
 
 .w-atk2-roll {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 4px 10px;
+    padding: 0.3em 0.65em;
     background: rgba(0, 0, 0, 0.25);
     border: none;
     border-left: 1px solid rgba(255, 255, 255, 0.08);
@@ -977,18 +1119,18 @@ button.w-atk2-row-stat:hover {
 .w-atk2-row-detail {
     display: flex;
     align-items: baseline;
-    gap: 8px;
-    padding: 5px 12px 7px;
+    gap: 0.5em;
+    padding: 0.35em 0.75em 0.5em;
     background: rgba(0, 0, 0, 0.25);
     border-top: 1px solid rgba(255, 255, 255, 0.06);
-    font-size: 0.7rem;
+    font-size: 0.7em;
 }
 
 .w-atk2-detail-lbl {
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    font-size: 0.55rem;
+    font-size: 0.55em;
     font-family: var(--font-heading);
 }
 
@@ -1002,8 +1144,8 @@ button.w-atk2-row-stat:hover {
 .w-atk2-ammo-strip {
     display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 4px 10px 5px;
+    gap: 0.35em;
+    padding: 0.3em 0.65em 0.35em;
     background: rgba(58, 143, 209, 0.07);
     border-top: 1px solid rgba(58, 143, 209, 0.15);
     flex-wrap: nowrap;
@@ -1011,27 +1153,27 @@ button.w-atk2-row-stat:hover {
 }
 
 .w-atk2-ammo-label {
-    font-size: 0.72rem;
+    font-size: 0.72em;
     flex-shrink: 0;
     opacity: 0.7;
 }
 
 .w-atk2-ammo-name {
-    font-size: 0.7rem;
+    font-size: 0.7em;
     color: #7ec8f5;
     font-family: var(--font-heading);
     letter-spacing: 0.03em;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 90px;
+    max-width: 6em;
     flex-shrink: 1;
 }
 
 .w-atk2-ammo-tag {
-    font-size: 0.58rem;
-    padding: 1px 6px;
-    border-radius: 3px;
+    font-size: 0.58em;
+    padding: 0.1em 0.4em;
+    border-radius: 0.25em;
     font-family: var(--font-heading);
     letter-spacing: 0.05em;
     white-space: nowrap;
@@ -1055,16 +1197,16 @@ button.w-atk2-row-stat:hover {
 }
 
 .w-atk2-ammo-none {
-    font-size: 0.65rem;
+    font-size: 0.65em;
     color: var(--text-muted);
     font-style: italic;
 }
 
 .w-atk2-ammo-qty {
     font-family: var(--font-heading);
-    font-size: 0.88rem;
+    font-size: 0.88em;
     color: #7ec8f5;
-    min-width: 20px;
+    min-width: 1.4em;
     text-align: center;
     line-height: 1;
     flex-shrink: 0;
@@ -1079,10 +1221,10 @@ button.w-atk2-row-stat:hover {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 20px;
-    height: 20px;
+    width: 1.4em;
+    height: 1.4em;
     padding: 0;
-    border-radius: 4px;
+    border-radius: 0.3em;
     background: rgba(58, 143, 209, 0.15);
     border: 1px solid rgba(58, 143, 209, 0.3);
     color: #7ec8f5;
@@ -1100,8 +1242,20 @@ button.w-atk2-row-stat:hover {
     cursor: default;
 }
 
+/* Scale shared utility classes inside the attacks widget */
+.w-atk2-root .w-link {
+    font-size: 0.6em;
+    padding: 0.15em 0.6em;
+}
+
+.w-atk2-root .w-empty {
+    font-size: 0.72em;
+    gap: 0.4em;
+    padding: 1.4em 0.65em;
+}
+
 /* ============================================================================
-   ✦ SPELL SLOTS — wizard preparation: per-level slots + prepared cards
+   âœ¦ SPELL SLOTS â€” wizard preparation: per-level slots + prepared cards
    ============================================================================ */
 .w-spell-root {
     display: flex;
@@ -1574,7 +1728,7 @@ button.w-atk2-row-stat:hover {
 }
 
 /* ============================================================================
-   📖 CLASS FEATURES — illuminated manuscript style
+   ðŸ“– CLASS FEATURES â€” illuminated manuscript style
    ============================================================================ */
 .w-cf-root {
     display: flex;
@@ -1669,7 +1823,7 @@ button.w-atk2-row-stat:hover {
 }
 
 /* ============================================================================
-   ⚡ FEATS — arcane runes
+   âš¡ FEATS â€” arcane runes
    ============================================================================ */
 .w-feat-root {
     display: flex;
@@ -1748,395 +1902,261 @@ button.w-atk2-row-stat:hover {
 }
 
 /* ============================================================================
-   🧠 STATS — hexagonal stat stones
+   🧠 STATS — fixed 2-col cell: left (icon+name) / right (mod+score)
    ============================================================================ */
 .w-stat-root {
     display: grid;
-    gap: 6px;
-    padding: 8px;
     height: 100%;
-    align-items: stretch;
-    grid-auto-rows: 1fr;
-    overflow: hidden;
-}
-
-.w-stat-stone {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
     width: 100%;
-    aspect-ratio: 1 / 1.05;
-    max-width: 110px;
-    margin: 0 auto;
-    cursor: pointer;
-    transition: transform 0.15s;
+    box-sizing: border-box;
+    overflow: hidden;
+    /* gap, padding, columns, rows set inline by JS */
 }
 
-.w-stat-stone::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(160deg, rgba(201, 168, 76, 0.18), rgba(0, 0, 0, 0.4));
-    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-    border: 1px solid rgba(201, 168, 76, 0.25);
-    transition: all 0.2s;
+.w-stat-root.is-scroll {
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(201, 168, 76, 0.35) transparent;
 }
 
-.w-stat-stone:hover {
-    transform: translateY(-3px) scale(1.04);
+.w-stat-root.is-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
 }
 
-.w-stat-stone:hover::before {
-    background: linear-gradient(160deg, rgba(201, 168, 76, 0.35), rgba(0, 0, 0, 0.4));
-    filter: drop-shadow(0 0 12px rgba(201, 168, 76, 0.4));
+.w-stat-root.is-scroll::-webkit-scrollbar-thumb {
+    background: rgba(201, 168, 76, 0.35);
+    border-radius: 3px;
 }
 
-.w-stat-stone.is-elite::before {
-    background: linear-gradient(160deg, rgba(201, 168, 76, 0.4), rgba(120, 80, 20, 0.4));
-}
-
-.w-stat-stone.is-poor::before {
-    background: linear-gradient(160deg, rgba(192, 57, 43, 0.25), rgba(0, 0, 0, 0.4));
-}
-
-.w-stat-stone-label {
+.w-stat-cell {
     position: relative;
-    font-size: 0.55rem;
-    text-transform: uppercase;
-    letter-spacing: 0.18em;
-    color: var(--text-muted);
-    margin-top: 14%;
-}
-
-.w-stat-stone-mod {
-    position: relative;
-    font-family: var(--font-heading);
-    font-size: 1.7rem;
-    line-height: 1;
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    margin-top: 4%;
-}
-
-.w-stat-stone.is-elite .w-stat-stone-mod {
-    color: var(--accent-gold);
-    text-shadow: 0 0 10px rgba(201, 168, 76, 0.5);
-}
-
-.w-stat-stone.is-poor .w-stat-stone-mod {
-    color: var(--accent-crimson);
-}
-
-.w-stat-stone-mod .die {
-    opacity: 0.35;
-    font-size: 0.55em;
-}
-
-.w-stat-stone-base {
-    position: relative;
-    font-size: 0.65rem;
-    color: rgba(255, 255, 255, 0.35);
-    margin-bottom: 14%;
-    margin-top: 2px;
-}
-
-.w-stat-stone-base .star {
-    color: rgba(201, 168, 76, 0.7);
-}
-
-.w-stat-stone input {
-    width: 50px !important;
-    text-align: center !important;
-    padding: 2px !important;
-    font-size: 0.75rem !important;
-    margin-top: 4px;
-    position: relative;
-}
-
-/* ============================================================================
-   🧠 STATS v2 — Icon cards with ability icons
-   ============================================================================ */
-.w-stat-card {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: stretch;
+    gap: 8px;
     width: 100%;
     height: 100%;
     min-height: 0;
     min-width: 0;
-    max-width: 130px;
-    margin: 0 auto;
-    padding: clamp(4px, 4%, 10px) 6px;
+    padding: 6px 10px;
     border-radius: 10px;
     background:
-        linear-gradient(175deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 40%, rgba(0, 0, 0, 0.3) 100%),
-        rgba(20, 18, 14, 0.6);
+        linear-gradient(175deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 40%, rgba(0, 0, 0, 0.30) 100%),
+        rgba(20, 18, 14, 0.55);
     border: 1px solid rgba(201, 168, 76, 0.18);
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.06),
-        0 4px 12px rgba(0, 0, 0, 0.25);
-    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+        inset 0 1px 0 rgba(255, 255, 255, 0.05),
+        0 3px 10px rgba(0, 0, 0, 0.25);
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
     overflow: hidden;
+    box-sizing: border-box;
 }
 
-.w-stat-card::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: radial-gradient(circle at 50% 30%, rgba(201, 168, 76, 0.08) 0%, transparent 65%);
-    opacity: 0.8;
-    transition: opacity 0.2s;
-}
-
-.w-stat-card:hover {
-    transform: translateY(-3px) scale(1.02);
+.w-stat-cell:hover {
+    transform: translateY(-1px);
     border-color: rgba(201, 168, 76, 0.45);
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.08),
-        0 8px 20px rgba(0, 0, 0, 0.45),
-        0 0 18px rgba(201, 168, 76, 0.18);
+        0 6px 18px rgba(0, 0, 0, 0.35);
 }
 
-.w-stat-card.is-elite {
-    border-color: rgba(201, 168, 76, 0.6);
+.w-stat-cell.is-elite {
+    border-color: rgba(201, 168, 76, 0.45);
     background:
-        linear-gradient(175deg, rgba(201, 168, 76, 0.12) 0%, rgba(120, 80, 20, 0.06) 55%, rgba(0, 0, 0, 0.3) 100%),
-        rgba(30, 24, 14, 0.65);
+        linear-gradient(175deg, rgba(255, 220, 130, 0.08) 0%, rgba(0, 0, 0, 0.30) 100%),
+        rgba(35, 28, 18, 0.65);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 220, 130, 0.10),
+        0 4px 14px rgba(201, 168, 76, 0.18);
 }
 
-.w-stat-card.is-elite::after {
-    background: radial-gradient(circle at 50% 30%, rgba(201, 168, 76, 0.28) 0%, transparent 65%);
+.w-stat-cell.is-good {
+    border-color: rgba(201, 168, 76, 0.30);
 }
 
-.w-stat-card.is-good {
-    border-color: rgba(201, 168, 76, 0.35);
+.w-stat-cell.is-poor {
+    border-color: rgba(192, 57, 43, 0.30);
 }
 
-.w-stat-card.is-poor {
-    border-color: rgba(192, 57, 43, 0.45);
-    background:
-        linear-gradient(175deg, rgba(192, 57, 43, 0.10) 0%, rgba(60, 18, 14, 0.06) 50%, rgba(0, 0, 0, 0.3) 100%),
-        rgba(20, 14, 14, 0.58);
+.w-stat-cell.is-rolling {
+    animation: stat-roll-pulse 0.6s ease-out;
 }
 
-.w-stat-card.is-rolling {
-    animation: stat-pulse 0.55s ease-out;
-}
-
-@keyframes stat-pulse {
+@keyframes stat-roll-pulse {
     0% {
-        box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.55);
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 24px rgba(201, 168, 76, 0.5);
     }
 
     100% {
-        box-shadow: 0 0 0 14px rgba(201, 168, 76, 0);
+        transform: scale(1);
     }
 }
 
-/* floating dice button — top-right corner */
-.w-stat-card-die {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    z-index: 2;
-    appearance: none;
-    border: 1px solid rgba(201, 168, 76, 0.2);
-    background: rgba(0, 0, 0, 0.35);
-    color: rgba(201, 168, 76, 0.55);
-    width: 17px;
-    height: 17px;
-    border-radius: 4px;
-    display: inline-flex;
+/* ─── LEFT column: icon on top, name below ─── */
+.w-stat-cell-left {
+    display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    transition: all 0.15s;
-    padding: 0;
+    gap: 2px;
+    min-width: 0;
+    padding-right: 6px;
+    border-right: 1px solid rgba(201, 168, 76, 0.12);
 }
 
-.w-stat-card-die:hover {
-    background: rgba(201, 168, 76, 0.18);
-    color: var(--accent-gold);
-    border-color: rgba(201, 168, 76, 0.6);
-    transform: rotate(-15deg) scale(1.1);
-}
-
-.w-stat-card.is-rolling .w-stat-card-die {
-    animation: spin 0.55s linear;
-}
-
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-/* ability icon area */
-.w-stat-icon-wrap {
-    position: relative;
-    z-index: 1;
+.w-stat-cell-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    /* width/height set inline via JS */
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.25);
-    border: 1px solid rgba(201, 168, 76, 0.15);
-    color: rgba(201, 168, 76, 0.65);
-    flex-shrink: 0;
-    transition: color 0.2s, box-shadow 0.2s, border-color 0.2s;
-    overflow: hidden;
+    color: rgba(201, 168, 76, 0.80);
+    transition: color 0.15s, filter 0.15s;
 }
 
-.w-stat-card:hover .w-stat-icon-wrap {
-    color: rgba(201, 168, 76, 0.9);
-    border-color: rgba(201, 168, 76, 0.45);
-    box-shadow: 0 0 12px rgba(201, 168, 76, 0.2);
+.w-stat-cell:hover .w-stat-cell-icon {
+    color: rgba(255, 220, 130, 1);
 }
 
-.w-stat-card.is-elite .w-stat-icon-wrap {
+.w-stat-cell.is-elite .w-stat-cell-icon {
     color: var(--accent-gold);
-    border-color: rgba(201, 168, 76, 0.4);
-    box-shadow: 0 0 14px rgba(201, 168, 76, 0.28);
+    filter: drop-shadow(0 0 6px rgba(201, 168, 76, 0.45));
 }
 
-.w-stat-card.is-poor .w-stat-icon-wrap {
-    color: rgba(192, 57, 43, 0.75);
-    border-color: rgba(192, 57, 43, 0.3);
+.w-stat-cell.is-poor .w-stat-cell-icon {
+    color: rgba(232, 116, 102, 0.85);
 }
 
-/* stat abbreviation */
-.w-stat-card-label {
-    position: relative;
-    z-index: 1;
+.w-stat-cell-label {
     font-family: var(--font-heading);
-    font-size: 0.58rem;
-    letter-spacing: 0.2em;
+    font-weight: 700;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     line-height: 1;
-    margin-top: 3px;
+    white-space: nowrap;
 }
 
-.w-stat-card.is-elite .w-stat-card-label {
-    color: rgba(201, 168, 76, 0.85);
+.w-stat-cell.is-elite .w-stat-cell-label {
+    color: rgba(255, 220, 130, 0.95);
 }
 
-/* big modifier (primary content) */
-.w-stat-card-mod {
-    position: relative;
-    z-index: 1;
-    flex: 1;
+/* ─── RIGHT column: modifier (hero) above, score below ─── */
+.w-stat-cell-right {
     display: flex;
+    flex-direction: column;
     align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 0;
+}
+
+.w-stat-cell-mod {
+    display: flex;
+    align-items: baseline;
     justify-content: center;
     gap: 1px;
     font-family: var(--font-heading);
-    /* font-size set inline via JS */
+    font-weight: 800;
     line-height: 1;
     color: var(--text-primary);
-    cursor: pointer;
-    user-select: none;
-    padding: 0;
-    overflow: hidden;
+    letter-spacing: -0.01em;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
 }
 
-.w-stat-card-mod-sign {
-    font-size: 0.7em;
-    opacity: 0.7;
-    margin-right: 1px;
+.w-stat-cell-mod-sign {
+    font-size: 0.70em;
+    opacity: 0.85;
+    align-self: flex-start;
+    padding-top: 0.14em;
 }
 
-.w-stat-card-mod-num {
-    font-weight: 600;
+.w-stat-cell-mod-num {
+    font-weight: 900;
 }
 
-.w-stat-card.is-elite .w-stat-card-mod {
-    color: var(--accent-gold);
-    text-shadow: 0 0 12px rgba(201, 168, 76, 0.45);
+.w-stat-cell.is-elite .w-stat-cell-mod {
+    color: #ffd76a;
+    text-shadow: 0 0 14px rgba(255, 215, 106, 0.45), 0 2px 6px rgba(0, 0, 0, 0.5);
 }
 
-.w-stat-card.is-good .w-stat-card-mod {
+.w-stat-cell.is-good .w-stat-cell-mod {
     color: #e5c97d;
 }
 
-.w-stat-card.is-poor .w-stat-card-mod {
-    color: var(--accent-crimson);
+.w-stat-cell.is-poor .w-stat-cell-mod {
+    color: #e87466;
+    text-shadow: 0 0 12px rgba(232, 116, 102, 0.35), 0 2px 6px rgba(0, 0, 0, 0.5);
 }
 
-/* footer: base/effective score chip */
-.w-stat-card-foot {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.w-stat-card-score {
+.w-stat-cell-score {
     appearance: none;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(0, 0, 0, 0.40);
     color: var(--text-secondary);
     font-family: var(--font-heading);
-    /* font-size and padding set inline via JS */
+    font-weight: 600;
     letter-spacing: 0.04em;
     border-radius: 99px;
+    padding: 1px 9px;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     gap: 3px;
     transition: all 0.15s;
-    line-height: 1;
+    line-height: 1.1;
     white-space: nowrap;
 }
 
-.w-stat-card-score:hover {
+.w-stat-cell-score:hover {
     border-color: rgba(201, 168, 76, 0.45);
     color: var(--text-primary);
-    background: rgba(201, 168, 76, 0.08);
+    background: rgba(201, 168, 76, 0.10);
 }
 
-.w-stat-card-score.is-buffed {
+.w-stat-cell-score.is-buffed {
     border-color: rgba(46, 204, 113, 0.45);
     color: #6bd58c;
     background: rgba(46, 204, 113, 0.08);
 }
 
-.w-stat-card-score.is-debuffed {
+.w-stat-cell-score.is-debuffed {
     border-color: rgba(192, 57, 43, 0.45);
     color: #e87466;
     background: rgba(192, 57, 43, 0.08);
 }
 
-.w-stat-card-score-arrow {
+.w-stat-cell-score-arrow {
     font-size: 0.55em;
     opacity: 0.85;
 }
 
-.w-stat-card-score-arrow.down {
+.w-stat-cell-score-arrow.down {
     color: #e87466;
 }
 
-.w-stat-card-input {
-    width: 100% !important;
-    max-width: 64px;
+.w-stat-cell-input {
+    width: auto !important;
     text-align: center !important;
-    padding: 2px 4px !important;
-    font-size: 0.78rem !important;
+    padding: 1px 6px !important;
     font-family: var(--font-heading) !important;
+    font-weight: 600 !important;
+    background: rgba(0, 0, 0, 0.50) !important;
+    border: 1px solid rgba(201, 168, 76, 0.55) !important;
+    border-radius: 99px !important;
+    color: var(--text-primary) !important;
 }
 
+
+
 /* ============================================================================
-   ⭐ SKILLS — elegant column list with tier badges
+   â­ SKILLS â€” elegant column list with tier badges
    ============================================================================ */
 .w-skill-root {
     display: flex;
@@ -2252,7 +2272,7 @@ button.w-atk2-row-stat:hover {
 }
 
 /* ============================================================================
-   📦 INVENTORY — leather-bound item rows
+   ðŸ“¦ INVENTORY â€” leather-bound item rows
    ============================================================================ */
 .w-inv-root {
     display: flex;
@@ -2345,7 +2365,7 @@ button.w-atk2-row-stat:hover {
 }
 
 /* ============================================================================
-   💰 CURRENCY — compact wallet ledger
+   ðŸ’° CURRENCY â€” compact wallet ledger
    ============================================================================ */
 .w-coin-root {
     display: flex;
@@ -2513,7 +2533,7 @@ button.w-atk2-row-stat:hover {
     border-top-color: rgba(201, 168, 76, 0.4);
 }
 
-/* Compact mode (h <= 2): horizontal row of coin chips, click anywhere → inventory */
+/* Compact mode (h <= 2): horizontal row of coin chips, click anywhere â†’ inventory */
 .w-coin-compact {
     display: flex;
     flex-direction: row;
@@ -2629,7 +2649,7 @@ button.w-atk2-row-stat:hover {
 }
 
 /* ============================================================================
-   📜 LANGUAGES — scroll banners
+   ðŸ“œ LANGUAGES â€” scroll banners
    ============================================================================ */
 .w-lang-root {
     display: flex;
@@ -2706,7 +2726,7 @@ button.w-atk2-row-stat:hover {
 }
 
 /* ============================================================================
-   🏃 MOVEMENT — speedometer bars
+   ðŸƒ MOVEMENT â€” speedometer bars
    ============================================================================ */
 .w-move-root {
     display: flex;
@@ -2783,7 +2803,7 @@ button.w-atk2-row-stat:hover {
 }
 
 /* ============================================================================
-   📝 NOTES — parchment journal
+   ðŸ“ NOTES â€” parchment journal
    ============================================================================ */
 .w-note-root {
     display: flex;
@@ -2819,7 +2839,7 @@ button.w-atk2-row-stat:hover {
 }
 
 /* ============================================================================
-   ✨ ABILITIES — Privilegi & Talenti unificati con sotto-tab colorati
+   âœ¨ ABILITIES â€” Privilegi & Talenti unificati con sotto-tab colorati
    ============================================================================ */
 .w-abil2-root {
     display: flex;
