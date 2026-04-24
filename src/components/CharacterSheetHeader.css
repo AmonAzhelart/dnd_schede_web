@@ -426,18 +426,86 @@
 
 @media (max-width: 720px) {
     .cs-header {
+        padding: 0.5rem 0.6rem;
+        gap: 0.45rem;
         grid-template-columns: auto minmax(0, 1fr) auto;
         grid-template-areas:
             "avatar identity actions"
             "hp     hp       hp"
             "quick  quick    quick";
+        row-gap: 0.4rem;
     }
 
+    .cs-avatar {
+        width: 40px;
+        height: 40px;
+        font-size: 1.05rem;
+        border-width: 1.5px;
+    }
+
+    .cs-name {
+        font-size: 1rem;
+    }
+
+    .cs-meta {
+        gap: 0.25rem;
+    }
+
+    .cs-chip {
+        font-size: 0.6rem;
+        padding: 1px 6px;
+        border-radius: 10px;
+    }
+
+    .cs-align {
+        font-size: 0.6rem;
+    }
+
+    /* HP compatto: inline su una sola riga, niente label */
     .cs-hp {
         min-width: 0;
         width: 100%;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 8px;
+        border-radius: 6px;
     }
 
+    .cs-hp-label {
+        display: none;
+    }
+
+    .cs-hp-row {
+        gap: 4px;
+        flex-shrink: 0;
+    }
+
+    .cs-hp-btn {
+        width: 22px;
+        height: 22px;
+    }
+
+    .cs-hp-vals {
+        min-width: 0;
+        gap: 2px;
+    }
+
+    .cs-hp-cur {
+        font-size: 1.15rem;
+    }
+
+    .cs-hp-sep,
+    .cs-hp-max {
+        font-size: 0.72rem;
+    }
+
+    .cs-hp-bar {
+        flex: 1;
+        height: 6px;
+    }
+
+    /* Quick stats: 4 celle compatte equispaziate */
     .cs-quick {
         justify-content: space-between;
         gap: 4px;
@@ -446,38 +514,36 @@
     .cs-quick-cell {
         flex: 1;
         min-width: 0;
-        padding: 4px 6px;
-    }
-}
-
-@media (max-width: 480px) {
-    .cs-header {
-        padding: 0.55rem;
-        gap: 0.6rem;
+        padding: 3px 4px;
+        gap: 1px;
     }
 
-    .cs-avatar {
-        width: 44px;
-        height: 44px;
-        font-size: 1.15rem;
-    }
-
-    .cs-name {
-        font-size: 1.05rem;
-    }
-
-    .cs-chip {
-        font-size: 0.62rem;
-        padding: 1px 6px;
+    .cs-quick-lbl {
+        font-size: 0.5rem;
+        letter-spacing: 0.08em;
     }
 
     .cs-quick-val {
-        font-size: 1.05rem;
+        font-size: 1rem;
     }
 
+    /* Azioni in colonna stretta */
+    .cs-actions {
+        flex-direction: column;
+        gap: 3px;
+    }
+
+    .cs-action-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 5px;
+    }
+
+    /* Tabs: solo icone */
     .cs-tab {
         padding: 0.35rem 0.55rem;
-        font-size: 0.72rem;
+        font-size: 0.7rem;
+        gap: 0;
     }
 
     .cs-tab .cs-tab-label {
@@ -485,6 +551,53 @@
     }
 
     .cs-tab svg {
+        font-size: 1.1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .cs-header {
+        padding: 0.45rem 0.5rem;
+        border-radius: 8px;
+    }
+
+    .cs-avatar {
+        width: 36px;
+        height: 36px;
+        font-size: 0.95rem;
+    }
+
+    .cs-name {
+        font-size: 0.92rem;
+    }
+
+    .cs-chip {
+        font-size: 0.56rem;
+        padding: 1px 5px;
+    }
+
+    .cs-align {
+        display: none;
+    }
+
+    .cs-hp-cur {
         font-size: 1.05rem;
+    }
+
+    .cs-quick-val {
+        font-size: 0.92rem;
+    }
+
+    .cs-quick-lbl {
+        font-size: 0.46rem;
+    }
+
+    .cs-action-btn {
+        width: 26px;
+        height: 26px;
+    }
+
+    .cs-tab {
+        padding: 0.3rem 0.45rem;
     }
 }
