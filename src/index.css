@@ -38,6 +38,32 @@ body {
   overflow: hidden;
 }
 
+/* ────────────────────────────────────────────────────────────────────
+   Hard palette lock for mobile browsers' "auto dark" / "night mode" /
+   "smart invert" features (Chrome Android, Samsung Internet, iOS).
+   These fire even when color-scheme: dark is declared on the root, so
+   we explicitly paint our background at multiple layers and disable
+   any UA filter that could re-tint our colors.
+   ──────────────────────────────────────────────────────────────────── */
+html,
+body,
+#root {
+  background-color: #0d0d0f !important;
+  color: #e8e0d0;
+  -webkit-filter: none !important;
+  filter: none !important;
+}
+
+/* Belt-and-braces: kill any backdrop-filter inversion on common surfaces */
+.dash-tile,
+.dash-frame,
+.glass-panel,
+.modal-backdrop,
+.modal-content {
+  -webkit-filter: none !important;
+  filter: none !important;
+}
+
 :root {
   /* New Fantasy-Dark Palette */
   --bg-base: #0d0d0f;
@@ -1764,12 +1790,31 @@ textarea.input {
   transform: scale(1.1);
 }
 
+/* Visual feedback while a tile is being resized: gold outline + subtle
+   glow so the user can see the live snapped size. */
+.dash-tile.is-resizing {
+  outline: 2px dashed var(--accent-gold);
+  outline-offset: -2px;
+  box-shadow: 0 0 0 4px rgba(201, 168, 76, 0.15), 0 12px 32px rgba(0, 0, 0, 0.4);
+  z-index: 5;
+  transition: none !important;
+}
+
 /* Touch-friendly tweaks for the dashboard editor */
 @media (pointer: coarse) {
   .dash-resize-handle {
-    width: 28px;
-    height: 28px;
-    opacity: 0.8;
+    width: 40px;
+    height: 40px;
+    opacity: 0.95;
+  }
+
+  .dash-resize-handle::after {
+    right: 6px;
+    bottom: 6px;
+    width: 10px;
+    height: 10px;
+    border-right-width: 3px;
+    border-bottom-width: 3px;
   }
 
   .dash-grid.is-edit .dash-tile-header {

@@ -16,6 +16,11 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
 
     if (!character) return null;
 
+    const baseFontSize = Math.max(10, Math.min(17, size.pixelW * 0.052));
+    const icoSm = Math.max(10, Math.round(1.29 * baseFontSize));  // weapon / arcane icon
+    const icoMd = Math.max(12, Math.round(1.43 * baseFontSize));  // d20 roll button
+    const icoXs = Math.max(5, Math.round(0.57 * baseFontSize));  // ammo ± buttons
+
     const adjustAmmoQty = (ammoId: string, delta: number) => {
         const inv = character.inventory.map(i => {
             if (i.id !== ammoId) return i;
@@ -47,7 +52,7 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
     };
 
     return (
-        <div className="w-atk2-root">
+        <div className="w-atk2-root" style={{ fontSize: `${baseFontSize}px` }}>
             {/* Compact header: BAB + FOR + DES chips */}
             <div className="w-atk2-header">
                 <div className="w-atk2-chips">
@@ -98,7 +103,7 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                                         {wSvg ? (
                                             <span className="inv-svg-tinted" dangerouslySetInnerHTML={{ __html: sanitizeSvg(wSvg) }} />
                                         ) : (
-                                            <DndIcon category="combat" name={isRanged ? 'ranged' : 'melee'} size={18} />
+                                            <DndIcon category="combat" name={isRanged ? 'ranged' : 'melee'} size={icoSm} />
                                         )}
                                     </span>
                                     <div className="w-atk2-row-name" title={w.name}>{w.name}</div>
@@ -126,7 +131,7 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                                         title="Tira d20"
                                         aria-label="Tira d20"
                                     >
-                                        <DndIcon category="dice" name="d20" size={20} className={diceRolling === w.id ? 'animate-spin' : ''} />
+                                        <DndIcon category="dice" name="d20" size={icoMd} className={diceRolling === w.id ? 'animate-spin' : ''} />
                                     </button>
                                 </div>
                                 {isExpanded && attacks.length > 1 && (
@@ -161,7 +166,7 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                                                     onClick={e => { e.stopPropagation(); adjustAmmoQty(loadedAmmo.id, -1); }}
                                                     disabled={(loadedAmmo.quantity ?? 1) <= 0}
                                                 >
-                                                    <FaMinus size={8} />
+                                                    <FaMinus size={icoXs} />
                                                 </button>
                                                 <span className={`w-atk2-ammo-qty${(loadedAmmo.quantity ?? 1) === 0 ? ' empty' : ''}`}>
                                                     {loadedAmmo.quantity ?? 1}
@@ -171,7 +176,7 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                                                     title="Aggiungi (+1)"
                                                     onClick={e => { e.stopPropagation(); adjustAmmoQty(loadedAmmo.id, +1); }}
                                                 >
-                                                    <FaPlus size={8} />
+                                                    <FaPlus size={icoXs} />
                                                 </button>
                                             </>
                                         ) : (
@@ -196,7 +201,7 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                             <div key={atk.id} className="w-atk2-row custom">
                                 <div className="w-atk2-row-top">
                                     <span className="w-atk2-row-icon arcane">
-                                        <DndIcon category="dice" name="d20" size={18} />
+                                        <DndIcon category="dice" name="d20" size={icoSm} />
                                     </span>
                                     <div className="w-atk2-row-name" title={atk.name}>{atk.name}</div>
                                 </div>
@@ -217,7 +222,7 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                                         title="Tira d20"
                                         aria-label="Tira d20"
                                     >
-                                        <DndIcon category="dice" name="d20" size={20} className={diceRolling === atk.id ? 'animate-spin' : ''} />
+                                        <DndIcon category="dice" name="d20" size={icoMd} className={diceRolling === atk.id ? 'animate-spin' : ''} />
                                     </button>
                                 </div>
                             </div>
