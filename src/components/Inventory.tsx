@@ -6,7 +6,7 @@ import {
   FaPlus, FaTrash, FaEdit, FaCheck, FaTimes,
   FaArrowUp, FaArrowDown, FaSearch, FaImage,
 } from 'react-icons/fa';
-import type { Item, WeaponDetails, ArmorDetails } from '../types/dnd';
+import type { Item, WeaponDetails, ArmorDetails, AmmoDetails } from '../types/dnd';
 import { type CatalogIcon } from '../services/admin';
 import { useIconCatalog, sanitizeSvg } from '../services/iconCache';
 import { CatalogPicker } from './CatalogPicker';
@@ -34,6 +34,7 @@ type ItemTabKey = 'all' | Item['type'];
 const ITEM_TABS: { key: ItemTabKey; label: string; icon: string; color: string }[] = [
   { key: 'all', label: 'Tutti', icon: '📦', color: 'var(--text-secondary)' },
   { key: 'weapon', label: 'Armi', icon: '⚔', color: 'var(--accent-crimson)' },
+  { key: 'ammo', label: 'Munizioni', icon: '🏹', color: 'var(--accent-crimson)' },
   { key: 'armor', label: 'Armature', icon: '🛡', color: 'var(--accent-gold)' },
   { key: 'shield', label: 'Scudi', icon: '🪬', color: 'var(--accent-gold)' },
   { key: 'protectiveItem', label: 'Prot.', icon: '🔮', color: 'var(--accent-gold)' },
@@ -45,15 +46,16 @@ const ITEM_TABS: { key: ItemTabKey; label: string; icon: string; color: string }
 const TYPE_COLOR: Record<Item['type'], string> = {
   weapon: 'var(--accent-crimson)', armor: 'var(--accent-gold)', shield: 'var(--accent-gold)',
   protectiveItem: 'var(--accent-gold)', gear: 'var(--text-muted)', consumable: 'var(--accent-success)',
-  component: 'var(--accent-arcane)', misc: 'var(--text-muted)',
+  component: 'var(--accent-arcane)', misc: 'var(--text-muted)', ammo: 'var(--accent-crimson)',
 };
 const TYPE_LABEL: Record<Item['type'], string> = {
   weapon: 'Arma', armor: 'Armatura', shield: 'Scudo', protectiveItem: 'Prot.',
   gear: 'Equipaggiamento', consumable: 'Consumabile', component: 'Componente', misc: 'Miscellanea',
+  ammo: 'Munizioni',
 };
 const TYPE_ICON: Record<Item['type'], string> = {
   weapon: '⚔', armor: '🛡', shield: '🛡', protectiveItem: '🔮',
-  gear: '🎒', consumable: '🧪', component: '✨', misc: '📜',
+  gear: '🎒', consumable: '🧪', component: '✨', misc: '📜', ammo: '🏹',
 };
 const MOD_TYPES = [
   { value: 'enhancement', label: 'Potenziamento' }, { value: 'armor', label: 'Armatura' },
@@ -84,7 +86,8 @@ const COIN_LABELS = [
 const EMPTY_ITEM = (): Omit<Item, 'id'> => ({
   name: '', description: '', type: 'gear', weight: 0, modifiers: [],
   equipped: false, quantity: 1, location: '',
-  weaponDetails: undefined, armorDetails: undefined, associatedSpell: '',
+  weaponDetails: undefined, armorDetails: undefined, ammoDetails: undefined,
+  associatedSpell: '', equippedAmmoId: undefined,
 });
 const EMPTY_WD = (): WeaponDetails => ({
   damage: '1d6', damageType: 'c', criticalMultiplier: 'x2',
@@ -94,12 +97,16 @@ const EMPTY_AD = (): ArmorDetails => ({
   armorBonus: 0, maxDex: undefined, checkPenalty: 0,
   spellFailure: 0, speed: undefined, armorType: '', specialProperties: '',
 });
+const EMPTY_AMD = (): AmmoDetails => ({
+  attackBonus: 0, extraDamage: '', extraDamageType: '', notes: '',
+});
 const EMPTY_TX = (): { description: string; dir: 'in' | 'out'; platinum: number; gold: number; silver: number; copper: number } => ({
   description: '', dir: 'in', platinum: 0, gold: 0, silver: 0, copper: 0,
 });
 
 const needsWeapon = (t: Item['type']) => t === 'weapon';
 const needsArmor = (t: Item['type']) => t === 'armor' || t === 'shield' || t === 'protectiveItem';
+const needsAmmo = (t: Item['type']) => t === 'ammo';
 
 // ─── Module-level form helpers (outside component to prevent focus-loss) ────
 const addMod = (setter: React.Dispatch<React.SetStateAction<Omit<Item, 'id'>>>) =>
@@ -108,6 +115,48 @@ const removeMod = (setter: React.Dispatch<React.SetStateAction<Omit<Item, 'id'>>
   setter(f => ({ ...f, modifiers: f.modifiers.filter((_, idx) => idx !== i) }));
 const updateMod = (setter: React.Dispatch<React.SetStateAction<Omit<Item, 'id'>>>, i: number, field: string, val: unknown) =>
   setter(f => ({ ...f, modifiers: f.modifiers.map((m, idx) => idx === i ? { ...m, [field]: val } : m) }));
+
+interface AmmoFieldsProps {
+  amd: AmmoDetails;
+  onChange: (field: keyof AmmoDetails, val: unknown) => void;
+}
+const AmmoFields: React.FC<AmmoFieldsProps> = ({ amd, onChange }) => (
+  <div style={{ marginTop: 8, padding: '10px', background: 'rgba(192,57,43,0.07)', borderRadius: 6, border: '1px solid rgba(192,57,43,0.2)' }}>
+    <div style={{ fontSize: '0.67rem', color: 'var(--accent-crimson)', fontFamily: 'var(--font-heading)', letterSpacing: '0.1em', marginBottom: 8 }}>🏹 DETTAGLI MUNIZIONE</div>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: '0.73rem', color: 'var(--text-muted)' }}>
+        Bonus Attacco
+        <input className="input" type="number" value={amd.attackBonus ?? 0} onChange={e => onChange('attackBonus', parseInt(e.target.value) || 0)}
+          style={{ fontSize: '0.82rem' }} />
+      </label>
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: '0.73rem', color: 'var(--text-muted)' }}>
+        Danno Extra
+        <input className="input" value={amd.extraDamage ?? ''} onChange={e => onChange('extraDamage', e.target.value)}
+          placeholder="es. 1d6" style={{ fontSize: '0.82rem' }} />
+      </label>
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: '0.73rem', color: 'var(--text-muted)' }}>
+        Tipo Danno Extra
+        <select className="input" value={amd.extraDamageType ?? ''} onChange={e => onChange('extraDamageType', e.target.value)} style={{ fontSize: '0.82rem' }}>
+          <option value="">—</option>
+          {DAMAGE_TYPES.map(dt => <option key={dt.value} value={dt.value}>{dt.label}</option>)}
+          <option value="fuoco">Fuoco</option>
+          <option value="gelo">Gelo</option>
+          <option value="fulmine">Fulmine</option>
+          <option value="acido">Acido</option>
+          <option value="veleno">Veleno</option>
+          <option value="necrotico">Necrotico</option>
+          <option value="radiante">Radiante</option>
+          <option value="psichico">Psichico</option>
+        </select>
+      </label>
+    </div>
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: 8 }}>
+      Note
+      <input className="input" value={amd.notes ?? ''} onChange={e => onChange('notes', e.target.value)}
+        placeholder="Note aggiuntive..." style={{ fontSize: '0.82rem' }} />
+    </label>
+  </div>
+);
 
 interface WeaponFieldsProps {
   wd: WeaponDetails;
@@ -230,6 +279,7 @@ const EditItemForm: React.FC<EditItemFormProps> = ({ itemForm, setItemForm, edit
             ...f, type: t,
             weaponDetails: needsWeapon(t) ? (f.weaponDetails ?? EMPTY_WD()) : undefined,
             armorDetails: needsArmor(t) ? (f.armorDetails ?? EMPTY_AD()) : undefined,
+            ammoDetails: needsAmmo(t) ? (f.ammoDetails ?? EMPTY_AMD()) : undefined,
           }));
         }}
         style={{ flex: '0 0 140px', fontSize: '0.85rem' }}>
@@ -240,6 +290,7 @@ const EditItemForm: React.FC<EditItemFormProps> = ({ itemForm, setItemForm, edit
         <option value="gear">Equipaggiamento</option>
         <option value="consumable">Consumabile</option>
         <option value="component">Componente</option>
+        <option value="ammo">Munizioni</option>
         <option value="misc">Miscellanea</option>
       </select>
       <input className="input" type="number" min={0} step="0.1" placeholder="Peso (kg)"
@@ -263,6 +314,13 @@ const EditItemForm: React.FC<EditItemFormProps> = ({ itemForm, setItemForm, edit
       <ArmorFields
         ad={itemForm.armorDetails ?? EMPTY_AD()}
         onChange={(field, val) => setItemForm(f => ({ ...f, armorDetails: { ...(f.armorDetails ?? EMPTY_AD()), [field]: val } as ArmorDetails }))}
+      />
+    )}
+    {/* Ammo-specific fields */}
+    {needsAmmo(itemForm.type) && (
+      <AmmoFields
+        amd={itemForm.ammoDetails ?? EMPTY_AMD()}
+        onChange={(field, val) => setItemForm(f => ({ ...f, ammoDetails: { ...(f.ammoDetails ?? EMPTY_AMD()), [field]: val } as AmmoDetails }))}
       />
     )}
     {/* Component: associated spell */}
@@ -365,6 +423,9 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, selected, onClick, onEquip, o
       </div>
       <div className="inv-card-name">{item.name}</div>
       {statText && <div className="inv-card-stat" style={{ color: statColor }}>{statText}</div>}
+      {item.type === 'weapon' && !!wd?.rangeIncrement && item.equippedAmmoId && (
+        <div className="inv-card-stat" style={{ color: 'var(--accent-crimson)', fontSize: '0.6rem' }}>🏹 muniz.</div>
+      )}
       {item.weight > 0 && <div className="inv-card-meta">{item.weight} kg</div>}
       <div className="inv-card-actions">
         <button className={`inv-card-btn ${item.equipped ? 'unequip' : 'equip'}`}
@@ -391,11 +452,18 @@ interface DetailPanelProps {
   onEdit: () => void;
   onDelete: () => void;
   iconSvg?: string;
+  ammoItems?: Item[];
+  onSetAmmo?: (ammoId: string | null) => void;
 }
-const ItemDetailPanel: React.FC<DetailPanelProps> = ({ item, onClose, onEquip, onEdit, onDelete, iconSvg }) => {
+const ItemDetailPanel: React.FC<DetailPanelProps> = ({ item, onClose, onEquip, onEdit, onDelete, iconSvg, ammoItems, onSetAmmo }) => {
   const color = TYPE_COLOR[item.type];
   const wd = item.weaponDetails;
   const ad = item.armorDetails;
+  const amd = item.ammoDetails;
+  const isRanged = !!(wd?.rangeIncrement?.trim());
+  const loadedAmmo = isRanged && item.equippedAmmoId
+    ? ammoItems?.find(a => a.id === item.equippedAmmoId)
+    : undefined;
   return (
     <div className="inv-detail-panel">
       <button onClick={onClose} style={{ position: 'absolute', top: 10, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4, zIndex: 1 }}>
@@ -447,6 +515,65 @@ const ItemDetailPanel: React.FC<DetailPanelProps> = ({ item, onClose, onEquip, o
             ))}
           </div>
           {wd.notes && <div style={{ marginTop: 8, fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{wd.notes}</div>}
+        </div>
+      )}
+      {/* Ammo picker for equipped ranged weapons */}
+      {isRanged && item.equipped && ammoItems !== undefined && (
+        <div style={{ padding: '10px 12px', background: 'rgba(192,57,43,0.07)', border: '1px solid rgba(192,57,43,0.2)', borderRadius: 8 }}>
+          <div style={{ fontSize: '0.6rem', color: 'var(--accent-crimson)', fontFamily: 'var(--font-heading)', letterSpacing: '0.1em', marginBottom: 8 }}>🏹 MUNIZIONI</div>
+          {ammoItems.length === 0 ? (
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Nessuna munizione nell'inventario.</div>
+          ) : (
+            <select
+              className="input"
+              style={{ width: '100%', fontSize: '0.82rem' }}
+              value={item.equippedAmmoId ?? ''}
+              onChange={e => onSetAmmo?.(e.target.value || null)}
+            >
+              <option value="">— Nessuna munizione —</option>
+              {ammoItems.map(a => (
+                <option key={a.id} value={a.id}>
+                  {a.name}{(a.quantity ?? 1) > 1 ? ` ×${a.quantity}` : ''}{a.ammoDetails?.attackBonus ? ` (+${a.ammoDetails.attackBonus} att.)` : ''}{a.ammoDetails?.extraDamage ? ` +${a.ammoDetails.extraDamage}` : ''}
+                </option>
+              ))}
+            </select>
+          )}
+          {loadedAmmo?.ammoDetails && (
+            <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {!!loadedAmmo.ammoDetails.attackBonus && (
+                <span style={{ fontSize: '0.68rem', padding: '3px 8px', borderRadius: 3, background: 'rgba(39,174,96,0.1)', border: '1px solid rgba(39,174,96,0.28)', color: 'var(--accent-success)', fontFamily: 'var(--font-heading)' }}>
+                  {loadedAmmo.ammoDetails.attackBonus > 0 ? '+' : ''}{loadedAmmo.ammoDetails.attackBonus} Attacco
+                </span>
+              )}
+              {loadedAmmo.ammoDetails.extraDamage && (
+                <span style={{ fontSize: '0.68rem', padding: '3px 8px', borderRadius: 3, background: 'rgba(192,57,43,0.1)', border: '1px solid rgba(192,57,43,0.28)', color: 'var(--accent-crimson)', fontFamily: 'var(--font-heading)' }}>
+                  +{loadedAmmo.ammoDetails.extraDamage}{loadedAmmo.ammoDetails.extraDamageType ? ` (${loadedAmmo.ammoDetails.extraDamageType})` : ''}
+                </span>
+              )}
+              {loadedAmmo.ammoDetails.notes && (
+                <div style={{ width: '100%', fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>{loadedAmmo.ammoDetails.notes}</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      {/* Ammo stats (when viewing an ammo item) */}
+      {amd && (
+        <div style={{ padding: '10px 12px', background: 'rgba(192,57,43,0.07)', border: '1px solid rgba(192,57,43,0.2)', borderRadius: 8 }}>
+          <div style={{ fontSize: '0.6rem', color: 'var(--accent-crimson)', fontFamily: 'var(--font-heading)', letterSpacing: '0.1em', marginBottom: 8 }}>🏹 MUNIZIONE</div>
+          <div className="inv-detail-stat-grid">
+            {[
+              ...(amd.attackBonus ? [{ label: 'Bonus Att.', value: `${amd.attackBonus >= 0 ? '+' : ''}${amd.attackBonus}`, color: 'var(--accent-success)' }] : []),
+              ...(amd.extraDamage ? [{ label: 'Danno Extra', value: amd.extraDamage, color: 'var(--accent-crimson)' }] : []),
+              ...(amd.extraDamageType ? [{ label: 'Tipo Extra', value: amd.extraDamageType, color: 'var(--text-secondary)' }] : []),
+            ].map(s => (
+              <div key={s.label} className="inv-detail-stat-box">
+                <div className="inv-detail-stat-label">{s.label}</div>
+                <div className="inv-detail-stat-value" style={{ color: s.color }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+          {amd.notes && <div style={{ marginTop: 8, fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{amd.notes}</div>}
         </div>
       )}
       {/* Armor stats */}
@@ -552,7 +679,7 @@ export const Inventory: React.FC = () => {
 
   const allItems = character.inventory;
   const itemCounts: Record<string, number> = { all: allItems.length };
-  (['weapon', 'armor', 'shield', 'protectiveItem', 'gear', 'consumable', 'component'] as Item['type'][]).forEach(t => {
+  (['weapon', 'armor', 'shield', 'protectiveItem', 'gear', 'consumable', 'component', 'ammo'] as Item['type'][]).forEach(t => {
     itemCounts[t] = allItems.filter(i => i.type === t).length;
   });
   const searchQ = search.trim().toLowerCase();
@@ -574,6 +701,12 @@ export const Inventory: React.FC = () => {
     setCharacter({ ...character, inventory: newInventory });
     setEditingItemId(null); setIsAddingItem(false); setItemForm(EMPTY_ITEM());
   };
+  const handleSetAmmo = (weaponId: string, ammoId: string | null) => {
+    setCharacter({
+      ...character,
+      inventory: allItems.map(i => i.id === weaponId ? { ...i, equippedAmmoId: ammoId ?? undefined } : i),
+    });
+  };
   const startEditItem = (item: Item) => {
     setItemForm({
       name: item.name, description: item.description ?? '', type: item.type,
@@ -581,8 +714,10 @@ export const Inventory: React.FC = () => {
       quantity: item.quantity ?? 1, location: item.location ?? '',
       weaponDetails: item.weaponDetails ? { ...item.weaponDetails } : undefined,
       armorDetails: item.armorDetails ? { ...item.armorDetails } : undefined,
+      ammoDetails: item.ammoDetails ? { ...item.ammoDetails } : undefined,
       associatedSpell: item.associatedSpell ?? '',
       iconId: item.iconId,
+      equippedAmmoId: item.equippedAmmoId,
     });
     setEditingItemId(item.id); setIsAddingItem(false);
   };
@@ -606,6 +741,7 @@ export const Inventory: React.FC = () => {
 
   // ─────────────────────────────── RENDER ───────────────────────────────────
   const selectedItem = allItems.find(i => i.id === selectedId) ?? null;
+  const ammoItems = allItems.filter(i => i.type === 'ammo');
   const commonCardProps = (item: Item) => ({
     item,
     selected: selectedId === item.id,
@@ -729,6 +865,8 @@ export const Inventory: React.FC = () => {
                   onEdit={() => startEditItem(selectedItem)}
                   onDelete={() => deleteItemFn(selectedItem.id)}
                   iconSvg={resolveItemSvg(selectedItem)}
+                  ammoItems={ammoItems}
+                  onSetAmmo={(ammoId) => handleSetAmmo(selectedItem.id, ammoId)}
                 />
               </div>
             )}

@@ -998,6 +998,108 @@ button.w-atk2-row-stat:hover {
     letter-spacing: 0.04em;
 }
 
+/* Ammo strip shown at the bottom of ranged weapon rows */
+.w-atk2-ammo-strip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px 5px;
+    background: rgba(58, 143, 209, 0.07);
+    border-top: 1px solid rgba(58, 143, 209, 0.15);
+    flex-wrap: nowrap;
+    min-width: 0;
+}
+
+.w-atk2-ammo-label {
+    font-size: 0.72rem;
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+.w-atk2-ammo-name {
+    font-size: 0.7rem;
+    color: #7ec8f5;
+    font-family: var(--font-heading);
+    letter-spacing: 0.03em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 90px;
+    flex-shrink: 1;
+}
+
+.w-atk2-ammo-tag {
+    font-size: 0.58rem;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-family: var(--font-heading);
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.w-atk2-ammo-tag.atk {
+    background: rgba(39, 174, 96, 0.12);
+    border: 1px solid rgba(39, 174, 96, 0.3);
+    color: var(--accent-success);
+}
+
+.w-atk2-ammo-tag.dmg {
+    background: rgba(192, 57, 43, 0.12);
+    border: 1px solid rgba(192, 57, 43, 0.3);
+    color: var(--accent-crimson);
+}
+
+.w-atk2-ammo-spacer {
+    flex: 1;
+}
+
+.w-atk2-ammo-none {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.w-atk2-ammo-qty {
+    font-family: var(--font-heading);
+    font-size: 0.88rem;
+    color: #7ec8f5;
+    min-width: 20px;
+    text-align: center;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.w-atk2-ammo-qty.empty {
+    color: var(--accent-crimson);
+    opacity: 0.7;
+}
+
+.w-atk2-ammo-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border-radius: 4px;
+    background: rgba(58, 143, 209, 0.15);
+    border: 1px solid rgba(58, 143, 209, 0.3);
+    color: #7ec8f5;
+    cursor: pointer;
+    transition: background 0.14s;
+    flex-shrink: 0;
+}
+
+.w-atk2-ammo-btn:hover:not(:disabled) {
+    background: rgba(58, 143, 209, 0.3);
+}
+
+.w-atk2-ammo-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
 /* ============================================================================
    ✦ SPELL SLOTS — wizard preparation: per-level slots + prepared cards
    ============================================================================ */
@@ -1650,11 +1752,12 @@ button.w-atk2-row-stat:hover {
    ============================================================================ */
 .w-stat-root {
     display: grid;
-    gap: 8px;
-    padding: 10px;
+    gap: 6px;
+    padding: 8px;
     height: 100%;
-    align-content: center;
-    justify-content: center;
+    align-items: stretch;
+    grid-auto-rows: 1fr;
+    overflow: hidden;
 }
 
 .w-stat-stone {
@@ -1755,72 +1858,72 @@ button.w-atk2-row-stat:hover {
 }
 
 /* ============================================================================
-   🧠 STATS v2 — Refined glass cards (replaces hex stones)
+   🧠 STATS v2 — Icon cards with ability icons
    ============================================================================ */
 .w-stat-card {
     position: relative;
     display: flex;
     flex-direction: column;
-    align-items: stretch;
+    align-items: center;
     justify-content: space-between;
     width: 100%;
+    height: 100%;
     min-height: 0;
-    aspect-ratio: 1 / 1.18;
+    min-width: 0;
     max-width: 130px;
     margin: 0 auto;
-    padding: 6px 8px 6px;
-    border-radius: 8px;
+    padding: clamp(4px, 4%, 10px) 6px;
+    border-radius: 10px;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 45%, rgba(0, 0, 0, 0.25) 100%),
-        rgba(20, 18, 14, 0.55);
+        linear-gradient(175deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 40%, rgba(0, 0, 0, 0.3) 100%),
+        rgba(20, 18, 14, 0.6);
     border: 1px solid rgba(201, 168, 76, 0.18);
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.05),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
         0 4px 12px rgba(0, 0, 0, 0.25);
     transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
     overflow: hidden;
 }
 
 .w-stat-card::after {
-    /* faint corner glyph */
     content: '';
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: radial-gradient(circle at top right, rgba(201, 168, 76, 0.10) 0%, transparent 60%);
-    opacity: 0.7;
+    background: radial-gradient(circle at 50% 30%, rgba(201, 168, 76, 0.08) 0%, transparent 65%);
+    opacity: 0.8;
     transition: opacity 0.2s;
 }
 
 .w-stat-card:hover {
-    transform: translateY(-2px);
-    border-color: rgba(201, 168, 76, 0.4);
+    transform: translateY(-3px) scale(1.02);
+    border-color: rgba(201, 168, 76, 0.45);
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.08),
-        0 6px 18px rgba(0, 0, 0, 0.4),
-        0 0 14px rgba(201, 168, 76, 0.15);
+        0 8px 20px rgba(0, 0, 0, 0.45),
+        0 0 18px rgba(201, 168, 76, 0.18);
 }
 
 .w-stat-card.is-elite {
-    border-color: rgba(201, 168, 76, 0.55);
+    border-color: rgba(201, 168, 76, 0.6);
     background:
-        linear-gradient(180deg, rgba(201, 168, 76, 0.10) 0%, rgba(120, 80, 20, 0.05) 60%, rgba(0, 0, 0, 0.3) 100%),
-        rgba(30, 24, 14, 0.6);
+        linear-gradient(175deg, rgba(201, 168, 76, 0.12) 0%, rgba(120, 80, 20, 0.06) 55%, rgba(0, 0, 0, 0.3) 100%),
+        rgba(30, 24, 14, 0.65);
 }
 
 .w-stat-card.is-elite::after {
-    background: radial-gradient(circle at top right, rgba(201, 168, 76, 0.25) 0%, transparent 65%);
+    background: radial-gradient(circle at 50% 30%, rgba(201, 168, 76, 0.28) 0%, transparent 65%);
 }
 
 .w-stat-card.is-good {
-    border-color: rgba(201, 168, 76, 0.32);
+    border-color: rgba(201, 168, 76, 0.35);
 }
 
 .w-stat-card.is-poor {
-    border-color: rgba(192, 57, 43, 0.4);
+    border-color: rgba(192, 57, 43, 0.45);
     background:
-        linear-gradient(180deg, rgba(192, 57, 43, 0.08) 0%, rgba(60, 18, 14, 0.05) 50%, rgba(0, 0, 0, 0.3) 100%),
-        rgba(20, 14, 14, 0.55);
+        linear-gradient(175deg, rgba(192, 57, 43, 0.10) 0%, rgba(60, 18, 14, 0.06) 50%, rgba(0, 0, 0, 0.3) 100%),
+        rgba(20, 14, 14, 0.58);
 }
 
 .w-stat-card.is-rolling {
@@ -1837,41 +1940,22 @@ button.w-atk2-row-stat:hover {
     }
 }
 
-/* head row: stat label + dice button */
-.w-stat-card-head {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 4px;
-}
-
-.w-stat-card-label {
-    font-family: var(--font-heading);
-    font-size: 0.62rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    line-height: 1;
-}
-
-.w-stat-card.is-elite .w-stat-card-label {
-    color: var(--accent-gold);
-}
-
+/* floating dice button — top-right corner */
 .w-stat-card-die {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 2;
     appearance: none;
     border: 1px solid rgba(201, 168, 76, 0.2);
-    background: rgba(0, 0, 0, 0.3);
-    color: rgba(201, 168, 76, 0.7);
-    width: 18px;
-    height: 18px;
+    background: rgba(0, 0, 0, 0.35);
+    color: rgba(201, 168, 76, 0.55);
+    width: 17px;
+    height: 17px;
     border-radius: 4px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.7rem;
     cursor: pointer;
     transition: all 0.15s;
     padding: 0;
@@ -1880,8 +1964,8 @@ button.w-atk2-row-stat:hover {
 .w-stat-card-die:hover {
     background: rgba(201, 168, 76, 0.18);
     color: var(--accent-gold);
-    border-color: rgba(201, 168, 76, 0.55);
-    transform: rotate(-12deg);
+    border-color: rgba(201, 168, 76, 0.6);
+    transform: rotate(-15deg) scale(1.1);
 }
 
 .w-stat-card.is-rolling .w-stat-card-die {
@@ -1894,6 +1978,57 @@ button.w-atk2-row-stat:hover {
     }
 }
 
+/* ability icon area */
+.w-stat-icon-wrap {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* width/height set inline via JS */
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(201, 168, 76, 0.15);
+    color: rgba(201, 168, 76, 0.65);
+    flex-shrink: 0;
+    transition: color 0.2s, box-shadow 0.2s, border-color 0.2s;
+    overflow: hidden;
+}
+
+.w-stat-card:hover .w-stat-icon-wrap {
+    color: rgba(201, 168, 76, 0.9);
+    border-color: rgba(201, 168, 76, 0.45);
+    box-shadow: 0 0 12px rgba(201, 168, 76, 0.2);
+}
+
+.w-stat-card.is-elite .w-stat-icon-wrap {
+    color: var(--accent-gold);
+    border-color: rgba(201, 168, 76, 0.4);
+    box-shadow: 0 0 14px rgba(201, 168, 76, 0.28);
+}
+
+.w-stat-card.is-poor .w-stat-icon-wrap {
+    color: rgba(192, 57, 43, 0.75);
+    border-color: rgba(192, 57, 43, 0.3);
+}
+
+/* stat abbreviation */
+.w-stat-card-label {
+    position: relative;
+    z-index: 1;
+    font-family: var(--font-heading);
+    font-size: 0.58rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    line-height: 1;
+    margin-top: 3px;
+}
+
+.w-stat-card.is-elite .w-stat-card-label {
+    color: rgba(201, 168, 76, 0.85);
+}
+
 /* big modifier (primary content) */
 .w-stat-card-mod {
     position: relative;
@@ -1904,12 +2039,13 @@ button.w-atk2-row-stat:hover {
     justify-content: center;
     gap: 1px;
     font-family: var(--font-heading);
-    font-size: clamp(1.5rem, 2.4cqw + 1rem, 2.4rem);
+    /* font-size set inline via JS */
     line-height: 1;
     color: var(--text-primary);
     cursor: pointer;
     user-select: none;
-    padding: 2px 0;
+    padding: 0;
+    overflow: hidden;
 }
 
 .w-stat-card-mod-sign {
@@ -1942,7 +2078,7 @@ button.w-atk2-row-stat:hover {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 22px;
+    flex-shrink: 0;
 }
 
 .w-stat-card-score {
@@ -1951,16 +2087,16 @@ button.w-atk2-row-stat:hover {
     background: rgba(0, 0, 0, 0.35);
     color: var(--text-secondary);
     font-family: var(--font-heading);
-    font-size: 0.78rem;
+    /* font-size and padding set inline via JS */
     letter-spacing: 0.04em;
-    padding: 2px 10px;
     border-radius: 99px;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
     transition: all 0.15s;
     line-height: 1;
+    white-space: nowrap;
 }
 
 .w-stat-card-score:hover {

@@ -207,6 +207,13 @@ export interface WeaponDetails {
   notes?: string;
 }
 
+export interface AmmoDetails {
+  attackBonus?: number;      // e.g. +1 for magic arrows
+  extraDamage?: string;      // e.g. "1d6" for flaming arrows
+  extraDamageType?: string;  // e.g. "fuoco", "gelo"
+  notes?: string;
+}
+
 export interface ArmorDetails {
   armorBonus: number;
   maxDex?: number;        // null = unlimited
@@ -221,7 +228,7 @@ export interface Item {
   id: string;
   name: string;
   description: string;
-  type: 'weapon' | 'armor' | 'shield' | 'protectiveItem' | 'gear' | 'consumable' | 'component' | 'misc';
+  type: 'weapon' | 'armor' | 'shield' | 'protectiveItem' | 'gear' | 'consumable' | 'component' | 'misc' | 'ammo';
   weight: number;
   modifiers: Modifier[];
   equipped: boolean;
@@ -230,6 +237,10 @@ export interface Item {
   weaponDetails?: WeaponDetails;
   /** For armor / shield / protectiveItem */
   armorDetails?: ArmorDetails;
+  /** For ammunition items */
+  ammoDetails?: AmmoDetails;
+  /** For ranged weapons: id of the currently loaded ammo item */
+  equippedAmmoId?: string;
   /** For spell components: which spell they belong to */
   associatedSpell?: string;
   /** Which container: 'indossato' | 'zaino' | 'tasca' */

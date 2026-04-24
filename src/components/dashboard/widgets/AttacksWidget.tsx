@@ -4,16 +4,26 @@ import type { WidgetRenderProps } from '../widgetTypes';
 import { DndIcon } from '../../DndIcon';
 import { useIconCatalog, sanitizeSvg } from '../../../services/iconCache';
 import { GiCrossedSwords } from 'react-icons/gi';
+import { FaMinus, FaPlus } from 'react-icons/fa';
 
 const fmtSigned = (v: number) => (v >= 0 ? `+${v}` : `${v}`);
 
 export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
-    const { character, getStatModifier, getTotalBab, getMultipleAttacks } = useCharacterStore();
+    const { character, setCharacter, getStatModifier, getTotalBab, getMultipleAttacks } = useCharacterStore();
     const { resolveItemSvg } = useIconCatalog();
     const [diceRolling, setDiceRolling] = useState<string | null>(null);
     const [expanded, setExpanded] = useState<string | null>(null);
 
     if (!character) return null;
+
+    const adjustAmmoQty = (ammoId: string, delta: number) => {
+        const inv = character.inventory.map(i => {
+            if (i.id !== ammoId) return i;
+            const qty = Math.max(0, (i.quantity ?? 1) + delta);
+            return { ...i, quantity: qty };
+        });
+        setCharacter({ ...character, inventory: inv });
+    };
     const bab = getTotalBab();
     const strMod = getStatModifier('str');
     const dexMod = getStatModifier('dex');
@@ -63,13 +73,23 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                 <div className="w-atk2-list w-scroll">
                     {equippedWeapons.map(w => {
                         const isRanged = !!(w.weaponDetails?.rangeIncrement);
+                        const loadedAmmo = isRanged && w.equippedAmmoId
+                            ? character.inventory.find(i => i.id === w.equippedAmmoId)
+                            : undefined;
+                        const ammoAtkBonus = loadedAmmo?.ammoDetails?.attackBonus ?? 0;
                         const abilityMod = isRanged ? dexMod : strMod;
-                        const weaponBonus = w.weaponDetails?.attackBonus ?? 0;
+                        const weaponBonus = (w.weaponDetails?.attackBonus ?? 0) + ammoAtkBonus;
                         const attacks = getMultipleAttacks(abilityMod + weaponBonus);
                         const primary = attacks[0];
                         const wSvg = resolveItemSvg(w);
                         const isExpanded = expanded === w.id;
-                        const meta = `${isRanged ? 'Distanza' : 'Mischia'}${w.weaponDetails?.damageType ? ` · ${w.weaponDetails.damageType}` : ''}${isRanged && w.weaponDetails?.rangeIncrement ? ` · ${w.weaponDetails.rangeIncrement}` : ''}`;
+                        const ammoDmgExtra = loadedAmmo?.ammoDetails?.extraDamage;
+                        const ammoDmgType = loadedAmmo?.ammoDetails?.extraDamageType;
+                        const baseDamage = w.weaponDetails?.damage ?? '';
+                        const fullDamage = baseDamage && ammoDmgExtra
+                            ? `${baseDamage} + ${ammoDmgExtra}${ammoDmgType ? ` (${ammoDmgType})` : ''}`
+                            : baseDamage || undefined;
+                        const meta = `${isRanged ? 'Distanza' : 'Mischia'}${w.weaponDetails?.damageType ? ` · ${w.weaponDetails.damageType}` : ''}${isRanged && w.weaponDetails?.rangeIncrement ? ` · ${w.weaponDetails.rangeIncrement}` : ''}${loadedAmmo ? ` · 🏹 ${loadedAmmo.name}` : ''}`;
 
                         return (
                             <div key={w.id} className={`w-atk2-row ${isRanged ? 'ranged' : 'melee'}`}>
@@ -88,21 +108,21 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                                     <div className="w-atk2-row-spacer" />
                                     <button
                                         className="w-atk2-row-stat atk"
-                                        onClick={() => attacks.length > 1 ? setExpanded(isExpanded ? null : w.id) : rollAttack(w.id, w.name, primary, w.weaponDetails?.damage, attacks)}
+                                        onClick={() => attacks.length > 1 ? setExpanded(isExpanded ? null : w.id) : rollAttack(w.id, w.name, primary, fullDamage, attacks)}
                                         title={attacks.length > 1 ? 'Mostra progressione' : 'Tira d20'}
                                     >
                                         <span className="v">{fmtSigned(primary)}</span>
                                         <span className="l">colpire</span>
                                     </button>
-                                    {w.weaponDetails?.damage && (
+                                    {fullDamage && (
                                         <div className="w-atk2-row-stat dmg">
-                                            <span className="v">{w.weaponDetails.damage}</span>
+                                            <span className="v">{fullDamage}</span>
                                             <span className="l">danno</span>
                                         </div>
                                     )}
                                     <button
                                         className={`w-atk2-roll ${diceRolling === w.id ? 'rolling' : ''}`}
-                                        onClick={(e) => { e.stopPropagation(); rollAttack(w.id, w.name, primary, w.weaponDetails?.damage, attacks); }}
+                                        onClick={(e) => { e.stopPropagation(); rollAttack(w.id, w.name, primary, fullDamage, attacks); }}
                                         title="Tira d20"
                                         aria-label="Tira d20"
                                     >
@@ -113,6 +133,50 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                                     <div className="w-atk2-row-detail">
                                         <span className="w-atk2-detail-lbl">Progressione full-attack:</span>
                                         <span className="w-atk2-detail-val">{fmtList(attacks)}</span>
+                                    </div>
+                                )}
+                                {/* Ammo strip for ranged weapons */}
+                                {isRanged && (
+                                    <div className="w-atk2-ammo-strip">
+                                        <span className="w-atk2-ammo-label">🏹</span>
+                                        {loadedAmmo ? (
+                                            <>
+                                                <span className="w-atk2-ammo-name" title={loadedAmmo.name}>{loadedAmmo.name}</span>
+                                                {/* Bonus tags */}
+                                                {!!loadedAmmo.ammoDetails?.attackBonus && (
+                                                    <span className="w-atk2-ammo-tag atk" title="Bonus attacco munizione">
+                                                        {loadedAmmo.ammoDetails.attackBonus > 0 ? '+' : ''}{loadedAmmo.ammoDetails.attackBonus} att.
+                                                    </span>
+                                                )}
+                                                {loadedAmmo.ammoDetails?.extraDamage && (
+                                                    <span className="w-atk2-ammo-tag dmg" title="Danno extra munizione">
+                                                        +{loadedAmmo.ammoDetails.extraDamage}{loadedAmmo.ammoDetails.extraDamageType ? ` ${loadedAmmo.ammoDetails.extraDamageType}` : ''}
+                                                    </span>
+                                                )}
+                                                <span className="w-atk2-ammo-spacer" />
+                                                {/* Qty controls */}
+                                                <button
+                                                    className="w-atk2-ammo-btn"
+                                                    title="Spara (–1)"
+                                                    onClick={e => { e.stopPropagation(); adjustAmmoQty(loadedAmmo.id, -1); }}
+                                                    disabled={(loadedAmmo.quantity ?? 1) <= 0}
+                                                >
+                                                    <FaMinus size={8} />
+                                                </button>
+                                                <span className={`w-atk2-ammo-qty${(loadedAmmo.quantity ?? 1) === 0 ? ' empty' : ''}`}>
+                                                    {loadedAmmo.quantity ?? 1}
+                                                </span>
+                                                <button
+                                                    className="w-atk2-ammo-btn"
+                                                    title="Aggiungi (+1)"
+                                                    onClick={e => { e.stopPropagation(); adjustAmmoQty(loadedAmmo.id, +1); }}
+                                                >
+                                                    <FaPlus size={8} />
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <span className="w-atk2-ammo-none">Nessuna munizione</span>
+                                        )}
                                     </div>
                                 )}
                             </div>
