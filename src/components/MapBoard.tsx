@@ -1176,6 +1176,7 @@ export const MapBoard: React.FC = () => {
                 const linked = !!targetLevel;
                 const arrow = s.direction === 'down' ? '▼' : s.direction === 'both' ? '⇅' : '▲';
                 const short = targetLevel ? getLevelShortLabel(targetLevel.floor) : '?';
+                const stairKind = s.stairKind ?? 'stairs';
                 // Double-click teleports to the linked level (and selects the linked stair).
                 const onDbl = (e: any) => {
                     e.cancelBubble = true;
@@ -1183,6 +1184,110 @@ export const MapBoard: React.FC = () => {
                     switchLevel(s.linkLevelId);
                     if (s.linkShapeId) setTimeout(() => setSelectedId(s.linkShapeId!), 30);
                 };
+
+                // Color theme per stair kind.
+                const theme = !linked
+                    ? { bg: 'rgba(192,57,43,0.16)', border: '#c0392b', ink: '#7a2018' }
+                    : stairKind === 'portal'
+                        ? { bg: 'rgba(155,89,182,0.18)', border: '#8e44ad', ink: '#3d1f4a' }
+                        : stairKind === 'trapdoor'
+                            ? { bg: 'rgba(122,90,50,0.22)', border: '#7a5a32', ink: '#3a2a16' }
+                            : stairKind === 'ladder'
+                                ? { bg: 'rgba(160,110,60,0.20)', border: '#9c6a3c', ink: '#3a2410' }
+                                : { bg: 'rgba(201,168,76,0.20)', border: '#c9a84c', ink: '#5a3a16' };
+
+                const horizontal = s.w >= s.h;
+                const length = horizontal ? s.w : s.h;     // along the long axis
+                const breadth = horizontal ? s.h : s.w;    // along the short axis
+
+                // Render-helpers per kind ────────────────────────────────────
+                const renderInternals = () => {
+                    if (stairKind === 'stairs') {
+                        // Perpendicular rungs growing from narrow (top of climb) to wide (bottom).
+                        const steps = Math.max(4, Math.round(length / 9));
+                        const out: React.ReactNode[] = [];
+                        for (let i = 1; i <= steps; i++) {
+                            const t = (i / (steps + 1)) * length; // position along long axis
+                            // Each step gets progressively wider (perspective effect).
+                            const wRatio = 0.35 + (i / steps) * 0.55;
+                            const stepBreadth = breadth * wRatio;
+                            const offset = (breadth - stepBreadth) / 2;
+                            if (horizontal) {
+                                out.push(<Line key={`stp_${i}`}
+                                    points={[t, offset, t, offset + stepBreadth]}
+                                    stroke={theme.ink} strokeWidth={1.2} listening={false} />);
+                            } else {
+                                out.push(<Line key={`stp_${i}`}
+                                    points={[offset, t, offset + stepBreadth, t]}
+                                    stroke={theme.ink} strokeWidth={1.2} listening={false} />);
+                            }
+                        }
+                        return out;
+                    }
+                    if (stairKind === 'ladder') {
+                        // Two parallel rails + evenly-spaced rungs.
+                        const rungs = Math.max(3, Math.round(length / 10));
+                        const inset = breadth * 0.18;
+                        const out: React.ReactNode[] = [];
+                        // Side rails
+                        if (horizontal) {
+                            out.push(<Line key="rail_a" points={[2, inset, s.w - 2, inset]} stroke={theme.ink} strokeWidth={1.6} listening={false} />);
+                            out.push(<Line key="rail_b" points={[2, breadth - inset, s.w - 2, breadth - inset]} stroke={theme.ink} strokeWidth={1.6} listening={false} />);
+                        } else {
+                            out.push(<Line key="rail_a" points={[inset, 2, inset, s.h - 2]} stroke={theme.ink} strokeWidth={1.6} listening={false} />);
+                            out.push(<Line key="rail_b" points={[breadth - inset, 2, breadth - inset, s.h - 2]} stroke={theme.ink} strokeWidth={1.6} listening={false} />);
+                        }
+                        // Rungs
+                        for (let i = 1; i <= rungs; i++) {
+                            const t = (i / (rungs + 1)) * length;
+                            if (horizontal) {
+                                out.push(<Line key={`rg_${i}`} points={[t, inset, t, breadth - inset]} stroke={theme.ink} strokeWidth={1} listening={false} />);
+                            } else {
+                                out.push(<Line key={`rg_${i}`} points={[inset, t, breadth - inset, t]} stroke={theme.ink} strokeWidth={1} listening={false} />);
+                            }
+                        }
+                        return out;
+                    }
+                    if (stairKind === 'trapdoor') {
+                        // X cross + hinge tick on one side.
+                        const pad = Math.min(s.w, s.h) * 0.18;
+                        return [
+                            <Line key="x1" points={[pad, pad, s.w - pad, s.h - pad]} stroke={theme.ink} strokeWidth={1.4} listening={false} />,
+                            <Line key="x2" points={[s.w - pad, pad, pad, s.h - pad]} stroke={theme.ink} strokeWidth={1.4} listening={false} />,
+                            // Hinge marks (top edge)
+                            <Line key="h1" points={[pad, 2, pad + 4, 2]} stroke={theme.ink} strokeWidth={2.5} lineCap="round" listening={false} />,
+                            <Line key="h2" points={[s.w - pad - 4, 2, s.w - pad, 2]} stroke={theme.ink} strokeWidth={2.5} lineCap="round" listening={false} />,
+                        ];
+                    }
+                    // 'portal': arcane circle with cross-rays.
+                    const cx = s.w / 2, cy = s.h / 2;
+                    const r = Math.min(s.w, s.h) * 0.32;
+                    return [
+                        <KonvaShapeNode key="po_ring"
+                            sceneFunc={(ctx: any) => {
+                                const raw = ctx._context as CanvasRenderingContext2D;
+                                raw.beginPath(); raw.arc(cx, cy, r, 0, Math.PI * 2);
+                                raw.strokeStyle = theme.ink; raw.lineWidth = 1.6; raw.stroke();
+                                raw.beginPath(); raw.arc(cx, cy, r * 0.55, 0, Math.PI * 2);
+                                raw.strokeStyle = theme.ink; raw.lineWidth = 1; raw.stroke();
+                            }}
+                            listening={false} />,
+                        // 4 magic rays
+                        <Line key="ray1" points={[cx, cy - r * 1.2, cx, cy - r * 0.6]} stroke={theme.ink} strokeWidth={1.2} listening={false} />,
+                        <Line key="ray2" points={[cx, cy + r * 0.6, cx, cy + r * 1.2]} stroke={theme.ink} strokeWidth={1.2} listening={false} />,
+                        <Line key="ray3" points={[cx - r * 1.2, cy, cx - r * 0.6, cy]} stroke={theme.ink} strokeWidth={1.2} listening={false} />,
+                        <Line key="ray4" points={[cx + r * 0.6, cy, cx + r * 1.2, cy]} stroke={theme.ink} strokeWidth={1.2} listening={false} />,
+                    ];
+                };
+
+                // Where to put the small floor-target badge so it doesn't overlap the artwork.
+                // Always at the "exit" end (top for "up", bottom for "down", middle for both).
+                const badgeY = s.direction === 'down'
+                    ? s.h - 14
+                    : s.direction === 'both'
+                        ? s.h / 2 - 5
+                        : 2;
+
                 return (
                     <Group key={s.id} ref={setRef} x={s.x} y={s.y} rotation={s.rotation ?? 0}
                         opacity={s.opacity ?? 1}
@@ -1192,35 +1297,25 @@ export const MapBoard: React.FC = () => {
                         onContextMenu={onShapeContextMenu}
                         onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}
                         onDragStart={onDragStart} onDragEnd={onDragEnd} onTransformEnd={onTransformEnd}>
-                        {/* Footprint background */}
+                        {/* Footprint background — full hit area */}
                         <Rect x={0} y={0} width={s.w} height={s.h}
-                            fill={linked ? 'rgba(201,168,76,0.20)' : 'rgba(192,57,43,0.18)'}
-                            stroke={linked ? '#c9a84c' : '#c0392b'}
+                            fill={theme.bg}
+                            stroke={theme.border}
                             strokeWidth={1.5}
                             cornerRadius={3}
                             listening={selectable || erasable} />
-                        {/* Step lines (parallel rungs across the short axis) */}
-                        {(() => {
-                            const horizontal = s.w >= s.h;
-                            const span = horizontal ? s.h : s.w;
-                            const length = horizontal ? s.w : s.h;
-                            const steps = Math.max(3, Math.round(length / 8));
-                            const lines: React.ReactNode[] = [];
-                            for (let i = 1; i < steps; i++) {
-                                const t = (i / steps) * length;
-                                lines.push(horizontal
-                                    ? <Line key={`st_${i}`} points={[0, t, span, t]} stroke="#3a2a16" strokeWidth={1} listening={false} />
-                                    : <Line key={`st_${i}`} points={[t, 0, t, span]} stroke="#3a2a16" strokeWidth={1} listening={false} />,
-                                );
-                            }
-                            return lines;
-                        })()}
-                        {/* Direction arrow + target floor badge — centered */}
-                        <KonvaText x={0} y={s.h / 2 - 9} width={s.w} text={arrow}
-                            fontSize={14} fontStyle="bold" fill={linked ? '#5a3a16' : '#7a2018'}
-                            align="center" listening={false} />
-                        <KonvaText x={0} y={s.h / 2 + 6} width={s.w} text={short}
-                            fontSize={9} fontStyle="bold" fill={linked ? '#5a3a16' : '#7a2018'}
+                        {/* Internal artwork (kind-specific) */}
+                        {renderInternals()}
+                        {/* Direction arrow — small and out of the way (top-left corner) */}
+                        <KonvaText x={2} y={2} text={arrow}
+                            fontSize={10} fontStyle="bold" fill={theme.ink}
+                            listening={false} />
+                        {/* Target floor badge — pill at the "exit" end */}
+                        <Rect x={2} y={badgeY} width={s.w - 4} height={11}
+                            fill="rgba(255,255,255,0.6)"
+                            cornerRadius={2} listening={false} />
+                        <KonvaText x={2} y={badgeY + 1} width={s.w - 4} text={short}
+                            fontSize={9} fontStyle="bold" fill={theme.ink}
                             align="center" letterSpacing={0.5} listening={false} />
                         {/* Selection ring */}
                         {sel && <Rect x={-2} y={-2} width={s.w + 4} height={s.h + 4}

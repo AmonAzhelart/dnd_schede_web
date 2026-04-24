@@ -124,39 +124,39 @@ export interface MapTextShape extends MapShapeBase { kind: 'text'; x: number; y:
  *  Rendered as: a rect filled with the floor color (masking the wall stroke)
  *  plus a small swing/door line on top. Can be rotated to align with diagonal walls. */
 export interface MapDoorShape extends MapShapeBase {
-    kind: 'door';
-    x: number; y: number;          // top-left in world coords
-    w: number; h: number;          // bounding box (h ≈ wall thickness, w ≈ door span)
-    /** Color of the floor that masks the wall under the door. */
-    maskFill?: string;
+  kind: 'door';
+  x: number; y: number;          // top-left in world coords
+  w: number; h: number;          // bounding box (h ≈ wall thickness, w ≈ door span)
+  /** Color of the floor that masks the wall under the door. */
+  maskFill?: string;
 }
 
 /** Stair / ladder / portal that links two map levels.
  *  Click while in select tool teleports to `linkLevelId` (and selects `linkShapeId` if set).
  *  Two stairs on different floors with mutual links form a "round-trip" connection. */
 export interface MapStairShape extends MapShapeBase {
-    kind: 'stair';
-    x: number; y: number;          // top-left in world coords
-    w: number; h: number;          // footprint (typically 1×2 cells)
-    /** Visual sub-type. */
-    stairKind?: 'stairs' | 'ladder' | 'portal' | 'trapdoor';
-    /** up = goes to floor above, down = below, both = either. */
-    direction?: 'up' | 'down' | 'both';
-    /** Linked level (other end of the stair). */
-    linkLevelId?: string;
-    /** Optional linked stair on that level — selected & centered on teleport. */
-    linkShapeId?: string;
+  kind: 'stair';
+  x: number; y: number;          // top-left in world coords
+  w: number; h: number;          // footprint (typically 1×2 cells)
+  /** Visual sub-type. */
+  stairKind?: 'stairs' | 'ladder' | 'portal' | 'trapdoor';
+  /** up = goes to floor above, down = below, both = either. */
+  direction?: 'up' | 'down' | 'both';
+  /** Linked level (other end of the stair). */
+  linkLevelId?: string;
+  /** Optional linked stair on that level — selected & centered on teleport. */
+  linkShapeId?: string;
 }
 
 export type MapShape =
-    | MapRectShape
-    | MapEllipseShape
-    | MapPolygonShape
-    | MapLineShape
-    | MapStampShape
-    | MapTextShape
-    | MapDoorShape
-    | MapStairShape;
+  | MapRectShape
+  | MapEllipseShape
+  | MapPolygonShape
+  | MapLineShape
+  | MapStampShape
+  | MapTextShape
+  | MapDoorShape
+  | MapStairShape;
 
 /** A single floor/level inside a dungeon map */
 export interface MapLevel {

@@ -23,6 +23,7 @@ body,
 
 /* Windows High-Contrast Mode (Edge): keep our gradients/borders intact */
 @media (forced-colors: active) {
+
   :root,
   body,
   #root,
