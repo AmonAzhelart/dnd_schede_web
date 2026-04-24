@@ -121,3 +121,81 @@ export const clampRect = (
     const y = Math.max(0, rect.y);
     return { x, y, w, h };
 };
+
+/**
+ * Place the dragged widget at `ghost`, then re-flow every other widget
+ * upward (gravity) while treating the dragged widget as a fixed obstacle.
+ * Other widgets keep their X position; their Y is the smallest non-negative
+ * value where they don't overlap any already-placed widget.
+ *
+ * This is the same model used by react-grid-layout / Android: items
+ * compact toward the top and naturally fill the space the dragged widget
+ * vacates, while being pushed out of the way of its new position.
+ */
+export const resolveLayout = (
+    widgets: WidgetInstance[],
+    draggedUid: string,
+    ghost: { x: number; y: number; w: number; h: number },
+): WidgetInstance[] => {
+    const dragged = widgets.find(w => w.uid === draggedUid);
+    if (!dragged) return widgets;
+
+    // Process others in their visual order (top-to-bottom, left-to-right)
+    // so the relative ordering is preserved during re-flow.
+    const others = widgets
+        .filter(w => w.uid !== draggedUid)
+        .slice()
+        .sort((a, b) => a.y - b.y || a.x - b.x);
+
+    const placed: WidgetInstance[] = [
+        { ...dragged, x: ghost.x, y: ghost.y, w: ghost.w, h: ghost.h },
+    ];
+
+    for (const w of others) {
+        let y = 0;
+        let safety = 0;
+        while (
+            placed.some(p => rectsOverlap({ x: w.x, y, w: w.w, h: w.h }, p)) &&
+            safety < 5000
+        ) {
+            y++;
+            safety++;
+        }
+        placed.push({ ...w, y });
+    }
+
+    // Return widgets in their original order so React keys stay stable.
+    const byUid = new Map(placed.map(p => [p.uid, p]));
+    return widgets.map(w => byUid.get(w.uid) ?? w);
+};
+
+/**
+ * Compact widgets upward so there are no unnecessary gaps. Preserves
+ * left-to-right ordering at each row. Useful after a successful drop to
+ * keep the grid tidy (Android-launcher style).
+ */
+export const compactLayout = (
+    widgets: WidgetInstance[],
+    pinnedUid?: string,
+): WidgetInstance[] => {
+    const sorted = widgets.slice().sort((a, b) => a.y - b.y || a.x - b.x);
+    const placed: WidgetInstance[] = [];
+    // Place the pinned widget first so it acts as an anchor.
+    const pinned = pinnedUid ? sorted.find(w => w.uid === pinnedUid) : null;
+    if (pinned) placed.push({ ...pinned });
+    for (const w of sorted) {
+        if (w.uid === pinnedUid) continue;
+        let y = 0;
+        let safety = 0;
+        while (
+            placed.some(p => rectsOverlap({ x: w.x, y, w: w.w, h: w.h }, p)) &&
+            safety < 5000
+        ) {
+            y += 1;
+            safety++;
+        }
+        placed.push({ ...w, y });
+    }
+    const byUid = new Map(placed.map(p => [p.uid, p]));
+    return widgets.map(w => byUid.get(w.uid) ?? w);
+};
