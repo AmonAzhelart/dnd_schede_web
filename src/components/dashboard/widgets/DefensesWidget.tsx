@@ -11,7 +11,7 @@ const SAVES = [
 ] as const;
 
 export const DefensesWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
-    const { character, getEffectiveStat, setSavingThrow } = useCharacterStore();
+    const { character, getEffectiveStat, getSaveBreakdown, setSavingThrow } = useCharacterStore();
     const [editSave, setEditSave] = useState<string | null>(null);
     if (!character) return null;
     const equippedArmor = character.inventory.filter(i =>
@@ -31,8 +31,9 @@ export const DefensesWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
 
             <div className="w-def-saves">
                 {SAVES.map(({ key, name, short, iconCat, iconName }) => {
-                    const total = getEffectiveStat(key);
-                    const breakdown = character.savingThrows?.[key];
+                    const breakdown = getSaveBreakdown(key);
+                    const total = breakdown.total;
+                    const stored = character.savingThrows?.[key];
                     return (
                         <div key={key}>
                             <div className={`w-def-save ${key}`}>
@@ -49,21 +50,27 @@ export const DefensesWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                             </div>
                             {editSave === key && (
                                 <div className="w-def-edit-panel">
-                                    {(['base', 'ability', 'magic', 'misc'] as const).map(field => (
-                                        <div key={field} className="w-def-edit-field">
-                                            <label>{field === 'base' ? 'B' : field === 'ability' ? 'Car' : field === 'magic' ? 'Mag' : 'Alt'}</label>
-                                            <input
-                                                type="number"
-                                                className="input"
-                                                defaultValue={breakdown?.[field] ?? 0}
-                                                onBlur={e => {
-                                                    const val = parseInt(e.target.value) || 0;
-                                                    const cur = character.savingThrows?.[key] ?? { base: 0, ability: 0, magic: 0, misc: 0 };
-                                                    setSavingThrow(key, { ...cur, [field]: val });
-                                                }}
-                                            />
-                                        </div>
-                                    ))}
+                                    {(['base', 'ability', 'magic', 'misc'] as const).map(field => {
+                                        const isAuto = breakdown.auto && (field === 'base' || field === 'ability');
+                                        return (
+                                            <div key={field} className="w-def-edit-field">
+                                                <label>{field === 'base' ? 'B' : field === 'ability' ? 'Car' : field === 'magic' ? 'Mag' : 'Alt'}</label>
+                                                <input
+                                                    type="number"
+                                                    className="input"
+                                                    disabled={isAuto}
+                                                    title={isAuto ? 'Calcolato automaticamente dai livelli di classe' : ''}
+                                                    value={isAuto ? breakdown[field] : (stored?.[field] ?? 0)}
+                                                    onChange={e => {
+                                                        if (isAuto) return;
+                                                        const val = parseInt(e.target.value) || 0;
+                                                        const cur = character.savingThrows?.[key] ?? { base: 0, ability: 0, magic: 0, misc: 0 };
+                                                        setSavingThrow(key, { ...cur, [field]: val });
+                                                    }}
+                                                />
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>

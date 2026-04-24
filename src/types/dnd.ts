@@ -1,12 +1,19 @@
 /** BAB progression rate for a class */
 export type BabProgression = 'high' | 'medium' | 'low';
 
+/** Saving throw progression rate per class */
+export type SaveProgression = 'good' | 'poor';
+
 /** A single class entry for a multiclass character */
 export interface ClassLevel {
   id: string;
   className: string;
   level: number;
   babProgression: BabProgression;
+  /** Saving throw progressions (default 'poor' if missing for back-compat) */
+  fortSave?: SaveProgression;
+  refSave?: SaveProgression;
+  willSave?: SaveProgression;
 }
 
 /** Preset class → BAB progression mappings for D&D 3.5 */
@@ -28,6 +35,34 @@ export const CLASS_BAB_PRESETS: Record<string, BabProgression> = {
   'Negromante': 'low', 'Warlock': 'low',
   'Fattucchiere': 'low',
 };
+
+/** Preset class → saving throw progressions for D&D 3.5 */
+export const CLASS_SAVE_PRESETS: Record<string, { fort: SaveProgression; ref: SaveProgression; will: SaveProgression }> = {
+  'Barbaro': { fort: 'good', ref: 'poor', will: 'poor' }, 'Barbarian': { fort: 'good', ref: 'poor', will: 'poor' },
+  'Bardo': { fort: 'poor', ref: 'good', will: 'good' }, 'Bard': { fort: 'poor', ref: 'good', will: 'good' },
+  'Chierico': { fort: 'good', ref: 'poor', will: 'good' }, 'Cleric': { fort: 'good', ref: 'poor', will: 'good' },
+  'Druido': { fort: 'good', ref: 'poor', will: 'good' }, 'Druid': { fort: 'good', ref: 'poor', will: 'good' },
+  'Guerriero': { fort: 'good', ref: 'poor', will: 'poor' }, 'Fighter': { fort: 'good', ref: 'poor', will: 'poor' },
+  'Monaco': { fort: 'good', ref: 'good', will: 'good' }, 'Monk': { fort: 'good', ref: 'good', will: 'good' },
+  'Paladino': { fort: 'good', ref: 'poor', will: 'poor' }, 'Paladin': { fort: 'good', ref: 'poor', will: 'poor' },
+  'Ranger': { fort: 'good', ref: 'good', will: 'poor' },
+  'Ladro': { fort: 'poor', ref: 'good', will: 'poor' }, 'Rogue': { fort: 'poor', ref: 'good', will: 'poor' },
+  'Stregone': { fort: 'poor', ref: 'poor', will: 'good' }, 'Sorcerer': { fort: 'poor', ref: 'poor', will: 'good' },
+  'Mago': { fort: 'poor', ref: 'poor', will: 'good' }, 'Wizard': { fort: 'poor', ref: 'poor', will: 'good' },
+  'Negromante': { fort: 'poor', ref: 'poor', will: 'good' }, 'Warlock': { fort: 'poor', ref: 'poor', will: 'good' },
+  'Fattucchiere': { fort: 'poor', ref: 'poor', will: 'good' },
+};
+
+/** Compute base saving throw bonus from a single class entry.
+ *  Good: 2 + floor(level/2)   Poor: floor(level/3) */
+export const computeClassSaveBase = (level: number, prog: SaveProgression): number =>
+  prog === 'good' ? 2 + Math.floor(level / 2) : Math.floor(level / 3);
+
+/** Compute BAB contribution for a single class entry. */
+export const computeClassBab = (level: number, prog: BabProgression): number =>
+  prog === 'high' ? level
+    : prog === 'medium' ? Math.floor(level * 3 / 4)
+      : Math.floor(level / 2);
 
 export type ModifierType =
   | 'enhancement'
