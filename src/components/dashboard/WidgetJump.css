@@ -1,0 +1,349 @@
+/* ============================================================================
+ * WidgetJump ─ press-and-hold widget index.
+ *
+ * The trigger is no longer a separate control: the mobile "Panoramica" tab
+ * itself is the long-press anchor (CharacterSheet registers it via the
+ * widgetJumpBridge). This file only styles the popup rail + the small
+ * "armed" / "open" affordances applied to whatever element is the anchor.
+ * ========================================================================== */
+
+/* ── Anchor affordance ──────────────────────────────────────────────
+   Whatever element is registered as the WidgetJump trigger gets the
+   `.wjump-anchor` class added for as long as a widget list is published.
+   We add a discreet gold dot just above the icon to hint that this tab
+   has a hidden long-press menu, and a stronger glow while the press is
+   building up / the rail is open. */
+.cs-tab.wjump-anchor {
+    position: relative;
+    /* CRITICAL: stop the browser from interpreting the press as a scroll
+       gesture on the horizontally-scrolling tabs container. Without this
+       the first vertical/horizontal drag would fire `pointercancel`,
+       releasing pointer capture and closing the rail. */
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* While the press is being evaluated or the rail is open, also freeze the
+   tabs scroll container so a sloppy drag never steals the gesture. */
+.mob-shell-tabs:has(.cs-tab.wjump-anchor.wjump-anchor-armed),
+.mob-shell-tabs:has(.cs-tab.wjump-anchor.wjump-anchor-open) {
+    overflow: hidden;
+    touch-action: none;
+}
+
+.cs-tab.wjump-anchor::after {
+    content: '';
+    position: absolute;
+    top: 4px;
+    right: 8px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent-gold);
+    box-shadow:
+        0 0 4px rgba(201, 168, 76, 0.8),
+        0 0 0 1px rgba(0, 0, 0, 0.4);
+    opacity: 0.85;
+    pointer-events: none;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+    animation: wj-anchor-blink 3.6s ease-in-out infinite;
+}
+
+.cs-tab.wjump-anchor.wjump-anchor-armed::after {
+    transform: scale(1.6);
+    opacity: 1;
+    box-shadow:
+        0 0 10px rgba(201, 168, 76, 0.95),
+        0 0 0 1px rgba(0, 0, 0, 0.4);
+    animation: none;
+}
+
+.cs-tab.wjump-anchor.wjump-anchor-open {
+    background: linear-gradient(180deg,
+            rgba(201, 168, 76, 0.32),
+            rgba(201, 168, 76, 0.08)) !important;
+    color: var(--accent-gold);
+    box-shadow:
+        inset 0 0 0 1px rgba(201, 168, 76, 0.6),
+        0 0 18px rgba(201, 168, 76, 0.3);
+}
+
+.cs-tab.wjump-anchor.wjump-anchor-open::after {
+    transform: scale(1.4);
+    opacity: 1;
+    box-shadow:
+        0 0 12px rgba(201, 168, 76, 1),
+        0 0 0 1px rgba(0, 0, 0, 0.4);
+    animation: wj-anchor-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes wj-anchor-blink {
+
+    0%,
+    88%,
+    100% {
+        opacity: 0.7;
+    }
+
+    94% {
+        opacity: 1;
+        box-shadow:
+            0 0 8px rgba(201, 168, 76, 1),
+            0 0 0 1px rgba(0, 0, 0, 0.4);
+    }
+}
+
+@keyframes wj-anchor-pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 8px rgba(201, 168, 76, 0.7), 0 0 0 1px rgba(0, 0, 0, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 0 16px rgba(201, 168, 76, 1), 0 0 0 1px rgba(0, 0, 0, 0.4);
+    }
+}
+
+/* ── Popup rail ──────────────────────────────────────────────────── */
+.wjump-rail {
+    position: fixed;
+    z-index: 320;
+    background:
+        radial-gradient(140% 60% at 50% 0%,
+            rgba(201, 168, 76, 0.10) 0%,
+            transparent 60%),
+        linear-gradient(180deg,
+            rgba(22, 17, 10, 0.97) 0%,
+            rgba(10, 8, 5, 0.97) 100%);
+    border: 1px solid rgba(201, 168, 76, 0.42);
+    border-radius: 14px;
+    box-shadow:
+        0 24px 56px rgba(0, 0, 0, 0.7),
+        0 0 0 1px rgba(0, 0, 0, 0.55),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    /* Don't intercept the captured pointer — only the items care about clicks. */
+    pointer-events: none;
+    animation: wj-pop-in 0.16s cubic-bezier(0.2, 0.9, 0.3, 1.4);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+/* ── Header + footer chrome ──────────────────────────────────────── */
+.wjump-rail-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid rgba(201, 168, 76, 0.18);
+    background: linear-gradient(180deg,
+            rgba(201, 168, 76, 0.08), transparent);
+}
+
+.wjump-rail-title {
+    font-family: var(--font-heading);
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent-gold);
+}
+
+.wjump-rail-count {
+    font-family: var(--font-heading);
+    font-size: 0.62rem;
+    color: var(--text-muted);
+    background: rgba(201, 168, 76, 0.12);
+    border: 1px solid rgba(201, 168, 76, 0.25);
+    border-radius: 999px;
+    padding: 1px 7px;
+    min-width: 20px;
+    text-align: center;
+}
+
+.wjump-rail-foot {
+    padding: 6px 10px 8px;
+    border-top: 1px solid rgba(201, 168, 76, 0.14);
+    text-align: center;
+}
+
+.wjump-rail-hint {
+    font-family: var(--font-body);
+    font-size: 0.58rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    opacity: 0.85;
+}
+
+/* ── List ────────────────────────────────────────────────────────── */
+.wjump-list {
+    list-style: none;
+    margin: 0;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    pointer-events: auto;
+    /* rows are clickable in sticky mode */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(201, 168, 76, 0.4) transparent;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.wjump-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.wjump-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.wjump-list::-webkit-scrollbar-thumb {
+    background: rgba(201, 168, 76, 0.35);
+    border-radius: 2px;
+}
+
+.wjump-li {
+    margin: 0;
+}
+
+.wjump-item {
+    --wj-accent: var(--accent-gold);
+    appearance: none;
+    width: 100%;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    text-align: left;
+    padding: 7px 10px 7px 8px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    cursor: pointer;
+    position: relative;
+    transition:
+        background 0.12s ease,
+        color 0.12s ease,
+        border-color 0.12s ease,
+        transform 0.12s ease;
+}
+
+.wjump-item:hover {
+    background: rgba(201, 168, 76, 0.06);
+    color: var(--text-primary);
+}
+
+.wjump-item.is-active {
+    background:
+        linear-gradient(90deg,
+            rgba(201, 168, 76, 0.22) 0%,
+            rgba(201, 168, 76, 0.04) 100%);
+    border-color: rgba(201, 168, 76, 0.55);
+    color: var(--accent-gold);
+    transform: translateX(-1px);
+    box-shadow: 0 0 10px rgba(201, 168, 76, 0.18);
+}
+
+.wjump-ico {
+    color: var(--wj-accent);
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    flex: 0 0 auto;
+    opacity: 0.85;
+}
+
+.wjump-item.is-active .wjump-ico {
+    opacity: 1;
+}
+
+.wjump-lbl {
+    font-family: var(--font-heading);
+    letter-spacing: 0.04em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* Tiny right-aligned accent bar that appears on the active row. */
+.wjump-mark {
+    width: 3px;
+    height: 18px;
+    border-radius: 3px;
+    background: var(--wj-accent);
+    flex: 0 0 auto;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+    box-shadow: 0 0 8px var(--wj-accent);
+}
+
+.wjump-item.is-active .wjump-mark {
+    opacity: 1;
+}
+
+@keyframes wj-pop-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Brief gold flash on the destination tile after a jump. */
+.wjump-flash {
+    animation: wjump-flash 0.9s ease-out;
+}
+
+@keyframes wjump-flash {
+    0% {
+        box-shadow: 0 0 0 0 rgba(201, 168, 76, 0);
+    }
+
+    25% {
+        box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.55),
+            0 0 24px rgba(201, 168, 76, 0.45);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(201, 168, 76, 0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .wjump-btn,
+    .wjump-item,
+    .wjump-rail,
+    .wjump-flash,
+    .wjump-mark {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* On phones, narrow the rail a touch so it never crowds the edge. */
+@media (max-width: 480px) {
+    .wjump-rail {
+        width: min(220px, calc(100vw - 24px)) !important;
+    }
+}

@@ -1,0 +1,537 @@
+/* ============================================================================
+ * MobileShell ─ styling. Visible only on screens up to 900px wide so
+ * tablets share the design with phones.
+ * ========================================================================== */
+.mob-shell {
+    display: none;
+}
+
+@media (max-width: 900px) {
+    .mob-shell {
+        display: block;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 250;
+        padding: 0 8px calc(env(safe-area-inset-bottom, 0px) + 8px);
+        background: linear-gradient(180deg,
+                rgba(8, 8, 12, 0.05) 0%,
+                rgba(8, 8, 12, 0.85) 22%,
+                rgba(8, 8, 12, 0.97) 60%);
+        pointer-events: none;
+        /* let the inner panel catch events */
+    }
+
+    .mob-shell>* {
+        pointer-events: auto;
+    }
+}
+
+/* ── Row 1: sheet inner-tabs slot ───────────────────────────────── */
+.mob-shell-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 6px 6px 4px;
+    margin: 0 auto 6px;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    background: linear-gradient(180deg, rgba(20, 18, 12, 0.9), rgba(12, 10, 6, 0.92));
+    border: 1px solid rgba(201, 168, 76, 0.22);
+    border-radius: 12px;
+    box-shadow:
+        0 6px 22px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(201, 168, 76, 0.15);
+}
+
+.mob-shell-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.mob-shell-tabs.is-empty {
+    display: none;
+}
+
+/* Tabs portaled in from CharacterSheet adopt these visuals.
+   We reuse the existing `.cs-tab` class names — only override layout here. */
+.mob-shell-tabs .cs-tab {
+    flex: 1 1 0;
+    min-width: 44px;
+    scroll-snap-align: center;
+    padding: 0.45rem 0;
+    gap: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text-muted);
+    border: none;
+    border-bottom: none;
+    position: relative;
+    justify-content: center;
+}
+
+.mob-shell-tabs .cs-tab .cs-tab-label {
+    display: none;
+}
+
+.mob-shell-tabs .cs-tab svg {
+    font-size: 1.2rem;
+    opacity: 0.75;
+}
+
+.mob-shell-tabs .cs-tab.active {
+    background: linear-gradient(180deg, rgba(201, 168, 76, 0.22), rgba(201, 168, 76, 0.04));
+    color: var(--accent-gold);
+    box-shadow:
+        inset 0 0 0 1px rgba(201, 168, 76, 0.45),
+        0 0 14px rgba(201, 168, 76, 0.18);
+}
+
+.mob-shell-tabs .cs-tab.active svg {
+    opacity: 1;
+}
+
+/* ── Row 2: stats + avatar ──────────────────────────────────────── */
+.mob-shell-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: stretch;
+    gap: 8px;
+    padding: 14px 12px 10px;
+    background:
+        radial-gradient(ellipse at 50% 0%, rgba(201, 168, 76, 0.12) 0%, transparent 60%),
+        linear-gradient(180deg, rgba(20, 18, 12, 0.95), rgba(10, 9, 6, 0.97));
+    border: 1px solid rgba(201, 168, 76, 0.28);
+    border-radius: 14px;
+    box-shadow:
+        0 -6px 24px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(201, 168, 76, 0.18);
+}
+
+.mob-shell-side {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.mob-shell-side-l {
+    justify-content: flex-end;
+    padding-right: 4px;
+}
+
+.mob-shell-side-r {
+    justify-content: flex-start;
+    padding-left: 4px;
+}
+
+/* stat chips */
+.mob-shell-stat {
+    appearance: none;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.32);
+    border-radius: 10px;
+    padding: 6px 9px 5px;
+    min-width: 52px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    color: var(--text-primary);
+    font-family: inherit;
+    line-height: 1;
+    cursor: default;
+    position: relative;
+    overflow: hidden;
+}
+
+button.mob-shell-stat {
+    cursor: pointer;
+}
+
+.mob-shell-stat-lbl {
+    font-size: 0.5rem;
+    letter-spacing: 0.14em;
+    color: var(--text-muted);
+    font-family: var(--font-heading);
+    text-transform: uppercase;
+}
+
+.mob-shell-stat-val {
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.mob-shell-stat-val .sep {
+    color: var(--text-muted);
+    margin: 0 1px;
+    font-size: 0.75rem;
+}
+
+.mob-shell-stat-val .unit {
+    font-size: 0.55rem;
+    opacity: 0.7;
+    margin-left: 1px;
+}
+
+.mob-shell-stat.hp {
+    border-color: rgba(192, 57, 43, 0.32);
+}
+
+.mob-shell-stat.ac {
+    border-color: rgba(201, 168, 76, 0.32);
+}
+
+.mob-shell-stat.ac .mob-shell-stat-val {
+    color: var(--accent-gold);
+}
+
+.mob-shell-stat.init {
+    border-color: rgba(91, 192, 222, 0.32);
+}
+
+.mob-shell-stat.init .mob-shell-stat-val {
+    color: #5ec5e0;
+}
+
+.mob-shell-stat.speed {
+    border-color: rgba(39, 174, 96, 0.32);
+}
+
+.mob-shell-stat.speed .mob-shell-stat-val {
+    color: var(--accent-success);
+}
+
+.mob-shell-stat-bar {
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    bottom: 2px;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.mob-shell-stat-bar .fill {
+    display: block;
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.25s, background 0.25s;
+}
+
+.mob-shell-stat-bar .fill.ok {
+    background: linear-gradient(90deg, var(--accent-success), #6dd06d);
+}
+
+.mob-shell-stat-bar .fill.low {
+    background: linear-gradient(90deg, #f0a04b, #ffc888);
+}
+
+.mob-shell-stat-bar .fill.crit {
+    background: linear-gradient(90deg, var(--accent-crimson), #e74c3c);
+}
+
+/* ── Centred avatar (FAB-like) ──────────────────────────────────── */
+.mob-shell-center {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    margin-top: -22px;
+    /* let it float above the bar */
+    min-width: 84px;
+}
+
+.mob-shell-avatar {
+    appearance: none;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: 3px solid rgba(8, 6, 3, 0.95);
+    padding: 0;
+    background: radial-gradient(circle at 30% 30%, rgba(201, 168, 76, 0.4), rgba(155, 89, 182, 0.22) 60%, transparent);
+    color: var(--accent-gold);
+    font-family: var(--font-heading);
+    font-size: 1.55rem;
+    cursor: pointer;
+    overflow: hidden;
+    position: relative;
+    box-shadow:
+        0 -6px 22px rgba(0, 0, 0, 0.6),
+        0 0 24px rgba(201, 168, 76, 0.32),
+        inset 0 0 12px rgba(0, 0, 0, 0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.mob-shell-avatar:active {
+    transform: scale(0.96);
+}
+
+.mob-shell-avatar.is-open {
+    transform: scale(1.05);
+    box-shadow:
+        0 -6px 22px rgba(0, 0, 0, 0.6),
+        0 0 32px rgba(201, 168, 76, 0.55),
+        inset 0 0 12px rgba(0, 0, 0, 0.4);
+}
+
+.mob-shell-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: 50%;
+}
+
+.mob-shell-avatar-init {
+    line-height: 1;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+/* gold ring */
+.mob-shell-avatar-ring {
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 1px solid rgba(201, 168, 76, 0.55);
+    pointer-events: none;
+    box-shadow: 0 0 14px rgba(201, 168, 76, 0.4);
+}
+
+.mob-shell-name {
+    margin-top: 4px;
+    font-family: var(--font-heading);
+    font-size: 0.65rem;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    max-width: 96px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+}
+
+/* Header actions slot — used by CharacterSheet to portal in edit/palette btns */
+.mob-shell-actions-slot {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 4px;
+}
+
+.mob-shell-actions-slot:empty {
+    display: none;
+}
+
+.mob-shell-actions-slot .cs-action-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+}
+
+/* ── Navigation popup ───────────────────────────────────────────── */
+.mob-shell-popup-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 260;
+    animation: mob-pop-fade 0.18s ease-out;
+}
+
+.mob-shell-popup {
+    position: fixed;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 110px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 270;
+    min-width: 220px;
+    max-width: min(340px, 92vw);
+    background: linear-gradient(180deg, rgba(28, 22, 12, 0.98) 0%, rgba(14, 10, 6, 0.98) 100%);
+    border: 1px solid rgba(201, 168, 76, 0.45);
+    border-radius: 14px;
+    box-shadow:
+        0 20px 50px rgba(0, 0, 0, 0.7),
+        0 0 0 1px rgba(0, 0, 0, 0.6),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    padding: 10px;
+    animation: mob-pop-in 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+
+.mob-shell-popup-arrow {
+    position: absolute;
+    bottom: -7px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 14px;
+    height: 14px;
+    background: linear-gradient(135deg, transparent 50%, rgba(14, 10, 6, 0.98) 50%);
+    border-right: 1px solid rgba(201, 168, 76, 0.45);
+    border-bottom: 1px solid rgba(201, 168, 76, 0.45);
+}
+
+@keyframes mob-pop-fade {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes mob-pop-in {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 8px) scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0) scale(1);
+    }
+}
+
+.mob-shell-popup-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.mob-shell-popup-section {
+    font-family: var(--font-heading);
+    font-size: 0.55rem;
+    letter-spacing: 0.18em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    padding: 6px 12px 2px;
+}
+
+.mob-shell-popup-divider {
+    height: 1px;
+    margin: 6px 8px;
+    background: linear-gradient(90deg, transparent, rgba(201, 168, 76, 0.3), transparent);
+}
+
+.mob-shell-popup-btn {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    border-radius: 9px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.mob-shell-popup-btn:hover {
+    background: rgba(201, 168, 76, 0.08);
+    border-color: rgba(201, 168, 76, 0.3);
+}
+
+.mob-shell-popup-btn.is-active {
+    background: linear-gradient(90deg, rgba(201, 168, 76, 0.22), rgba(201, 168, 76, 0.06));
+    border-color: rgba(201, 168, 76, 0.55);
+    color: var(--accent-gold);
+}
+
+.mob-shell-popup-btn.alt {
+    color: var(--text-secondary);
+}
+
+.mob-shell-popup-btn.danger {
+    color: var(--accent-crimson);
+}
+
+.mob-shell-popup-btn.danger:hover {
+    background: rgba(192, 57, 43, 0.1);
+    border-color: rgba(192, 57, 43, 0.4);
+}
+
+.mob-shell-popup-ico {
+    width: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-gold);
+}
+
+.mob-shell-popup-btn.danger .mob-shell-popup-ico {
+    color: var(--accent-crimson);
+}
+
+.mob-shell-popup-lbl {
+    font-family: var(--font-heading);
+    letter-spacing: 0.04em;
+}
+
+/* ── Content padding so the bar never overlaps the page ────────── */
+@media (max-width: 900px) {
+    .app-container {
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 132px);
+    }
+
+    /* Hide the legacy bottom nav on mobile/tablet — the shell replaces it. */
+    .mobile-nav {
+        display: none !important;
+    }
+
+    /* Hide the in-page sheet header & inline tabs — info migrates to the bar. */
+    .cs-header,
+    .cs-tabs {
+        display: none !important;
+    }
+}
+
+/* Slightly more compact on phones in portrait */
+@media (max-width: 480px) {
+    .mob-shell-row {
+        padding: 12px 10px 9px;
+        gap: 6px;
+    }
+
+    .mob-shell-stat {
+        min-width: 46px;
+        padding: 5px 7px 4px;
+    }
+
+    .mob-shell-stat-val {
+        font-size: 0.92rem;
+    }
+
+    .mob-shell-avatar {
+        width: 58px;
+        height: 58px;
+    }
+
+    .mob-shell-name {
+        font-size: 0.6rem;
+        max-width: 84px;
+    }
+
+    .mob-shell-center {
+        margin-top: -18px;
+        min-width: 72px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .mob-shell-popup,
+    .mob-shell-popup-backdrop,
+    .mob-shell-avatar {
+        animation: none !important;
+        transition: none !important;
+    }
+}

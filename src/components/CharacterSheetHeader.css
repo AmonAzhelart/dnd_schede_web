@@ -1,31 +1,106 @@
 /* ─── Character Sheet Header ─────────────────────────────────── */
 .cs-header {
-    background: linear-gradient(180deg, rgba(28, 28, 39, 0.95), rgba(20, 20, 28, 0.85));
-    border: 1px solid rgba(201, 168, 76, 0.18);
-    border-radius: 10px;
-    padding: 0.65rem 0.9rem;
+    position: relative;
+    background:
+        radial-gradient(ellipse at 12% 0%, rgba(201, 168, 76, 0.10) 0%, transparent 55%),
+        linear-gradient(180deg, rgba(28, 28, 39, 0.95), rgba(20, 20, 28, 0.85));
+    border: 1px solid rgba(201, 168, 76, 0.22);
+    border-radius: 12px;
+    padding: 0.7rem 0.95rem;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto auto auto;
     align-items: center;
-    gap: 0.9rem;
-    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+    gap: 0.95rem;
+    box-shadow:
+        0 6px 22px rgba(0, 0, 0, 0.32),
+        inset 0 1px 0 rgba(201, 168, 76, 0.15);
 }
 
-/* Avatar */
+.cs-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 12%;
+    right: 12%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(201, 168, 76, 0.65), transparent);
+    pointer-events: none;
+}
+
+/* Avatar (button) */
 .cs-avatar {
-    width: 52px;
-    height: 52px;
+    position: relative;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
     flex-shrink: 0;
     background: radial-gradient(circle at 30% 30%, rgba(201, 168, 76, 0.35), rgba(155, 89, 182, 0.18) 60%, transparent);
-    border: 2px solid rgba(201, 168, 76, 0.45);
-    display: flex;
+    border: 2px solid rgba(201, 168, 76, 0.50);
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     font-family: var(--font-heading);
-    font-size: 1.4rem;
+    font-size: 1.45rem;
     color: var(--accent-gold);
-    box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+    box-shadow:
+        inset 0 0 14px rgba(0, 0, 0, 0.45),
+        0 4px 14px rgba(0, 0, 0, 0.45),
+        0 0 18px rgba(201, 168, 76, 0.18);
+    cursor: pointer;
+    overflow: hidden;
+    padding: 0;
+    transition: border-color 0.18s, box-shadow 0.2s, transform 0.2s;
+}
+
+.cs-avatar:hover {
+    border-color: var(--accent-gold);
+    box-shadow:
+        inset 0 0 14px rgba(0, 0, 0, 0.45),
+        0 6px 18px rgba(0, 0, 0, 0.5),
+        0 0 26px rgba(201, 168, 76, 0.32);
+    transform: translateY(-1px);
+}
+
+.cs-avatar:focus-visible {
+    outline: none;
+    border-color: var(--accent-gold);
+    box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.32);
+}
+
+.cs-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.cs-avatar-initial {
+    line-height: 1;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
+}
+
+.cs-avatar-overlay {
+    position: absolute;
+    inset: auto 0 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 38%;
+    background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.78) 100%);
+    color: rgba(255, 255, 255, 0.92);
+    opacity: 0;
+    transition: opacity 0.18s;
+}
+
+.cs-avatar:hover .cs-avatar-overlay,
+.cs-avatar:focus-visible .cs-avatar-overlay {
+    opacity: 1;
+}
+
+@media (hover: none) {
+    .cs-avatar.has-image .cs-avatar-overlay {
+        opacity: 0.85;
+    }
 }
 
 /* Identity */
@@ -326,6 +401,28 @@
     color: var(--text-muted);
 }
 
+/* Drawer extras */
+.cs-drawer-field-wide {
+    grid-column: 1 / -1;
+}
+
+.cs-drawer-avatar-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.cs-drawer-avatar-row>.input {
+    flex: 1 1 220px;
+    min-width: 0;
+}
+
+.cs-drawer-avatar-btn {
+    font-size: 0.72rem;
+    padding: 5px 10px;
+}
+
 /* ─── Tabs row ─── */
 .cs-tabs {
     display: flex;
@@ -411,125 +508,106 @@
 }
 
 @media (max-width: 720px) {
+
+    /* === MINIMAL MOBILE HEADER ===
+       Goal: ridurre l'header al minimo: avatar compatto, nome + chip livello,
+       azioni sulla destra. PV e quick stats spariscono (vivono nei widget). */
     .cs-header {
-        padding: 0.5rem 0.6rem;
-        gap: 0.45rem;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        grid-template-areas:
-            "avatar identity actions"
-            "hp     hp       hp"
-            "quick  quick    quick";
-        row-gap: 0.4rem;
+        padding: 0.45rem 0.55rem;
+        border-radius: 10px;
+        gap: 0.55rem;
+        display: flex;
+        align-items: center;
+        grid-template-columns: none;
+        grid-template-areas: none;
     }
 
     .cs-avatar {
-        width: 40px;
-        height: 40px;
-        font-size: 1.05rem;
+        width: 42px;
+        height: 42px;
+        font-size: 1.1rem;
         border-width: 1.5px;
     }
 
-    .cs-name {
-        font-size: 1rem;
-    }
-
-    .cs-meta {
-        gap: 0.25rem;
-    }
-
-    .cs-chip {
-        font-size: 0.6rem;
-        padding: 1px 6px;
-        border-radius: 10px;
-    }
-
-    .cs-align {
-        font-size: 0.6rem;
-    }
-
-    /* HP compatto: inline su una sola riga, niente label */
-    .cs-hp {
-        min-width: 0;
-        width: 100%;
-        flex-direction: row;
-        align-items: center;
-        gap: 8px;
-        padding: 4px 8px;
-        border-radius: 6px;
-    }
-
-    .cs-hp-label {
-        display: none;
-    }
-
-    .cs-hp-row {
-        gap: 4px;
-        flex-shrink: 0;
-    }
-
-    .cs-hp-btn {
-        width: 22px;
-        height: 22px;
-    }
-
-    .cs-hp-vals {
+    .cs-identity {
+        flex: 1 1 auto;
         min-width: 0;
         gap: 2px;
     }
 
-    .cs-hp-cur {
-        font-size: 1.15rem;
-    }
-
-    .cs-hp-sep,
-    .cs-hp-max {
-        font-size: 0.72rem;
-    }
-
-    .cs-hp-bar {
-        flex: 1;
-        height: 6px;
-    }
-
-    /* Quick stats: 4 celle compatte equispaziate */
-    .cs-quick {
-        justify-content: space-between;
-        gap: 4px;
-    }
-
-    .cs-quick-cell {
-        flex: 1;
-        min-width: 0;
-        padding: 3px 4px;
-        gap: 1px;
-    }
-
-    .cs-quick-lbl {
-        font-size: 0.5rem;
-        letter-spacing: 0.08em;
-    }
-
-    .cs-quick-val {
+    .cs-name {
         font-size: 1rem;
+        line-height: 1.15;
     }
 
-    /* Azioni in colonna stretta */
+    .cs-meta {
+        gap: 0.25rem;
+        flex-wrap: nowrap;
+        overflow: hidden;
+    }
+
+    .cs-chip {
+        font-size: 0.58rem;
+        padding: 1px 7px;
+        border-radius: 99px;
+        max-width: 12ch;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .cs-chip.race {
+        display: none;
+    }
+
+    .cs-chip.class {
+        display: inline-block;
+    }
+
+    .cs-align {
+        display: none;
+    }
+
+    /* HP card e quick-stats: rimossi su mobile (info già nei widget) */
+    .cs-hp,
+    .cs-quick {
+        display: none;
+    }
+
     .cs-actions {
-        flex-direction: column;
-        gap: 3px;
+        flex-direction: row;
+        gap: 4px;
+        flex-shrink: 0;
     }
 
     .cs-action-btn {
-        width: 28px;
-        height: 28px;
-        border-radius: 5px;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: rgba(201, 168, 76, 0.05);
     }
 
-    /* Tabs: solo icone */
+    /* === Tabs mobile: pill icone ben distanziate ===
+       In mobile portrait usiamo solo l'icona dentro un pill grande e centrato. */
+    .cs-tabs {
+        gap: 2px;
+        padding: 0.35rem 0.15rem 0.5rem;
+        border-bottom: none;
+        scroll-snap-type: x proximity;
+        justify-content: space-between;
+    }
+
     .cs-tab {
-        padding: 0.35rem 0.55rem;
-        font-size: 0.7rem;
+        flex: 1 1 0;
+        min-width: 44px;
+        scroll-snap-align: center;
+        padding: 0.45rem 0;
         gap: 0;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.025);
+        border-bottom: none;
+        position: relative;
+        justify-content: center;
     }
 
     .cs-tab .cs-tab-label {
@@ -537,20 +615,50 @@
     }
 
     .cs-tab svg {
-        font-size: 1.1rem;
+        font-size: 1.2rem;
+        opacity: 0.85;
+    }
+
+    .cs-tab:hover {
+        background: rgba(201, 168, 76, 0.07);
+    }
+
+    .cs-tab.active {
+        background: linear-gradient(180deg, rgba(201, 168, 76, 0.22), rgba(201, 168, 76, 0.05));
+        color: var(--accent-gold);
+        box-shadow:
+            inset 0 0 0 1px rgba(201, 168, 76, 0.45),
+            0 0 14px rgba(201, 168, 76, 0.18);
+    }
+
+    .cs-tab.active svg {
+        opacity: 1;
+    }
+
+    .cs-tab.active::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 35%;
+        right: 35%;
+        height: 2px;
+        background: var(--accent-gold);
+        border-radius: 2px;
+        box-shadow: 0 0 8px rgba(201, 168, 76, 0.7);
     }
 }
 
 @media (max-width: 480px) {
     .cs-header {
-        padding: 0.45rem 0.5rem;
-        border-radius: 8px;
+        padding: 0.4rem 0.5rem;
+        gap: 0.45rem;
+        border-radius: 9px;
     }
 
     .cs-avatar {
-        width: 36px;
-        height: 36px;
-        font-size: 0.95rem;
+        width: 38px;
+        height: 38px;
+        font-size: 1rem;
     }
 
     .cs-name {
@@ -558,33 +666,18 @@
     }
 
     .cs-chip {
-        font-size: 0.56rem;
-        padding: 1px 5px;
-    }
-
-    .cs-align {
-        display: none;
-    }
-
-    .cs-hp-cur {
-        font-size: 1.05rem;
-    }
-
-    .cs-quick-val {
-        font-size: 0.92rem;
-    }
-
-    .cs-quick-lbl {
-        font-size: 0.46rem;
+        font-size: 0.55rem;
+        padding: 1px 6px;
+        max-width: 10ch;
     }
 
     .cs-action-btn {
-        width: 26px;
-        height: 26px;
+        width: 30px;
+        height: 30px;
     }
 
-    .cs-tab {
-        padding: 0.3rem 0.45rem;
+    .cs-tab svg {
+        font-size: 1.1rem;
     }
 }
 
@@ -658,7 +751,7 @@
     display: flex;
 }
 
-.combat-modifiers-panel > .w-mod-root {
+.combat-modifiers-panel>.w-mod-root {
     flex: 1;
     min-width: 0;
 }

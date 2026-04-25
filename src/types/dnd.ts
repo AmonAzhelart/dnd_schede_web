@@ -476,6 +476,9 @@ export interface CharacterBase {
   characterClass: string;
   level: number;
   alignment: string;
+  /** Optional portrait. Either an http(s) URL or a `data:image/...` URL.
+   *  When absent the UI falls back to the first letter of `name`. */
+  avatarUrl?: string;
   baseStats: Record<StatType, number>;
   /** Per-save breakdown: base + ability mod + magic + misc */
   savingThrows?: {

@@ -1,0 +1,281 @@
+/* ============================================================================
+ * DndSelect ─ on-brand dropdown styling.
+ * ========================================================================== */
+
+/* ── Trigger button ─────────────────────────────────────────────────── */
+.dnd-sel-trigger {
+    --dnd-sel-bg: rgba(0, 0, 0, 0.45);
+    --dnd-sel-bg-hover: rgba(20, 16, 8, 0.7);
+    --dnd-sel-border: rgba(201, 168, 76, 0.28);
+    --dnd-sel-border-h: rgba(201, 168, 76, 0.55);
+    --dnd-sel-gold: #c9a84c;
+    --dnd-sel-text: var(--text-primary, #e8e0c8);
+    --dnd-sel-muted: var(--text-muted, #a39b86);
+
+    appearance: none;
+    -webkit-appearance: none;
+    width: 100%;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.5rem 0.75rem;
+    padding-right: 2rem;
+    border: 1px solid var(--dnd-sel-border);
+    border-radius: var(--radius-sm, 4px);
+    background: var(--dnd-sel-bg);
+    color: var(--dnd-sel-text);
+    font-family: inherit;
+    font-size: 0.9rem;
+    line-height: 1.3;
+    text-align: left;
+    cursor: pointer;
+    position: relative;
+    transition: border-color 0.18s, background-color 0.18s, box-shadow 0.18s;
+}
+
+.dnd-sel-trigger:hover:not(.is-disabled) {
+    border-color: var(--dnd-sel-border-h);
+    background: var(--dnd-sel-bg-hover);
+}
+
+.dnd-sel-trigger:focus-visible,
+.dnd-sel-trigger.is-open {
+    outline: none;
+    border-color: var(--dnd-sel-gold);
+    box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.18);
+}
+
+.dnd-sel-trigger.is-disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.dnd-sel-value {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dnd-sel-value.is-placeholder {
+    color: var(--dnd-sel-muted);
+}
+
+.dnd-sel-chev {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--dnd-sel-gold);
+    line-height: 0;
+    transition: transform 0.2s;
+    pointer-events: none;
+    opacity: 0.85;
+}
+
+.dnd-sel-trigger.is-open .dnd-sel-chev {
+    transform: translateY(-50%) rotate(180deg);
+    opacity: 1;
+}
+
+/* Make legacy .input-styled containers work too: when DndSelect sits where
+   .input used to live, callers can still pass className="input" without
+   double-styling because the trigger overrides via specificity. */
+.dnd-sel-trigger.input {
+    /* keep parity */
+}
+
+/* ── Popup ──────────────────────────────────────────────────────────── */
+.dnd-sel-popup {
+    background:
+        linear-gradient(180deg, rgba(28, 22, 12, 0.98) 0%, rgba(14, 10, 6, 0.98) 100%);
+    border: 1px solid rgba(201, 168, 76, 0.40);
+    border-radius: 10px;
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.65),
+        0 0 0 1px rgba(0, 0, 0, 0.6),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    overflow: hidden;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    animation: dnd-sel-pop 0.14s ease-out;
+    transform-origin: top center;
+}
+
+.dnd-sel-popup.placement-up {
+    transform-origin: bottom center;
+}
+
+@keyframes dnd-sel-pop {
+    from {
+        opacity: 0;
+        transform: translateY(-4px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.dnd-sel-popup.placement-up {
+    animation-name: dnd-sel-pop-up;
+}
+
+@keyframes dnd-sel-pop-up {
+    from {
+        opacity: 0;
+        transform: translateY(4px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* gold sheen along top edge */
+.dnd-sel-popup::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(201, 168, 76, 0.85), transparent);
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.dnd-sel-list {
+    list-style: none;
+    margin: 0;
+    padding: 4px;
+    max-height: inherit;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(201, 168, 76, 0.4) transparent;
+}
+
+.dnd-sel-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.dnd-sel-list::-webkit-scrollbar-thumb {
+    background: rgba(201, 168, 76, 0.35);
+    border-radius: 99px;
+}
+
+.dnd-sel-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* group header */
+.dnd-sel-group {
+    padding: 8px 12px 4px;
+    font-family: var(--font-heading, inherit);
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: rgba(201, 168, 76, 0.85);
+    border-bottom: 1px solid rgba(201, 168, 76, 0.18);
+    margin-bottom: 4px;
+    pointer-events: none;
+    user-select: none;
+}
+
+.dnd-sel-group+.dnd-sel-group,
+.dnd-sel-opt+.dnd-sel-group {
+    margin-top: 6px;
+}
+
+/* option row */
+.dnd-sel-opt {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px 8px 8px;
+    border-radius: 6px;
+    color: var(--text-primary, #e8e0c8);
+    font-size: 0.86rem;
+    line-height: 1.25;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.12s, color 0.12s;
+}
+
+.dnd-sel-opt:not(:last-child) {
+    margin-bottom: 1px;
+}
+
+.dnd-sel-opt-check {
+    width: 14px;
+    flex: 0 0 14px;
+    text-align: center;
+    color: rgba(201, 168, 76, 0.95);
+    font-weight: 700;
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+.dnd-sel-opt-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dnd-sel-opt-hint {
+    flex: 0 0 auto;
+    font-family: var(--font-mono, monospace);
+    font-size: 0.7rem;
+    color: var(--text-muted, #a39b86);
+    padding-left: 8px;
+}
+
+.dnd-sel-opt.is-active {
+    background: linear-gradient(90deg,
+            rgba(201, 168, 76, 0.22) 0%,
+            rgba(201, 168, 76, 0.08) 100%);
+    color: #fff;
+}
+
+.dnd-sel-opt.is-selected {
+    color: #fff;
+    background: rgba(201, 168, 76, 0.10);
+}
+
+.dnd-sel-opt.is-active.is-selected {
+    background: linear-gradient(90deg,
+            rgba(201, 168, 76, 0.30) 0%,
+            rgba(201, 168, 76, 0.14) 100%);
+    box-shadow: inset 2px 0 0 var(--dnd-sel-gold, #c9a84c);
+}
+
+.dnd-sel-opt.is-disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.dnd-sel-empty {
+    padding: 12px;
+    text-align: center;
+    color: var(--text-muted, #a39b86);
+    font-size: 0.82rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .dnd-sel-popup,
+    .dnd-sel-popup.placement-up,
+    .dnd-sel-chev,
+    .dnd-sel-trigger,
+    .dnd-sel-opt {
+        animation: none !important;
+        transition: none !important;
+    }
+}

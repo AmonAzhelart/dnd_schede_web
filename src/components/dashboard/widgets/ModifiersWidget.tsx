@@ -4,56 +4,57 @@ import { useCharacterStore } from '../../../store/characterStore';
 import type { WidgetRenderProps } from '../widgetTypes';
 import type { ActiveModifier, DurationUnit, ModifierType, StatType } from '../../../types/dnd';
 import { DndIcon } from '../../DndIcon';
+import { DndSelect } from '../../ui/DndSelect';
 
 /* == Targets == */
 type TargetDef = { id: string; label: string; short: string; group: 'stat' | 'save' | 'combat' };
 
 const TARGETS: TargetDef[] = [
-    { id: 'str',        label: 'Forza',          short: 'FOR', group: 'stat'   },
-    { id: 'dex',        label: 'Destrezza',      short: 'DES', group: 'stat'   },
-    { id: 'con',        label: 'Costituzione',   short: 'COS', group: 'stat'   },
-    { id: 'int',        label: 'Intelligenza',   short: 'INT', group: 'stat'   },
-    { id: 'wis',        label: 'Saggezza',       short: 'SAG', group: 'stat'   },
-    { id: 'cha',        label: 'Carisma',        short: 'CAR', group: 'stat'   },
-    { id: 'fortitude',  label: 'TS Tempra',      short: 'TMP', group: 'save'   },
-    { id: 'reflex',     label: 'TS Riflessi',    short: 'RIF', group: 'save'   },
-    { id: 'will',       label: 'TS Volonta`',     short: 'VOL', group: 'save'   },
-    { id: 'ac',         label: 'Classe Armatura',short: 'CA',  group: 'combat' },
-    { id: 'hp',         label: 'Punti Ferita',   short: 'PF',  group: 'combat' },
-    { id: 'speed',      label: 'Velocita`',       short: 'MOV', group: 'combat' },
-    { id: 'initiative', label: 'Iniziativa',     short: 'INI', group: 'combat' },
-    { id: 'bab',        label: 'BAB / Attacco',  short: 'BAB', group: 'combat' },
+    { id: 'str', label: 'Forza', short: 'FOR', group: 'stat' },
+    { id: 'dex', label: 'Destrezza', short: 'DES', group: 'stat' },
+    { id: 'con', label: 'Costituzione', short: 'COS', group: 'stat' },
+    { id: 'int', label: 'Intelligenza', short: 'INT', group: 'stat' },
+    { id: 'wis', label: 'Saggezza', short: 'SAG', group: 'stat' },
+    { id: 'cha', label: 'Carisma', short: 'CAR', group: 'stat' },
+    { id: 'fortitude', label: 'TS Tempra', short: 'TMP', group: 'save' },
+    { id: 'reflex', label: 'TS Riflessi', short: 'RIF', group: 'save' },
+    { id: 'will', label: 'TS Volonta`', short: 'VOL', group: 'save' },
+    { id: 'ac', label: 'Classe Armatura', short: 'CA', group: 'combat' },
+    { id: 'hp', label: 'Punti Ferita', short: 'PF', group: 'combat' },
+    { id: 'speed', label: 'Velocita`', short: 'MOV', group: 'combat' },
+    { id: 'initiative', label: 'Iniziativa', short: 'INI', group: 'combat' },
+    { id: 'bab', label: 'BAB / Attacco', short: 'BAB', group: 'combat' },
 ];
 const TARGET_BY_ID: Record<string, TargetDef> = Object.fromEntries(TARGETS.map(t => [t.id, t]));
 
 const MODIFIER_TYPES: { id: ModifierType; label: string }[] = [
-    { id: 'untyped',      label: 'Senza Tipo'    },
-    { id: 'enhancement',  label: 'Potenziamento' },
-    { id: 'morale',       label: 'Morale'        },
-    { id: 'luck',         label: 'Fortuna'       },
-    { id: 'competence',   label: 'Competenza'    },
-    { id: 'dodge',        label: 'Schivare'      },
-    { id: 'deflection',   label: 'Deviazione'    },
-    { id: 'armor',        label: 'Armatura'      },
-    { id: 'shield',       label: 'Scudo'         },
+    { id: 'untyped', label: 'Senza Tipo' },
+    { id: 'enhancement', label: 'Potenziamento' },
+    { id: 'morale', label: 'Morale' },
+    { id: 'luck', label: 'Fortuna' },
+    { id: 'competence', label: 'Competenza' },
+    { id: 'dodge', label: 'Schivare' },
+    { id: 'deflection', label: 'Deviazione' },
+    { id: 'armor', label: 'Armatura' },
+    { id: 'shield', label: 'Scudo' },
     { id: 'naturalArmor', label: 'Arm. Naturale' },
-    { id: 'size',         label: 'Taglia'        },
-    { id: 'circumstance', label: 'Circostanza'   },
-    { id: 'racial',       label: 'Razziale'      },
-    { id: 'insight',      label: 'Intuito'       },
-    { id: 'resistance',   label: 'Resistenza'    },
-    { id: 'profane',      label: 'Profano'       },
-    { id: 'sacred',       label: 'Sacro'         },
-    { id: 'alchemical',   label: 'Alchemico'     },
-    { id: 'synergy',      label: 'Sinergia'      },
+    { id: 'size', label: 'Taglia' },
+    { id: 'circumstance', label: 'Circostanza' },
+    { id: 'racial', label: 'Razziale' },
+    { id: 'insight', label: 'Intuito' },
+    { id: 'resistance', label: 'Resistenza' },
+    { id: 'profane', label: 'Profano' },
+    { id: 'sacred', label: 'Sacro' },
+    { id: 'alchemical', label: 'Alchemico' },
+    { id: 'synergy', label: 'Sinergia' },
 ];
 
 const UNIT_OPTIONS: { id: DurationUnit; label: string; short: string }[] = [
-    { id: 'round',     label: 'Round (6s)', short: 'rd'  },
-    { id: 'turn',      label: 'Turni',      short: 'tn'  },
-    { id: 'minute',    label: 'Minuti',     short: 'min' },
-    { id: 'hour',      label: 'Ore',        short: 'h'   },
-    { id: 'permanent', label: 'Permanente', short: '\u221e'   },
+    { id: 'round', label: 'Round (6s)', short: 'rd' },
+    { id: 'turn', label: 'Turni', short: 'tn' },
+    { id: 'minute', label: 'Minuti', short: 'min' },
+    { id: 'hour', label: 'Ore', short: 'h' },
+    { id: 'permanent', label: 'Permanente', short: '\u221e' },
 ];
 
 const newId = () => `mod_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
@@ -119,20 +120,20 @@ const HistRow: React.FC<HistRowProps> = ({ mod, onReactivate }) => {
 
 /* == Widget == */
 export const ModifiersWidget: React.FC<WidgetRenderProps> = ({ size }) => {
-    const character                 = useCharacterStore(s => s.character);
-    const addActiveModifier         = useCharacterStore(s => s.addActiveModifier);
-    const updateActiveModifier      = useCharacterStore(s => s.updateActiveModifier);
-    const archiveActiveModifier     = useCharacterStore(s => s.archiveActiveModifier);
+    const character = useCharacterStore(s => s.character);
+    const addActiveModifier = useCharacterStore(s => s.addActiveModifier);
+    const updateActiveModifier = useCharacterStore(s => s.updateActiveModifier);
+    const archiveActiveModifier = useCharacterStore(s => s.archiveActiveModifier);
     const toggleActiveModifierPause = useCharacterStore(s => s.toggleActiveModifierPause);
-    const tickActiveModifiers       = useCharacterStore(s => s.tickActiveModifiers);
+    const tickActiveModifiers = useCharacterStore(s => s.tickActiveModifiers);
     const clearTemporaryActiveModifiers = useCharacterStore(s => s.clearTemporaryActiveModifiers);
-    const reactivateModifier        = useCharacterStore(s => s.reactivateModifier);
-    const clearModifiersHistory     = useCharacterStore(s => s.clearModifiersHistory);
+    const reactivateModifier = useCharacterStore(s => s.reactivateModifier);
+    const clearModifiersHistory = useCharacterStore(s => s.clearModifiersHistory);
 
-    const [draft, setDraft]       = useState<DraftForm>(EMPTY_DRAFT);
+    const [draft, setDraft] = useState<DraftForm>(EMPTY_DRAFT);
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [showForm, setShowForm]  = useState(false);
-    const [tab, setTab]            = useState<'active' | 'history'>('active');
+    const [showForm, setShowForm] = useState(false);
+    const [tab, setTab] = useState<'active' | 'history'>('active');
     const [historyQuery, setHistoryQuery] = useState('');
 
     /* Lock body scroll while modal is open */
@@ -150,7 +151,7 @@ export const ModifiersWidget: React.FC<WidgetRenderProps> = ({ size }) => {
     const micro = size.pixelW < 240;
     const small = size.pixelW < 340;
 
-    const list    = character.activeModifiers ?? [];
+    const list = character.activeModifiers ?? [];
     const history = character.modifiersHistory ?? [];
 
     const sorted = useMemo(() => list.slice().sort((a, b) => {
@@ -160,7 +161,7 @@ export const ModifiersWidget: React.FC<WidgetRenderProps> = ({ size }) => {
         return (a.remaining ?? 1e9) - (b.remaining ?? 1e9);
     }), [list]);
 
-    const buffCount  = list.filter(m => !m.paused && m.value > 0).length;
+    const buffCount = list.filter(m => !m.paused && m.value > 0).length;
     const malusCount = list.filter(m => !m.paused && m.value < 0).length;
 
     const startEdit = (mod: ActiveModifier) => {
@@ -174,7 +175,7 @@ export const ModifiersWidget: React.FC<WidgetRenderProps> = ({ size }) => {
         const name = draft.name.trim() || `${draft.value >= 0 ? 'Bonus' : 'Malus'} a ${TARGET_BY_ID[draft.target]?.label ?? draft.target}`;
         const isPerm = draft.unit === 'permanent';
         const remaining = isPerm ? null : Math.max(1, Math.floor(draft.duration || 1));
-        const initial   = isPerm ? null : remaining;
+        const initial = isPerm ? null : remaining;
         if (editingId) {
             const existing = list.find(m => m.id === editingId);
             if (existing) updateActiveModifier({ ...existing, name, target: draft.target as StatType | string, value: draft.value, type: draft.type, unit: draft.unit, remaining, initial, source: draft.source.trim() || undefined });
@@ -320,11 +321,16 @@ export const ModifiersWidget: React.FC<WidgetRenderProps> = ({ size }) => {
                             <div className="w-mod-form-grid">
                                 <label className="w-mod-form-cell">
                                     <span className="w-mod-form-lbl">Target</span>
-                                    <select className="input w-mod-input" value={draft.target} onChange={e => setDraft(d => ({ ...d, target: e.target.value }))}>
-                                        <optgroup label="Caratteristiche">{TARGETS.filter(t => t.group === 'stat').map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</optgroup>
-                                        <optgroup label="Tiri Salvezza">{TARGETS.filter(t => t.group === 'save').map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</optgroup>
-                                        <optgroup label="Combattimento">{TARGETS.filter(t => t.group === 'combat').map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</optgroup>
-                                    </select>
+                                    <DndSelect
+                                        ariaLabel="Target"
+                                        value={String(draft.target)}
+                                        onChange={v => setDraft(d => ({ ...d, target: v }))}
+                                        options={[
+                                            ...TARGETS.filter(t => t.group === 'stat').map(t => ({ value: t.id, label: t.label, group: 'Caratteristiche' })),
+                                            ...TARGETS.filter(t => t.group === 'save').map(t => ({ value: t.id, label: t.label, group: 'Tiri Salvezza' })),
+                                            ...TARGETS.filter(t => t.group === 'combat').map(t => ({ value: t.id, label: t.label, group: 'Combattimento' })),
+                                        ]}
+                                    />
                                 </label>
                                 <label className="w-mod-form-cell">
                                     <span className="w-mod-form-lbl">Valore</span>
@@ -336,17 +342,23 @@ export const ModifiersWidget: React.FC<WidgetRenderProps> = ({ size }) => {
                                 </label>
                                 <label className="w-mod-form-cell">
                                     <span className="w-mod-form-lbl">Tipo</span>
-                                    <select className="input w-mod-input" value={draft.type} onChange={e => setDraft(d => ({ ...d, type: e.target.value as ModifierType }))}>
-                                        {MODIFIER_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                                    </select>
+                                    <DndSelect
+                                        ariaLabel="Tipo"
+                                        value={draft.type}
+                                        onChange={v => setDraft(d => ({ ...d, type: v as ModifierType }))}
+                                        options={MODIFIER_TYPES.map(t => ({ value: t.id, label: t.label }))}
+                                    />
                                 </label>
                                 <label className="w-mod-form-cell">
                                     <span className="w-mod-form-lbl">Durata</span>
                                     <div className="w-mod-value-row">
                                         <input type="number" className="input w-mod-input w-mod-value-input" value={draft.duration} disabled={draft.unit === 'permanent'} onChange={e => setDraft(d => ({ ...d, duration: Math.max(1, parseInt(e.target.value || '1', 10)) }))} />
-                                        <select className="input w-mod-input" value={draft.unit} onChange={e => setDraft(d => ({ ...d, unit: e.target.value as DurationUnit }))}>
-                                            {UNIT_OPTIONS.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
-                                        </select>
+                                        <DndSelect
+                                            ariaLabel="Unità"
+                                            value={draft.unit}
+                                            onChange={v => setDraft(d => ({ ...d, unit: v as DurationUnit }))}
+                                            options={UNIT_OPTIONS.map(u => ({ value: u.id, label: u.label }))}
+                                        />
                                     </div>
                                 </label>
                                 <label className="w-mod-form-cell" style={{ gridColumn: '1 / -1' }}>

@@ -13,6 +13,7 @@ import { GiSwordman, GiTreasureMap } from 'react-icons/gi';
 import { FaBookOpen, FaGoogle, FaSignOutAlt, FaPlus, FaChevronLeft, FaCog } from 'react-icons/fa';
 import { isEmailAllowed, isSuperAdmin } from './services/admin';
 import { BackOffice } from './components/backoffice/BackOffice';
+import { MobileShell } from './components/mobile/MobileShell';
 
 type Tab = 'scheda' | 'diario' | 'mappe' | 'backoffice';
 
@@ -315,23 +316,14 @@ function App() {
         )}
       </main>
 
-      {/* ── MOBILE BOTTOM NAV ── */}
-      <nav className="mobile-nav">
-        {navItems.map(item => (
-          <button
-            key={item.id}
-            className={`mobile-nav-item ${activeTab === item.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(item.id)}
-          >
-            {item.icon}
-            <span>{item.label}</span>
-          </button>
-        ))}
-        <button className="mobile-nav-item" onClick={() => setCharacter(null as any)}>
-          <FaChevronLeft size={16} />
-          <span>Cambia</span>
-        </button>
-      </nav>
+      {/* ── MOBILE / TABLET BOTTOM SHELL ── */}
+      <MobileShell
+        appTab={activeTab}
+        setAppTab={(id) => setActiveTab(id as Tab)}
+        navItems={navItems}
+        onSwitchCharacter={() => setCharacter(null as any)}
+        onLogout={handleLogout}
+      />
     </div>
   );
 }
