@@ -430,6 +430,72 @@ export const SpellSlotsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) =>
                         segments={segments}
                         title={spell.name}
                         subtitle={`${spell.level === 0 ? 'Trucchetto' : `Livello ${spell.level}`}${spell.school ? ` · ${spell.school}` : ''} · CL ${casterLevel}`}
+                        footer={(() => {
+                            const stats: [string, string | undefined][] = [
+                                ['Scuola', spell.school],
+                                ['Tempo lancio', spell.castingTime],
+                                ['Gittata', spell.range],
+                                ['Durata', spell.duration],
+                                ['Tiro salv.', spell.savingThrow],
+                                ['Componenti', spell.components],
+                                ['Tipo danno', spell.damageType],
+                            ];
+                            const visibleStats = stats.filter(([, v]) => v && String(v).trim());
+                            if (visibleStats.length === 0 && !spell.description) return null;
+                            return (
+                                <div style={{
+                                    padding: 10, borderRadius: 8,
+                                    background: 'rgba(155,89,182,0.05)',
+                                    border: '1px solid rgba(155,89,182,0.2)',
+                                    display: 'flex', flexDirection: 'column', gap: 8,
+                                }}>
+                                    <div style={{
+                                        fontSize: '0.62rem', letterSpacing: '0.12em',
+                                        color: 'var(--accent-arcane)', fontWeight: 600,
+                                    }}>DESCRIZIONE INCANTESIMO</div>
+
+                                    {visibleStats.length > 0 && (
+                                        <div style={{
+                                            display: 'grid',
+                                            gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
+                                            gap: 6,
+                                        }}>
+                                            {visibleStats.map(([k, v]) => (
+                                                <div key={k} style={{
+                                                    background: 'rgba(0,0,0,0.25)',
+                                                    padding: '5px 7px',
+                                                    borderRadius: 5,
+                                                    border: '1px solid rgba(155,89,182,0.15)',
+                                                }}>
+                                                    <div style={{
+                                                        fontSize: '0.52rem',
+                                                        color: 'var(--text-muted)',
+                                                        textTransform: 'uppercase',
+                                                        letterSpacing: '0.08em',
+                                                        marginBottom: 2,
+                                                    }}>{k}</div>
+                                                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>{v}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {spell.description && (
+                                        <p style={{
+                                            margin: 0,
+                                            color: 'var(--text-primary)',
+                                            fontSize: '0.82rem',
+                                            lineHeight: 1.5,
+                                            whiteSpace: 'pre-wrap',
+                                            maxHeight: 220,
+                                            overflowY: 'auto',
+                                        }}>
+                                            {spell.description}
+                                        </p>
+                                    )}
+                                </div>
+                            );
+                        })()}
                         onConfirm={() => castPreparedSpell(castLvl, prepId)}
                         onClose={() => setCastPicker(null)}
                     />

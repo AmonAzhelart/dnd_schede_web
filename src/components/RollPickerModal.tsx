@@ -38,6 +38,9 @@ export interface RollPickerProps {
     /** Modal heading. Defaults to channel label when single-segment. */
     title?: string;
     subtitle?: string;
+    /** Optional content rendered below the segments and above the buttons.
+     *  Useful for spell descriptions, item flavor text, etc. */
+    footer?: React.ReactNode;
     /** Optional callback invoked when the user clicks Confirm (after resources
      *  have been consumed). Useful for committing actions like spending a spell
      *  slot or marking an item as used. */
@@ -121,7 +124,7 @@ interface ResolvedSegment extends RollSegment {
 }
 
 export const RollPickerModal: React.FC<RollPickerProps> = ({
-    ctx, baseBreakdown, baseDice, segments, title, subtitle, onConfirm, onClose,
+    ctx, baseBreakdown, baseDice, segments, title, subtitle, footer, onConfirm, onClose,
 }) => {
     const getApplicableModifiers = useCharacterStore(s => s.getApplicableModifiers);
     const character = useCharacterStore(s => s.character);
@@ -463,6 +466,9 @@ export const RollPickerModal: React.FC<RollPickerProps> = ({
 
                 {/* Segments */}
                 {resolved.map((seg, i) => renderSegment(seg, i))}
+
+                {/* Optional footer (spell description, item flavor, etc.) */}
+                {footer}
 
                 {/* Roll-it-yourself reminder */}
                 <div style={{
