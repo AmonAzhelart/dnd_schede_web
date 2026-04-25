@@ -7,9 +7,9 @@ import { RollPickerModal, type RollBreakdownLine } from '../../RollPickerModal';
 import type { RollContext } from '../../../services/modifiers';
 
 const SAVES = [
-    { key: 'fortitude', name: 'Tempra',   short: 'TEM', stat: 'COS', iconCat: 'attribute', iconName: 'saving-throw', rune: 'ᚠ' },
-    { key: 'reflex',    name: 'Riflessi', short: 'RIF', stat: 'DES', iconCat: 'movement',  iconName: 'walking',       rune: 'ᚱ' },
-    { key: 'will',      name: 'Volontà',  short: 'VOL', stat: 'SAG', iconCat: 'game',      iconName: 'concentration', rune: 'ᚹ' },
+    { key: 'fortitude', name: 'Tempra', short: 'TEM', stat: 'COS', iconCat: 'attribute', iconName: 'saving-throw', rune: 'ᚠ' },
+    { key: 'reflex', name: 'Riflessi', short: 'RIF', stat: 'DES', iconCat: 'movement', iconName: 'walking', rune: 'ᚱ' },
+    { key: 'will', name: 'Volontà', short: 'VOL', stat: 'SAG', iconCat: 'game', iconName: 'concentration', rune: 'ᚹ' },
 ] as const;
 
 export const DefensesWidget: React.FC<WidgetRenderProps> = ({ size }) => {
@@ -31,17 +31,17 @@ export const DefensesWidget: React.FC<WidgetRenderProps> = ({ size }) => {
     const pxH = size.pixelH || 0;
     const tier: 'micro' | 'tight' | 'compact' | 'cozy' | 'roomy' =
         pxW < 200 || pxH < 140 ? 'micro' :
-        pxW < 260 ? 'tight' :
-        pxW < 340 ? 'compact' :
-        pxH < 280 ? 'cozy' :
-        'roomy';
+            pxW < 260 ? 'tight' :
+                pxW < 340 ? 'compact' :
+                    pxH < 280 ? 'cozy' :
+                        'roomy';
 
-    const inlineLayout   = tier === 'micro';
-    const showArmorTags  = (tier === 'cozy' || tier === 'roomy') && equippedArmor.length > 0;
-    const showBreakdown  = tier === 'roomy';
-    const showRune       = tier !== 'micro';
-    const acIconSize     = tier === 'micro' ? 22 : tier === 'tight' ? 28 : tier === 'compact' ? 34 : 42;
-    const saveIconSize   = tier === 'micro' ? 12 : tier === 'tight' ? 14 : tier === 'compact' ? 16 : 18;
+    const inlineLayout = tier === 'micro';
+    const showArmorTags = (tier === 'cozy' || tier === 'roomy') && equippedArmor.length > 0;
+    const showBreakdown = tier === 'roomy';
+    const showRune = tier !== 'micro';
+    const acIconSize = tier === 'micro' ? 22 : tier === 'tight' ? 28 : tier === 'compact' ? 34 : 42;
+    const saveIconSize = tier === 'micro' ? 12 : tier === 'tight' ? 14 : tier === 'compact' ? 16 : 18;
 
     const ac = getEffectiveStat('ac');
     const fmt = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
@@ -158,9 +158,9 @@ const SaveCell: React.FC<{
         key === 'fortitude' ? 'save.fort' : key === 'reflex' ? 'save.ref' : 'save.will';
     const chips: { label: string; value: string }[] = [
         { label: 'base', value: `${b.base}` },
-        { label: stat,   value: fmt(b.ability) },
+        { label: stat, value: fmt(b.ability) },
         ...(b.magic !== 0 ? [{ label: 'mag', value: fmt(b.magic) }] : []),
-        ...(b.misc  !== 0 ? [{ label: 'alt', value: fmt(b.misc)  }] : []),
+        ...(b.misc !== 0 ? [{ label: 'alt', value: fmt(b.misc) }] : []),
         ...(aura.delta !== 0 ? [{ label: 'mod', value: fmt(aura.delta) }] : []),
     ];
     return (

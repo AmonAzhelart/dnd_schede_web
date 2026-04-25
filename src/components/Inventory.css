@@ -469,7 +469,7 @@
 }
 
 /* When rendered inside a bottom-sheet (mobile), drop the side decorations. */
-.modal-box > .inv-detail-panel {
+.modal-box>.inv-detail-panel {
     border-left: none;
     background: transparent;
     height: auto;
