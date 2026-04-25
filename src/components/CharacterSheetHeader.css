@@ -15,10 +15,13 @@
         0 6px 22px rgba(0, 0, 0, 0.32),
         inset 0 1px 0 rgba(201, 168, 76, 0.15);
 }
+
 .cs-header::before {
     content: '';
     position: absolute;
-    top: 0; left: 12%; right: 12%;
+    top: 0;
+    left: 12%;
+    right: 12%;
     height: 1px;
     background: linear-gradient(90deg, transparent, rgba(201, 168, 76, 0.65), transparent);
     pointer-events: none;
@@ -48,6 +51,7 @@
     padding: 0;
     transition: border-color 0.18s, box-shadow 0.2s, transform 0.2s;
 }
+
 .cs-avatar:hover {
     border-color: var(--accent-gold);
     box-shadow:
@@ -56,21 +60,25 @@
         0 0 26px rgba(201, 168, 76, 0.32);
     transform: translateY(-1px);
 }
+
 .cs-avatar:focus-visible {
     outline: none;
     border-color: var(--accent-gold);
     box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.32);
 }
+
 .cs-avatar-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
 }
+
 .cs-avatar-initial {
     line-height: 1;
     text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
 }
+
 .cs-avatar-overlay {
     position: absolute;
     inset: auto 0 0 0;
@@ -83,10 +91,16 @@
     opacity: 0;
     transition: opacity 0.18s;
 }
+
 .cs-avatar:hover .cs-avatar-overlay,
-.cs-avatar:focus-visible .cs-avatar-overlay { opacity: 1; }
+.cs-avatar:focus-visible .cs-avatar-overlay {
+    opacity: 1;
+}
+
 @media (hover: none) {
-    .cs-avatar.has-image .cs-avatar-overlay { opacity: 0.85; }
+    .cs-avatar.has-image .cs-avatar-overlay {
+        opacity: 0.85;
+    }
 }
 
 /* Identity */
@@ -388,14 +402,22 @@
 }
 
 /* Drawer extras */
-.cs-drawer-field-wide { grid-column: 1 / -1; }
+.cs-drawer-field-wide {
+    grid-column: 1 / -1;
+}
+
 .cs-drawer-avatar-row {
     display: flex;
     gap: 6px;
     align-items: center;
     flex-wrap: wrap;
 }
-.cs-drawer-avatar-row > .input { flex: 1 1 220px; min-width: 0; }
+
+.cs-drawer-avatar-row>.input {
+    flex: 1 1 220px;
+    min-width: 0;
+}
+
 .cs-drawer-avatar-btn {
     font-size: 0.72rem;
     padding: 5px 10px;
@@ -486,6 +508,7 @@
 }
 
 @media (max-width: 720px) {
+
     /* === MINIMAL MOBILE HEADER ===
        Goal: ridurre l'header al minimo: avatar compatto, nome + chip livello,
        azioni sulla destra. PV e quick stats spariscono (vivono nei widget). */
@@ -498,18 +521,31 @@
         grid-template-columns: none;
         grid-template-areas: none;
     }
+
     .cs-avatar {
         width: 42px;
         height: 42px;
         font-size: 1.1rem;
         border-width: 1.5px;
     }
-    .cs-identity { flex: 1 1 auto; min-width: 0; gap: 2px; }
+
+    .cs-identity {
+        flex: 1 1 auto;
+        min-width: 0;
+        gap: 2px;
+    }
+
     .cs-name {
         font-size: 1rem;
         line-height: 1.15;
     }
-    .cs-meta { gap: 0.25rem; flex-wrap: nowrap; overflow: hidden; }
+
+    .cs-meta {
+        gap: 0.25rem;
+        flex-wrap: nowrap;
+        overflow: hidden;
+    }
+
     .cs-chip {
         font-size: 0.58rem;
         padding: 1px 7px;
@@ -519,19 +555,31 @@
         text-overflow: ellipsis;
         white-space: nowrap;
     }
-    .cs-chip.race  { display: none; }
-    .cs-chip.class { display: inline-block; }
-    .cs-align      { display: none; }
+
+    .cs-chip.race {
+        display: none;
+    }
+
+    .cs-chip.class {
+        display: inline-block;
+    }
+
+    .cs-align {
+        display: none;
+    }
 
     /* HP card e quick-stats: rimossi su mobile (info già nei widget) */
     .cs-hp,
-    .cs-quick { display: none; }
+    .cs-quick {
+        display: none;
+    }
 
     .cs-actions {
         flex-direction: row;
         gap: 4px;
         flex-shrink: 0;
     }
+
     .cs-action-btn {
         width: 32px;
         height: 32px;
@@ -548,6 +596,7 @@
         scroll-snap-type: x proximity;
         justify-content: space-between;
     }
+
     .cs-tab {
         flex: 1 1 0;
         min-width: 44px;
@@ -560,14 +609,20 @@
         position: relative;
         justify-content: center;
     }
-    .cs-tab .cs-tab-label { display: none; }
+
+    .cs-tab .cs-tab-label {
+        display: none;
+    }
+
     .cs-tab svg {
         font-size: 1.2rem;
         opacity: 0.85;
     }
+
     .cs-tab:hover {
         background: rgba(201, 168, 76, 0.07);
     }
+
     .cs-tab.active {
         background: linear-gradient(180deg, rgba(201, 168, 76, 0.22), rgba(201, 168, 76, 0.05));
         color: var(--accent-gold);
@@ -575,12 +630,17 @@
             inset 0 0 0 1px rgba(201, 168, 76, 0.45),
             0 0 14px rgba(201, 168, 76, 0.18);
     }
-    .cs-tab.active svg { opacity: 1; }
+
+    .cs-tab.active svg {
+        opacity: 1;
+    }
+
     .cs-tab.active::after {
         content: '';
         position: absolute;
         bottom: -2px;
-        left: 35%; right: 35%;
+        left: 35%;
+        right: 35%;
         height: 2px;
         background: var(--accent-gold);
         border-radius: 2px;
@@ -594,22 +654,31 @@
         gap: 0.45rem;
         border-radius: 9px;
     }
+
     .cs-avatar {
         width: 38px;
         height: 38px;
         font-size: 1rem;
     }
-    .cs-name { font-size: 0.92rem; }
+
+    .cs-name {
+        font-size: 0.92rem;
+    }
+
     .cs-chip {
         font-size: 0.55rem;
         padding: 1px 6px;
         max-width: 10ch;
     }
+
     .cs-action-btn {
         width: 30px;
         height: 30px;
     }
-    .cs-tab svg { font-size: 1.1rem; }
+
+    .cs-tab svg {
+        font-size: 1.1rem;
+    }
 }
 
 /* === COMBAT SUB-TABS === */
@@ -682,7 +751,7 @@
     display: flex;
 }
 
-.combat-modifiers-panel > .w-mod-root {
+.combat-modifiers-panel>.w-mod-root {
     flex: 1;
     min-width: 0;
 }

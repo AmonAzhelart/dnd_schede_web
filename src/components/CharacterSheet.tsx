@@ -467,332 +467,332 @@ export const CharacterSheet: React.FC = () => {
                 {combatSubTab === 'attacks' && (
                   <div className="flex-col gap-4">
 
-                {/* ── BAB Breakdown card ─────────────────────── */}
-                {(() => {
-                  const totalBab = getTotalBab();
-                  const strMod = getStatModifier('str');
-                  const dexMod = getStatModifier('dex');
-                  const meleeAttacks = getMultipleAttacks(strMod);
-                  const rangedAttacks = getMultipleAttacks(dexMod);
-                  const fmtList = (arr: number[]) => arr.map(v => (v >= 0 ? `+${v}` : `${v}`)).join('/');
-                  const classLevels = character.classLevels ?? [];
-                  const PROG_LABEL: Record<string, string> = { high: 'Alta', medium: 'Media', low: 'Bassa' };
-                  return (
-                    <div className="card" style={{ padding: '0.7rem 1rem', background: 'rgba(0,0,0,0.22)', display: 'flex', flexWrap: 'wrap', gap: '1.2rem', alignItems: 'flex-start' }}>
-                      {/* BAB sources */}
-                      <div>
-                        <div style={{ fontSize: '0.58rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Bonus Attacco Base</div>
-                        {classLevels.length > 0 ? (
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                            {classLevels.map((cl, i) => {
-                              const clBab = cl.babProgression === 'high' ? cl.level
-                                : cl.babProgression === 'medium' ? Math.floor(cl.level * 3 / 4)
-                                  : Math.floor(cl.level / 2);
-                              return (
-                                <span key={cl.id}>
-                                  {i > 0 && <span style={{ margin: '0 4px', color: 'var(--text-muted)' }}>+</span>}
-                                  <span style={{ color: 'var(--text-primary)' }}>{cl.className || '?'}</span>
-                                  <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}> {cl.level} ({PROG_LABEL[cl.babProgression]})</span>
-                                  <span style={{ color: 'var(--accent-gold)', fontFamily: 'var(--font-heading)', marginLeft: 3 }}>+{clBab}</span>
-                                </span>
-                              );
-                            })}
-                            <span style={{ margin: '0 6px', color: 'var(--text-muted)' }}>=</span>
-                            <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', color: 'var(--accent-gold)' }}>+{totalBab}</span>
+                    {/* ── BAB Breakdown card ─────────────────────── */}
+                    {(() => {
+                      const totalBab = getTotalBab();
+                      const strMod = getStatModifier('str');
+                      const dexMod = getStatModifier('dex');
+                      const meleeAttacks = getMultipleAttacks(strMod);
+                      const rangedAttacks = getMultipleAttacks(dexMod);
+                      const fmtList = (arr: number[]) => arr.map(v => (v >= 0 ? `+${v}` : `${v}`)).join('/');
+                      const classLevels = character.classLevels ?? [];
+                      const PROG_LABEL: Record<string, string> = { high: 'Alta', medium: 'Media', low: 'Bassa' };
+                      return (
+                        <div className="card" style={{ padding: '0.7rem 1rem', background: 'rgba(0,0,0,0.22)', display: 'flex', flexWrap: 'wrap', gap: '1.2rem', alignItems: 'flex-start' }}>
+                          {/* BAB sources */}
+                          <div>
+                            <div style={{ fontSize: '0.58rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Bonus Attacco Base</div>
+                            {classLevels.length > 0 ? (
+                              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                {classLevels.map((cl, i) => {
+                                  const clBab = cl.babProgression === 'high' ? cl.level
+                                    : cl.babProgression === 'medium' ? Math.floor(cl.level * 3 / 4)
+                                      : Math.floor(cl.level / 2);
+                                  return (
+                                    <span key={cl.id}>
+                                      {i > 0 && <span style={{ margin: '0 4px', color: 'var(--text-muted)' }}>+</span>}
+                                      <span style={{ color: 'var(--text-primary)' }}>{cl.className || '?'}</span>
+                                      <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}> {cl.level} ({PROG_LABEL[cl.babProgression]})</span>
+                                      <span style={{ color: 'var(--accent-gold)', fontFamily: 'var(--font-heading)', marginLeft: 3 }}>+{clBab}</span>
+                                    </span>
+                                  );
+                                })}
+                                <span style={{ margin: '0 6px', color: 'var(--text-muted)' }}>=</span>
+                                <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', color: 'var(--accent-gold)' }}>+{totalBab}</span>
+                              </div>
+                            ) : (
+                              <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', color: 'var(--accent-gold)' }}>+{totalBab}</span>
+                            )}
                           </div>
-                        ) : (
-                          <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', color: 'var(--accent-gold)' }}>+{totalBab}</span>
-                        )}
-                      </div>
-                      {/* Melee */}
-                      <div>
-                        <div style={{ fontSize: '0.58rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>TC in Mischia</div>
-                        <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', color: 'var(--accent-crimson)' }}>{fmtList(meleeAttacks)}</span>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: 5 }}>BAB {totalBab >= 0 ? '+' : ''}{totalBab} + FOR {strMod >= 0 ? '+' : ''}{strMod}</span>
-                      </div>
-                      {/* Ranged */}
-                      <div>
-                        <div style={{ fontSize: '0.58rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>TC a Distanza</div>
-                        <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', color: 'var(--accent-ice)' }}>{fmtList(rangedAttacks)}</span>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: 5 }}>BAB {totalBab >= 0 ? '+' : ''}{totalBab} + DES {dexMod >= 0 ? '+' : ''}{dexMod}</span>
-                      </div>
-                      {meleeAttacks.length > 1 && (
-                        <div style={{ fontSize: '0.72rem', color: 'var(--accent-arcane)', alignSelf: 'center' }}>
-                          ⚡ {meleeAttacks.length} attacchi per round
+                          {/* Melee */}
+                          <div>
+                            <div style={{ fontSize: '0.58rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>TC in Mischia</div>
+                            <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', color: 'var(--accent-crimson)' }}>{fmtList(meleeAttacks)}</span>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: 5 }}>BAB {totalBab >= 0 ? '+' : ''}{totalBab} + FOR {strMod >= 0 ? '+' : ''}{strMod}</span>
+                          </div>
+                          {/* Ranged */}
+                          <div>
+                            <div style={{ fontSize: '0.58rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>TC a Distanza</div>
+                            <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', color: 'var(--accent-ice)' }}>{fmtList(rangedAttacks)}</span>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: 5 }}>BAB {totalBab >= 0 ? '+' : ''}{totalBab} + DES {dexMod >= 0 ? '+' : ''}{dexMod}</span>
+                          </div>
+                          {meleeAttacks.length > 1 && (
+                            <div style={{ fontSize: '0.72rem', color: 'var(--accent-arcane)', alignSelf: 'center' }}>
+                              ⚡ {meleeAttacks.length} attacchi per round
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  );
-                })()}
+                      );
+                    })()}
 
-                <div className="section-header">
-                  <span className="section-title">Armi Equipaggiate</span>
-                </div>
-                {character.inventory.filter(i => i.equipped && i.type === 'weapon').length === 0 && (
-                  <p className="text-muted text-sm" style={{ padding: '0.5rem 0' }}>Nessuna arma equipaggiata. Vai nell'inventario e premi "Equipaggia".</p>
-                )}
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-body)', fontSize: '0.9rem' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                        {['Arma', 'Bonus Att.', 'Attacchi', 'Danni', 'Tipo', 'Critico', 'Gittata', 'Note'].map(h => (
-                          <th key={h} style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontFamily: 'var(--font-heading)', fontSize: '0.7rem', color: 'var(--accent-gold)', fontWeight: 'normal', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {character.inventory
-                        .filter(i => i.equipped && i.type === 'weapon')
-                        .map(w => {
-                          const isRanged = !!(w.weaponDetails?.rangeIncrement);
-                          const abilityMod = isRanged ? getStatModifier('dex') : getStatModifier('str');
-                          const weaponBonus = w.weaponDetails?.attackBonus ?? 0;
-                          const attacks = getMultipleAttacks(abilityMod + weaponBonus);
-                          const fmtA = (arr: number[]) => arr.map(v => (v >= 0 ? `+${v}` : `${v}`)).join('/');
-                          const primaryBonus = attacks[0];
-                          return (
-                            <tr key={w.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                              <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-primary)', fontWeight: 500 }}>{w.name}</td>
-                              <td style={{ padding: '0.4rem 0.6rem', fontFamily: 'var(--font-heading)', color: 'var(--accent-crimson)' }}>{primaryBonus >= 0 ? '+' : ''}{primaryBonus}</td>
-                              <td style={{ padding: '0.4rem 0.6rem', fontFamily: 'var(--font-heading)', fontSize: '0.82rem', color: attacks.length > 1 ? 'var(--accent-arcane)' : 'var(--text-muted)' }}>{fmtA(attacks)}</td>
-                              <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-secondary)' }}>{w.weaponDetails?.damage ?? '—'}</td>
-                              <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{w.weaponDetails?.damageType ?? '—'}</td>
-                              <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                                {w.weaponDetails ? `${w.weaponDetails.criticalRange ? w.weaponDetails.criticalRange + '/' : ''}×${w.weaponDetails.criticalMultiplier.replace('x', '').replace('×', '')}` : '—'}
-                              </td>
-                              <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{w.weaponDetails?.rangeIncrement || 'Mischia'}</td>
-                              <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{w.weaponDetails?.notes || '—'}</td>
-                            </tr>
-                          );
-                        })}
-                    </tbody>
-                  </table>
-                </div>
-                {character.inventory.filter(i => i.equipped && (i.type === 'armor' || i.type === 'shield' || i.type === 'protectiveItem')).length > 0 && (
-                  <>
-                    <div className="section-header" style={{ marginTop: '0.5rem' }}>
-                      <span className="section-title">Protezioni Equipaggiate</span>
+                    <div className="section-header">
+                      <span className="section-title">Armi Equipaggiate</span>
                     </div>
+                    {character.inventory.filter(i => i.equipped && i.type === 'weapon').length === 0 && (
+                      <p className="text-muted text-sm" style={{ padding: '0.5rem 0' }}>Nessuna arma equipaggiata. Vai nell'inventario e premi "Equipaggia".</p>
+                    )}
                     <div style={{ overflowX: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-body)', fontSize: '0.9rem' }}>
                         <thead>
                           <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                            {['Protezione', 'Bonus CA', 'Max Des', 'Penalità', 'Incant.%', 'Tipo'].map(h => (
-                              <th key={h} style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontFamily: 'var(--font-heading)', fontSize: '0.7rem', color: 'var(--accent-gold)', fontWeight: 'normal', letterSpacing: '0.08em' }}>{h}</th>
+                            {['Arma', 'Bonus Att.', 'Attacchi', 'Danni', 'Tipo', 'Critico', 'Gittata', 'Note'].map(h => (
+                              <th key={h} style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontFamily: 'var(--font-heading)', fontSize: '0.7rem', color: 'var(--accent-gold)', fontWeight: 'normal', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>{h}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
                           {character.inventory
-                            .filter(i => i.equipped && (i.type === 'armor' || i.type === 'shield' || i.type === 'protectiveItem'))
-                            .map(a => (
-                              <tr key={a.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-primary)', fontWeight: 500 }}>{a.name}</td>
-                                <td style={{ padding: '0.4rem 0.6rem', fontFamily: 'var(--font-heading)', color: 'var(--accent-gold)' }}>+{a.armorDetails?.armorBonus ?? 0}</td>
-                                <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)' }}>{a.armorDetails?.maxDex ?? '—'}</td>
-                                <td style={{ padding: '0.4rem 0.6rem', color: a.armorDetails?.checkPenalty ? 'var(--accent-crimson)' : 'var(--text-muted)' }}>{a.armorDetails?.checkPenalty ?? 0}</td>
-                                <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)' }}>{a.armorDetails?.spellFailure ? `${a.armorDetails.spellFailure}%` : '—'}</td>
-                                <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{a.armorDetails?.armorType ?? a.type}</td>
-                              </tr>
-                            ))}
+                            .filter(i => i.equipped && i.type === 'weapon')
+                            .map(w => {
+                              const isRanged = !!(w.weaponDetails?.rangeIncrement);
+                              const abilityMod = isRanged ? getStatModifier('dex') : getStatModifier('str');
+                              const weaponBonus = w.weaponDetails?.attackBonus ?? 0;
+                              const attacks = getMultipleAttacks(abilityMod + weaponBonus);
+                              const fmtA = (arr: number[]) => arr.map(v => (v >= 0 ? `+${v}` : `${v}`)).join('/');
+                              const primaryBonus = attacks[0];
+                              return (
+                                <tr key={w.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-primary)', fontWeight: 500 }}>{w.name}</td>
+                                  <td style={{ padding: '0.4rem 0.6rem', fontFamily: 'var(--font-heading)', color: 'var(--accent-crimson)' }}>{primaryBonus >= 0 ? '+' : ''}{primaryBonus}</td>
+                                  <td style={{ padding: '0.4rem 0.6rem', fontFamily: 'var(--font-heading)', fontSize: '0.82rem', color: attacks.length > 1 ? 'var(--accent-arcane)' : 'var(--text-muted)' }}>{fmtA(attacks)}</td>
+                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-secondary)' }}>{w.weaponDetails?.damage ?? '—'}</td>
+                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{w.weaponDetails?.damageType ?? '—'}</td>
+                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                                    {w.weaponDetails ? `${w.weaponDetails.criticalRange ? w.weaponDetails.criticalRange + '/' : ''}×${w.weaponDetails.criticalMultiplier.replace('x', '').replace('×', '')}` : '—'}
+                                  </td>
+                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{w.weaponDetails?.rangeIncrement || 'Mischia'}</td>
+                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{w.weaponDetails?.notes || '—'}</td>
+                                </tr>
+                              );
+                            })}
                         </tbody>
                       </table>
                     </div>
-                  </>
-                )}
+                    {character.inventory.filter(i => i.equipped && (i.type === 'armor' || i.type === 'shield' || i.type === 'protectiveItem')).length > 0 && (
+                      <>
+                        <div className="section-header" style={{ marginTop: '0.5rem' }}>
+                          <span className="section-title">Protezioni Equipaggiate</span>
+                        </div>
+                        <div style={{ overflowX: 'auto' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-body)', fontSize: '0.9rem' }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                {['Protezione', 'Bonus CA', 'Max Des', 'Penalità', 'Incant.%', 'Tipo'].map(h => (
+                                  <th key={h} style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontFamily: 'var(--font-heading)', fontSize: '0.7rem', color: 'var(--accent-gold)', fontWeight: 'normal', letterSpacing: '0.08em' }}>{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {character.inventory
+                                .filter(i => i.equipped && (i.type === 'armor' || i.type === 'shield' || i.type === 'protectiveItem'))
+                                .map(a => (
+                                  <tr key={a.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-primary)', fontWeight: 500 }}>{a.name}</td>
+                                    <td style={{ padding: '0.4rem 0.6rem', fontFamily: 'var(--font-heading)', color: 'var(--accent-gold)' }}>+{a.armorDetails?.armorBonus ?? 0}</td>
+                                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)' }}>{a.armorDetails?.maxDex ?? '—'}</td>
+                                    <td style={{ padding: '0.4rem 0.6rem', color: a.armorDetails?.checkPenalty ? 'var(--accent-crimson)' : 'var(--text-muted)' }}>{a.armorDetails?.checkPenalty ?? 0}</td>
+                                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)' }}>{a.armorDetails?.spellFailure ? `${a.armorDetails.spellFailure}%` : '—'}</td>
+                                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{a.armorDetails?.armorType ?? a.type}</td>
+                                  </tr>
+                                ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </>
+                    )}
 
-                {/* ─── CUSTOM ATTACKS ──────────────────────────────────────────── */}
-                <div className="section-header" style={{ marginTop: '1.25rem' }}>
-                  <span className="section-title">Attacchi Personalizzati</span>
-                  <button
-                    className="btn btn-primary btn-sm"
-                    onClick={() => { setCAForm(emptyCA()); setEditingCAId(null); setShowCAForm(true); }}
-                  >
-                    <FaPlus size={10} /> Nuovo
-                  </button>
-                </div>
+                    {/* ─── CUSTOM ATTACKS ──────────────────────────────────────────── */}
+                    <div className="section-header" style={{ marginTop: '1.25rem' }}>
+                      <span className="section-title">Attacchi Personalizzati</span>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => { setCAForm(emptyCA()); setEditingCAId(null); setShowCAForm(true); }}
+                      >
+                        <FaPlus size={10} /> Nuovo
+                      </button>
+                    </div>
 
-                {/* ─ FORM ─ */}
-                {showCAForm && (() => {
-                  const allFeatures = [
-                    ...(character.classFeatures ?? []).map(f => ({ id: f.id, name: f.name, kind: 'Privilegio' as const })),
-                    ...(character.feats ?? []).map(f => ({ id: f.id, name: f.name, kind: 'Talento' as const })),
-                  ];
-                  const fld: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 3, minWidth: 90 };
-                  const lbl: React.CSSProperties = { fontSize: '0.58rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)' };
-                  const statOpts: { v: string; l: string }[] = [
-                    { v: '', l: 'Nessuno' }, { v: 'str', l: 'FOR' }, { v: 'dex', l: 'DES' },
-                    { v: 'con', l: 'COS' }, { v: 'int', l: 'INT' }, { v: 'wis', l: 'SAG' }, { v: 'cha', l: 'CAR' },
-                  ];
-                  const saveCA = () => {
-                    if (!caForm.name.trim()) return;
-                    const attacks = [...(character.customAttacks ?? [])];
-                    if (editingCAId) {
-                      const idx = attacks.findIndex(a => a.id === editingCAId);
-                      if (idx >= 0) attacks[idx] = { ...caForm, id: editingCAId };
-                    } else {
-                      attacks.push({ ...caForm, id: uuidv4() });
-                    }
-                    setCharacter({ ...character, customAttacks: attacks });
-                    setShowCAForm(false); setEditingCAId(null);
-                  };
-                  return (
-                    <div className="card" style={{ padding: '0.75rem', background: 'rgba(0,0,0,0.25)' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8, marginBottom: 8 }}>
-                        <div style={{ ...fld, gridColumn: 'span 2' }}>
-                          <span style={lbl}>Nome attacco *</span>
-                          <input className="input" value={caForm.name} onChange={e => setCAForm(f => ({ ...f, name: e.target.value }))} placeholder="es. Deflagazione Occulta" style={{ fontSize: '0.85rem' }} />
-                        </div>
-                        <div style={fld}>
-                          <span style={lbl}>Stat per colpire</span>
-                          <select className="input" value={caForm.attackStat ?? ''} onChange={e => setCAForm(f => ({ ...f, attackStat: (e.target.value as import('../types/dnd').StatType) || undefined }))} style={{ fontSize: '0.82rem' }}>
-                            {statOpts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
-                          </select>
-                        </div>
-                        <div style={fld}>
-                          <span style={lbl}>Bonus extra att.</span>
-                          <input className="input" type="number" value={caForm.attackBonusExtra ?? 0} onChange={e => setCAForm(f => ({ ...f, attackBonusExtra: parseInt(e.target.value) || 0 }))} style={{ fontSize: '0.82rem' }} />
-                        </div>
-                        <div style={{ ...fld, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <input type="checkbox" id="ca-bab" checked={!!caForm.useBab} onChange={e => setCAForm(f => ({ ...f, useBab: e.target.checked }))} />
-                          <label htmlFor="ca-bab" style={{ ...lbl, cursor: 'pointer', letterSpacing: 0 }}>Includi BAB</label>
-                        </div>
-                        <div style={fld}>
-                          <span style={lbl}>Dadi danno</span>
-                          <input className="input" value={caForm.damageDice} onChange={e => setCAForm(f => ({ ...f, damageDice: e.target.value }))} placeholder="es. 1d10" style={{ fontSize: '0.82rem' }} />
-                        </div>
-                        <div style={fld}>
-                          <span style={lbl}>Stat per danno</span>
-                          <select className="input" value={caForm.damageStat ?? ''} onChange={e => setCAForm(f => ({ ...f, damageStat: (e.target.value as import('../types/dnd').StatType) || undefined }))} style={{ fontSize: '0.82rem' }}>
-                            {statOpts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
-                          </select>
-                        </div>
-                        <div style={fld}>
-                          <span style={lbl}>Bonus extra danno</span>
-                          <input className="input" type="number" value={caForm.damageBonusExtra ?? 0} onChange={e => setCAForm(f => ({ ...f, damageBonusExtra: parseInt(e.target.value) || 0 }))} style={{ fontSize: '0.82rem' }} />
-                        </div>
-                        <div style={fld}>
-                          <span style={lbl}>Tipo danno</span>
-                          <input className="input" value={caForm.damageType} onChange={e => setCAForm(f => ({ ...f, damageType: e.target.value }))} placeholder="es. forza" style={{ fontSize: '0.82rem' }} />
-                        </div>
-                        <div style={fld}>
-                          <span style={lbl}>Critico (range)</span>
-                          <input className="input" value={caForm.criticalRange ?? ''} onChange={e => setCAForm(f => ({ ...f, criticalRange: e.target.value }))} placeholder="es. 20" style={{ fontSize: '0.82rem' }} />
-                        </div>
-                        <div style={fld}>
-                          <span style={lbl}>Critico (mult.)</span>
-                          <input className="input" value={caForm.criticalMultiplier ?? ''} onChange={e => setCAForm(f => ({ ...f, criticalMultiplier: e.target.value }))} placeholder="es. ×2" style={{ fontSize: '0.82rem' }} />
-                        </div>
-                        <div style={fld}>
-                          <span style={lbl}>Gittata</span>
-                          <input className="input" value={caForm.range ?? ''} onChange={e => setCAForm(f => ({ ...f, range: e.target.value }))} placeholder="es. 18m" style={{ fontSize: '0.82rem' }} />
-                        </div>
-                        <div style={{ ...fld, gridColumn: 'span 2' }}>
-                          <span style={lbl}>Note</span>
-                          <input className="input" value={caForm.notes ?? ''} onChange={e => setCAForm(f => ({ ...f, notes: e.target.value }))} placeholder="Note aggiuntive..." style={{ fontSize: '0.82rem' }} />
-                        </div>
-                      </div>
-                      {allFeatures.length > 0 && (
-                        <div style={{ marginBottom: 8 }}>
-                          <span style={lbl}>Privilegi / Talenti collegati (informativo)</span>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
-                            {allFeatures.map(f => {
-                              const linked = (caForm.linkedFeatureIds ?? []).includes(f.id);
-                              return (
-                                <button
-                                  key={f.id}
-                                  type="button"
-                                  onClick={() => setCAForm(ff => ({
-                                    ...ff,
-                                    linkedFeatureIds: linked
-                                      ? (ff.linkedFeatureIds ?? []).filter(id => id !== f.id)
-                                      : [...(ff.linkedFeatureIds ?? []), f.id],
-                                  }))}
-                                  style={{
-                                    padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', cursor: 'pointer',
-                                    border: `1px solid ${linked ? 'var(--accent-arcane)' : 'rgba(255,255,255,0.12)'}`,
-                                    background: linked ? 'rgba(155,89,182,0.25)' : 'rgba(255,255,255,0.04)',
-                                    color: linked ? 'var(--accent-arcane)' : 'var(--text-muted)',
-                                  }}
-                                >
-                                  {f.kind === 'Privilegio' ? '⚡' : '★'} {f.name}
-                                </button>
-                              );
-                            })}
+                    {/* ─ FORM ─ */}
+                    {showCAForm && (() => {
+                      const allFeatures = [
+                        ...(character.classFeatures ?? []).map(f => ({ id: f.id, name: f.name, kind: 'Privilegio' as const })),
+                        ...(character.feats ?? []).map(f => ({ id: f.id, name: f.name, kind: 'Talento' as const })),
+                      ];
+                      const fld: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 3, minWidth: 90 };
+                      const lbl: React.CSSProperties = { fontSize: '0.58rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)' };
+                      const statOpts: { v: string; l: string }[] = [
+                        { v: '', l: 'Nessuno' }, { v: 'str', l: 'FOR' }, { v: 'dex', l: 'DES' },
+                        { v: 'con', l: 'COS' }, { v: 'int', l: 'INT' }, { v: 'wis', l: 'SAG' }, { v: 'cha', l: 'CAR' },
+                      ];
+                      const saveCA = () => {
+                        if (!caForm.name.trim()) return;
+                        const attacks = [...(character.customAttacks ?? [])];
+                        if (editingCAId) {
+                          const idx = attacks.findIndex(a => a.id === editingCAId);
+                          if (idx >= 0) attacks[idx] = { ...caForm, id: editingCAId };
+                        } else {
+                          attacks.push({ ...caForm, id: uuidv4() });
+                        }
+                        setCharacter({ ...character, customAttacks: attacks });
+                        setShowCAForm(false); setEditingCAId(null);
+                      };
+                      return (
+                        <div className="card" style={{ padding: '0.75rem', background: 'rgba(0,0,0,0.25)' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8, marginBottom: 8 }}>
+                            <div style={{ ...fld, gridColumn: 'span 2' }}>
+                              <span style={lbl}>Nome attacco *</span>
+                              <input className="input" value={caForm.name} onChange={e => setCAForm(f => ({ ...f, name: e.target.value }))} placeholder="es. Deflagazione Occulta" style={{ fontSize: '0.85rem' }} />
+                            </div>
+                            <div style={fld}>
+                              <span style={lbl}>Stat per colpire</span>
+                              <select className="input" value={caForm.attackStat ?? ''} onChange={e => setCAForm(f => ({ ...f, attackStat: (e.target.value as import('../types/dnd').StatType) || undefined }))} style={{ fontSize: '0.82rem' }}>
+                                {statOpts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                              </select>
+                            </div>
+                            <div style={fld}>
+                              <span style={lbl}>Bonus extra att.</span>
+                              <input className="input" type="number" value={caForm.attackBonusExtra ?? 0} onChange={e => setCAForm(f => ({ ...f, attackBonusExtra: parseInt(e.target.value) || 0 }))} style={{ fontSize: '0.82rem' }} />
+                            </div>
+                            <div style={{ ...fld, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <input type="checkbox" id="ca-bab" checked={!!caForm.useBab} onChange={e => setCAForm(f => ({ ...f, useBab: e.target.checked }))} />
+                              <label htmlFor="ca-bab" style={{ ...lbl, cursor: 'pointer', letterSpacing: 0 }}>Includi BAB</label>
+                            </div>
+                            <div style={fld}>
+                              <span style={lbl}>Dadi danno</span>
+                              <input className="input" value={caForm.damageDice} onChange={e => setCAForm(f => ({ ...f, damageDice: e.target.value }))} placeholder="es. 1d10" style={{ fontSize: '0.82rem' }} />
+                            </div>
+                            <div style={fld}>
+                              <span style={lbl}>Stat per danno</span>
+                              <select className="input" value={caForm.damageStat ?? ''} onChange={e => setCAForm(f => ({ ...f, damageStat: (e.target.value as import('../types/dnd').StatType) || undefined }))} style={{ fontSize: '0.82rem' }}>
+                                {statOpts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                              </select>
+                            </div>
+                            <div style={fld}>
+                              <span style={lbl}>Bonus extra danno</span>
+                              <input className="input" type="number" value={caForm.damageBonusExtra ?? 0} onChange={e => setCAForm(f => ({ ...f, damageBonusExtra: parseInt(e.target.value) || 0 }))} style={{ fontSize: '0.82rem' }} />
+                            </div>
+                            <div style={fld}>
+                              <span style={lbl}>Tipo danno</span>
+                              <input className="input" value={caForm.damageType} onChange={e => setCAForm(f => ({ ...f, damageType: e.target.value }))} placeholder="es. forza" style={{ fontSize: '0.82rem' }} />
+                            </div>
+                            <div style={fld}>
+                              <span style={lbl}>Critico (range)</span>
+                              <input className="input" value={caForm.criticalRange ?? ''} onChange={e => setCAForm(f => ({ ...f, criticalRange: e.target.value }))} placeholder="es. 20" style={{ fontSize: '0.82rem' }} />
+                            </div>
+                            <div style={fld}>
+                              <span style={lbl}>Critico (mult.)</span>
+                              <input className="input" value={caForm.criticalMultiplier ?? ''} onChange={e => setCAForm(f => ({ ...f, criticalMultiplier: e.target.value }))} placeholder="es. ×2" style={{ fontSize: '0.82rem' }} />
+                            </div>
+                            <div style={fld}>
+                              <span style={lbl}>Gittata</span>
+                              <input className="input" value={caForm.range ?? ''} onChange={e => setCAForm(f => ({ ...f, range: e.target.value }))} placeholder="es. 18m" style={{ fontSize: '0.82rem' }} />
+                            </div>
+                            <div style={{ ...fld, gridColumn: 'span 2' }}>
+                              <span style={lbl}>Note</span>
+                              <input className="input" value={caForm.notes ?? ''} onChange={e => setCAForm(f => ({ ...f, notes: e.target.value }))} placeholder="Note aggiuntive..." style={{ fontSize: '0.82rem' }} />
+                            </div>
+                          </div>
+                          {allFeatures.length > 0 && (
+                            <div style={{ marginBottom: 8 }}>
+                              <span style={lbl}>Privilegi / Talenti collegati (informativo)</span>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                                {allFeatures.map(f => {
+                                  const linked = (caForm.linkedFeatureIds ?? []).includes(f.id);
+                                  return (
+                                    <button
+                                      key={f.id}
+                                      type="button"
+                                      onClick={() => setCAForm(ff => ({
+                                        ...ff,
+                                        linkedFeatureIds: linked
+                                          ? (ff.linkedFeatureIds ?? []).filter(id => id !== f.id)
+                                          : [...(ff.linkedFeatureIds ?? []), f.id],
+                                      }))}
+                                      style={{
+                                        padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', cursor: 'pointer',
+                                        border: `1px solid ${linked ? 'var(--accent-arcane)' : 'rgba(255,255,255,0.12)'}`,
+                                        background: linked ? 'rgba(155,89,182,0.25)' : 'rgba(255,255,255,0.04)',
+                                        color: linked ? 'var(--accent-arcane)' : 'var(--text-muted)',
+                                      }}
+                                    >
+                                      {f.kind === 'Privilegio' ? '⚡' : '★'} {f.name}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                          <div className="flex gap-2" style={{ justifyContent: 'flex-end' }}>
+                            <button className="btn btn-secondary btn-sm" onClick={() => { setShowCAForm(false); setEditingCAId(null); }}>Annulla</button>
+                            <button className="btn btn-primary btn-sm" onClick={saveCA} disabled={!caForm.name.trim()}>Salva</button>
                           </div>
                         </div>
-                      )}
-                      <div className="flex gap-2" style={{ justifyContent: 'flex-end' }}>
-                        <button className="btn btn-secondary btn-sm" onClick={() => { setShowCAForm(false); setEditingCAId(null); }}>Annulla</button>
-                        <button className="btn btn-primary btn-sm" onClick={saveCA} disabled={!caForm.name.trim()}>Salva</button>
-                      </div>
-                    </div>
-                  );
-                })()}
+                      );
+                    })()}
 
-                {/* ─ TABLE ─ */}
-                {(character.customAttacks ?? []).length === 0 && !showCAForm ? (
-                  <p className="text-muted text-sm" style={{ padding: '0.4rem 0' }}>Nessun attacco personalizzato. Premi "Nuovo" per aggiungerne uno.</p>
-                ) : (
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-body)', fontSize: '0.9rem' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                          {['Attacco', 'Bonus Att.', 'Danni', 'Tipo', 'Critico', 'Gittata', 'Collegati', 'Note', ''].map(h => (
-                            <th key={h} style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontFamily: 'var(--font-heading)', fontSize: '0.7rem', color: 'var(--accent-gold)', fontWeight: 'normal', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(character.customAttacks ?? []).map(atk => {
-                          const atkBonus = (atk.useBab ? (character.baseStats.bab || 0) : 0)
-                            + (atk.attackStat ? getStatModifier(atk.attackStat) : 0)
-                            + (atk.attackBonusExtra ?? 0);
-                          const dmgExtra = (atk.damageStat ? getStatModifier(atk.damageStat) : 0) + (atk.damageBonusExtra ?? 0);
-                          const dmgDisplay = dmgExtra !== 0
-                            ? `${atk.damageDice} ${dmgExtra >= 0 ? '+' : ''}${dmgExtra}`
-                            : atk.damageDice;
-                          const linkedNames = (atk.linkedFeatureIds ?? []).map(id => {
-                            const f = [...(character.classFeatures ?? []), ...(character.feats ?? [])].find(x => x.id === id);
-                            return f?.name ?? null;
-                          }).filter(Boolean) as string[];
-                          return (
-                            <tr key={atk.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                              <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-primary)', fontWeight: 500 }}>{atk.name}</td>
-                              <td style={{ padding: '0.4rem 0.6rem', fontFamily: 'var(--font-heading)', color: 'var(--accent-crimson)' }}>{atkBonus >= 0 ? '+' : ''}{atkBonus}</td>
-                              <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-secondary)' }}>{dmgDisplay}</td>
-                              <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{atk.damageType}</td>
-                              <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                                {atk.criticalRange && atk.criticalMultiplier ? `${atk.criticalRange}/${atk.criticalMultiplier}` : atk.criticalMultiplier ?? '—'}
-                              </td>
-                              <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{atk.range || 'Mischia'}</td>
-                              <td style={{ padding: '0.4rem 0.6rem', maxWidth: 160 }}>
-                                {linkedNames.length > 0 ? (
-                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                                    {linkedNames.map(n => (
-                                      <span key={n} style={{ padding: '1px 6px', borderRadius: 10, fontSize: '0.65rem', background: 'rgba(155,89,182,0.2)', color: 'var(--accent-arcane)', border: '1px solid rgba(155,89,182,0.3)', whiteSpace: 'nowrap' }}>{n}</span>
-                                    ))}
-                                  </div>
-                                ) : <span className="text-muted">—</span>}
-                              </td>
-                              <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{atk.notes || '—'}</td>
-                              <td style={{ padding: '0.4rem 0.6rem', whiteSpace: 'nowrap' }}>
-                                <button className="btn-ghost" style={{ marginRight: 4, color: 'var(--accent-gold)' }} onClick={() => {
-                                  setCAForm({ ...atk });
-                                  setEditingCAId(atk.id);
-                                  setShowCAForm(true);
-                                }}><FaEdit size={12} /></button>
-                                <button className="btn-ghost" style={{ color: 'var(--accent-crimson)' }} onClick={() => {
-                                  setCharacter({ ...character, customAttacks: (character.customAttacks ?? []).filter(a => a.id !== atk.id) });
-                                }}><FaTrash size={12} /></button>
-                              </td>
+                    {/* ─ TABLE ─ */}
+                    {(character.customAttacks ?? []).length === 0 && !showCAForm ? (
+                      <p className="text-muted text-sm" style={{ padding: '0.4rem 0' }}>Nessun attacco personalizzato. Premi "Nuovo" per aggiungerne uno.</p>
+                    ) : (
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-body)', fontSize: '0.9rem' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                              {['Attacco', 'Bonus Att.', 'Danni', 'Tipo', 'Critico', 'Gittata', 'Collegati', 'Note', ''].map(h => (
+                                <th key={h} style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontFamily: 'var(--font-heading)', fontSize: '0.7rem', color: 'var(--accent-gold)', fontWeight: 'normal', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>{h}</th>
+                              ))}
                             </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                          </thead>
+                          <tbody>
+                            {(character.customAttacks ?? []).map(atk => {
+                              const atkBonus = (atk.useBab ? (character.baseStats.bab || 0) : 0)
+                                + (atk.attackStat ? getStatModifier(atk.attackStat) : 0)
+                                + (atk.attackBonusExtra ?? 0);
+                              const dmgExtra = (atk.damageStat ? getStatModifier(atk.damageStat) : 0) + (atk.damageBonusExtra ?? 0);
+                              const dmgDisplay = dmgExtra !== 0
+                                ? `${atk.damageDice} ${dmgExtra >= 0 ? '+' : ''}${dmgExtra}`
+                                : atk.damageDice;
+                              const linkedNames = (atk.linkedFeatureIds ?? []).map(id => {
+                                const f = [...(character.classFeatures ?? []), ...(character.feats ?? [])].find(x => x.id === id);
+                                return f?.name ?? null;
+                              }).filter(Boolean) as string[];
+                              return (
+                                <tr key={atk.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-primary)', fontWeight: 500 }}>{atk.name}</td>
+                                  <td style={{ padding: '0.4rem 0.6rem', fontFamily: 'var(--font-heading)', color: 'var(--accent-crimson)' }}>{atkBonus >= 0 ? '+' : ''}{atkBonus}</td>
+                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-secondary)' }}>{dmgDisplay}</td>
+                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{atk.damageType}</td>
+                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                                    {atk.criticalRange && atk.criticalMultiplier ? `${atk.criticalRange}/${atk.criticalMultiplier}` : atk.criticalMultiplier ?? '—'}
+                                  </td>
+                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{atk.range || 'Mischia'}</td>
+                                  <td style={{ padding: '0.4rem 0.6rem', maxWidth: 160 }}>
+                                    {linkedNames.length > 0 ? (
+                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                                        {linkedNames.map(n => (
+                                          <span key={n} style={{ padding: '1px 6px', borderRadius: 10, fontSize: '0.65rem', background: 'rgba(155,89,182,0.2)', color: 'var(--accent-arcane)', border: '1px solid rgba(155,89,182,0.3)', whiteSpace: 'nowrap' }}>{n}</span>
+                                        ))}
+                                      </div>
+                                    ) : <span className="text-muted">—</span>}
+                                  </td>
+                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{atk.notes || '—'}</td>
+                                  <td style={{ padding: '0.4rem 0.6rem', whiteSpace: 'nowrap' }}>
+                                    <button className="btn-ghost" style={{ marginRight: 4, color: 'var(--accent-gold)' }} onClick={() => {
+                                      setCAForm({ ...atk });
+                                      setEditingCAId(atk.id);
+                                      setShowCAForm(true);
+                                    }}><FaEdit size={12} /></button>
+                                    <button className="btn-ghost" style={{ color: 'var(--accent-crimson)' }} onClick={() => {
+                                      setCharacter({ ...character, customAttacks: (character.customAttacks ?? []).filter(a => a.id !== atk.id) });
+                                    }}><FaTrash size={12} /></button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 )}
 

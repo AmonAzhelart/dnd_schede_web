@@ -348,12 +348,14 @@ select optgroup {
   background-color: #161310;
   color: var(--text-primary, #e8e0c8);
 }
+
 select optgroup {
   font-family: var(--font-heading, inherit);
   letter-spacing: 0.06em;
   color: var(--accent-gold, #c9a84c);
   font-style: normal;
 }
+
 select option:checked,
 select option:hover {
   background-color: rgba(201, 168, 76, 0.18);
@@ -367,6 +369,7 @@ input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+
 input[type="number"] {
   -moz-appearance: textfield;
 }

@@ -218,7 +218,7 @@ export function DndSelect<V extends string = string>(props: DndSelectProps<V>) {
         if (!open) {
             if (
                 e.key === 'ArrowDown' || e.key === 'ArrowUp' ||
-                e.key === 'Enter'    || e.key === ' '
+                e.key === 'Enter' || e.key === ' '
             ) {
                 e.preventDefault();
                 setOpen(true);
@@ -230,9 +230,9 @@ export function DndSelect<V extends string = string>(props: DndSelectProps<V>) {
         }
         // open
         if (e.key === 'ArrowDown') { e.preventDefault(); moveActive(1); }
-        else if (e.key === 'ArrowUp')   { e.preventDefault(); moveActive(-1); }
-        else if (e.key === 'Home')      { e.preventDefault(); setActiveIdx(0); optionRefs.current.get(0)?.scrollIntoView({ block: 'nearest' }); }
-        else if (e.key === 'End')       {
+        else if (e.key === 'ArrowUp') { e.preventDefault(); moveActive(-1); }
+        else if (e.key === 'Home') { e.preventDefault(); setActiveIdx(0); optionRefs.current.get(0)?.scrollIntoView({ block: 'nearest' }); }
+        else if (e.key === 'End') {
             e.preventDefault();
             const last = orderedOptions.flat.length - 1;
             setActiveIdx(last);

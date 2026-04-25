@@ -62,8 +62,8 @@
 
 .cs-tab.wjump-anchor.wjump-anchor-open {
     background: linear-gradient(180deg,
-        rgba(201, 168, 76, 0.32),
-        rgba(201, 168, 76, 0.08)) !important;
+            rgba(201, 168, 76, 0.32),
+            rgba(201, 168, 76, 0.08)) !important;
     color: var(--accent-gold);
     box-shadow:
         inset 0 0 0 1px rgba(201, 168, 76, 0.6),
@@ -80,15 +80,31 @@
 }
 
 @keyframes wj-anchor-blink {
-    0%, 88%, 100% { opacity: 0.7; }
-    94%           { opacity: 1; box-shadow:
-        0 0 8px rgba(201, 168, 76, 1),
-        0 0 0 1px rgba(0, 0, 0, 0.4); }
+
+    0%,
+    88%,
+    100% {
+        opacity: 0.7;
+    }
+
+    94% {
+        opacity: 1;
+        box-shadow:
+            0 0 8px rgba(201, 168, 76, 1),
+            0 0 0 1px rgba(0, 0, 0, 0.4);
+    }
 }
 
 @keyframes wj-anchor-pulse {
-    0%, 100% { box-shadow: 0 0 8px rgba(201, 168, 76, 0.7), 0 0 0 1px rgba(0, 0, 0, 0.4); }
-    50%      { box-shadow: 0 0 16px rgba(201, 168, 76, 1),  0 0 0 1px rgba(0, 0, 0, 0.4); }
+
+    0%,
+    100% {
+        box-shadow: 0 0 8px rgba(201, 168, 76, 0.7), 0 0 0 1px rgba(0, 0, 0, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 0 16px rgba(201, 168, 76, 1), 0 0 0 1px rgba(0, 0, 0, 0.4);
+    }
 }
 
 /* ── Popup rail ──────────────────────────────────────────────────── */
@@ -126,8 +142,9 @@
     padding: 10px 12px 8px;
     border-bottom: 1px solid rgba(201, 168, 76, 0.18);
     background: linear-gradient(180deg,
-        rgba(201, 168, 76, 0.08), transparent);
+            rgba(201, 168, 76, 0.08), transparent);
 }
+
 .wjump-rail-title {
     font-family: var(--font-heading);
     font-size: 0.7rem;
@@ -135,6 +152,7 @@
     text-transform: uppercase;
     color: var(--accent-gold);
 }
+
 .wjump-rail-count {
     font-family: var(--font-heading);
     font-size: 0.62rem;
@@ -146,11 +164,13 @@
     min-width: 20px;
     text-align: center;
 }
+
 .wjump-rail-foot {
     padding: 6px 10px 8px;
     border-top: 1px solid rgba(201, 168, 76, 0.14);
     text-align: center;
 }
+
 .wjump-rail-hint {
     font-family: var(--font-body);
     font-size: 0.58rem;
@@ -170,20 +190,30 @@
     gap: 1px;
     overflow-y: auto;
     overscroll-behavior: contain;
-    pointer-events: auto;       /* rows are clickable in sticky mode */
+    pointer-events: auto;
+    /* rows are clickable in sticky mode */
     scrollbar-width: thin;
     scrollbar-color: rgba(201, 168, 76, 0.4) transparent;
     flex: 1 1 auto;
     min-height: 0;
 }
-.wjump-list::-webkit-scrollbar { width: 4px; }
-.wjump-list::-webkit-scrollbar-track { background: transparent; }
+
+.wjump-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.wjump-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
 .wjump-list::-webkit-scrollbar-thumb {
     background: rgba(201, 168, 76, 0.35);
     border-radius: 2px;
 }
 
-.wjump-li { margin: 0; }
+.wjump-li {
+    margin: 0;
+}
 
 .wjump-item {
     --wj-accent: var(--accent-gold);
@@ -208,10 +238,12 @@
         border-color 0.12s ease,
         transform 0.12s ease;
 }
+
 .wjump-item:hover {
     background: rgba(201, 168, 76, 0.06);
     color: var(--text-primary);
 }
+
 .wjump-item.is-active {
     background:
         linear-gradient(90deg,
@@ -234,7 +266,10 @@
     flex: 0 0 auto;
     opacity: 0.85;
 }
-.wjump-item.is-active .wjump-ico { opacity: 1; }
+
+.wjump-item.is-active .wjump-ico {
+    opacity: 1;
+}
 
 .wjump-lbl {
     font-family: var(--font-heading);
@@ -257,24 +292,50 @@
     transition: opacity 0.12s ease;
     box-shadow: 0 0 8px var(--wj-accent);
 }
-.wjump-item.is-active .wjump-mark { opacity: 1; }
+
+.wjump-item.is-active .wjump-mark {
+    opacity: 1;
+}
 
 @keyframes wj-pop-in {
-    from { opacity: 0; transform: translateY(8px) scale(0.97); }
-    to   { opacity: 1; transform: translateY(0)   scale(1);    }
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 /* Brief gold flash on the destination tile after a jump. */
-.wjump-flash { animation: wjump-flash 0.9s ease-out; }
+.wjump-flash {
+    animation: wjump-flash 0.9s ease-out;
+}
+
 @keyframes wjump-flash {
-    0%   { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0); }
-    25%  { box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.55),
-                       0 0 24px rgba(201, 168, 76, 0.45); }
-    100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0); }
+    0% {
+        box-shadow: 0 0 0 0 rgba(201, 168, 76, 0);
+    }
+
+    25% {
+        box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.55),
+            0 0 24px rgba(201, 168, 76, 0.45);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(201, 168, 76, 0);
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .wjump-btn, .wjump-item, .wjump-rail, .wjump-flash, .wjump-mark {
+
+    .wjump-btn,
+    .wjump-item,
+    .wjump-rail,
+    .wjump-flash,
+    .wjump-mark {
         animation: none !important;
         transition: none !important;
     }
@@ -282,5 +343,7 @@
 
 /* On phones, narrow the rail a touch so it never crowds the edge. */
 @media (max-width: 480px) {
-    .wjump-rail { width: min(220px, calc(100vw - 24px)) !important; }
+    .wjump-rail {
+        width: min(220px, calc(100vw - 24px)) !important;
+    }
 }
