@@ -11,6 +11,7 @@ import { SkillImportWizard } from './SkillImportWizard';
 import { SkeletonSheet } from './Skeleton';
 import { OverviewDashboard } from './dashboard/OverviewDashboard';
 import { LevelsTab } from './LevelsTab';
+import { ModifiersWidget } from './dashboard/widgets/ModifiersWidget';
 import './CharacterSheetHeader.css';
 
 type SheetTab = 'overview' | 'combat' | 'levels' | 'skills' | 'inventory' | 'abilities' | 'spells';
@@ -24,6 +25,7 @@ export const CharacterSheet: React.FC = () => {
   const { character, setCharacter, getEffectiveStat, getStatModifier, getSkillBreakdown, updateSkill, deleteSkill,
     getTotalBab, getMultipleAttacks } = useCharacterStore();
   const [activeTab, setActiveTab] = useState<SheetTab>('overview');
+  const [combatSubTab, setCombatSubTab] = useState<'attacks' | 'modifiers'>('attacks');
   const [abilitiesInitialTab, setAbilitiesInitialTab] = useState<AbilitySubTab | undefined>(undefined);
   const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
   const [showImportWizard, setShowImportWizard] = useState(false);
@@ -273,6 +275,33 @@ export const CharacterSheet: React.FC = () => {
             {/* ─── TAB: COMBAT ──────────────────────────────── */}
             {activeTab === 'combat' && (
               <div className="animate-fade-in flex-col gap-4">
+                {/* Sub-tabs */}
+                <div className="combat-subtabs" role="tablist" aria-label="Sezioni combattimento">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={combatSubTab === 'attacks'}
+                    className={'combat-subtab' + (combatSubTab === 'attacks' ? ' is-active' : '')}
+                    onClick={() => setCombatSubTab('attacks')}
+                  >
+                    <GiAxeSword /> Attacchi / Armi
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={combatSubTab === 'modifiers'}
+                    className={'combat-subtab' + (combatSubTab === 'modifiers' ? ' is-active' : '')}
+                    onClick={() => setCombatSubTab('modifiers')}
+                  >
+                    <GiAbstract024 /> Modificatori Attivi
+                    {(character.activeModifiers?.length ?? 0) > 0 && (
+                      <span className="combat-subtab-badge">{character.activeModifiers!.length}</span>
+                    )}
+                  </button>
+                </div>
+
+                {combatSubTab === 'attacks' && (
+                  <div className="flex-col gap-4">
 
                 {/* ── BAB Breakdown card ─────────────────────── */}
                 {(() => {
@@ -598,6 +627,14 @@ export const CharacterSheet: React.FC = () => {
                         })}
                       </tbody>
                     </table>
+                  </div>
+                )}
+                  </div>
+                )}
+
+                {combatSubTab === 'modifiers' && (
+                  <div className="combat-modifiers-panel">
+                    <ModifiersWidget size={{ w: 4, h: 4, pixelW: 880, pixelH: 600, size: 'xl' }} />
                   </div>
                 )}
               </div>

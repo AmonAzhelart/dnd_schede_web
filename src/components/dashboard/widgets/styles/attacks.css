@@ -1,0 +1,390 @@
+﻿/* ============================================================================
+   Ã¢Å¡â€ ATTACKS Ã¢â‚¬â€ header chips + clean weapon row list
+   ============================================================================ */
+.w-atk2-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 0.5em 0.65em;
+    gap: 0.5em;
+}
+
+.w-atk2-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    padding-bottom: 0.4em;
+    border-bottom: 1px solid rgba(192, 57, 43, 0.18);
+}
+
+.w-atk2-chips {
+    display: flex;
+    gap: 0.35em;
+    flex: 1;
+    flex-wrap: wrap;
+}
+
+.w-atk2-chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35em;
+    padding: 0.3em 0.7em;
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(231, 76, 60, 0.12), rgba(0, 0, 0, 0.25));
+    border: 1px solid rgba(231, 76, 60, 0.25);
+    line-height: 1;
+    font-family: var(--font-heading);
+}
+
+.w-atk2-chip-lbl {
+    font-size: 0.55em;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--text-muted);
+}
+
+.w-atk2-chip-val {
+    font-size: 0.95em;
+    color: var(--accent-crimson);
+    letter-spacing: -0.01em;
+}
+
+/* ----- Weapon row list ----- */
+.w-atk2-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4em;
+    flex: 1;
+    min-height: 0;
+}
+
+.w-atk2-row {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    background: linear-gradient(110deg, rgba(192, 57, 43, 0.1) 0%, rgba(0, 0, 0, 0.25) 50%);
+    border: 1px solid rgba(192, 57, 43, 0.2);
+    border-radius: 0.55em;
+    overflow: hidden;
+    transition: all 0.18s;
+}
+
+.w-atk2-row.melee {
+    border-left: 3px solid var(--accent-crimson, #c0392b);
+}
+
+.w-atk2-row.ranged {
+    border-left: 3px solid #3a8fd1;
+    background: linear-gradient(110deg, rgba(58, 143, 209, 0.1) 0%, rgba(0, 0, 0, 0.25) 50%);
+}
+
+.w-atk2-row.custom {
+    border-left: 3px solid var(--accent-arcane, #b48ad3);
+    background: linear-gradient(110deg, rgba(155, 89, 182, 0.1) 0%, rgba(0, 0, 0, 0.25) 50%);
+}
+
+.w-atk2-row:hover {
+    border-color: rgba(231, 76, 60, 0.5);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
+}
+
+.w-atk2-row.ranged:hover {
+    border-color: rgba(58, 143, 209, 0.55);
+}
+
+.w-atk2-row.custom:hover {
+    border-color: rgba(155, 89, 182, 0.55);
+}
+
+.w-atk2-row-main {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    height: 3.4em;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.w-atk2-row-left {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0.35em 0.65em;
+    gap: 0.18em;
+    overflow: hidden;
+}
+
+.w-atk2-row-nameline {
+    display: flex;
+    align-items: center;
+    gap: 0.45em;
+    min-width: 0;
+}
+
+.w-atk2-row-right {
+    display: flex;
+    align-items: stretch;
+    flex-shrink: 0;
+}
+
+.w-atk2-row-icon {
+    width: 1.5em;
+    height: 1.5em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: 0.35em;
+    background: rgba(0, 0, 0, 0.35);
+    color: var(--text-secondary);
+}
+
+.w-atk2-row-icon .inv-svg-tinted,
+.w-atk2-row-icon svg {
+    width: 1.1em;
+    height: 1.1em;
+}
+
+.w-atk2-row-icon.arcane {
+    color: var(--accent-arcane);
+}
+
+.w-atk2-row-name {
+    font-family: var(--font-heading);
+    font-size: 0.9em;
+    color: var(--text-primary);
+    line-height: 1.2;
+    flex: 1;
+    min-width: 0;
+    white-space: normal;
+    word-break: break-word;
+}
+
+.w-atk2-row-meta {
+    font-size: 0.58em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+}
+
+.w-atk2-row-meta.arcane {
+    color: var(--accent-arcane);
+    opacity: 0.75;
+}
+
+.w-atk2-row-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding: 0.3em 0.65em;
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+    background: transparent;
+    color: inherit;
+    font-family: inherit;
+}
+
+button.w-atk2-row-stat {
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+button.w-atk2-row-stat:hover {
+    background: rgba(201, 168, 76, 0.1);
+}
+
+.w-atk2-row-stat .v {
+    font-family: var(--font-heading);
+    font-size: 1em;
+    line-height: 1;
+}
+
+.w-atk2-row-stat.atk .v {
+    color: var(--accent-gold);
+}
+
+.w-atk2-row-stat.dmg .v {
+    color: var(--text-primary);
+    font-size: 0.85em;
+}
+
+.w-atk2-row-stat .l {
+    font-size: 0.5em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 0.2em;
+}
+
+.w-atk2-roll {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.3em 0.65em;
+    background: rgba(0, 0, 0, 0.25);
+    border: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.45);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.w-atk2-roll:hover {
+    background: rgba(201, 168, 76, 0.12);
+    color: var(--accent-gold);
+}
+
+.w-atk2-roll.rolling {
+    background: rgba(201, 168, 76, 0.2);
+    color: var(--accent-gold);
+}
+
+.w-atk2-row-detail {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5em;
+    padding: 0.35em 0.75em 0.5em;
+    background: rgba(0, 0, 0, 0.25);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 0.7em;
+}
+
+.w-atk2-detail-lbl {
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.55em;
+    font-family: var(--font-heading);
+}
+
+.w-atk2-detail-val {
+    color: var(--accent-gold);
+    font-family: var(--font-heading);
+    letter-spacing: 0.04em;
+}
+
+/* Ammo strip shown at the bottom of ranged weapon rows */
+.w-atk2-ammo-strip {
+    display: flex;
+    align-items: center;
+    gap: 0.35em;
+    padding: 0.3em 0.65em 0.35em;
+    background: rgba(58, 143, 209, 0.07);
+    border-top: 1px solid rgba(58, 143, 209, 0.15);
+    flex-wrap: nowrap;
+    min-width: 0;
+}
+
+.w-atk2-ammo-label {
+    font-size: 0.72em;
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+.w-atk2-ammo-name {
+    font-size: 0.7em;
+    color: #7ec8f5;
+    font-family: var(--font-heading);
+    letter-spacing: 0.03em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 6em;
+    flex-shrink: 1;
+}
+
+.w-atk2-ammo-tag {
+    font-size: 0.58em;
+    padding: 0.1em 0.4em;
+    border-radius: 0.25em;
+    font-family: var(--font-heading);
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.w-atk2-ammo-tag.atk {
+    background: rgba(39, 174, 96, 0.12);
+    border: 1px solid rgba(39, 174, 96, 0.3);
+    color: var(--accent-success);
+}
+
+.w-atk2-ammo-tag.dmg {
+    background: rgba(192, 57, 43, 0.12);
+    border: 1px solid rgba(192, 57, 43, 0.3);
+    color: var(--accent-crimson);
+}
+
+.w-atk2-ammo-spacer {
+    flex: 1;
+}
+
+.w-atk2-ammo-none {
+    font-size: 0.65em;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.w-atk2-ammo-qty {
+    font-family: var(--font-heading);
+    font-size: 0.88em;
+    color: #7ec8f5;
+    min-width: 1.4em;
+    text-align: center;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.w-atk2-ammo-qty.empty {
+    color: var(--accent-crimson);
+    opacity: 0.7;
+}
+
+.w-atk2-ammo-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.4em;
+    height: 1.4em;
+    padding: 0;
+    border-radius: 0.3em;
+    background: rgba(58, 143, 209, 0.15);
+    border: 1px solid rgba(58, 143, 209, 0.3);
+    color: #7ec8f5;
+    cursor: pointer;
+    transition: background 0.14s;
+    flex-shrink: 0;
+}
+
+.w-atk2-ammo-btn:hover:not(:disabled) {
+    background: rgba(58, 143, 209, 0.3);
+}
+
+.w-atk2-ammo-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+/* Scale shared utility classes inside the attacks widget */
+.w-atk2-root .w-link {
+    font-size: 0.6em;
+    padding: 0.15em 0.6em;
+}
+
+.w-atk2-root .w-empty {
+    font-size: 0.72em;
+    gap: 0.4em;
+    padding: 1.4em 0.65em;
+}
+

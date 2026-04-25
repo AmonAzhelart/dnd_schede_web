@@ -1,0 +1,36 @@
+﻿/* ============================================================================
+   Ã°Å¸â€œÂ NOTES Ã¢â‚¬â€ parchment journal
+   ============================================================================ */
+.w-note-root {
+    display: flex;
+    height: 100%;
+    padding: 8px;
+}
+
+.w-note-area {
+    flex: 1;
+    resize: none;
+    font-family: 'Georgia', 'Cambria', 'Times New Roman', serif;
+    font-size: 0.85rem;
+    line-height: 1.55;
+    padding: 14px 18px !important;
+    background:
+        repeating-linear-gradient(180deg, transparent, transparent 21px, rgba(201, 168, 76, 0.05) 21px, rgba(201, 168, 76, 0.05) 22px),
+        linear-gradient(180deg, rgba(50, 40, 25, 0.18), rgba(30, 22, 12, 0.25)) !important;
+    border: 1px solid rgba(201, 168, 76, 0.2) !important;
+    border-radius: 6px !important;
+    color: #e8d9b8 !important;
+    box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.4);
+}
+
+.w-note-area:focus {
+    border-color: rgba(201, 168, 76, 0.45) !important;
+    box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.4), 0 0 0 3px rgba(201, 168, 76, 0.1) !important;
+    outline: none !important;
+}
+
+.w-note-area::placeholder {
+    color: rgba(201, 168, 76, 0.35);
+    font-style: italic;
+}
+

@@ -1,0 +1,99 @@
+﻿/* ============================================================================
+   Ã°Å¸â€œÂ¦ INVENTORY Ã¢â‚¬â€ leather-bound item rows
+   ============================================================================ */
+.w-inv-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 10px;
+    gap: 8px;
+}
+
+.w-inv-section-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.58rem;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--text-muted);
+    font-family: var(--font-heading);
+    margin: 6px 0 2px;
+}
+
+.w-inv-section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(201, 168, 76, 0.25), transparent);
+}
+
+.w-inv-list {
+    display: grid;
+    gap: 2px;
+    grid-auto-rows: min-content;
+    align-content: start;
+}
+
+.w-inv-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.74rem;
+    color: var(--text-secondary);
+    transition: background 0.12s;
+}
+
+.w-inv-row:hover {
+    background: rgba(201, 168, 76, 0.05);
+}
+
+.w-inv-icon {
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(201, 168, 76, 0.15);
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    flex-shrink: 0;
+}
+
+.w-inv-row.equipped .w-inv-icon {
+    background: linear-gradient(135deg, rgba(201, 168, 76, 0.25), rgba(120, 80, 20, 0.25));
+    border-color: rgba(201, 168, 76, 0.5);
+    color: var(--accent-gold);
+}
+
+.w-inv-icon.inv-svg-tinted svg,
+.w-inv-icon .inv-svg-tinted svg {
+    width: 14px;
+    height: 14px;
+}
+
+.w-inv-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.w-inv-name .qty {
+    color: var(--accent-gold);
+    margin-right: 3px;
+    font-family: var(--font-heading);
+}
+
+.w-inv-weight {
+    font-size: 0.62rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    font-family: var(--font-mono, monospace);
+}
+

@@ -1,0 +1,79 @@
+﻿/* ============================================================================
+   Ã¢Å¡Â¡ FEATS Ã¢â‚¬â€ arcane runes
+   ============================================================================ */
+.w-feat-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 10px;
+    gap: 8px;
+}
+
+.w-feat-list {
+    display: grid;
+    gap: 3px;
+    grid-auto-rows: min-content;
+    align-content: start;
+}
+
+.w-feat-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-size: 0.74rem;
+    color: var(--text-secondary);
+    background: rgba(155, 89, 182, 0.04);
+    border-left: 2px solid transparent;
+    transition: all 0.15s;
+}
+
+.w-feat-row:hover {
+    background: rgba(155, 89, 182, 0.1);
+    border-left-color: rgba(155, 89, 182, 0.5);
+}
+
+.w-feat-row.active {
+    border-left-color: var(--accent-arcane, #b48ad3);
+    background: rgba(155, 89, 182, 0.1);
+}
+
+.w-feat-rune {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    background: rgba(155, 89, 182, 0.1);
+    color: rgba(155, 89, 182, 0.4);
+    font-size: 0.65rem;
+    flex-shrink: 0;
+}
+
+.w-feat-row.active .w-feat-rune {
+    background: linear-gradient(135deg, rgba(155, 89, 182, 0.4), rgba(91, 53, 150, 0.4));
+    color: #fff;
+    box-shadow: 0 0 8px rgba(155, 89, 182, 0.5);
+}
+
+.w-feat-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.w-feat-active-tag {
+    font-size: 0.55rem;
+    padding: 1px 6px;
+    border-radius: 99px;
+    background: rgba(155, 89, 182, 0.2);
+    color: var(--accent-arcane, #b48ad3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-family: var(--font-heading);
+}
+

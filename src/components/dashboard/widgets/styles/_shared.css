@@ -1,0 +1,118 @@
+﻿/* ============================================================================
+   DASHBOARD WIDGETS Ã¢â‚¬â€ premium design system
+   Each widget owns a unique aesthetic. Class prefixes:
+     w-hp, w-def, w-cond, w-atk, w-spell, w-cf, w-feat,
+     w-stat, w-skill, w-inv, w-coin, w-lang, w-move, w-note
+   ============================================================================ */
+
+/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Shared utilities (scoped for widgets only) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
+.w-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 20px 10px;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+}
+
+.w-search {
+    width: 100%;
+    padding: 5px 10px 5px 28px !important;
+    font-size: 0.72rem !important;
+    background: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-radius: 99px !important;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.w-search:focus {
+    border-color: rgba(201, 168, 76, 0.45) !important;
+    box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.1) !important;
+}
+
+.w-search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.w-search-wrap>svg {
+    position: absolute;
+    left: 10px;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.w-link {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: transparent;
+    border: 1px solid rgba(201, 168, 76, 0.25);
+    border-radius: 99px;
+    padding: 2px 9px;
+    font-size: 0.6rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-gold);
+    cursor: pointer;
+    font-family: var(--font-heading);
+    transition: all 0.15s;
+}
+
+.w-link:hover {
+    background: rgba(201, 168, 76, 0.12);
+    border-color: rgba(201, 168, 76, 0.55);
+    box-shadow: 0 0 12px rgba(201, 168, 76, 0.25);
+}
+
+.w-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.66rem;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+}
+
+.w-meta strong {
+    color: var(--accent-gold);
+    font-weight: normal;
+    font-family: var(--font-heading);
+    letter-spacing: 0.04em;
+}
+
+.w-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(201, 168, 76, 0.2) transparent;
+}
+
+/* Focus-to-scroll: tiles ignore wheel events until the user clicks them.
+   The dashboard tile gets the .is-active class on click; until then,
+   inner scrollable areas behave as a flowing block so wheel events bubble
+   up to the page scroller and the page can scroll naturally. */
+.dash-tile:not(.is-active) .w-scroll {
+    overflow-y: hidden;
+}
+
+.dash-tile.is-active {
+    box-shadow: 0 0 0 1px rgba(201, 168, 76, 0.45), 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.w-scroll::-webkit-scrollbar {
+    width: 4px;
+}
+
+.w-scroll::-webkit-scrollbar-thumb {
+    background: rgba(201, 168, 76, 0.2);
+    border-radius: 2px;
+}
+

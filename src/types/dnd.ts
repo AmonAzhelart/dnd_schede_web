@@ -509,4 +509,6 @@ export interface CharacterBase {
   classLevels?: ClassLevel[];
   /** User-managed temporary buffs / malus applied to any stat. */
   activeModifiers?: ActiveModifier[];
+  /** Chronological archive of removed/expired modifiers (max 30, newest first). */
+  modifiersHistory?: ActiveModifier[];
 }

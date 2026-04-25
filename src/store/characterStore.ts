@@ -83,11 +83,17 @@ interface CharacterState {
   addActiveModifier: (mod: ActiveModifier) => void;
   updateActiveModifier: (mod: ActiveModifier) => void;
   removeActiveModifier: (id: string) => void;
+  /** Move a modifier to modifiersHistory and remove from active list. */
+  archiveActiveModifier: (id: string) => void;
   toggleActiveModifierPause: (id: string) => void;
   /** Decrement `remaining` of all non-paused modifiers whose unit matches `unit` by `by` (default 1). Auto-removes those reaching 0. */
   tickActiveModifiers: (unit: DurationUnit, by?: number) => void;
   /** Remove every non-permanent active modifier (used on long rest, etc.). */
   clearTemporaryActiveModifiers: () => void;
+  /** Reactivate a modifier from history (new id, fresh remaining). */
+  reactivateModifier: (id: string) => void;
+  /** Wipe the modifiers history list. */
+  clearModifiersHistory: () => void;
   /** Sum of bonuses (with 3.5 stacking rules) coming from active modifiers for a target. */
   getActiveModifierDelta: (target: StatType | string) => number;
   /** All non-paused active modifiers targeting `target`. */
@@ -497,6 +503,21 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     return { character: { ...state.character, activeModifiers: list.filter(m => m.id !== id) } };
   }),
 
+  archiveActiveModifier: (id) => set((state) => {
+    if (!state.character) return state;
+    const list = state.character.activeModifiers ?? [];
+    const mod = list.find(m => m.id === id);
+    if (!mod) return state;
+    const history = state.character.modifiersHistory ?? [];
+    return {
+      character: {
+        ...state.character,
+        activeModifiers: list.filter(m => m.id !== id),
+        modifiersHistory: [mod, ...history].slice(0, 30),
+      },
+    };
+  }),
+
   toggleActiveModifierPause: (id) => set((state) => {
     if (!state.character) return state;
     const list = state.character.activeModifiers ?? [];
@@ -511,19 +532,51 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
   tickActiveModifiers: (unit, by = 1) => set((state) => {
     if (!state.character) return state;
     const list = state.character.activeModifiers ?? [];
+    const expired: ActiveModifier[] = [];
     const next = list.flatMap<ActiveModifier>(m => {
       if (m.unit !== unit || m.unit === 'permanent' || m.paused || m.remaining == null) return [m];
       const r = m.remaining - by;
-      if (r <= 0) return []; // expired → drop
+      if (r <= 0) { expired.push(m); return []; } // expired → archive
       return [{ ...m, remaining: r }];
     });
-    return { character: { ...state.character, activeModifiers: next } };
+    if (expired.length === 0) return { character: { ...state.character, activeModifiers: next } };
+    const history = state.character.modifiersHistory ?? [];
+    return { character: { ...state.character, activeModifiers: next, modifiersHistory: [...expired, ...history].slice(0, 30) } };
   }),
 
   clearTemporaryActiveModifiers: () => set((state) => {
     if (!state.character) return state;
     const list = state.character.activeModifiers ?? [];
-    return { character: { ...state.character, activeModifiers: list.filter(m => m.unit === 'permanent') } };
+    const toArchive = list.filter(m => m.unit !== 'permanent');
+    const history = state.character.modifiersHistory ?? [];
+    return {
+      character: {
+        ...state.character,
+        activeModifiers: list.filter(m => m.unit === 'permanent'),
+        modifiersHistory: [...toArchive, ...history].slice(0, 30),
+      },
+    };
+  }),
+
+  reactivateModifier: (id) => set((state) => {
+    if (!state.character) return state;
+    const history = state.character.modifiersHistory ?? [];
+    const template = history.find(m => m.id === id);
+    if (!template) return state;
+    const newMod: ActiveModifier = {
+      ...template,
+      id: `mod_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`,
+      remaining: template.initial,
+      createdAt: new Date().toISOString(),
+      paused: false,
+    };
+    const list = state.character.activeModifiers ?? [];
+    return { character: { ...state.character, activeModifiers: [...list, newMod] } };
+  }),
+
+  clearModifiersHistory: () => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, modifiersHistory: [] } };
   }),
 
   getActiveModifiersFor: (target) => {

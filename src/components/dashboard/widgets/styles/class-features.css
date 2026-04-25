@@ -1,0 +1,95 @@
+﻿/* ============================================================================
+   Ã°Å¸â€œâ€“ CLASS FEATURES Ã¢â‚¬â€ illuminated manuscript style
+   ============================================================================ */
+.w-cf-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 10px;
+    gap: 8px;
+}
+
+.w-cf-list {
+    display: grid;
+    gap: 4px;
+    grid-auto-rows: min-content;
+    align-content: start;
+}
+
+.w-cf-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px 5px 14px;
+    border-radius: 4px;
+    font-size: 0.74rem;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+}
+
+.w-cf-row::before {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+    width: 4px;
+    height: 4px;
+    background: var(--accent-gold);
+    opacity: 0.5;
+}
+
+.w-cf-row:hover {
+    background: rgba(201, 168, 76, 0.06);
+    color: var(--text-primary);
+}
+
+.w-cf-row.dim {
+    color: var(--text-muted);
+    opacity: 0.6;
+}
+
+.w-cf-row.dim::before {
+    background: var(--text-muted);
+}
+
+.w-cf-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.w-cf-resource {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.w-cf-pip {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+}
+
+.w-cf-pip.full {
+    background: var(--accent-gold);
+    box-shadow: 0 0 4px var(--accent-gold);
+}
+
+.w-cf-pip.empty {
+    background: rgba(201, 168, 76, 0.15);
+    border: 1px solid rgba(201, 168, 76, 0.25);
+}
+
+.w-cf-active-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent-success);
+    box-shadow: 0 0 5px var(--accent-success);
+}
+

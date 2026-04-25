@@ -5,13 +5,30 @@ import { DndIcon } from '../../DndIcon';
 import { useIconCatalog, sanitizeSvg } from '../../../services/iconCache';
 import { GiCrossedSwords } from 'react-icons/gi';
 import { FaMinus, FaPlus } from 'react-icons/fa';
-import { ModifierAura } from './ModifierAura';
+import { useModifierAura, ModifierArrows } from './ModifierAura';
+import type { StatType } from '../../../types/dnd';
 
 const fmtSigned = (v: number) => (v >= 0 ? `+${v}` : `${v}`);
+
+const StatChip: React.FC<{ label: string; value: number; target: StatType | string; title: string }> = ({ label, value, target, title }) => {
+    const aura = useModifierAura(target);
+    return (
+        <div
+            className={`w-atk2-chip ${aura.auraClass}`.trim()}
+            style={aura.auraClass ? { position: 'relative', overflow: 'hidden' } : undefined}
+            title={title}
+        >
+            <span className="w-atk2-chip-lbl">{label}</span>
+            <span className="w-atk2-chip-val">{fmtSigned(value)}</span>
+            {aura.auraClass && <ModifierArrows delta={aura.delta} count={2} />}
+        </div>
+    );
+};
 
 export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
     const { character, setCharacter, getStatModifier, getTotalBab, getMultipleAttacks } = useCharacterStore();
     const { resolveItemSvg } = useIconCatalog();
+    const babAura = useModifierAura('bab');
     const [diceRolling, setDiceRolling] = useState<string | null>(null);
     const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -30,7 +47,7 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
         });
         setCharacter({ ...character, inventory: inv });
     };
-    const bab = getTotalBab();
+    const bab = getTotalBab() + babAura.delta;
     const strMod = getStatModifier('str');
     const dexMod = getStatModifier('dex');
     const equippedWeapons = character.inventory.filter(i => i.equipped && i.type === 'weapon');
@@ -56,18 +73,17 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
             {/* Compact header: BAB + FOR + DES chips */}
             <div className="w-atk2-header">
                 <div className="w-atk2-chips">
-                    <div className="w-atk2-chip" title="Bonus Attacco Base">
+                    <div
+                        className={`w-atk2-chip ${babAura.auraClass}`.trim()}
+                        style={babAura.auraClass ? { position: 'relative', overflow: 'hidden' } : undefined}
+                        title="Bonus Attacco Base"
+                    >
                         <span className="w-atk2-chip-lbl">BAB</span>
-                        <ModifierAura target="bab" as="span" className="w-atk2-chip-val">{fmtSigned(bab)}</ModifierAura>
+                        <span className="w-atk2-chip-val">{fmtSigned(bab)}</span>
+                        {babAura.auraClass && <ModifierArrows delta={babAura.delta} count={2} />}
                     </div>
-                    <div className="w-atk2-chip" title="Modificatore Forza (mischia)">
-                        <span className="w-atk2-chip-lbl">FOR</span>
-                        <ModifierAura target="str" as="span" className="w-atk2-chip-val" showArrows={false}>{fmtSigned(strMod)}</ModifierAura>
-                    </div>
-                    <div className="w-atk2-chip" title="Modificatore Destrezza (distanza)">
-                        <span className="w-atk2-chip-lbl">DES</span>
-                        <ModifierAura target="dex" as="span" className="w-atk2-chip-val" showArrows={false}>{fmtSigned(dexMod)}</ModifierAura>
-                    </div>
+                    <StatChip label="FOR" value={strMod} target="str" title="Modificatore Forza (mischia)" />
+                    <StatChip label="DES" value={dexMod} target="dex" title="Modificatore Destrezza (distanza)" />
                 </div>
                 {goTo && <button className="w-link" onClick={() => goTo('combat')}>Apri →</button>}
             </div>
@@ -84,7 +100,7 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                         const ammoAtkBonus = loadedAmmo?.ammoDetails?.attackBonus ?? 0;
                         const abilityMod = isRanged ? dexMod : strMod;
                         const weaponBonus = (w.weaponDetails?.attackBonus ?? 0) + ammoAtkBonus;
-                        const attacks = getMultipleAttacks(abilityMod + weaponBonus);
+                        const attacks = getMultipleAttacks(abilityMod + weaponBonus + babAura.delta);
                         const primary = attacks[0];
                         const wSvg = resolveItemSvg(w);
                         const isExpanded = expanded === w.id;
