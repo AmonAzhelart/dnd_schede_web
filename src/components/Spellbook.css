@@ -931,6 +931,7 @@
    Mobile / tablet responsive overrides (≤ 900 px)
    ═══════════════════════════════════════════════════ */
 @media (max-width: 900px) {
+
     /* Action bar: stack buttons on narrow screens */
     .sb-action-bar {
         flex-direction: column;
@@ -1012,6 +1013,7 @@
 }
 
 @media (min-width: 481px) and (max-width: 900px) {
+
     /* Tablet: 2 columns for spell cards */
     .sb-cards-grid {
         grid-template-columns: repeat(2, 1fr);

@@ -16,8 +16,13 @@
 }
 
 @keyframes bd-fade-in {
-    from { opacity: 0; }
-    to   { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 /* ─── Sheet ──────────────────────────────────────────────────────── */
@@ -43,8 +48,13 @@
 }
 
 @keyframes bd-slide-up {
-    from { transform: translateY(100%); }
-    to   { transform: translateY(0); }
+    from {
+        transform: translateY(100%);
+    }
+
+    to {
+        transform: translateY(0);
+    }
 }
 
 /* Size variants */

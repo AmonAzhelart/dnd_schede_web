@@ -641,6 +641,7 @@
    Mobile / tablet responsive overrides (≤ 900 px)
    ═══════════════════════════════════════════════════ */
 @media (max-width: 900px) {
+
     /* Item grid: 3 fixed columns for comfortable thumb tapping */
     .inv-item-grid {
         grid-template-columns: repeat(3, 1fr);
@@ -693,6 +694,7 @@
 }
 
 @media (min-width: 481px) and (max-width: 900px) {
+
     /* Tablet: 4 columns for item grid */
     .inv-item-grid {
         grid-template-columns: repeat(4, 1fr);
