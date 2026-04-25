@@ -15,9 +15,11 @@ import { WidgetJumpRail } from './dashboard/WidgetJumpRail';
 import { setWidgetJumpTrigger } from './dashboard/widgetJumpBridge';
 import { LevelsTab } from './LevelsTab';
 import { ModifiersWidget } from './dashboard/widgets/ModifiersWidget';
+import { useModifierAura, ModifierArrows } from './dashboard/widgets/ModifierAura';
 import { useMediaQuery } from './mobile/MobileShell';
-import { setMobileContextActions } from './mobile/mobileShellSlots';
+import { setMobileContextActions, setMobileAvatarTapOverride, setMobileEditExit } from './mobile/mobileShellSlots';
 import './CharacterSheetHeader.css';
+import './dashboard/widgets/styles/modifiers.css';
 
 type SheetTab = 'overview' | 'combat' | 'levels' | 'skills' | 'inventory' | 'abilities' | 'spells';
 
@@ -116,6 +118,24 @@ export const CharacterSheet: React.FC = () => {
     return () => setMobileContextActions([]);
   }, [isMobile, headerEditing, dashEditMode, activeTab]);
 
+  // ── Mobile: while the header edit drawer is open, redirect avatar
+  //    taps to the file picker so the user can change the photo. The
+  //    new image is saved back to the character (and persisted by the
+  //    autosave effect in App.tsx).
+  useEffect(() => {
+    if (!isMobile || !headerEditing) {
+      setMobileAvatarTapOverride(null);
+      setMobileEditExit(null);
+      return;
+    }
+    setMobileAvatarTapOverride(() => avatarInputRef.current?.click());
+    setMobileEditExit(() => setHeaderEditing(false));
+    return () => {
+      setMobileAvatarTapOverride(null);
+      setMobileEditExit(null);
+    };
+  }, [isMobile, headerEditing]);
+
   // ─── Custom Attacks state ────────────────────────────────────────
   type CAForm = Omit<CustomAttack, 'id'>;
   const emptyCA = (): CAForm => ({
@@ -127,6 +147,13 @@ export const CharacterSheet: React.FC = () => {
   const [showCAForm, setShowCAForm] = useState(false);
   const [editingCAId, setEditingCAId] = useState<string | null>(null);
   const [caForm, setCAForm] = useState<CAForm>(emptyCA());
+
+  // ─── Active modifier auras for the hero header tiles ────────────────
+  const heroHpAura = useModifierAura('hp');
+  const heroAcAura = useModifierAura('ac');
+  const heroInitAura = useModifierAura('initiative');
+  const heroSpeedAura = useModifierAura('speed');
+  const heroBabAura = useModifierAura('bab');
 
   if (!character) return <SkeletonSheet />;
 
@@ -204,7 +231,7 @@ export const CharacterSheet: React.FC = () => {
                 </div>
               </div>
 
-              <div className="cs-hp">
+              <div className={'cs-hp' + (heroHpAura.auraClass ? ' ' + heroHpAura.auraClass : '')}>
                 <div className="cs-hp-label">
                   <FaHeart color="var(--accent-crimson)" size={9} />
                   PUNTI VITA
@@ -213,28 +240,39 @@ export const CharacterSheet: React.FC = () => {
                   <span className={`cs-hp-cur ${hpClass}`}>{currentHp}</span>
                   <span className="cs-hp-sep">/</span>
                   <span className="cs-hp-max">{maxHp}</span>
+                  {(() => {
+                    const baseTemp = character.hpDetails?.tempHp ?? 0;
+                    const modBonus = heroHpAura.delta > 0 ? heroHpAura.delta : 0;
+                    const total = baseTemp + modBonus;
+                    return total > 0 ? <span className="cs-hp-bonus">+{total}</span> : null;
+                  })()}
                 </div>
                 <div className="cs-hp-bar">
                   <div className={`cs-hp-bar-fill ${hpClass}`} style={{ width: `${hpPercent}%` }} />
                 </div>
+                {heroHpAura.delta !== 0 && <ModifierArrows delta={heroHpAura.delta} count={3} />}
               </div>
 
               <div className="cs-quick">
-                <div className="cs-quick-cell ac">
+                <div className={'cs-quick-cell ac' + (heroAcAura.auraClass ? ' ' + heroAcAura.auraClass : '')}>
                   <span className="cs-quick-lbl">CA</span>
                   <span className="cs-quick-val">{getEffectiveStat('ac')}</span>
+                  {heroAcAura.delta !== 0 && <ModifierArrows delta={heroAcAura.delta} count={2} />}
                 </div>
-                <div className="cs-quick-cell init">
+                <div className={'cs-quick-cell init' + (heroInitAura.auraClass ? ' ' + heroInitAura.auraClass : '')}>
                   <span className="cs-quick-lbl">INIZ</span>
                   <span className="cs-quick-val">{initMod >= 0 ? '+' : ''}{initMod}</span>
+                  {heroInitAura.delta !== 0 && <ModifierArrows delta={heroInitAura.delta} count={2} />}
                 </div>
-                <div className="cs-quick-cell speed">
+                <div className={'cs-quick-cell speed' + (heroSpeedAura.auraClass ? ' ' + heroSpeedAura.auraClass : '')}>
                   <span className="cs-quick-lbl">VEL</span>
                   <span className="cs-quick-val">{character.movement?.base ?? character.baseStats.speed}<span style={{ fontSize: '0.6em', opacity: 0.7 }}>ft</span></span>
+                  {heroSpeedAura.delta !== 0 && <ModifierArrows delta={heroSpeedAura.delta} count={2} />}
                 </div>
-                <div className="cs-quick-cell bab">
+                <div className={'cs-quick-cell bab' + (heroBabAura.auraClass ? ' ' + heroBabAura.auraClass : '')}>
                   <span className="cs-quick-lbl">BAB</span>
                   <span className="cs-quick-val">{totalBab >= 0 ? '+' : ''}{totalBab}</span>
+                  {heroBabAura.delta !== 0 && <ModifierArrows delta={heroBabAura.delta} count={2} />}
                 </div>
               </div>
 

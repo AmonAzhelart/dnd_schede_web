@@ -688,6 +688,24 @@ input[type="number"] {
 }
 
 /* === RESPONSIVE === */
+/* Tablet+phone: the MobileShell takes over (it's visible up to 900px),
+   so the desktop sidebar must be hidden in this range too. */
+@media (max-width: 900px) {
+
+  .sidebar {
+    display: none;
+  }
+
+  .main-content {
+    width: 100%;
+  }
+
+  .app-container {
+    padding-bottom: 132px;
+    /* leave room for the two-row mobile shell */
+  }
+}
+
 @media (max-width: 768px) {
 
   html,
@@ -695,16 +713,8 @@ input[type="number"] {
     overflow: hidden;
   }
 
-  .sidebar {
-    display: none;
-  }
-
   .mobile-nav {
     display: flex;
-  }
-
-  .app-container {
-    padding-bottom: 56px;
   }
 
   .main-content {

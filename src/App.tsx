@@ -212,8 +212,21 @@ function App() {
               {userCharacters.map(c => (
                 <button key={c.id} className="btn-secondary w-full" style={{ justifyContent: 'space-between', padding: '0.9rem 1.2rem', borderRadius: 'var(--radius-sm)' }} onClick={() => selectCharacter(c)}>
                   <div className="flex items-center gap-3">
-                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', color: 'var(--accent-gold)' }}>
-                      {c.name.charAt(0)}
+                    <div style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: '50%',
+                      background: c.avatarUrl ? `center/cover no-repeat url(${c.avatarUrl})` : 'rgba(201,168,76,0.15)',
+                      border: '1px solid rgba(201,168,76,0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontFamily: 'var(--font-heading)',
+                      color: 'var(--accent-gold)',
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                    }}>
+                      {!c.avatarUrl && c.name.charAt(0)}
                     </div>
                     <div style={{ textAlign: 'left' }}>
                       <div style={{ fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>{c.name}</div>

@@ -16,9 +16,12 @@
  * ========================================================================== */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useCharacterStore } from '../../store/characterStore';
-import { FaChevronLeft, FaSignOutAlt } from 'react-icons/fa';
-import { useMobileContextActions } from './mobileShellSlots';
+import { FaChevronLeft, FaSignOutAlt, FaCamera } from 'react-icons/fa';
+import { useMobileContextActions, useMobileAvatarTapOverride, useMobileEditExit } from './mobileShellSlots';
+import { useModifierAura, ModifierArrows } from '../dashboard/widgets/ModifierAura';
+import { FaTimes } from 'react-icons/fa';
 import './MobileShell.css';
+import '../dashboard/widgets/styles/modifiers.css';
 
 export type MobileNavItem = {
     id: string;
@@ -58,6 +61,12 @@ export const MobileShell: React.FC<MobileShellProps> = ({
 }) => {
     const { character, getEffectiveStat, getStatModifier } = useCharacterStore();
     const contextActions = useMobileContextActions();
+    const avatarTapOverride = useMobileAvatarTapOverride();
+    const editExit = useMobileEditExit();
+    const hpAura = useModifierAura('hp');
+    const acAura = useModifierAura('ac');
+    const initAura = useModifierAura('initiative');
+    const speedAura = useModifierAura('speed');
     const [navOpen, setNavOpen] = useState(false);
     const popupRef = useRef<HTMLDivElement | null>(null);
     const avatarRef = useRef<HTMLButtonElement | null>(null);
@@ -101,6 +110,18 @@ export const MobileShell: React.FC<MobileShellProps> = ({
 
     return (
         <>
+            {editExit && (
+                <button
+                    type="button"
+                    className="mob-shell-edit-exit"
+                    onClick={editExit}
+                    aria-label="Termina modifica"
+                    title="Termina modifica"
+                >
+                    <FaTimes size={12} />
+                    <span>Termina modifica</span>
+                </button>
+            )}
             <div className="mob-shell" role="region" aria-label="Barra mobile">
                 {/* ── Row 1: sheet tabs slot (visible only when on scheda) ── */}
                 <div
@@ -111,17 +132,24 @@ export const MobileShell: React.FC<MobileShellProps> = ({
                 {/* ── Row 2: stats + avatar + actions ── */}
                 <div className="mob-shell-row">
                     <div className="mob-shell-side mob-shell-side-l">
-                        {stats && (
+                        {stats && (() => {
+                            const baseTemp = character?.hpDetails?.tempHp ?? 0;
+                            const modBonus = hpAura.delta > 0 ? hpAura.delta : 0;
+                            const totalTemp = baseTemp + modBonus;
+                            return (
                             <>
                                 <button
                                     type="button"
-                                    className="mob-shell-stat hp"
+                                    className={'mob-shell-stat hp' + (hpAura.auraClass ? ' ' + hpAura.auraClass : '')}
                                     onClick={() => setAppTab('scheda')}
-                                    title={`Punti vita ${stats.hpCur}/${stats.hpMax}`}
+                                    title={`Punti vita ${stats.hpCur}/${stats.hpMax}` + (totalTemp > 0 ? ` (+${totalTemp} temp)` : '')}
                                 >
                                     <span className="mob-shell-stat-lbl">PV</span>
                                     <span className="mob-shell-stat-val">
                                         {stats.hpCur}<span className="sep">/</span>{stats.hpMax}
+                                        {totalTemp > 0 && (
+                                            <span className="mob-shell-stat-bonus">+{totalTemp}</span>
+                                        )}
                                     </span>
                                     <span className="mob-shell-stat-bar" aria-hidden>
                                         <span
@@ -131,24 +159,37 @@ export const MobileShell: React.FC<MobileShellProps> = ({
                                             style={{ width: `${stats.hpPct}%` }}
                                         />
                                     </span>
+                                    {hpAura.delta !== 0 && <ModifierArrows delta={hpAura.delta} count={2} />}
                                 </button>
-                                <div className="mob-shell-stat ac" title="Classe armatura">
+                                <div className={'mob-shell-stat ac' + (acAura.auraClass ? ' ' + acAura.auraClass : '')} title="Classe armatura">
                                     <span className="mob-shell-stat-lbl">CA</span>
                                     <span className="mob-shell-stat-val">{stats.ac}</span>
+                                    {acAura.delta !== 0 && <ModifierArrows delta={acAura.delta} count={2} />}
                                 </div>
                             </>
-                        )}
+                            );
+                        })()}
                     </div>
 
                     <div className="mob-shell-center">
                         <button
                             ref={avatarRef}
                             type="button"
-                            className={'mob-shell-avatar' + (navOpen ? ' is-open' : '') + (character?.avatarUrl ? ' has-image' : '')}
-                            onClick={() => setNavOpen(o => !o)}
-                            aria-label="Apri menu di navigazione"
-                            aria-expanded={navOpen}
-                            aria-haspopup="menu"
+                            className={'mob-shell-avatar'
+                                + (navOpen ? ' is-open' : '')
+                                + (character?.avatarUrl ? ' has-image' : '')
+                                + (avatarTapOverride ? ' is-edit' : '')}
+                            onClick={() => {
+                                if (avatarTapOverride) {
+                                    avatarTapOverride();
+                                    return;
+                                }
+                                setNavOpen(o => !o);
+                            }}
+                            aria-label={avatarTapOverride ? 'Cambia foto avatar' : 'Apri menu di navigazione'}
+                            aria-expanded={avatarTapOverride ? undefined : navOpen}
+                            aria-haspopup={avatarTapOverride ? undefined : 'menu'}
+                            title={avatarTapOverride ? 'Tocca per cambiare la foto' : undefined}
                         >
                             {character?.avatarUrl ? (
                                 <img src={character.avatarUrl} alt="" className="mob-shell-avatar-img" />
@@ -156,6 +197,11 @@ export const MobileShell: React.FC<MobileShellProps> = ({
                                 <span className="mob-shell-avatar-init">{initial}</span>
                             )}
                             <span className="mob-shell-avatar-ring" aria-hidden />
+                            {avatarTapOverride && (
+                                <span className="mob-shell-avatar-cam" aria-hidden>
+                                    <FaCamera size={12} />
+                                </span>
+                            )}
                         </button>
                         {character && (
                             <span className="mob-shell-name" title={character.name}>{character.name}</span>
@@ -165,17 +211,19 @@ export const MobileShell: React.FC<MobileShellProps> = ({
                     <div className="mob-shell-side mob-shell-side-r">
                         {stats && (
                             <>
-                                <div className="mob-shell-stat init" title="Iniziativa">
+                                <div className={'mob-shell-stat init' + (initAura.auraClass ? ' ' + initAura.auraClass : '')} title="Iniziativa">
                                     <span className="mob-shell-stat-lbl">INIZ</span>
                                     <span className="mob-shell-stat-val">
                                         {stats.init >= 0 ? '+' : ''}{stats.init}
                                     </span>
+                                    {initAura.delta !== 0 && <ModifierArrows delta={initAura.delta} count={2} />}
                                 </div>
-                                <div className="mob-shell-stat speed" title="Velocità">
+                                <div className={'mob-shell-stat speed' + (speedAura.auraClass ? ' ' + speedAura.auraClass : '')} title="Velocità">
                                     <span className="mob-shell-stat-lbl">VEL</span>
                                     <span className="mob-shell-stat-val">
                                         {stats.speed}<span className="unit">ft</span>
                                     </span>
+                                    {speedAura.delta !== 0 && <ModifierArrows delta={speedAura.delta} count={2} />}
                                 </div>
                             </>
                         )}
