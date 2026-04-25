@@ -7,7 +7,9 @@
    modes from rewriting our hand-tuned dark fantasy palette.
    ──────────────────────────────────────────────────────────────────── */
 :root {
-  color-scheme: dark;
+  /* Questo dice al browser che supporti solo la modalità light,
+     impedendo le inversioni forzate */
+  color-scheme: light;
   forced-color-adjust: none;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
@@ -1699,6 +1701,12 @@ textarea.input {
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
+}
+
+.dash-tile-body > * {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
 }
 
 .dash-tile-body>.dash-card-body {

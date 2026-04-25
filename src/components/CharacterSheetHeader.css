@@ -1,0 +1,671 @@
+/* ─── Character Sheet Header ─────────────────────────────────── */
+.cs-header {
+    background: linear-gradient(180deg, rgba(28, 28, 39, 0.95), rgba(20, 20, 28, 0.85));
+    border: 1px solid rgba(201, 168, 76, 0.18);
+    border-radius: 10px;
+    padding: 0.65rem 0.9rem;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+    align-items: center;
+    gap: 0.9rem;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+}
+
+/* Avatar */
+.cs-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: radial-gradient(circle at 30% 30%, rgba(201, 168, 76, 0.35), rgba(155, 89, 182, 0.18) 60%, transparent);
+    border: 2px solid rgba(201, 168, 76, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-heading);
+    font-size: 1.4rem;
+    color: var(--accent-gold);
+    box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Identity */
+.cs-identity {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.cs-name {
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    margin: 0;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: 0.01em;
+}
+
+.cs-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+}
+
+.cs-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    font-family: var(--font-body);
+    border: 1px solid transparent;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+
+.cs-chip.race {
+    background: rgba(201, 168, 76, 0.12);
+    color: var(--accent-gold);
+    border-color: rgba(201, 168, 76, 0.35);
+}
+
+.cs-chip.class {
+    background: rgba(155, 89, 182, 0.14);
+    color: #c89be0;
+    border-color: rgba(155, 89, 182, 0.4);
+}
+
+.cs-chip.level {
+    background: rgba(39, 174, 96, 0.12);
+    color: var(--accent-success);
+    border-color: rgba(39, 174, 96, 0.4);
+    font-family: var(--font-heading);
+}
+
+.cs-align {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* HP — read-only reminder in header */
+.cs-hp {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 110px;
+    padding: 0.3rem 0.65rem;
+    background: rgba(192, 57, 43, 0.06);
+    border: 1px solid rgba(192, 57, 43, 0.18);
+    border-radius: 8px;
+}
+
+.cs-hp-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-family: var(--font-heading);
+    font-size: 0.58rem;
+    letter-spacing: 0.14em;
+    color: var(--text-muted);
+}
+
+.cs-hp-vals {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 3px;
+    font-family: var(--font-heading);
+}
+
+/* keep legacy .cs-hp-btn rule so old references don't break */
+.cs-hp-btn {
+    display: none;
+}
+
+.cs-hp-btn.minus:hover,
+.cs-hp-btn.plus:hover {
+    /* no-op — buttons are hidden */
+    background: transparent;
+    border-color: transparent;
+    color: var(--accent-success);
+}
+
+.cs-hp-btn:active {
+    transform: scale(0.92);
+}
+
+.cs-hp-vals {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    font-family: var(--font-heading);
+    min-width: 64px;
+    justify-content: center;
+}
+
+.cs-hp-cur {
+    font-size: 1.55rem;
+    line-height: 1;
+    color: var(--text-primary);
+    transition: color 0.2s;
+}
+
+.cs-hp-cur.low {
+    color: #f0a04b;
+}
+
+.cs-hp-cur.crit {
+    color: var(--accent-crimson);
+}
+
+.cs-hp-sep,
+.cs-hp-max {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.cs-hp-bar {
+    height: 5px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+}
+
+.cs-hp-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-success), #6dd06d);
+    transition: width 0.25s ease, background 0.25s;
+    border-radius: 3px;
+}
+
+.cs-hp-bar-fill.low {
+    background: linear-gradient(90deg, #f0a04b, #ffc888);
+}
+
+.cs-hp-bar-fill.crit {
+    background: linear-gradient(90deg, var(--accent-crimson), #e74c3c);
+}
+
+/* Quick stats */
+.cs-quick {
+    display: flex;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+.cs-quick-cell {
+    min-width: 56px;
+    padding: 4px 10px;
+    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.cs-quick-lbl {
+    font-size: 0.55rem;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    font-family: var(--font-heading);
+}
+
+.cs-quick-val {
+    font-family: var(--font-heading);
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+.cs-quick-cell.ac .cs-quick-val {
+    color: var(--accent-gold);
+}
+
+.cs-quick-cell.init .cs-quick-val {
+    color: #5ec5e0;
+}
+
+.cs-quick-cell.speed .cs-quick-val {
+    color: var(--accent-success);
+}
+
+.cs-quick-cell.bab .cs-quick-val {
+    color: var(--accent-crimson);
+}
+
+/* Action buttons */
+.cs-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.cs-action-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: transparent;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    padding: 0;
+}
+
+.cs-action-btn:hover {
+    color: var(--accent-gold);
+    border-color: rgba(201, 168, 76, 0.35);
+    background: rgba(201, 168, 76, 0.06);
+}
+
+.cs-action-btn.active {
+    color: var(--accent-gold);
+    background: rgba(201, 168, 76, 0.16);
+    border-color: rgba(201, 168, 76, 0.45);
+}
+
+/* Edit drawer */
+.cs-drawer {
+    margin-top: 0.6rem;
+    padding: 0.6rem 0.7rem;
+    border-top: 1px dashed rgba(201, 168, 76, 0.22);
+    background: rgba(0, 0, 0, 0.18);
+    border-radius: 6px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 8px;
+}
+
+.cs-drawer-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.cs-drawer-label {
+    font-size: 0.58rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.cs-drawer .input {
+    font-size: 0.82rem;
+    padding: 4px 7px;
+}
+
+.cs-drawer-foot {
+    margin-top: 0.6rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed rgba(155, 89, 182, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.cs-drawer-foot-info {
+    font-size: 0.72rem;
+    color: var(--accent-arcane);
+}
+
+.cs-drawer-foot-info .muted {
+    color: var(--text-muted);
+}
+
+/* ─── Tabs row ─── */
+.cs-tabs {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    border-bottom: 1px solid rgba(201, 168, 76, 0.12);
+    padding: 0 0 0.35rem;
+}
+
+.cs-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.cs-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.4rem 0.8rem;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: var(--font-heading);
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    border-radius: 6px 6px 0 0;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.cs-tab:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.cs-tab.active {
+    color: var(--accent-gold);
+    border-bottom-color: var(--accent-gold);
+    background: linear-gradient(180deg, rgba(201, 168, 76, 0.08), transparent);
+}
+
+.cs-tab svg {
+    font-size: 0.95rem;
+}
+
+/* ─── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+    .cs-header {
+        grid-template-columns: auto minmax(0, 1fr) auto auto;
+        grid-template-areas:
+            "avatar identity hp actions"
+            "quick  quick    quick actions";
+        row-gap: 0.6rem;
+    }
+
+    .cs-avatar {
+        grid-area: avatar;
+    }
+
+    .cs-identity {
+        grid-area: identity;
+    }
+
+    .cs-hp {
+        grid-area: hp;
+    }
+
+    .cs-quick {
+        grid-area: quick;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .cs-actions {
+        grid-area: actions;
+        align-self: start;
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 720px) {
+    .cs-header {
+        padding: 0.5rem 0.6rem;
+        gap: 0.45rem;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-areas:
+            "avatar identity actions"
+            "hp     hp       hp"
+            "quick  quick    quick";
+        row-gap: 0.4rem;
+    }
+
+    .cs-avatar {
+        width: 40px;
+        height: 40px;
+        font-size: 1.05rem;
+        border-width: 1.5px;
+    }
+
+    .cs-name {
+        font-size: 1rem;
+    }
+
+    .cs-meta {
+        gap: 0.25rem;
+    }
+
+    .cs-chip {
+        font-size: 0.6rem;
+        padding: 1px 6px;
+        border-radius: 10px;
+    }
+
+    .cs-align {
+        font-size: 0.6rem;
+    }
+
+    /* HP compatto: inline su una sola riga, niente label */
+    .cs-hp {
+        min-width: 0;
+        width: 100%;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 8px;
+        border-radius: 6px;
+    }
+
+    .cs-hp-label {
+        display: none;
+    }
+
+    .cs-hp-row {
+        gap: 4px;
+        flex-shrink: 0;
+    }
+
+    .cs-hp-btn {
+        width: 22px;
+        height: 22px;
+    }
+
+    .cs-hp-vals {
+        min-width: 0;
+        gap: 2px;
+    }
+
+    .cs-hp-cur {
+        font-size: 1.15rem;
+    }
+
+    .cs-hp-sep,
+    .cs-hp-max {
+        font-size: 0.72rem;
+    }
+
+    .cs-hp-bar {
+        flex: 1;
+        height: 6px;
+    }
+
+    /* Quick stats: 4 celle compatte equispaziate */
+    .cs-quick {
+        justify-content: space-between;
+        gap: 4px;
+    }
+
+    .cs-quick-cell {
+        flex: 1;
+        min-width: 0;
+        padding: 3px 4px;
+        gap: 1px;
+    }
+
+    .cs-quick-lbl {
+        font-size: 0.5rem;
+        letter-spacing: 0.08em;
+    }
+
+    .cs-quick-val {
+        font-size: 1rem;
+    }
+
+    /* Azioni in colonna stretta */
+    .cs-actions {
+        flex-direction: column;
+        gap: 3px;
+    }
+
+    .cs-action-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 5px;
+    }
+
+    /* Tabs: solo icone */
+    .cs-tab {
+        padding: 0.35rem 0.55rem;
+        font-size: 0.7rem;
+        gap: 0;
+    }
+
+    .cs-tab .cs-tab-label {
+        display: none;
+    }
+
+    .cs-tab svg {
+        font-size: 1.1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .cs-header {
+        padding: 0.45rem 0.5rem;
+        border-radius: 8px;
+    }
+
+    .cs-avatar {
+        width: 36px;
+        height: 36px;
+        font-size: 0.95rem;
+    }
+
+    .cs-name {
+        font-size: 0.92rem;
+    }
+
+    .cs-chip {
+        font-size: 0.56rem;
+        padding: 1px 5px;
+    }
+
+    .cs-align {
+        display: none;
+    }
+
+    .cs-hp-cur {
+        font-size: 1.05rem;
+    }
+
+    .cs-quick-val {
+        font-size: 0.92rem;
+    }
+
+    .cs-quick-lbl {
+        font-size: 0.46rem;
+    }
+
+    .cs-action-btn {
+        width: 26px;
+        height: 26px;
+    }
+
+    .cs-tab {
+        padding: 0.3rem 0.45rem;
+    }
+}
+
+/* === COMBAT SUB-TABS === */
+.combat-subtabs {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: rgba(0, 0, 0, 0.32);
+    border: 1px solid rgba(201, 168, 76, 0.18);
+    border-radius: 10px;
+    align-self: flex-start;
+}
+
+.combat-subtab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: var(--font-heading);
+    font-size: 0.78rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.combat-subtab:hover {
+    color: var(--text-primary);
+    background: rgba(201, 168, 76, 0.07);
+}
+
+.combat-subtab.is-active {
+    background: linear-gradient(135deg, rgba(201, 168, 76, 0.22), rgba(120, 80, 20, 0.18));
+    border-color: rgba(201, 168, 76, 0.45);
+    color: var(--accent-gold);
+    box-shadow: inset 0 0 0 1px rgba(201, 168, 76, 0.18);
+}
+
+.combat-subtab svg {
+    font-size: 0.95rem;
+}
+
+.combat-subtab-badge {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    background: rgba(201, 168, 76, 0.22);
+    border: 1px solid rgba(201, 168, 76, 0.45);
+    color: var(--accent-gold);
+    font-family: var(--font-body);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0;
+}
+
+.combat-modifiers-panel {
+    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid rgba(201, 168, 76, 0.18);
+    border-radius: 10px;
+    padding: 12px;
+    min-height: 480px;
+    display: flex;
+}
+
+.combat-modifiers-panel > .w-mod-root {
+    flex: 1;
+    min-width: 0;
+}
+
+@media (max-width: 640px) {
+    .combat-subtab {
+        padding: 6px 10px;
+        font-size: 0.72rem;
+    }
+}

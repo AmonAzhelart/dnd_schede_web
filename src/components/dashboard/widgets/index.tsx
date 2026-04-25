@@ -1,8 +1,7 @@
-import React from 'react';
 import { FaHeart, FaStar, FaCoins, FaLanguage } from 'react-icons/fa';
 import {
     GiSwordman, GiAxeSword, GiSpellBook, GiTreasureMap, GiWalk,
-    GiHealthPotion, GiShield, GiBrain, GiAbstract024,
+    GiHealthPotion, GiShield, GiBrain, GiAbstract024, GiMagicSwirl,
 } from 'react-icons/gi';
 import type { WidgetDefinition } from '../widgetTypes';
 
@@ -19,6 +18,7 @@ import { CurrencyWidget } from './CurrencyWidget';
 import { LanguagesWidget } from './LanguagesWidget';
 import { MovementWidget } from './MovementWidget';
 import { NotesWidget } from './NotesWidget';
+import { ModifiersWidget } from './ModifiersWidget';
 
 import './widgets.css';
 
@@ -36,6 +36,7 @@ export const WIDGET_CATALOG: WidgetDefinition[] = [
     { id: 'languages', title: 'Lingue', description: 'Lingue conosciute', icon: <FaLanguage />, defaultW: 3, defaultH: 4, minW: 2, minH: 3, render: LanguagesWidget, accent: 'var(--accent-arcane)' },
     { id: 'movement', title: 'Movimento', description: 'Velocità e modalità', icon: <GiWalk />, defaultW: 2, defaultH: 4, minW: 2, minH: 3, render: MovementWidget, accent: 'var(--accent-success)' },
     { id: 'notes', title: 'Note', description: 'Bloc-notes della sessione', icon: <GiSwordman />, defaultW: 4, defaultH: 6, minW: 2, minH: 3, render: NotesWidget, accent: 'var(--accent-arcane)' },
+    { id: 'modifiers', title: 'Modificatori Attivi', description: 'Bonus e malus temporanei applicati a qualsiasi statistica', icon: <GiMagicSwirl />, defaultW: 4, defaultH: 6, minW: 2, minH: 3, render: ModifiersWidget, accent: 'var(--accent-arcane)' },
 ];
 
 export const getWidgetDef = (id: string) => {

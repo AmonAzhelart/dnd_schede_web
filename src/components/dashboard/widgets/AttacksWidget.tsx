@@ -5,12 +5,30 @@ import { DndIcon } from '../../DndIcon';
 import { useIconCatalog, sanitizeSvg } from '../../../services/iconCache';
 import { GiCrossedSwords } from 'react-icons/gi';
 import { FaMinus, FaPlus } from 'react-icons/fa';
+import { useModifierAura, ModifierArrows } from './ModifierAura';
+import type { StatType } from '../../../types/dnd';
 
 const fmtSigned = (v: number) => (v >= 0 ? `+${v}` : `${v}`);
+
+const StatChip: React.FC<{ label: string; value: number; target: StatType | string; title: string }> = ({ label, value, target, title }) => {
+    const aura = useModifierAura(target);
+    return (
+        <div
+            className={`w-atk2-chip ${aura.auraClass}`.trim()}
+            style={aura.auraClass ? { position: 'relative', overflow: 'hidden' } : undefined}
+            title={title}
+        >
+            <span className="w-atk2-chip-lbl">{label}</span>
+            <span className="w-atk2-chip-val">{fmtSigned(value)}</span>
+            {aura.auraClass && <ModifierArrows delta={aura.delta} count={2} />}
+        </div>
+    );
+};
 
 export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
     const { character, setCharacter, getStatModifier, getTotalBab, getMultipleAttacks } = useCharacterStore();
     const { resolveItemSvg } = useIconCatalog();
+    const babAura = useModifierAura('bab');
     const [diceRolling, setDiceRolling] = useState<string | null>(null);
     const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -29,13 +47,12 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
         });
         setCharacter({ ...character, inventory: inv });
     };
-    const bab = getTotalBab();
+    const bab = getTotalBab() + babAura.delta;
     const strMod = getStatModifier('str');
     const dexMod = getStatModifier('dex');
     const equippedWeapons = character.inventory.filter(i => i.equipped && i.type === 'weapon');
     const customAttacks = character.customAttacks ?? [];
     const hasAny = equippedWeapons.length > 0 || customAttacks.length > 0;
-    const narrow = size.pixelW < 320;
 
     const fmtList = (arr: number[]) => arr.map(fmtSigned).join(' / ');
 
@@ -56,18 +73,17 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
             {/* Compact header: BAB + FOR + DES chips */}
             <div className="w-atk2-header">
                 <div className="w-atk2-chips">
-                    <div className="w-atk2-chip" title="Bonus Attacco Base">
+                    <div
+                        className={`w-atk2-chip ${babAura.auraClass}`.trim()}
+                        style={babAura.auraClass ? { position: 'relative', overflow: 'hidden' } : undefined}
+                        title="Bonus Attacco Base"
+                    >
                         <span className="w-atk2-chip-lbl">BAB</span>
                         <span className="w-atk2-chip-val">{fmtSigned(bab)}</span>
+                        {babAura.auraClass && <ModifierArrows delta={babAura.delta} count={2} />}
                     </div>
-                    <div className="w-atk2-chip" title="Modificatore Forza (mischia)">
-                        <span className="w-atk2-chip-lbl">FOR</span>
-                        <span className="w-atk2-chip-val">{fmtSigned(strMod)}</span>
-                    </div>
-                    <div className="w-atk2-chip" title="Modificatore Destrezza (distanza)">
-                        <span className="w-atk2-chip-lbl">DES</span>
-                        <span className="w-atk2-chip-val">{fmtSigned(dexMod)}</span>
-                    </div>
+                    <StatChip label="FOR" value={strMod} target="str" title="Modificatore Forza (mischia)" />
+                    <StatChip label="DES" value={dexMod} target="dex" title="Modificatore Destrezza (distanza)" />
                 </div>
                 {goTo && <button className="w-link" onClick={() => goTo('combat')}>Apri →</button>}
             </div>
@@ -84,7 +100,7 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                         const ammoAtkBonus = loadedAmmo?.ammoDetails?.attackBonus ?? 0;
                         const abilityMod = isRanged ? dexMod : strMod;
                         const weaponBonus = (w.weaponDetails?.attackBonus ?? 0) + ammoAtkBonus;
-                        const attacks = getMultipleAttacks(abilityMod + weaponBonus);
+                        const attacks = getMultipleAttacks(abilityMod + weaponBonus + babAura.delta);
                         const primary = attacks[0];
                         const wSvg = resolveItemSvg(w);
                         const isExpanded = expanded === w.id;
@@ -98,41 +114,44 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
 
                         return (
                             <div key={w.id} className={`w-atk2-row ${isRanged ? 'ranged' : 'melee'}`}>
-                                <div className="w-atk2-row-top">
-                                    <span className="w-atk2-row-icon">
-                                        {wSvg ? (
-                                            <span className="inv-svg-tinted" dangerouslySetInnerHTML={{ __html: sanitizeSvg(wSvg) }} />
-                                        ) : (
-                                            <DndIcon category="combat" name={isRanged ? 'ranged' : 'melee'} size={icoSm} />
-                                        )}
-                                    </span>
-                                    <div className="w-atk2-row-name" title={w.name}>{w.name}</div>
-                                </div>
-                                <div className="w-atk2-row-bot">
-                                    {!narrow && <div className="w-atk2-row-meta">{meta}</div>}
-                                    <div className="w-atk2-row-spacer" />
-                                    <button
-                                        className="w-atk2-row-stat atk"
-                                        onClick={() => attacks.length > 1 ? setExpanded(isExpanded ? null : w.id) : rollAttack(w.id, w.name, primary, fullDamage, attacks)}
-                                        title={attacks.length > 1 ? 'Mostra progressione' : 'Tira d20'}
-                                    >
-                                        <span className="v">{fmtSigned(primary)}</span>
-                                        <span className="l">colpire</span>
-                                    </button>
-                                    {fullDamage && (
-                                        <div className="w-atk2-row-stat dmg">
-                                            <span className="v">{fullDamage}</span>
-                                            <span className="l">danno</span>
+                                <div className="w-atk2-row-main">
+                                    <div className="w-atk2-row-left">
+                                        <div className="w-atk2-row-nameline">
+                                            <span className="w-atk2-row-icon">
+                                                {wSvg ? (
+                                                    <span className="inv-svg-tinted" dangerouslySetInnerHTML={{ __html: sanitizeSvg(wSvg) }} />
+                                                ) : (
+                                                    <DndIcon category="combat" name={isRanged ? 'ranged' : 'melee'} size={icoSm} />
+                                                )}
+                                            </span>
+                                            <div className="w-atk2-row-name" title={w.name}>{w.name}</div>
                                         </div>
-                                    )}
-                                    <button
-                                        className={`w-atk2-roll ${diceRolling === w.id ? 'rolling' : ''}`}
-                                        onClick={(e) => { e.stopPropagation(); rollAttack(w.id, w.name, primary, fullDamage, attacks); }}
-                                        title="Tira d20"
-                                        aria-label="Tira d20"
-                                    >
-                                        <DndIcon category="dice" name="d20" size={icoMd} className={diceRolling === w.id ? 'animate-spin' : ''} />
-                                    </button>
+                                        <div className="w-atk2-row-meta">{meta}</div>
+                                    </div>
+                                    <div className="w-atk2-row-right">
+                                        <button
+                                            className="w-atk2-row-stat atk"
+                                            onClick={() => attacks.length > 1 ? setExpanded(isExpanded ? null : w.id) : rollAttack(w.id, w.name, primary, fullDamage, attacks)}
+                                            title={attacks.length > 1 ? 'Mostra progressione' : 'Tira d20'}
+                                        >
+                                            <span className="v">{fmtSigned(primary)}</span>
+                                            <span className="l">colpire</span>
+                                        </button>
+                                        {fullDamage && (
+                                            <div className="w-atk2-row-stat dmg">
+                                                <span className="v">{fullDamage}</span>
+                                                <span className="l">danno</span>
+                                            </div>
+                                        )}
+                                        <button
+                                            className={`w-atk2-roll ${diceRolling === w.id ? 'rolling' : ''}`}
+                                            onClick={(e) => { e.stopPropagation(); rollAttack(w.id, w.name, primary, fullDamage, attacks); }}
+                                            title="Tira d20"
+                                            aria-label="Tira d20"
+                                        >
+                                            <DndIcon category="dice" name="d20" size={icoMd} className={diceRolling === w.id ? 'animate-spin' : ''} />
+                                        </button>
+                                    </div>
                                 </div>
                                 {isExpanded && attacks.length > 1 && (
                                     <div className="w-atk2-row-detail">
@@ -199,31 +218,34 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                         const meta = `${atk.range ? atk.range : 'Mischia'}${atk.damageType ? ` · ${atk.damageType}` : ''}`;
                         return (
                             <div key={atk.id} className="w-atk2-row custom">
-                                <div className="w-atk2-row-top">
-                                    <span className="w-atk2-row-icon arcane">
-                                        <DndIcon category="dice" name="d20" size={icoSm} />
-                                    </span>
-                                    <div className="w-atk2-row-name" title={atk.name}>{atk.name}</div>
-                                </div>
-                                <div className="w-atk2-row-bot">
-                                    {!narrow && <div className="w-atk2-row-meta arcane">{meta}</div>}
-                                    <div className="w-atk2-row-spacer" />
-                                    <div className="w-atk2-row-stat atk">
-                                        <span className="v">{fmtSigned(bonus)}</span>
-                                        <span className="l">colpire</span>
+                                <div className="w-atk2-row-main">
+                                    <div className="w-atk2-row-left">
+                                        <div className="w-atk2-row-nameline">
+                                            <span className="w-atk2-row-icon arcane">
+                                                <DndIcon category="dice" name="d20" size={icoSm} />
+                                            </span>
+                                            <div className="w-atk2-row-name" title={atk.name}>{atk.name}</div>
+                                        </div>
+                                        <div className="w-atk2-row-meta arcane">{meta}</div>
                                     </div>
-                                    <div className="w-atk2-row-stat dmg">
-                                        <span className="v">{dmgDisplay}</span>
-                                        <span className="l">danno</span>
+                                    <div className="w-atk2-row-right">
+                                        <div className="w-atk2-row-stat atk">
+                                            <span className="v">{fmtSigned(bonus)}</span>
+                                            <span className="l">colpire</span>
+                                        </div>
+                                        <div className="w-atk2-row-stat dmg">
+                                            <span className="v">{dmgDisplay}</span>
+                                            <span className="l">danno</span>
+                                        </div>
+                                        <button
+                                            className={`w-atk2-roll ${diceRolling === atk.id ? 'rolling' : ''}`}
+                                            onClick={(e) => { e.stopPropagation(); rollAttack(atk.id, atk.name, bonus, dmgDisplay, [bonus]); }}
+                                            title="Tira d20"
+                                            aria-label="Tira d20"
+                                        >
+                                            <DndIcon category="dice" name="d20" size={icoMd} className={diceRolling === atk.id ? 'animate-spin' : ''} />
+                                        </button>
                                     </div>
-                                    <button
-                                        className={`w-atk2-roll ${diceRolling === atk.id ? 'rolling' : ''}`}
-                                        onClick={(e) => { e.stopPropagation(); rollAttack(atk.id, atk.name, bonus, dmgDisplay, [bonus]); }}
-                                        title="Tira d20"
-                                        aria-label="Tira d20"
-                                    >
-                                        <DndIcon category="dice" name="d20" size={icoMd} className={diceRolling === atk.id ? 'animate-spin' : ''} />
-                                    </button>
                                 </div>
                             </div>
                         );

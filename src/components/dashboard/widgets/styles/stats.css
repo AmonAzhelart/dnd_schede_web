@@ -1,0 +1,254 @@
+﻿/* ============================================================================
+   ðŸ§  STATS â€” fixed 2-col cell: left (icon+name) / right (mod+score)
+   ============================================================================ */
+.w-stat-root {
+    display: grid;
+    height: 100%;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    /* gap, padding, columns, rows set inline by JS */
+}
+
+.w-stat-root.is-scroll {
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(201, 168, 76, 0.35) transparent;
+}
+
+.w-stat-root.is-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.w-stat-root.is-scroll::-webkit-scrollbar-thumb {
+    background: rgba(201, 168, 76, 0.35);
+    border-radius: 3px;
+}
+
+.w-stat-cell {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+    padding: 6px 10px;
+    border-radius: 10px;
+    background:
+        linear-gradient(175deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 40%, rgba(0, 0, 0, 0.30) 100%),
+        rgba(20, 18, 14, 0.55);
+    border: 1px solid rgba(201, 168, 76, 0.18);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.05),
+        0 3px 10px rgba(0, 0, 0, 0.25);
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.w-stat-cell:hover {
+    transform: translateY(-1px);
+    border-color: rgba(201, 168, 76, 0.45);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.w-stat-cell.is-elite {
+    border-color: rgba(201, 168, 76, 0.45);
+    background:
+        linear-gradient(175deg, rgba(255, 220, 130, 0.08) 0%, rgba(0, 0, 0, 0.30) 100%),
+        rgba(35, 28, 18, 0.65);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 220, 130, 0.10),
+        0 4px 14px rgba(201, 168, 76, 0.18);
+}
+
+.w-stat-cell.is-good {
+    border-color: rgba(201, 168, 76, 0.30);
+}
+
+.w-stat-cell.is-poor {
+    border-color: rgba(192, 57, 43, 0.30);
+}
+
+.w-stat-cell.is-rolling {
+    animation: stat-roll-pulse 0.6s ease-out;
+}
+
+@keyframes stat-roll-pulse {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 24px rgba(201, 168, 76, 0.5);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* â”€â”€â”€ LEFT column: icon on top, name below â”€â”€â”€ */
+.w-stat-cell-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 0;
+    padding-right: 6px;
+    border-right: 1px solid rgba(201, 168, 76, 0.12);
+}
+
+.w-stat-cell-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(201, 168, 76, 0.80);
+    transition: color 0.15s, filter 0.15s;
+}
+
+.w-stat-cell:hover .w-stat-cell-icon {
+    color: rgba(255, 220, 130, 1);
+}
+
+.w-stat-cell.is-elite .w-stat-cell-icon {
+    color: var(--accent-gold);
+    filter: drop-shadow(0 0 6px rgba(201, 168, 76, 0.45));
+}
+
+.w-stat-cell.is-poor .w-stat-cell-icon {
+    color: rgba(232, 116, 102, 0.85);
+}
+
+.w-stat-cell-label {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.w-stat-cell.is-elite .w-stat-cell-label {
+    color: rgba(255, 220, 130, 0.95);
+}
+
+/* â”€â”€â”€ RIGHT column: modifier (hero) above, score below â”€â”€â”€ */
+.w-stat-cell-right {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 0;
+}
+
+.w-stat-cell-mod {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 1px;
+    font-family: var(--font-heading);
+    font-weight: 800;
+    line-height: 1;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.w-stat-cell-mod-sign {
+    font-size: 0.70em;
+    opacity: 0.85;
+    align-self: flex-start;
+    padding-top: 0.14em;
+}
+
+.w-stat-cell-mod-num {
+    font-weight: 900;
+}
+
+.w-stat-cell.is-elite .w-stat-cell-mod {
+    color: #ffd76a;
+    text-shadow: 0 0 14px rgba(255, 215, 106, 0.45), 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.w-stat-cell.is-good .w-stat-cell-mod {
+    color: #e5c97d;
+}
+
+.w-stat-cell.is-poor .w-stat-cell-mod {
+    color: #e87466;
+    text-shadow: 0 0 12px rgba(232, 116, 102, 0.35), 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.w-stat-cell-score {
+    appearance: none;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(0, 0, 0, 0.40);
+    color: var(--text-secondary);
+    font-family: var(--font-heading);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    border-radius: 99px;
+    padding: 1px 9px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    transition: all 0.15s;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+.w-stat-cell-score:hover {
+    border-color: rgba(201, 168, 76, 0.45);
+    color: var(--text-primary);
+    background: rgba(201, 168, 76, 0.10);
+}
+
+.w-stat-cell-score.is-buffed {
+    border-color: rgba(46, 204, 113, 0.45);
+    color: #6bd58c;
+    background: rgba(46, 204, 113, 0.08);
+}
+
+.w-stat-cell-score.is-debuffed {
+    border-color: rgba(192, 57, 43, 0.45);
+    color: #e87466;
+    background: rgba(192, 57, 43, 0.08);
+}
+
+.w-stat-cell-score-arrow {
+    font-size: 0.55em;
+    opacity: 0.85;
+}
+
+.w-stat-cell-score-arrow.down {
+    color: #e87466;
+}
+
+.w-stat-cell-input {
+    width: auto !important;
+    text-align: center !important;
+    padding: 1px 6px !important;
+    font-family: var(--font-heading) !important;
+    font-weight: 600 !important;
+    background: rgba(0, 0, 0, 0.50) !important;
+    border: 1px solid rgba(201, 168, 76, 0.55) !important;
+    border-radius: 99px !important;
+    color: var(--text-primary) !important;
+}
+
+
+

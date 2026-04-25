@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FaSearch } from 'react-icons/fa';
 import { GiSwordWound, GiChestArmor, GiPotionBall, GiSwapBag, GiScrollQuill, GiRing } from 'react-icons/gi';
 import { useCharacterStore } from '../../../store/characterStore';
+import { useIconCatalog, sanitizeSvg } from '../../../services/iconCache';
 import type { WidgetRenderProps, WidgetSize } from '../widgetTypes';
 
 const colsFor = (size: WidgetSize) =>
@@ -24,6 +25,7 @@ const iconFor = (type?: string): React.ReactNode => {
 
 export const InventoryWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
     const { character } = useCharacterStore();
+    const { resolveItemSvg } = useIconCatalog();
     const [q, setQ] = useState('');
     if (!character) return null;
     const equipped = character.inventory.filter(i => i.equipped);
@@ -33,6 +35,14 @@ export const InventoryWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => 
     const fCa = q ? carried.filter(i => f(i.name)) : carried;
     const totalWeight = character.inventory.reduce((s, i) => s + (i.weight ?? 0) * (i.quantity ?? 1), 0);
     const cols = colsFor(size);
+
+    const renderIcon = (item: { type?: string; iconId?: string; weaponDetails?: any }) => {
+        const svg = resolveItemSvg(item as any);
+        if (svg) {
+            return <span className="w-inv-icon inv-svg-tinted" dangerouslySetInnerHTML={{ __html: sanitizeSvg(svg) }} />;
+        }
+        return <span className="w-inv-icon">{iconFor(item.type)}</span>;
+    };
 
     return (
         <div className="w-inv-root">
@@ -53,7 +63,7 @@ export const InventoryWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => 
                         <div className="w-inv-list" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
                             {fEq.map(item => (
                                 <div key={item.id} className="w-inv-row equipped">
-                                    <span className="w-inv-icon">{iconFor(item.type)}</span>
+                                    {renderIcon(item)}
                                     <span className="w-inv-name">{item.name}</span>
                                     {item.weight != null && <span className="w-inv-weight">{item.weight}kg</span>}
                                 </div>
@@ -67,7 +77,7 @@ export const InventoryWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => 
                         <div className="w-inv-list" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
                             {fCa.map(item => (
                                 <div key={item.id} className="w-inv-row">
-                                    <span className="w-inv-icon">{iconFor(item.type)}</span>
+                                    {renderIcon(item)}
                                     <span className="w-inv-name">
                                         {item.quantity && item.quantity > 1 && <span className="qty">{item.quantity}×</span>}
                                         {item.name}

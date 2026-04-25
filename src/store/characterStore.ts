@@ -1,5 +1,12 @@
 import { create } from 'zustand';
-import type { CharacterBase, ClassLevel, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell } from '../types/dnd';
+import type { CharacterBase, ClassLevel, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell, ActiveModifier, DurationUnit } from '../types/dnd';
+import { computeClassBab, computeClassSaveBase } from '../types/dnd';
+
+type SaveKey = 'fortitude' | 'reflex' | 'will';
+const SAVE_TO_STAT: Record<SaveKey, StatType> = { fortitude: 'con', reflex: 'dex', will: 'wis' };
+const SAVE_TO_PROG_FIELD: Record<SaveKey, 'fortSave' | 'refSave' | 'willSave'> = {
+  fortitude: 'fortSave', reflex: 'refSave', will: 'willSave',
+};
 
 interface CharacterState {
   character: CharacterBase | null;
@@ -64,15 +71,61 @@ interface CharacterState {
   getTotalBab: () => number;
   /** Returns the list of attack bonuses including multiple attacks, e.g. [+8, +3] */
   getMultipleAttacks: (extraBonus?: number) => number[];
+  /** Computed base saving throw bonus from classLevels (sum across classes). */
+  getClassBaseSave: (save: SaveKey) => number;
+  /** Returns the breakdown for a saving throw, auto-filling base+ability when classLevels exist. */
+  getSaveBreakdown: (save: SaveKey) => { base: number; ability: number; magic: number; misc: number; total: number; auto: boolean };
   // ClassLevel management
   addClassLevel: (entry: ClassLevel) => void;
   updateClassLevel: (entry: ClassLevel) => void;
   deleteClassLevel: (id: string) => void;
+  // Active (user-managed) modifiers
+  addActiveModifier: (mod: ActiveModifier) => void;
+  updateActiveModifier: (mod: ActiveModifier) => void;
+  removeActiveModifier: (id: string) => void;
+  /** Move a modifier to modifiersHistory and remove from active list. */
+  archiveActiveModifier: (id: string) => void;
+  toggleActiveModifierPause: (id: string) => void;
+  /** Decrement `remaining` of all non-paused modifiers whose unit matches `unit` by `by` (default 1). Auto-removes those reaching 0. */
+  tickActiveModifiers: (unit: DurationUnit, by?: number) => void;
+  /** Remove every non-permanent active modifier (used on long rest, etc.). */
+  clearTemporaryActiveModifiers: () => void;
+  /** Reactivate a modifier from history (new id, fresh remaining). */
+  reactivateModifier: (id: string) => void;
+  /** Wipe the modifiers history list. */
+  clearModifiersHistory: () => void;
+  /** Sum of bonuses (with 3.5 stacking rules) coming from active modifiers for a target. */
+  getActiveModifierDelta: (target: StatType | string) => number;
+  /** All non-paused active modifiers targeting `target`. */
+  getActiveModifiersFor: (target: StatType | string) => ActiveModifier[];
 }
 
 // Helper to determine if a modifier type stacks
 const doesModifierStack = (type: ModifierType): boolean => {
   return ['dodge', 'circumstance', 'untyped', 'synergy'].includes(type);
+};
+
+/** Apply 3.5 stacking rules to a list of (type, value) pairs and return the
+ *  net bonus. Stacking types sum; non-stacking types contribute the maximum
+ *  bonus AND the minimum (most negative) penalty separately, since penalties
+ *  always stack with bonuses of the same type. */
+const aggregateModifiers = (mods: { type: ModifierType; value: number }[]): number => {
+  const byType: Record<string, number[]> = {};
+  mods.forEach(m => { (byType[m.type] ||= []).push(m.value); });
+  let total = 0;
+  Object.entries(byType).forEach(([type, values]) => {
+    const t = type as ModifierType;
+    if (doesModifierStack(t)) {
+      total += values.reduce((s, v) => s + v, 0);
+    } else {
+      const positives = values.filter(v => v > 0);
+      const negatives = values.filter(v => v < 0);
+      if (positives.length) total += Math.max(...positives);
+      // penalties of the same type DO stack with each other (3.5e rule of thumb)
+      if (negatives.length) total += negatives.reduce((s, v) => s + v, 0);
+    }
+  });
+  return total;
 };
 
 // Calculate stat modifier (e.g., 14 Str -> +2)
@@ -379,12 +432,7 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     if (!character) return 0;
     const levels = character.classLevels;
     if (levels && levels.length > 0) {
-      return levels.reduce((sum, cl) => {
-        const lvl = cl.level;
-        if (cl.babProgression === 'high') return sum + lvl;
-        if (cl.babProgression === 'medium') return sum + Math.floor(lvl * 3 / 4);
-        /* low */                           return sum + Math.floor(lvl / 2);
-      }, 0);
+      return levels.reduce((sum, cl) => sum + computeClassBab(cl.level, cl.babProgression), 0);
     }
     return character.baseStats.bab || 0;
   },
@@ -398,6 +446,26 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       next -= 5;
     }
     return attacks;
+  },
+
+  // ── Saving throws ────────────────────────────────────────────────
+  getClassBaseSave: (save: SaveKey): number => {
+    const { character } = get();
+    if (!character) return 0;
+    const levels = character.classLevels ?? [];
+    const field = SAVE_TO_PROG_FIELD[save];
+    return levels.reduce((sum, cl) => sum + computeClassSaveBase(cl.level, cl[field] ?? 'poor'), 0);
+  },
+
+  getSaveBreakdown: (save: SaveKey) => {
+    const { character, getStatModifier, getClassBaseSave } = get();
+    const stored = character?.savingThrows?.[save] ?? { base: 0, ability: 0, magic: 0, misc: 0 };
+    const hasClasses = (character?.classLevels?.length ?? 0) > 0;
+    const base = hasClasses ? getClassBaseSave(save) : stored.base;
+    const ability = hasClasses ? getStatModifier(SAVE_TO_STAT[save]) : stored.ability;
+    const magic = stored.magic;
+    const misc = stored.misc;
+    return { base, ability, magic, misc, total: base + ability + magic + misc, auto: hasClasses };
   },
 
   // ── ClassLevel management ────────────────────────────────────────
@@ -416,14 +484,120 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     return { character: { ...state.character, classLevels: (state.character.classLevels ?? []).filter(cl => cl.id !== id) } };
   }),
 
+  // ── Active (user-managed) modifiers ──────────────────────────────
+  addActiveModifier: (mod) => set((state) => {
+    if (!state.character) return state;
+    const list = state.character.activeModifiers ?? [];
+    return { character: { ...state.character, activeModifiers: [...list, mod] } };
+  }),
+
+  updateActiveModifier: (mod) => set((state) => {
+    if (!state.character) return state;
+    const list = state.character.activeModifiers ?? [];
+    return { character: { ...state.character, activeModifiers: list.map(m => m.id === mod.id ? mod : m) } };
+  }),
+
+  removeActiveModifier: (id) => set((state) => {
+    if (!state.character) return state;
+    const list = state.character.activeModifiers ?? [];
+    return { character: { ...state.character, activeModifiers: list.filter(m => m.id !== id) } };
+  }),
+
+  archiveActiveModifier: (id) => set((state) => {
+    if (!state.character) return state;
+    const list = state.character.activeModifiers ?? [];
+    const mod = list.find(m => m.id === id);
+    if (!mod) return state;
+    const history = state.character.modifiersHistory ?? [];
+    return {
+      character: {
+        ...state.character,
+        activeModifiers: list.filter(m => m.id !== id),
+        modifiersHistory: [mod, ...history].slice(0, 30),
+      },
+    };
+  }),
+
+  toggleActiveModifierPause: (id) => set((state) => {
+    if (!state.character) return state;
+    const list = state.character.activeModifiers ?? [];
+    return {
+      character: {
+        ...state.character,
+        activeModifiers: list.map(m => m.id === id ? { ...m, paused: !m.paused } : m),
+      }
+    };
+  }),
+
+  tickActiveModifiers: (unit, by = 1) => set((state) => {
+    if (!state.character) return state;
+    const list = state.character.activeModifiers ?? [];
+    const expired: ActiveModifier[] = [];
+    const next = list.flatMap<ActiveModifier>(m => {
+      if (m.unit !== unit || m.unit === 'permanent' || m.paused || m.remaining == null) return [m];
+      const r = m.remaining - by;
+      if (r <= 0) { expired.push(m); return []; } // expired → archive
+      return [{ ...m, remaining: r }];
+    });
+    if (expired.length === 0) return { character: { ...state.character, activeModifiers: next } };
+    const history = state.character.modifiersHistory ?? [];
+    return { character: { ...state.character, activeModifiers: next, modifiersHistory: [...expired, ...history].slice(0, 30) } };
+  }),
+
+  clearTemporaryActiveModifiers: () => set((state) => {
+    if (!state.character) return state;
+    const list = state.character.activeModifiers ?? [];
+    const toArchive = list.filter(m => m.unit !== 'permanent');
+    const history = state.character.modifiersHistory ?? [];
+    return {
+      character: {
+        ...state.character,
+        activeModifiers: list.filter(m => m.unit === 'permanent'),
+        modifiersHistory: [...toArchive, ...history].slice(0, 30),
+      },
+    };
+  }),
+
+  reactivateModifier: (id) => set((state) => {
+    if (!state.character) return state;
+    const history = state.character.modifiersHistory ?? [];
+    const template = history.find(m => m.id === id);
+    if (!template) return state;
+    const newMod: ActiveModifier = {
+      ...template,
+      id: `mod_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`,
+      remaining: template.initial,
+      createdAt: new Date().toISOString(),
+      paused: false,
+    };
+    const list = state.character.activeModifiers ?? [];
+    return { character: { ...state.character, activeModifiers: [...list, newMod] } };
+  }),
+
+  clearModifiersHistory: () => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, modifiersHistory: [] } };
+  }),
+
+  getActiveModifiersFor: (target) => {
+    const list = get().character?.activeModifiers ?? [];
+    return list.filter(m => !m.paused && m.target === target);
+  },
+
+  getActiveModifierDelta: (target) => {
+    const list = get().getActiveModifiersFor(target);
+    if (list.length === 0) return 0;
+    return aggregateModifiers(list.map(m => ({ type: m.type, value: m.value })));
+  },
+
   getEffectiveStat: (target: StatType | string): number => {
     const { character } = get();
     if (!character) return 0;
 
-    // Saving throws: use detailed breakdown if available
-    if ((target === 'fortitude' || target === 'reflex' || target === 'will') && character.savingThrows) {
-      const b = character.savingThrows[target as 'fortitude' | 'reflex' | 'will'];
-      return b.base + b.ability + b.magic + b.misc;
+    // Saving throws: auto-compute from classLevels + ability mod when present,
+    // else fall back to the stored manual breakdown.
+    if (target === 'fortitude' || target === 'reflex' || target === 'will') {
+      return get().getSaveBreakdown(target).total + get().getActiveModifierDelta(target);
     }
 
     // Base value calculation
@@ -501,6 +675,9 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       }
     });
 
+    // Add free-standing user-managed active modifiers (buffs/malus).
+    totalBonus += get().getActiveModifierDelta(target);
+
     return baseValue + totalBonus;
   },
 
@@ -553,6 +730,10 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         total += Math.max(...values);
       }
     });
+
+    // Free-standing active modifiers (skill.<id> or skill.<name>)
+    total += get().getActiveModifierDelta(`skill.${skillId}`);
+    total += get().getActiveModifierDelta(`skill.${nameLower}`);
 
     return total;
   },

@@ -1,0 +1,77 @@
+﻿/* ============================================================================
+   Ã°Å¸ÂÆ’ MOVEMENT Ã¢â‚¬â€ speedometer bars
+   ============================================================================ */
+.w-move-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 10px;
+    gap: 6px;
+    justify-content: center;
+}
+
+.w-move-row {
+    display: grid;
+    grid-template-columns: 20px 70px 1fr auto;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    transition: background 0.15s;
+}
+
+.w-move-row:hover {
+    background: rgba(46, 204, 113, 0.06);
+}
+
+.w-move-icon {
+    font-size: 1rem;
+    color: var(--accent-success);
+    display: inline-flex;
+    justify-content: center;
+}
+
+.w-move-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    font-family: var(--font-heading);
+}
+
+.w-move-bar {
+    position: relative;
+    height: 8px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 99px;
+    overflow: hidden;
+    border: 1px solid rgba(46, 204, 113, 0.15);
+}
+
+.w-move-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, rgba(46, 204, 113, 0.4), var(--accent-success));
+    border-radius: 99px;
+    transition: width 0.3s;
+    box-shadow: 0 0 6px var(--accent-success);
+}
+
+.w-move-input {
+    width: 56px !important;
+    font-family: var(--font-heading) !important;
+    font-size: 0.85rem !important;
+    text-align: right !important;
+    color: var(--accent-success) !important;
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid rgba(46, 204, 113, 0.25) !important;
+    border-radius: 0 !important;
+    padding: 2px 4px !important;
+}
+
+.w-move-row .unit {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    margin-left: -4px;
+}
+

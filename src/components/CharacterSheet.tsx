@@ -1,10 +1,8 @@
 ﻿import React, { useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import { useCharacterStore } from '../store/characterStore';
-import type { CustomAttack, ClassLevel, BabProgression } from '../types/dnd';
-import { CLASS_BAB_PRESETS } from '../types/dnd';
-import { FaHeart, FaStar, FaPlus, FaMinus, FaEdit, FaTrash, FaSearch, FaPalette, FaCheck } from 'react-icons/fa';
-import { GiSwordman, GiAxeSword, GiSpellBook, GiTreasureMap, GiAbstract024 } from 'react-icons/gi';
+import type { CustomAttack } from '../types/dnd';
+import { FaHeart, FaStar, FaPlus, FaMinus, FaEdit, FaSearch, FaPalette, FaCheck, FaTrash } from 'react-icons/fa';
+import { GiSwordman, GiAxeSword, GiSpellBook, GiTreasureMap, GiAbstract024, GiUpgrade } from 'react-icons/gi';
 import { Inventory } from './Inventory';
 import { Spellbook } from './Spellbook';
 import { AbilitiesPage, type AbilitySubTab } from './AbilitiesPage';
@@ -12,8 +10,11 @@ import { SkillModal } from './SkillModal';
 import { SkillImportWizard } from './SkillImportWizard';
 import { SkeletonSheet } from './Skeleton';
 import { OverviewDashboard } from './dashboard/OverviewDashboard';
+import { LevelsTab } from './LevelsTab';
+import { ModifiersWidget } from './dashboard/widgets/ModifiersWidget';
+import './CharacterSheetHeader.css';
 
-type SheetTab = 'overview' | 'combat' | 'skills' | 'inventory' | 'abilities' | 'spells';
+type SheetTab = 'overview' | 'combat' | 'levels' | 'skills' | 'inventory' | 'abilities' | 'spells';
 
 const STAT_NAMES: Record<string, string> = {
   str: 'Forza', dex: 'Destrezza', con: 'Costituzione',
@@ -22,8 +23,9 @@ const STAT_NAMES: Record<string, string> = {
 
 export const CharacterSheet: React.FC = () => {
   const { character, setCharacter, getEffectiveStat, getStatModifier, getSkillBreakdown, updateSkill, deleteSkill,
-    getTotalBab, getMultipleAttacks, addClassLevel, updateClassLevel, deleteClassLevel } = useCharacterStore();
+    getTotalBab, getMultipleAttacks } = useCharacterStore();
   const [activeTab, setActiveTab] = useState<SheetTab>('overview');
+  const [combatSubTab, setCombatSubTab] = useState<'attacks' | 'modifiers'>('attacks');
   const [abilitiesInitialTab, setAbilitiesInitialTab] = useState<AbilitySubTab | undefined>(undefined);
   const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
   const [showImportWizard, setShowImportWizard] = useState(false);
@@ -53,18 +55,10 @@ export const CharacterSheet: React.FC = () => {
   const currentHp = character.hpDetails?.current ?? character.baseStats.hp;
   const hpPercent = Math.max(0, Math.min(100, (currentHp / maxHp) * 100));
 
-  const adjustHp = (amount: number) => {
-    // Snapshot max BEFORE writing so it cannot drift.
-    const newHp = Math.min(maxHp, currentHp + amount);
-    setCharacter({
-      ...character,
-      hpDetails: { ...(character.hpDetails ?? {}), current: newHp, max: maxHp },
-    });
-  };
-
   const tabs: { id: SheetTab; label: string; icon: React.ReactNode }[] = [
     { id: 'overview', label: 'Panoramica', icon: <GiSwordman /> },
     { id: 'combat', label: 'Combattimento', icon: <GiAxeSword /> },
+    { id: 'levels', label: 'Livelli', icon: <GiUpgrade /> },
     { id: 'skills', label: 'Abilità', icon: <FaStar /> },
     { id: 'inventory', label: 'Inventario', icon: <GiTreasureMap /> },
     { id: 'abilities', label: 'Privilegi di Classe', icon: <GiAbstract024 /> },
@@ -76,242 +70,179 @@ export const CharacterSheet: React.FC = () => {
       {/* ─── STICKY HEADER + TABS ───────────────────────────── */}
       <div style={{ flexShrink: 0, padding: '0.5rem 0.75rem 0', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         {/* ─── CHARACTER HEADER ─────────────────────────── */}
-        <div className="glass-panel" style={{ padding: '0.55rem 0.9rem' }}>
-          <div className="flex gap-3 items-center">
-            {/* Avatar */}
-            <div style={{
-              width: 48, height: 48, borderRadius: '50%', flexShrink: 0,
-              background: 'linear-gradient(135deg, #c9a84c22, #9b59b622)',
-              border: '2px solid rgba(201,168,76,0.4)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: 'var(--font-heading)', fontSize: '1.3rem', color: 'var(--accent-gold)'
-            }}>
-              {character.name.charAt(0)}
-            </div>
+        {(() => {
+          const totalClassLevel = (character.classLevels ?? []).reduce((s, cl) => s + cl.level, 0);
+          const displayLevel = totalClassLevel > 0 ? totalClassLevel : character.level;
+          const classDisplay = (character.classLevels ?? []).length > 0
+            ? (character.classLevels ?? []).map(cl => cl.className || '?').filter(Boolean).join(' / ') || character.characterClass
+            : character.characterClass;
+          const totalBab = getTotalBab();
+          const initMod = getStatModifier('dex');
+          const hpClass = hpPercent < 25 ? 'crit' : hpPercent < 50 ? 'low' : '';
+          return (
+            <div className="cs-header">
+              <div className="cs-avatar">{character.name.charAt(0).toUpperCase()}</div>
 
-            {/* Name & Info */}
-            <div className="flex-1 flex-col" style={{ gap: 2 }}>
-              <h2 style={{ fontSize: '1.15rem', margin: 0 }}>{character.name}</h2>
-              <div className="flex gap-2 flex-wrap char-badges-row">
-                <span className="badge badge-gold">{character.race}</span>
-                <span className="badge badge-arcane">{character.characterClass}</span>
-                <span className="badge badge-gold">Lv. {character.level}</span>
-                <span className="text-muted text-xs">{character.alignment}</span>
-              </div>
-            </div>
-
-            {/* HP Block */}
-            <div className="char-hp-block" style={{ textAlign: 'center', minWidth: '120px' }}>
-              <div className="flex items-center justify-center gap-1" style={{ marginBottom: 2 }}>
-                <FaHeart color="var(--accent-crimson)" size={10} />
-                <span className="font-heading text-muted" style={{ letterSpacing: '0.08em', fontSize: '0.6rem' }}>PUNTI VITA</span>
-              </div>
-              <div className="flex items-center justify-center gap-2">
-                <button className="btn-ghost" onClick={() => adjustHp(-1)} style={{ color: 'var(--accent-crimson)', fontSize: '1rem', padding: '2px 4px' }}><FaMinus /></button>
-                <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.35rem', color: hpPercent < 25 ? 'var(--accent-crimson)' : 'var(--text-primary)' }}>
-                  {currentHp}
-                </span>
-                <span className="text-muted text-xs">/ {maxHp}</span>
-                <button className="btn-ghost" onClick={() => adjustHp(1)} style={{ color: 'var(--accent-success)', fontSize: '1rem', padding: '2px 4px' }}><FaPlus /></button>
-              </div>
-              <div className="hp-bar-wrapper" style={{ marginTop: 4 }}>
-                <div className="hp-bar-fill" style={{ width: `${hpPercent}%` }} />
-              </div>
-            </div>
-
-            {/* Quick Stats */}
-            <div className="flex char-quick-stats" style={{ gap: '0.75rem' }}>
-              {[
-                { label: 'CA', value: String(getEffectiveStat('ac')), color: 'var(--accent-gold)' },
-                { label: 'INIT', value: `${getStatModifier('dex') >= 0 ? '+' : ''}${getStatModifier('dex')}`, color: 'var(--accent-ice)' },
-                { label: 'VEL', value: `${character.baseStats.speed}ft`, color: 'var(--accent-success)' },
-              ].map(s => (
-                <div key={s.label} style={{ textAlign: 'center' }}>
-                  <div className="text-xs text-muted" style={{ letterSpacing: '0.06em', fontSize: '0.55rem' }}>{s.label}</div>
-                  <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.35rem', color: s.color, lineHeight: 1.1 }}>{s.value}</div>
+              <div className="cs-identity">
+                <h2 className="cs-name" title={character.name}>{character.name}</h2>
+                <div className="cs-meta">
+                  {character.race && <span className="cs-chip race">{character.race}</span>}
+                  {classDisplay && <span className="cs-chip class">{classDisplay}</span>}
+                  <span className="cs-chip level">Lv. {displayLevel}</span>
+                  {character.alignment && <span className="cs-align">{character.alignment}</span>}
                 </div>
-              ))}
-            </div>
+              </div>
 
-            {/* Edit toggle */}
-            <button
-              className="btn-ghost"
-              title={headerEditing ? 'Chiudi modifica' : 'Modifica dati personaggio'}
-              onClick={() => setHeaderEditing(v => !v)}
-              style={{
-                marginLeft: 4, padding: '6px 8px', borderRadius: 4,
-                background: headerEditing ? 'rgba(201,168,76,0.15)' : 'transparent',
-                border: `1px solid ${headerEditing ? 'rgba(201,168,76,0.4)' : 'rgba(255,255,255,0.06)'}`,
-                color: headerEditing ? 'var(--accent-gold)' : 'var(--text-muted)',
-              }}
-            >
-              <FaEdit size={12} />
-            </button>
-            {/* Dashboard Personalizza / Fatto — shown only on overview tab */}
-            {activeTab === 'overview' && (
-              <button
-                className="btn-ghost"
-                title={dashEditMode ? 'Termina personalizzazione' : 'Personalizza dashboard'}
-                onClick={() => setDashEditMode(v => !v)}
-                style={{
-                  marginLeft: 2, padding: '5px 8px', borderRadius: 4,
-                  background: dashEditMode ? 'rgba(201,168,76,0.15)' : 'transparent',
-                  border: `1px solid ${dashEditMode ? 'rgba(201,168,76,0.4)' : 'rgba(255,255,255,0.06)'}`,
-                  color: dashEditMode ? 'var(--accent-gold)' : 'var(--text-muted)',
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  fontSize: '0.68rem', fontFamily: 'var(--font-heading)', letterSpacing: '0.05em',
-                }}
-              >
-                {dashEditMode ? <><FaCheck size={10} /></> : <><FaPalette size={11} /></>}
-              </button>
-            )}
-          </div>
-
-          {/* ─── INLINE HEADER EDIT DRAWER ─── */}
-          {headerEditing && (() => {
-            const baseMaxHp = character.hpDetails?.max ?? getEffectiveStat('hp');
-            const baseCurHp = character.hpDetails?.current ?? character.baseStats.hp;
-            const setHp = (cur: number, max: number) => setCharacter({
-              ...character,
-              hpDetails: { ...(character.hpDetails ?? {}), current: Math.min(cur, max), max },
-            });
-            const setStat = (k: import('../types/dnd').StatType, v: number) => setCharacter({
-              ...character,
-              baseStats: { ...character.baseStats, [k]: v },
-            });
-            const STATS: { k: import('../types/dnd').StatType; lbl: string }[] = [
-              { k: 'str', lbl: 'FOR' }, { k: 'dex', lbl: 'DES' }, { k: 'con', lbl: 'COS' },
-              { k: 'int', lbl: 'INT' }, { k: 'wis', lbl: 'SAG' }, { k: 'cha', lbl: 'CAR' },
-            ];
-            const fldStyle: React.CSSProperties = {
-              display: 'flex', flexDirection: 'column', gap: 3, minWidth: 90,
-            };
-            const lblStyle: React.CSSProperties = {
-              fontSize: '0.58rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)',
-            };
-            return (
-              <>
-                <div style={{
-                  marginTop: 8, padding: '8px 10px',
-                  borderTop: '1px dashed rgba(201,168,76,0.2)',
-                  display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8,
-                  background: 'rgba(0,0,0,0.18)', borderRadius: 4,
-                }}>
-                  <div style={fldStyle}>
-                    <span style={lblStyle}>Classe</span>
-                    <input className="input" value={character.characterClass}
-                      onChange={e => setCharacter({ ...character, characterClass: e.target.value })}
-                      style={{ fontSize: '0.82rem', padding: '3px 6px' }} />
-                  </div>
-                  <div style={fldStyle}>
-                    <span style={lblStyle}>Livello</span>
-                    <input className="input" type="number" min={1}
-                      value={character.level}
-                      onChange={e => setCharacter({ ...character, level: Math.max(1, parseInt(e.target.value) || 1) })}
-                      style={{ fontSize: '0.82rem', padding: '3px 6px' }} />
-                  </div>
-                  <div style={fldStyle}>
-                    <span style={lblStyle}>PV Max</span>
-                    <input className="input" type="number" min={1}
-                      value={baseMaxHp}
-                      onChange={e => setHp(baseCurHp, Math.max(1, parseInt(e.target.value) || 1))}
-                      style={{ fontSize: '0.82rem', padding: '3px 6px' }} />
-                  </div>
-                  <div style={fldStyle}>
-                    <span style={lblStyle}>PV Attuali</span>
-                    <input className="input" type="number"
-                      value={baseCurHp}
-                      onChange={e => setHp(parseInt(e.target.value) || 0, baseMaxHp)}
-                      style={{ fontSize: '0.82rem', padding: '3px 6px' }} />
-                  </div>
-                  <div style={fldStyle}>
-                    <span style={lblStyle}>Velocità (ft)</span>
-                    <input className="input" type="number" min={0} step={5}
-                      value={character.baseStats.speed}
-                      onChange={e => setCharacter({ ...character, baseStats: { ...character.baseStats, speed: Math.max(0, parseInt(e.target.value) || 0) } })}
-                      style={{ fontSize: '0.82rem', padding: '3px 6px' }} />
-                  </div>
-                  {STATS.map(({ k, lbl }) => (
-                    <div key={k} style={fldStyle}>
-                      <span style={lblStyle}>{lbl}</span>
-                      <input className="input" type="number" min={1}
-                        value={character.baseStats[k] ?? 10}
-                        onChange={e => setStat(k, Math.max(1, parseInt(e.target.value) || 1))}
-                        style={{ fontSize: '0.82rem', padding: '3px 6px' }} />
-                    </div>
-                  ))}
+              <div className="cs-hp">
+                <div className="cs-hp-label">
+                  <FaHeart color="var(--accent-crimson)" size={9} />
+                  PUNTI VITA
                 </div>
+                <div className="cs-hp-vals">
+                  <span className={`cs-hp-cur ${hpClass}`}>{currentHp}</span>
+                  <span className="cs-hp-sep">/</span>
+                  <span className="cs-hp-max">{maxHp}</span>
+                </div>
+                <div className="cs-hp-bar">
+                  <div className={`cs-hp-bar-fill ${hpClass}`} style={{ width: `${hpPercent}%` }} />
+                </div>
+              </div>
 
-                {/* ─── Multiclass / BAB editor ─── */}
-                <div style={{ marginTop: 8, borderTop: '1px dashed rgba(155,89,182,0.25)', paddingTop: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ ...lblStyle, color: 'var(--accent-arcane)' }}>
-                      Classi &amp; BAB — totale: <strong>+{getTotalBab()}</strong>
+              <div className="cs-quick">
+                <div className="cs-quick-cell ac">
+                  <span className="cs-quick-lbl">CA</span>
+                  <span className="cs-quick-val">{getEffectiveStat('ac')}</span>
+                </div>
+                <div className="cs-quick-cell init">
+                  <span className="cs-quick-lbl">INIZ</span>
+                  <span className="cs-quick-val">{initMod >= 0 ? '+' : ''}{initMod}</span>
+                </div>
+                <div className="cs-quick-cell speed">
+                  <span className="cs-quick-lbl">VEL</span>
+                  <span className="cs-quick-val">{character.baseStats.speed}<span style={{ fontSize: '0.6em', opacity: 0.7 }}>ft</span></span>
+                </div>
+                <div className="cs-quick-cell bab">
+                  <span className="cs-quick-lbl">BAB</span>
+                  <span className="cs-quick-val">{totalBab >= 0 ? '+' : ''}{totalBab}</span>
+                </div>
+              </div>
+
+              <div className="cs-actions">
+                <button
+                  className={`cs-action-btn ${headerEditing ? 'active' : ''}`}
+                  title={headerEditing ? 'Chiudi modifica' : 'Modifica dati personaggio'}
+                  onClick={() => setHeaderEditing(v => !v)}
+                  aria-label="Modifica"
+                >
+                  <FaEdit size={13} />
+                </button>
+                {activeTab === 'overview' && (
+                  <button
+                    className={`cs-action-btn ${dashEditMode ? 'active' : ''}`}
+                    title={dashEditMode ? 'Termina personalizzazione' : 'Personalizza dashboard'}
+                    onClick={() => setDashEditMode(v => !v)}
+                    aria-label="Personalizza"
+                  >
+                    {dashEditMode ? <FaCheck size={12} /> : <FaPalette size={12} />}
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ─── INLINE HEADER EDIT DRAWER ─── */}
+        {headerEditing && (() => {
+          const baseMaxHp = character.hpDetails?.max ?? getEffectiveStat('hp');
+          const baseCurHp = character.hpDetails?.current ?? character.baseStats.hp;
+          const setHp = (cur: number, max: number) => setCharacter({
+            ...character,
+            hpDetails: { ...(character.hpDetails ?? {}), current: Math.min(cur, max), max },
+          });
+          const setStat = (k: import('../types/dnd').StatType, v: number) => setCharacter({
+            ...character,
+            baseStats: { ...character.baseStats, [k]: v },
+          });
+          const STATS: { k: import('../types/dnd').StatType; lbl: string }[] = [
+            { k: 'str', lbl: 'FOR' }, { k: 'dex', lbl: 'DES' }, { k: 'con', lbl: 'COS' },
+            { k: 'int', lbl: 'INT' }, { k: 'wis', lbl: 'SAG' }, { k: 'cha', lbl: 'CAR' },
+          ];
+          return (
+            <div className="cs-drawer-wrap">
+              <div className="cs-drawer">
+                <div className="cs-drawer-field">
+                  <span className="cs-drawer-label">Nome</span>
+                  <input className="input" value={character.name}
+                    onChange={e => setCharacter({ ...character, name: e.target.value })} />
+                </div>
+                <div className="cs-drawer-field">
+                  <span className="cs-drawer-label">Razza</span>
+                  <input className="input" value={character.race}
+                    onChange={e => setCharacter({ ...character, race: e.target.value })} />
+                </div>
+                <div className="cs-drawer-field">
+                  <span className="cs-drawer-label">Allineamento</span>
+                  <input className="input" value={character.alignment}
+                    onChange={e => setCharacter({ ...character, alignment: e.target.value })} />
+                </div>
+                <div className="cs-drawer-field">
+                  <span className="cs-drawer-label">PV Max</span>
+                  <input className="input" type="number" min={1}
+                    value={baseMaxHp}
+                    onChange={e => setHp(baseCurHp, Math.max(1, parseInt(e.target.value) || 1))} />
+                </div>
+                <div className="cs-drawer-field">
+                  <span className="cs-drawer-label">PV Attuali</span>
+                  <input className="input" type="number"
+                    value={baseCurHp}
+                    onChange={e => setHp(parseInt(e.target.value) || 0, baseMaxHp)} />
+                </div>
+                <div className="cs-drawer-field">
+                  <span className="cs-drawer-label">Velocità (ft)</span>
+                  <input className="input" type="number" min={0} step={5}
+                    value={character.baseStats.speed}
+                    onChange={e => setCharacter({ ...character, baseStats: { ...character.baseStats, speed: Math.max(0, parseInt(e.target.value) || 0) } })} />
+                </div>
+                {STATS.map(({ k, lbl }) => (
+                  <div key={k} className="cs-drawer-field">
+                    <span className="cs-drawer-label">{lbl}</span>
+                    <input className="input" type="number" min={1}
+                      value={character.baseStats[k] ?? 10}
+                      onChange={e => setStat(k, Math.max(1, parseInt(e.target.value) || 1))} />
+                  </div>
+                ))}
+              </div>
+              <div className="cs-drawer-foot">
+                <span className="cs-drawer-foot-info">
+                  Classi &amp; BAB — totale: <strong>+{getTotalBab()}</strong>{' '}
+                  {(character.classLevels ?? []).length > 0 && (
+                    <span className="muted">
+                      ({(character.classLevels ?? []).map(cl => `${cl.className || '?'} ${cl.level}`).join(' / ')})
                     </span>
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      style={{ fontSize: '0.65rem', padding: '2px 7px' }}
-                      onClick={() => addClassLevel({ id: uuidv4(), className: '', level: 1, babProgression: 'high' })}
-                    >
-                      + Aggiungi classe
-                    </button>
-                  </div>
-                  {(character.classLevels ?? []).length === 0 && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ ...lblStyle, textTransform: 'none', fontSize: '0.7rem' }}>BAB manuale:</span>
-                      <input
-                        className="input" type="number" min={0}
-                        value={character.baseStats.bab ?? 0}
-                        onChange={e => setCharacter({ ...character, baseStats: { ...character.baseStats, bab: Math.max(0, parseInt(e.target.value) || 0) } })}
-                        style={{ fontSize: '0.82rem', padding: '3px 6px', width: 60 }}
-                      />
-                    </div>
                   )}
-                  {(character.classLevels ?? []).map(cl => (
-                    <div key={cl.id} style={{ display: 'grid', gridTemplateColumns: '1fr 56px 120px auto', gap: 5, alignItems: 'center', marginBottom: 4 }}>
-                      <input
-                        className="input" placeholder="Classe" value={cl.className}
-                        onChange={e => {
-                          const preset = CLASS_BAB_PRESETS[e.target.value];
-                          updateClassLevel({ ...cl, className: e.target.value, babProgression: preset ?? cl.babProgression });
-                        }}
-                        style={{ fontSize: '0.8rem', padding: '2px 5px' }}
-                      />
-                      <input
-                        className="input" type="number" min={1} max={20} value={cl.level}
-                        onChange={e => updateClassLevel({ ...cl, level: Math.max(1, Math.min(20, parseInt(e.target.value) || 1)) })}
-                        style={{ fontSize: '0.8rem', padding: '2px 5px' }}
-                      />
-                      <select
-                        className="input" value={cl.babProgression}
-                        onChange={e => updateClassLevel({ ...cl, babProgression: e.target.value as BabProgression })}
-                        style={{ fontSize: '0.75rem', padding: '2px 4px' }}
-                      >
-                        <option value="high">Alta (1:1)</option>
-                        <option value="medium">Media (3/4)</option>
-                        <option value="low">Bassa (1/2)</option>
-                      </select>
-                      <button className="btn-ghost" style={{ color: 'var(--accent-crimson)' }} onClick={() => deleteClassLevel(cl.id)}>
-                        <FaTrash size={11} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </>
-            );
-          })()}
-        </div>
+                </span>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  style={{ fontSize: '0.7rem', padding: '4px 10px' }}
+                  onClick={() => { setActiveTab('levels'); setHeaderEditing(false); }}
+                >
+                  Gestisci livelli →
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ─── TABS ─────────────────────────────────────── */}
-        <div className="flex tab-bar gap-1" style={{ borderBottom: '1px solid rgba(201,168,76,0.12)', paddingBottom: '0.35rem' }}>
+        <div className="cs-tabs">
           {tabs.map(tab => (
             <button
               key={tab.id}
-              className={`btn-secondary ${activeTab === tab.id ? 'active' : ''}`}
-              style={{ borderRadius: 'var(--radius-sm) var(--radius-sm) 0 0', borderBottom: activeTab === tab.id ? '2px solid var(--accent-gold)' : '2px solid transparent', gap: '0.35rem', padding: '0.3rem 0.6rem', fontSize: '0.78rem' }}
+              className={`cs-tab ${activeTab === tab.id ? 'active' : ''}`}
               onClick={() => setActiveTab(tab.id)}
+              title={tab.label}
             >
-              {tab.icon} <span className="tab-label">{tab.label}</span>
+              {tab.icon} <span className="cs-tab-label">{tab.label}</span>
             </button>
           ))}
         </div>
@@ -321,8 +252,10 @@ export const CharacterSheet: React.FC = () => {
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '0 0.75rem' }}>
 
         {/* ─── SIMPLE SCROLL TABS (overview / combat / skills) ─── */}
-        {(activeTab === 'overview' || activeTab === 'combat' || activeTab === 'skills') && (
+        {(activeTab === 'overview' || activeTab === 'combat' || activeTab === 'skills' || activeTab === 'levels') && (
           <div style={{ flex: 1, overflowY: 'auto', paddingTop: '1rem', paddingBottom: '2rem' }}>
+
+            {activeTab === 'levels' && <LevelsTab />}
 
             {/* ─── TAB: OVERVIEW (CUSTOM DASHBOARD) ────────── */}
             {activeTab === 'overview' && (
@@ -342,6 +275,33 @@ export const CharacterSheet: React.FC = () => {
             {/* ─── TAB: COMBAT ──────────────────────────────── */}
             {activeTab === 'combat' && (
               <div className="animate-fade-in flex-col gap-4">
+                {/* Sub-tabs */}
+                <div className="combat-subtabs" role="tablist" aria-label="Sezioni combattimento">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={combatSubTab === 'attacks'}
+                    className={'combat-subtab' + (combatSubTab === 'attacks' ? ' is-active' : '')}
+                    onClick={() => setCombatSubTab('attacks')}
+                  >
+                    <GiAxeSword /> Attacchi / Armi
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={combatSubTab === 'modifiers'}
+                    className={'combat-subtab' + (combatSubTab === 'modifiers' ? ' is-active' : '')}
+                    onClick={() => setCombatSubTab('modifiers')}
+                  >
+                    <GiAbstract024 /> Modificatori Attivi
+                    {(character.activeModifiers?.length ?? 0) > 0 && (
+                      <span className="combat-subtab-badge">{character.activeModifiers!.length}</span>
+                    )}
+                  </button>
+                </div>
+
+                {combatSubTab === 'attacks' && (
+                  <div className="flex-col gap-4">
 
                 {/* ── BAB Breakdown card ─────────────────────── */}
                 {(() => {
@@ -667,6 +627,14 @@ export const CharacterSheet: React.FC = () => {
                         })}
                       </tbody>
                     </table>
+                  </div>
+                )}
+                  </div>
+                )}
+
+                {combatSubTab === 'modifiers' && (
+                  <div className="combat-modifiers-panel">
+                    <ModifiersWidget size={{ w: 4, h: 4, pixelW: 880, pixelH: 600, size: 'xl' }} />
                   </div>
                 )}
               </div>

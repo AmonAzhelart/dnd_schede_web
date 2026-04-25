@@ -1,0 +1,254 @@
+﻿/* ============================================================================
+   Ã¢Å“Â¨ ABILITIES Ã¢â‚¬â€ Privilegi & Talenti unificati con sotto-tab colorati
+   ============================================================================ */
+.w-abil2-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 8px 10px;
+    gap: 6px;
+}
+
+/* ----- Sub-tabs ----- */
+.w-abil2-tabs {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.w-abil2-tab {
+    --accent: var(--accent-arcane, #b48ad3);
+    flex: 1 1 auto;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 5px 8px;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 5px;
+    color: var(--text-muted);
+    font-family: var(--font-heading);
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    line-height: 1.2;
+    overflow: hidden;
+}
+
+.w-abil2-tab:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.w-abil2-tab.active {
+    color: var(--accent);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 18%, transparent), color-mix(in srgb, var(--accent) 8%, transparent));
+    border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.w-abil2-tab-ico {
+    display: inline-flex;
+    font-size: 0.95rem;
+    color: var(--accent);
+    opacity: 0.65;
+}
+
+.w-abil2-tab.active .w-abil2-tab-ico {
+    opacity: 1;
+}
+
+.w-abil2-tab-lbl {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.w-abil2-tab-cnt {
+    font-size: 0.6rem;
+    padding: 1px 6px;
+    border-radius: 99px;
+    background: rgba(0, 0, 0, 0.35);
+    color: var(--text-secondary);
+    font-family: var(--font-body, inherit);
+    line-height: 1.2;
+    min-width: 18px;
+    text-align: center;
+}
+
+.w-abil2-tab.active .w-abil2-tab-cnt {
+    background: color-mix(in srgb, var(--accent) 30%, transparent);
+    color: #fff;
+}
+
+/* ----- Toolbar (search + apri) ----- */
+.w-abil2-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+/* ----- Body ----- */
+.w-abil2-body {
+    flex: 1;
+    min-height: 0;
+}
+
+.w-abil2-grid {
+    display: grid;
+    gap: 5px;
+    grid-auto-rows: min-content;
+    align-content: start;
+}
+
+/* ----- Cards ----- */
+.w-abil2-card {
+    --accent: var(--accent-arcane, #b48ad3);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    color: var(--text-primary);
+    background: linear-gradient(110deg, color-mix(in srgb, var(--accent) 8%, transparent), rgba(0, 0, 0, 0.2));
+    border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+    border-left: 3px solid var(--accent);
+    transition: all 0.15s;
+    min-width: 0;
+}
+
+.w-abil2-card[role="button"] {
+    cursor: pointer;
+}
+
+.w-abil2-card[role="button"]:hover {
+    background: linear-gradient(110deg, color-mix(in srgb, var(--accent) 16%, transparent), rgba(0, 0, 0, 0.25));
+    transform: translateX(2px);
+}
+
+.w-abil2-card.dim {
+    opacity: 0.55;
+    border-left-color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.w-abil2-card.exhausted {
+    opacity: 0.7;
+    border-left-color: var(--accent-crimson);
+}
+
+.w-abil2-card-name {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-heading);
+    font-size: 0.82rem;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.w-abil2-card-foot {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.w-abil2-pips {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+}
+
+.w-abil2-pip {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.w-abil2-pip.full {
+    background: var(--accent);
+    box-shadow: 0 0 5px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.w-abil2-pip.empty {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.w-abil2-resource-num {
+    font-size: 0.7rem;
+    color: var(--accent);
+    font-family: var(--font-heading);
+    padding: 0 4px;
+}
+
+.w-abil2-mini-btn {
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 0.85rem;
+    line-height: 1;
+    padding: 0;
+    transition: all 0.12s;
+}
+
+.w-abil2-mini-btn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
+    color: #fff;
+}
+
+.w-abil2-mini-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.w-abil2-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 5px var(--accent);
+    flex-shrink: 0;
+}
+
+.w-abil2-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    font-size: 0.6rem;
+    font-family: var(--font-heading);
+    flex-shrink: 0;
+}
+
+.w-abil2-tag.def {
+    background: rgba(192, 57, 43, 0.18);
+    color: var(--accent-crimson);
+    border: 1px solid rgba(192, 57, 43, 0.35);
+}
+
+.w-abil2-card.defect {
+    --accent: var(--accent-crimson);
+}

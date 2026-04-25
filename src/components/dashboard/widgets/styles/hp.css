@@ -1,0 +1,468 @@
+﻿/* ============================================================================
+   â¤ HP v3 â€” Dramatic ritual-circle health tracker
+   ============================================================================ */
+
+.w-hp3 {
+    --hpc: #2ecc71;
+    --hpg: #7dffaa;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 8px 10px;
+    gap: 8px;
+    color: var(--text-primary);
+    position: relative;
+}
+
+/* â”€â”€ Compact layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.w-hp3.compact {
+    justify-content: center;
+    padding: 8px;
+}
+
+.w-hp3-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.w-hp3-nums-c {
+    font-family: var(--font-heading);
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+    flex-shrink: 0;
+    color: var(--hpc);
+    text-shadow: 0 0 12px var(--hpg);
+}
+
+.w-hp3-cur-c {
+    font-size: 1.6rem;
+    line-height: 1;
+}
+
+.w-hp3-sep-c {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-shadow: none;
+    opacity: 0.8;
+}
+
+.w-hp3-track {
+    flex: 1;
+    height: 10px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+    position: relative;
+}
+
+.w-hp3-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--hpc), var(--hpg));
+    box-shadow: 0 0 10px var(--hpc);
+    transition: width 0.45s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* â”€â”€ Ring layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.w-hp3.ring {
+    align-items: center;
+}
+
+.w-hp3-stage {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    width: 100%;
+    position: relative;
+}
+
+.w-hp3-gauge {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.w-hp3-svg {
+    overflow: visible;
+    display: block;
+}
+
+/* â”€â”€ Center overlay â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* â”€â”€ Status row (above heart) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.w-hp3-status-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    flex-shrink: 0;
+}
+
+.w-hp3-stlabel-top {
+    font-family: var(--font-heading);
+    font-size: 0.62rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    /* pill badge */
+    padding: 3px 14px;
+    border-radius: 99px;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid var(--hpc);
+    color: var(--hpc);
+    text-shadow: 0 0 10px var(--hpg);
+    box-shadow: 0 0 12px var(--hpg), inset 0 0 8px rgba(0, 0, 0, 0.4);
+    transition: color 0.4s, border-color 0.4s, box-shadow 0.4s, text-shadow 0.4s;
+}
+
+.w-hp3-stlabel-top.critical {
+    animation: w-hp3-pulse-text 1.3s ease-in-out infinite;
+}
+.w-hp3-stlabel-top.dying {
+    animation: w-hp3-pulse-text 0.9s ease-in-out infinite;
+}
+
+.w-hp3-status-icon.skull {
+    color: #ff4040;
+    filter: drop-shadow(0 0 5px #ff4040);
+    font-size: 0.7rem;
+}
+
+.w-hp3-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    gap: 0;
+    /* shift down slightly toward heart's visual center */
+    padding-top: 10%;
+}
+
+.w-hp3-icon.skull {
+    color: var(--hpc);
+    filter: drop-shadow(0 0 8px var(--hpg));
+    animation: w-hp3-flicker 2.5s ease-in-out infinite;
+    margin-bottom: 3px;
+}
+
+.w-hp3-cur-r {
+    font-family: var(--font-heading);
+    font-size: 2.4rem;
+    line-height: 1;
+    color: #fff;
+    text-shadow: 0 0 6px rgba(0,0,0,0.9), 0 0 14px rgba(0,0,0,0.8), 0 0 28px var(--hpc);
+    letter-spacing: -0.03em;
+    transition: text-shadow 0.4s;
+}
+
+.w-hp3-cur-r.big {
+    font-size: 3.2rem;
+}
+
+.w-hp3-divline {
+    width: 24px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    margin: 2px 0 2px;
+    flex-shrink: 0;
+}
+
+.w-hp3-maxval {
+    font-family: var(--font-heading);
+    font-size: 0.62rem;
+    color: rgba(255,255,255,0.6);
+    letter-spacing: 0.10em;
+    text-shadow: 0 0 4px rgba(0,0,0,0.9);
+}
+
+.w-hp3-stlabel {
+    font-family: var(--font-heading);
+    font-size: 0.46rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    margin-top: 3px;
+    white-space: nowrap;
+}
+
+.w-hp3-stlabel.healthy  { color: #2ecc71; }
+.w-hp3-stlabel.wounded  { color: #f0c040; }
+.w-hp3-stlabel.hurt     { color: #e67e22; }
+
+.w-hp3-stlabel.critical {
+    color: #e74c3c;
+    animation: w-hp3-pulse-text 1.3s ease-in-out infinite;
+}
+
+.w-hp3-stlabel.dying {
+    color: #ff4040;
+    animation: w-hp3-pulse-text 0.9s ease-in-out infinite;
+}
+
+/* â”€â”€ Pulse the ring on critical/dying â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.w-hp3.critical .w-hp3-gauge,
+.w-hp3.dying    .w-hp3-gauge {
+    animation: w-hp3-ring-pulse 1.4s ease-in-out infinite;
+}
+
+/* â”€â”€ Mini tags inside center â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.w-hp3-minitags {
+    display: flex;
+    gap: 3px;
+    margin-top: 3px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* â”€â”€ Tags row below stage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.w-hp3-tags {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.w-hp3-tag {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.58rem;
+    padding: 1px 6px;
+    border-radius: 99px;
+    font-family: var(--font-heading);
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+
+.w-hp3-tag.temp {
+    color: var(--accent-ice, #5bc0de);
+    background: rgba(91, 192, 222, 0.14);
+    border: 1px solid rgba(91, 192, 222, 0.35);
+}
+
+.w-hp3-tag.temp.spectral {
+    color: #c8f4ff;
+    background: rgba(91, 192, 222, 0.22);
+    border: 1px solid rgba(126, 224, 255, 0.85);
+    box-shadow:
+        0 0 8px rgba(126, 224, 255, 0.55),
+        inset 0 0 6px rgba(126, 224, 255, 0.35);
+    animation: w-hp3-spectral-tag 2.4s ease-in-out infinite;
+}
+
+.w-hp3-tag.temp.inline {
+    margin-left: 4px;
+}
+
+@keyframes w-hp3-spectral-tag {
+
+    0%,
+    100% {
+        box-shadow:
+            0 0 6px rgba(126, 224, 255, 0.40),
+            inset 0 0 4px rgba(126, 224, 255, 0.25);
+    }
+
+    50% {
+        box-shadow:
+            0 0 14px rgba(126, 224, 255, 0.85),
+            inset 0 0 8px rgba(126, 224, 255, 0.50);
+    }
+}
+
+/* Soft outer glow around the heart gauge when an active modifier is granting
+   bonus (temporary) hit points. The actual spectral shield is rendered as
+   SVG paths inside the heart for crispness. */
+.w-hp3.is-spectral .w-hp3-gauge {
+    position: relative;
+}
+
+.w-hp3.is-spectral .w-hp3-gauge::before {
+    content: '';
+    position: absolute;
+    inset: -6%;
+    border-radius: 50%;
+    pointer-events: none;
+    background: radial-gradient(circle,
+            rgba(126, 224, 255, 0.18) 0%,
+            rgba(91, 192, 222, 0.10) 45%,
+            rgba(91, 192, 222, 0.0) 75%);
+    animation: w-hp3-spectral-halo 3.4s ease-in-out infinite;
+    z-index: 0;
+}
+
+.w-hp3.is-spectral .w-hp3-gauge>* {
+    position: relative;
+    z-index: 1;
+}
+
+@keyframes w-hp3-spectral-halo {
+
+    0%,
+    100% {
+        opacity: 0.55;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .w-hp3.is-spectral .w-hp3-gauge::before,
+    .w-hp3-tag.temp.spectral {
+        animation: none !important;
+    }
+}
+
+.w-hp3-tag.nl {
+    color: var(--accent-gold);
+    background: rgba(201, 168, 76, 0.14);
+    border: 1px solid rgba(201, 168, 76, 0.35);
+}
+
+/* â”€â”€ Control buttons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.w-hp3-btns {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.w-hp3-btn {
+    font-family: var(--font-heading);
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    padding: 5px 11px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.38);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    cursor: pointer;
+    transition: all 0.14s ease;
+    min-width: 36px;
+    text-align: center;
+}
+
+.w-hp3-btn.neg {
+    color: #e74c3c;
+    border-color: rgba(231, 76, 60, 0.3);
+}
+
+.w-hp3-btn.pos {
+    color: #2ecc71;
+    border-color: rgba(46, 204, 113, 0.3);
+}
+
+.w-hp3-btn:hover {
+    transform: translateY(-1px);
+    background: rgba(0, 0, 0, 0.55);
+    box-shadow: 0 0 0 1px currentColor, 0 4px 10px rgba(0, 0, 0, 0.35);
+}
+
+.w-hp3-btn:active {
+    transform: translateY(0);
+}
+
+/* â”€â”€ Dying banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.w-hp3-dying-banner {
+    text-align: center;
+    font-family: var(--font-heading);
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: #fff;
+    background: linear-gradient(90deg, rgba(139, 0, 0, 0.6), rgba(192, 57, 43, 0.6));
+    animation: w-hp3-pulse-text 1.2s ease-in-out infinite;
+}
+
+/* â”€â”€ Flash overlays on HP change â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.w-hp3.hp-flash-dmg .w-hp3-gauge::after,
+.w-hp3.hp-flash-heal .w-hp3-gauge::after {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: w-hp3-flash 0.65s ease-out forwards;
+    z-index: 5;
+}
+
+.w-hp3.hp-flash-dmg .w-hp3-gauge::after {
+    background: radial-gradient(circle, rgba(192, 57, 43, 0.45), transparent 65%);
+}
+
+.w-hp3.hp-flash-heal .w-hp3-gauge::after {
+    background: radial-gradient(circle, rgba(46, 204, 113, 0.35), transparent 65%);
+}
+
+/* â”€â”€ Keyframes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+@keyframes w-hp3-pulse-text {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.45;
+    }
+}
+
+@keyframes w-hp3-ring-pulse {
+
+    0%,
+    100% {
+        filter: drop-shadow(0 0 4px var(--hpc));
+    }
+
+    50% {
+        filter: drop-shadow(0 0 20px var(--hpg));
+    }
+}
+
+@keyframes w-hp3-flicker {
+
+    0%,
+    88%,
+    100% {
+        opacity: 1;
+    }
+
+    90% {
+        opacity: 0.45;
+    }
+
+    93% {
+        opacity: 1;
+    }
+
+    96% {
+        opacity: 0.55;
+    }
+}
+
+@keyframes w-hp3-flash {
+    0% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
