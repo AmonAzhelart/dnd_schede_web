@@ -926,3 +926,94 @@
     font-size: 0.85rem;
     margin: 0;
 }
+
+/* ═══════════════════════════════════════════════════
+   Mobile / tablet responsive overrides (≤ 900 px)
+   ═══════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+    /* Action bar: stack buttons on narrow screens */
+    .sb-action-bar {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .sb-action-bar .btn-primary,
+    .sb-action-bar .btn-secondary {
+        width: 100%;
+        justify-content: center;
+        padding: 10px 14px;
+        font-size: 0.84rem;
+    }
+
+    .sb-search-wrap {
+        flex: 1 1 100%;
+        min-width: unset;
+    }
+
+    /* Bookmarks strip: horizontally scrollable, no wrap */
+    .sb-bookmarks {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+        padding-bottom: 0;
+        border-bottom-width: 1px;
+    }
+
+    .sb-bookmarks::-webkit-scrollbar {
+        display: none;
+    }
+
+    .sb-bookmark {
+        flex-shrink: 0;
+    }
+
+    /* Cards: 1 column on very small screens, 2 on tablet */
+    .sb-cards-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Bigger tap targets for spell card buttons */
+    .sb-icon-btn {
+        width: 32px;
+        height: 32px;
+    }
+
+    /* Slot section header: allow wrapping */
+    .sb-slot-hdr {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .sb-slot-counter {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+
+    /* Daily tab: picker grid 2 cols */
+    .sb-picker-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Tabs bar: fit in one row, scroll if needed */
+    .sb-tabs {
+        overflow-x: auto;
+        scrollbar-width: none;
+        flex-wrap: nowrap;
+    }
+
+    .sb-tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .sb-tab {
+        flex-shrink: 0;
+        padding: 7px 10px;
+    }
+}
+
+@media (min-width: 481px) and (max-width: 900px) {
+    /* Tablet: 2 columns for spell cards */
+    .sb-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}

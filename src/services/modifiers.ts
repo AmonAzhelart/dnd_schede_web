@@ -395,22 +395,89 @@ function parseDiceExpr(expr: string): { count: number; faces: number; mod: numbe
     return { count, faces, mod };
 }
 
-/** Compute the damage dice expression for a spell at the given caster level.
- *  Returns undefined when the spell has no damagePerLevelDice configured. */
+/** Compute the damage dice expression for a spell at the given caster level
+ *  and (optionally) the slot level it was prepared in.
+ *
+ *  Priority:
+ *   1. `baseDice` — fixed base expression, always included as-is
+ *   2. Legacy CL-scaling via `damagePerLevelDice` / `dicePerLevels` / `damageMaxDice`
+ *      (only used when `baseDice` is absent, for backwards compat)
+ *   3. `upcastDice` — extra dice added when the slot level exceeds the spell's base level
+ *
+ *  Returns undefined when the spell has no damage dice configured at all. */
 export function computeSpellDamageDice(
-    spell: { damagePerLevelDice?: string; dicePerLevels?: number; damageMaxDice?: number },
+    spell: {
+        level?: number;
+        baseDice?: string;
+        damagePerLevelDice?: string;
+        dicePerLevels?: number;
+        damageMaxDice?: number;
+        upcastDice?: string;
+        upcastEveryLevels?: number;
+        upcastMaxSteps?: number;
+    },
     casterLevel: number,
+    slotLevel?: number,
 ): string | undefined {
-    if (!spell.damagePerLevelDice) return undefined;
-    const parsed = parseDiceExpr(spell.damagePerLevelDice);
-    if (!parsed) return spell.damagePerLevelDice;
-    const per = Math.max(1, spell.dicePerLevels ?? 1);
-    const cap = spell.damageMaxDice ?? Infinity;
-    const baseSteps = Math.max(1, Math.floor(casterLevel / per));
-    const steps = Math.min(cap, baseSteps);
-    const totalCount = steps * parsed.count;
-    const totalMod = steps * parsed.mod;
-    const sign = totalMod === 0 ? '' : (totalMod > 0 ? `+${totalMod}` : `${totalMod}`);
-    return `${totalCount}d${parsed.faces}${sign}`;
-}
+    // ── Base expression ──
+    // Use the simple `baseDice` field when available; otherwise fall back to the
+    // legacy CL-scaling system (kept for existing spells).
+    let baseExpr: string | undefined;
+    if (spell.baseDice?.trim()) {
+        baseExpr = spell.baseDice.trim();
+    } else if (spell.damagePerLevelDice) {
+        const parsed = parseDiceExpr(spell.damagePerLevelDice);
+        if (!parsed) {
+            baseExpr = spell.damagePerLevelDice;
+        } else {
+            const per = Math.max(1, spell.dicePerLevels ?? 1);
+            const cap = spell.damageMaxDice ?? Infinity;
+            const baseSteps = Math.max(1, Math.floor(casterLevel / per));
+            const steps = Math.min(cap, baseSteps);
+            const totalCount = steps * parsed.count;
+            const totalMod = steps * parsed.mod;
+            const sign = totalMod === 0 ? '' : (totalMod > 0 ? `+${totalMod}` : `${totalMod}`);
+            baseExpr = `${totalCount}d${parsed.faces}${sign}`;
+        }
+    }
 
+    // ── Upcast contribution ──
+    let upcastExpr: string | undefined;
+    if (
+        spell.upcastDice &&
+        slotLevel !== undefined &&
+        spell.level !== undefined &&
+        slotLevel > spell.level
+    ) {
+        const parsedU = parseDiceExpr(spell.upcastDice);
+        const per = Math.max(1, spell.upcastEveryLevels ?? 1);
+        const stepsRaw = Math.floor((slotLevel - spell.level) / per);
+        const cap = spell.upcastMaxSteps ?? Infinity;
+        const steps = Math.max(0, Math.min(cap, stepsRaw));
+        if (steps > 0) {
+            if (!parsedU) {
+                upcastExpr = `${steps}× ${spell.upcastDice}`;
+            } else {
+                const totalCount = steps * parsedU.count;
+                const totalMod = steps * parsedU.mod;
+                const sign = totalMod === 0 ? '' : (totalMod > 0 ? `+${totalMod}` : `${totalMod}`);
+                upcastExpr = `${totalCount}d${parsedU.faces}${sign}`;
+            }
+        }
+    }
+
+    if (!baseExpr && !upcastExpr) return undefined;
+    if (baseExpr && !upcastExpr) return baseExpr;
+    if (!baseExpr && upcastExpr) return upcastExpr;
+
+    // Both present: try to merge if same dice faces.
+    const a = parseDiceExpr(baseExpr!);
+    const b = parseDiceExpr(upcastExpr!);
+    if (a && b && a.faces === b.faces) {
+        const totalCount = a.count + b.count;
+        const totalMod = a.mod + b.mod;
+        const sign = totalMod === 0 ? '' : (totalMod > 0 ? `+${totalMod}` : `${totalMod}`);
+        return `${totalCount}d${a.faces}${sign}`;
+    }
+    return `${baseExpr} + ${upcastExpr}`;
+}

@@ -25,12 +25,14 @@ export const SpellModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [prepared, setPrepared] = useState(1);
   // Roll/scaling fields
   const [attackMode, setAttackMode] = useState<NonNullable<Spell['attackMode']>>('none');
-  const [damagePerLevelDice, setDamagePerLevelDice] = useState('');
-  const [dicePerLevels, setDicePerLevels] = useState(1);
-  const [damageMaxDice, setDamageMaxDice] = useState<number | ''>('');
+  const [baseDice, setBaseDice] = useState('');
   const [damageType, setDamageType] = useState('');
   const [savingThrow, setSavingThrow] = useState('');
   const [saveStat, setSaveStat] = useState<StatType>('int');
+  // Upcast (heightened) fields
+  const [upcastDice, setUpcastDice] = useState('');
+  const [upcastEveryLevels, setUpcastEveryLevels] = useState(1);
+  const [upcastMaxSteps, setUpcastMaxSteps] = useState<number | ''>('');
 
   const handleSave = () => {
     if (!character || !name.trim()) return;
@@ -45,10 +47,11 @@ export const SpellModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       attackMode,
       savingThrow: savingThrow.trim() || undefined,
       saveStat,
-      damagePerLevelDice: damagePerLevelDice.trim() || undefined,
-      dicePerLevels: damagePerLevelDice.trim() ? Math.max(1, dicePerLevels) : undefined,
-      damageMaxDice: damageMaxDice === '' ? undefined : Math.max(1, damageMaxDice),
+      baseDice: baseDice.trim() || undefined,
       damageType: damageType.trim() || undefined,
+      upcastDice: upcastDice.trim() || undefined,
+      upcastEveryLevels: upcastDice.trim() ? Math.max(1, upcastEveryLevels) : undefined,
+      upcastMaxSteps: upcastDice.trim() && upcastMaxSteps !== '' ? Math.max(1, upcastMaxSteps) : undefined,
     };
     setCharacter({ ...character, spells: [...character.spells, newSpell] });
     onClose();
@@ -83,13 +86,13 @@ export const SpellModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
           <textarea className="input" placeholder="Descrizione ed effetti..." value={description} onChange={e => setDescription(e.target.value)} style={{ minHeight: 80 }} />
 
-          {/* ── Combat / scaling block (D&D 3.5) ── */}
+          {/* ── Danno & Combattimento ── */}
           <div style={{
             border: '1px solid rgba(155,89,182,0.18)', borderRadius: 8,
             padding: 10, display: 'flex', flexDirection: 'column', gap: 8,
           }}>
             <div style={{ fontSize: '0.65rem', letterSpacing: '0.1em', color: 'var(--text-muted)' }}>
-              TIRO &amp; SCALING (opzionale)
+              DANNO &amp; COMBATTIMENTO (opzionale)
             </div>
 
             <div className="flex gap-2">
@@ -103,24 +106,16 @@ export const SpellModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
             <div className="flex gap-2">
               <div className="flex-col gap-1" style={{ flex: 1 }}>
-                <label className="text-xs text-muted">Dadi per "step" (es. 1d6)</label>
-                <input className="input" placeholder="1d6 / 1d4+1 / vuoto" value={damagePerLevelDice} onChange={e => setDamagePerLevelDice(e.target.value)} />
+                <label className="text-xs text-muted">Dadi base (es. 2d6, 1d4+1)</label>
+                <input className="input" placeholder="vuoto = nessun danno" value={baseDice} onChange={e => setBaseDice(e.target.value)} />
               </div>
-              <div className="flex-col gap-1" style={{ flex: '0 0 100px' }}>
-                <label className="text-xs text-muted">Liv./step</label>
-                <input className="input" type="number" min={1} value={dicePerLevels} onChange={e => setDicePerLevels(Math.max(1, +e.target.value || 1))} title="Livelli incantatore necessari per +1 dado (es. 1 per Palla di Fuoco, 2 per Dardo Incantato)" />
-              </div>
-              <div className="flex-col gap-1" style={{ flex: '0 0 90px' }}>
-                <label className="text-xs text-muted">Max dadi</label>
-                <input className="input" type="number" min={1} value={damageMaxDice} onChange={e => setDamageMaxDice(e.target.value === '' ? '' : Math.max(1, +e.target.value))} placeholder="—" title="Numero massimo di dadi (es. 10 per Palla di Fuoco, 5 per Dardo Incantato)" />
-              </div>
-            </div>
-
-            <div className="flex gap-2">
               <div className="flex-col gap-1" style={{ flex: 1 }}>
                 <label className="text-xs text-muted">Tipo di danno</label>
                 <input className="input" value={damageType} onChange={e => setDamageType(e.target.value)} placeholder="fuoco, freddo, elettricità…" />
               </div>
+            </div>
+
+            <div className="flex gap-2">
               <div className="flex-col gap-1" style={{ flex: 1 }}>
                 <label className="text-xs text-muted">Tiro salvezza</label>
                 <input className="input" value={savingThrow} onChange={e => setSavingThrow(e.target.value)} placeholder="Riflessi dimezza" />
@@ -130,6 +125,30 @@ export const SpellModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 <select className="input" value={saveStat} onChange={e => setSaveStat(e.target.value as StatType)}>
                   {SAVE_STATS.map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
                 </select>
+              </div>
+            </div>
+
+            {/* ── Upcast ── */}
+            <div style={{ borderTop: '1px dashed rgba(155,89,182,0.18)', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ fontSize: '0.6rem', letterSpacing: '0.1em', color: 'var(--text-muted)' }}>
+                UPCAST — extra dadi se preparato in slot superiore
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-col gap-1" style={{ flex: 1 }}>
+                  <label className="text-xs text-muted">Dadi extra per step (es. 1d6)</label>
+                  <input className="input" placeholder="vuoto = nessun upcast" value={upcastDice} onChange={e => setUpcastDice(e.target.value)} />
+                </div>
+                <div className="flex-col gap-1" style={{ flex: '0 0 110px' }}>
+                  <label className="text-xs text-muted">Liv. slot / step</label>
+                  <input className="input" type="number" min={1} value={upcastEveryLevels}
+                    onChange={e => setUpcastEveryLevels(Math.max(1, +e.target.value || 1))}
+                    title="Livelli di slot sopra il livello base per +1 step" />
+                </div>
+                <div className="flex-col gap-1" style={{ flex: '0 0 90px' }}>
+                  <label className="text-xs text-muted">Max step</label>
+                  <input className="input" type="number" min={1} placeholder="—" value={upcastMaxSteps}
+                    onChange={e => setUpcastMaxSteps(e.target.value === '' ? '' : Math.max(1, +e.target.value))} />
+                </div>
               </div>
             </div>
           </div>

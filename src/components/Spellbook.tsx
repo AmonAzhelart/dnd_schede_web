@@ -9,6 +9,8 @@ import { spellCatalog, type CatalogSpell } from '../services/admin';
 import { useIconCatalog } from '../services/iconCache';
 import { CatalogPicker } from './CatalogPicker';
 import { DndIcon, getDndIconSvg } from './DndIcon';
+import { useMediaQuery } from './mobile/MobileShell';
+import { BottomDrawer } from './ui/BottomDrawer';
 
 /** Italian school name → english slug for `src/assets/icons/spell/<slug>.svg`. */
 const SCHOOL_ICON_SLUG: Record<string, string> = {
@@ -60,8 +62,8 @@ const SCHOOL_ICON: Record<string, string> = {
 const EMPTY_SPELL = (): Omit<Spell, 'id'> => ({
   name: '', level: 1, school: 'Evocazione', description: '',
   castingTime: '', range: '', duration: '', savingThrow: '', components: '',
-  attackMode: 'none', damagePerLevelDice: '', dicePerLevels: 1,
-  damageMaxDice: undefined, damageType: '', saveStat: 'int',
+  attackMode: 'none', baseDice: '', damageType: '', saveStat: 'int',
+  upcastDice: '', upcastEveryLevels: 1, upcastMaxSteps: undefined,
 });
 
 const LevelLabel = (level: number) => level === 0 ? 'Trucchetti' : `Livello ${level}`;
@@ -85,6 +87,7 @@ interface SpellRowProps {
   startEdit: (spell: Spell) => void;
   deleteSpell: (id: string) => void;
   formProps: SpellEditFormProps;
+  isMobile?: boolean;
 }
 
 // ── Sub-components at module level (prevents remount on parent re-render) ─────
@@ -121,9 +124,9 @@ const SpellEditForm: React.FC<SpellEditFormProps> = ({ form, setForm, saveSpell,
         </div>
       ))}
     </div>
-    {/* Combat/scaling block (D&D 3.5) */}
+    {/* Danno & Combattimento */}
     <div style={{ border: '1px solid rgba(155,89,182,0.18)', borderRadius: 8, padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <div style={{ fontSize: '0.6rem', letterSpacing: '0.1em', color: 'var(--text-muted)' }}>TIRO &amp; SCALING (opzionale)</div>
+      <div style={{ fontSize: '0.6rem', letterSpacing: '0.1em', color: 'var(--text-muted)' }}>DANNO &amp; COMBATTIMENTO (opzionale)</div>
       <div className="sb-form-row">
         <div className="sb-form-field" style={{ flex: '1 1 200px' }}>
           <label className="sb-form-label">Tipo di TxC</label>
@@ -136,16 +139,8 @@ const SpellEditForm: React.FC<SpellEditFormProps> = ({ form, setForm, saveSpell,
           </select>
         </div>
         <div className="sb-form-field" style={{ flex: '1 1 120px' }}>
-          <label className="sb-form-label">Dadi/step (es. 1d6)</label>
-          <input className="input" value={form.damagePerLevelDice ?? ''} onChange={e => setForm(f => ({ ...f, damagePerLevelDice: e.target.value }))} placeholder="1d6" style={{ fontSize: '0.8rem' }} />
-        </div>
-        <div className="sb-form-field" style={{ flex: '0 0 80px' }}>
-          <label className="sb-form-label">Liv./step</label>
-          <input className="input" type="number" min={1} value={form.dicePerLevels ?? 1} onChange={e => setForm(f => ({ ...f, dicePerLevels: Math.max(1, +e.target.value || 1) }))} style={{ fontSize: '0.8rem' }} />
-        </div>
-        <div className="sb-form-field" style={{ flex: '0 0 80px' }}>
-          <label className="sb-form-label">Max dadi</label>
-          <input className="input" type="number" min={1} value={form.damageMaxDice ?? ''} onChange={e => setForm(f => ({ ...f, damageMaxDice: e.target.value === '' ? undefined : Math.max(1, +e.target.value) }))} placeholder="—" style={{ fontSize: '0.8rem' }} />
+          <label className="sb-form-label">Dadi base (es. 2d6)</label>
+          <input className="input" value={form.baseDice ?? ''} onChange={e => setForm(f => ({ ...f, baseDice: e.target.value }))} placeholder="vuoto = nessun danno" style={{ fontSize: '0.8rem' }} />
         </div>
         <div className="sb-form-field" style={{ flex: '1 1 120px' }}>
           <label className="sb-form-label">Tipo danno</label>
@@ -156,6 +151,27 @@ const SpellEditForm: React.FC<SpellEditFormProps> = ({ form, setForm, saveSpell,
           <select className="input" value={form.saveStat ?? 'int'} onChange={e => setForm(f => ({ ...f, saveStat: e.target.value as Spell['saveStat'] }))} style={{ fontSize: '0.8rem' }}>
             {(['int', 'wis', 'cha', 'str', 'dex', 'con'] as const).map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
           </select>
+        </div>
+      </div>
+      {/* Upcast row */}
+      <div className="sb-form-row" style={{ marginTop: 4, paddingTop: 6, borderTop: '1px dashed rgba(155,89,182,0.18)' }}>
+        <div className="sb-form-field" style={{ flex: '1 1 160px' }}>
+          <label className="sb-form-label">Upcast: dadi extra/step</label>
+          <input className="input" value={form.upcastDice ?? ''}
+            onChange={e => setForm(f => ({ ...f, upcastDice: e.target.value }))}
+            placeholder="es. 1d6 (vuoto = nessun upcast)" style={{ fontSize: '0.8rem' }} />
+        </div>
+        <div className="sb-form-field" style={{ flex: '0 0 90px' }}>
+          <label className="sb-form-label">Liv. slot/step</label>
+          <input className="input" type="number" min={1} value={form.upcastEveryLevels ?? 1}
+            onChange={e => setForm(f => ({ ...f, upcastEveryLevels: Math.max(1, +e.target.value || 1) }))}
+            title="Livelli di slot sopra il livello base per +1 step" style={{ fontSize: '0.8rem' }} />
+        </div>
+        <div className="sb-form-field" style={{ flex: '0 0 80px' }}>
+          <label className="sb-form-label">Max step</label>
+          <input className="input" type="number" min={1} value={form.upcastMaxSteps ?? ''}
+            onChange={e => setForm(f => ({ ...f, upcastMaxSteps: e.target.value === '' ? undefined : Math.max(1, +e.target.value) }))}
+            placeholder="—" style={{ fontSize: '0.8rem' }} />
         </div>
       </div>
     </div>
@@ -275,7 +291,7 @@ const LevelPickerPopover: React.FC<{
 };
 
 // ── Spell card ─────────────────────────────────────────────────────────────────
-const SpellCard: React.FC<SpellRowProps> = ({ spell, editingId, prepCountFor, slots, prepareWizardSpell, unprepareSpellOne, startEdit, deleteSpell, formProps }) => {
+const SpellCard: React.FC<SpellRowProps> = ({ spell, editingId, prepCountFor, slots, prepareWizardSpell, unprepareSpellOne, startEdit, deleteSpell, formProps, isMobile }) => {
   const prepCount = prepCountFor(spell.id);
   const isEdit = editingId === spell.id;
   const color = SCHOOL_COLOR[spell.school] ?? 'var(--text-muted)'; const { resolveSchoolSvg, sanitizeSvg } = useIconCatalog();
@@ -285,7 +301,8 @@ const SpellCard: React.FC<SpellRowProps> = ({ spell, editingId, prepCountFor, sl
   const slot = slots[String(spell.level)];
   const slotsLeft = slot ? slot.total - slot.used : 0;
   const canPrepare = spell.level === 0 || slotsLeft > 0 || prepCount < (slot?.total ?? 0);
-  if (isEdit) return <SpellEditForm {...formProps} />;
+  // On mobile, the edit form is shown in a BottomDrawer — don't replace the card inline.
+  if (isEdit && !isMobile) return <SpellEditForm {...formProps} />;
 
   const stats: [React.ReactNode, string | undefined, string][] = [
     [<FaClock size={9} />, spell.castingTime, 'Tempo'],
@@ -425,6 +442,7 @@ export const Spellbook: React.FC = () => {
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [catalogItems, setCatalogItems] = useState<CatalogSpell[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
+  const isMobile = useMediaQuery('(max-width: 900px)');
   const openCatalogPicker = async () => {
     setCatalogOpen(true);
     if (catalogItems.length === 0) {
@@ -445,6 +463,13 @@ export const Spellbook: React.FC = () => {
       duration: cs.duration ?? '',
       savingThrow: cs.savingThrow ?? '',
       components: cs.components ?? '',
+      attackMode: cs.attackMode,
+      baseDice: cs.baseDice ?? cs.damagePerLevelDice,
+      damageType: cs.damageType,
+      saveStat: cs.saveStat,
+      upcastDice: cs.upcastDice,
+      upcastEveryLevels: cs.upcastEveryLevels,
+      upcastMaxSteps: cs.upcastMaxSteps,
     });
     setCatalogOpen(false);
   };
@@ -504,18 +529,19 @@ export const Spellbook: React.FC = () => {
       castingTime: spell.castingTime ?? '', range: spell.range ?? '', duration: spell.duration ?? '',
       savingThrow: spell.savingThrow ?? '', components: spell.components ?? '',
       attackMode: spell.attackMode ?? 'none',
-      damagePerLevelDice: spell.damagePerLevelDice ?? '',
-      dicePerLevels: spell.dicePerLevels ?? 1,
-      damageMaxDice: spell.damageMaxDice,
+      baseDice: spell.baseDice ?? spell.damagePerLevelDice ?? '',
       damageType: spell.damageType ?? '',
       saveStat: spell.saveStat ?? 'int',
+      upcastDice: spell.upcastDice ?? '',
+      upcastEveryLevels: spell.upcastEveryLevels ?? 1,
+      upcastMaxSteps: spell.upcastMaxSteps,
     });
     setEditingId(spell.id); setIsAdding(false);
   };
   const cancelEdit = () => { setEditingId(null); setIsAdding(false); setForm(EMPTY_SPELL()); };
 
   const formProps: SpellEditFormProps = { form, setForm, saveSpell, cancelEdit, editingId };
-  const cardProps = { editingId, prepCountFor, slots, prepareWizardSpell, unprepareSpellOne, startEdit, deleteSpell, formProps };
+  const cardProps = { editingId, prepCountFor, slots, prepareWizardSpell, unprepareSpellOne, startEdit, deleteSpell, formProps, isMobile };
 
   // Spell lookup
   const spellById = new Map<string, Spell>();
@@ -596,8 +622,8 @@ export const Spellbook: React.FC = () => {
             )}
           </div>
 
-          {/* Add form */}
-          {isAdding && <div style={{ flexShrink: 0 }}><SpellEditForm {...formProps} autoFocus /></div>}
+          {/* Add form — inline on desktop, BottomDrawer on mobile */}
+          {isAdding && !isMobile && <div style={{ flexShrink: 0 }}><SpellEditForm {...formProps} autoFocus /></div>}
 
           {/* Cards area */}
           {spells.length === 0 && !isAdding ? (
@@ -678,7 +704,7 @@ export const Spellbook: React.FC = () => {
             const s = slots[String(lv)] ?? { total: 0, used: 0 };
             const available = s.total - s.used;
             const preps = prepByLevel[String(lv)] ?? [];
-            const grimoireForLevel = spells.filter(sp => sp.level === lv);
+            const grimoireForLevel = spells.filter(sp => sp.level <= lv);
             const isPickerOpen = pickerLvl === lv;
             const lvName = lv === 0 ? 'Trucchetti' : `Livello ${lv}`;
             const accent = LEVEL_COLOR[lv] ?? 'var(--accent-arcane)';
@@ -714,21 +740,27 @@ export const Spellbook: React.FC = () => {
                   <div className="sb-picker">
                     {grimoireForLevel.length === 0 ? (
                       <p className="sb-picker-empty">
-                        Nessun incantesimo di livello {lv} nel grimorio. Aggiungilo dalla scheda Grimorio.
+                        Nessun incantesimo di livello {lv} (o inferiore) nel grimorio. Aggiungilo dalla scheda Grimorio.
                       </p>
                     ) : (
                       <div className="sb-picker-grid">
                         {grimoireForLevel.map(sp => {
                           const spColor = SCHOOL_COLOR[sp.school] ?? 'var(--text-muted)';
+                          const isUpcast = sp.level < lv;
                           return (
                             <button key={sp.id} className="sb-pick-btn"
                               style={{ background: `${spColor}0d`, borderLeftColor: spColor }}
                               onMouseEnter={e => (e.currentTarget.style.background = `${spColor}22`)}
                               onMouseLeave={e => (e.currentTarget.style.background = `${spColor}0d`)}
                               onClick={() => prepareWizardSpell(lv, sp.id)}
-                              title={`Prepara una copia di ${sp.name}`}>
+                              title={isUpcast
+                                ? `Prepara ${sp.name} (Liv. ${sp.level}) in uno slot di Liv. ${lv} — upcast`
+                                : `Prepara una copia di ${sp.name}`}>
                               <FaPlus size={8} style={{ color: spColor, flexShrink: 0 }} />
-                              <span className="sb-pick-btn-name">{sp.name}</span>
+                              <span className="sb-pick-btn-name">
+                                {sp.name}
+                                {isUpcast && <span style={{ marginLeft: 4, fontSize: '0.65rem', opacity: 0.8 }}>↑Lv{sp.level}</span>}
+                              </span>
                               <span className="sb-pick-btn-school" style={{ color: spColor }}>{SCHOOL_ICON[sp.school] ?? ''}</span>
                             </button>
                           );
@@ -766,7 +798,15 @@ export const Spellbook: React.FC = () => {
                               {p.cast ? <FaMinus size={9} /> : <FaBolt size={9} />}
                             </button>
                             <div className="sb-prep-item-info">
-                              <div className="sb-prep-item-name">{sp.name}</div>
+                              <div className="sb-prep-item-name">
+                                {sp.name}
+                                {sp.level < lv && (
+                                  <span style={{ marginLeft: 6, fontSize: '0.65rem', color: 'var(--accent-arcane)' }}
+                                    title={`Upcast: preparato in slot di Lv ${lv} (base Lv ${sp.level})`}>
+                                    ↑Lv{lv}
+                                  </span>
+                                )}
+                              </div>
                               <div className="sb-prep-item-school" style={{ color: spColor }}>{SCHOOL_ICON[sp.school] ?? ''} {sp.school}</div>
                             </div>
                             <button className="sb-remove-btn" onClick={() => unprepareWizardSpell(lv, p.id)} title="Rimuovi questa preparazione">
@@ -783,6 +823,16 @@ export const Spellbook: React.FC = () => {
           })}
         </div>
       )}
+
+      {/* Mobile: spell add/edit bottom drawer */}
+      <BottomDrawer
+        open={(isAdding || editingId !== null) && isMobile}
+        onClose={cancelEdit}
+        title={editingId ? 'Modifica Incantesimo' : 'Nuovo Incantesimo'}
+        accentColor="var(--accent-arcane)"
+      >
+        <SpellEditForm {...formProps} autoFocus />
+      </BottomDrawer>
 
       {catalogOpen && (
         <CatalogPicker<CatalogSpell>

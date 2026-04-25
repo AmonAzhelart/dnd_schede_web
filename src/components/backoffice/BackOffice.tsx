@@ -165,6 +165,8 @@ function InvitesPanel({ currentUserEmail }: { currentUserEmail: string }) {
 const EMPTY_SPELL = (): CatalogSpell => ({
     id: uuid(), name: '', level: 0, school: '', description: '',
     castingTime: '', range: '', duration: '', savingThrow: '', components: '',
+    attackMode: 'none', baseDice: '', damageType: '', saveStat: 'int',
+    upcastDice: '', upcastEveryLevels: 1, upcastMaxSteps: undefined,
 });
 
 function SpellsPanel({ currentUserEmail }: { currentUserEmail: string }) {
@@ -222,6 +224,59 @@ function SpellsPanel({ currentUserEmail }: { currentUserEmail: string }) {
                 <Field label="Descrizione">
                     <textarea className="input w-full" rows={6} value={editing.description} onChange={e => setEditing({ ...editing, description: e.target.value })} />
                 </Field>
+
+                {/* ── Danno & Combattimento ── */}
+                <div className="section-header" style={{ marginTop: 'var(--space-2)' }}>
+                    <span className="section-title text-sm">Danno &amp; Combattimento (opzionale)</span>
+                </div>
+                <div className="grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: 'var(--space-2)' }}>
+                    <Field label="Tipo TxC">
+                        <select className="input w-full" value={editing.attackMode ?? 'none'}
+                            onChange={e => setEditing({ ...editing, attackMode: e.target.value as CatalogSpell['attackMode'] })}>
+                            <option value="none">Nessuno</option>
+                            <option value="rangedTouch">Tocco a distanza</option>
+                            <option value="meleeTouch">Tocco in mischia</option>
+                            <option value="ray">Raggio</option>
+                            <option value="normal">Attacco normale</option>
+                        </select>
+                    </Field>
+                    <Field label="Dadi base (es. 2d6)">
+                        <input className="input w-full" value={editing.baseDice ?? ''}
+                            onChange={e => setEditing({ ...editing, baseDice: e.target.value })} placeholder="vuoto = nessun danno" />
+                    </Field>
+                    <Field label="Tipo danno">
+                        <input className="input w-full" value={editing.damageType ?? ''}
+                            onChange={e => setEditing({ ...editing, damageType: e.target.value })} placeholder="fuoco, freddo…" />
+                    </Field>
+                    <Field label="CD da">
+                        <select className="input w-full" value={editing.saveStat ?? 'int'}
+                            onChange={e => setEditing({ ...editing, saveStat: e.target.value as StatType })}>
+                            {(['int', 'wis', 'cha', 'str', 'dex', 'con'] as const).map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
+                        </select>
+                    </Field>
+                </div>
+
+                {/* ── Upcast ── */}
+                <div className="section-header" style={{ marginTop: 'var(--space-2)' }}>
+                    <span className="section-title text-sm">Upcast — extra dadi se preparato in slot superiore</span>
+                </div>
+                <div className="grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: 'var(--space-2)' }}>
+                    <Field label="Dadi extra/step (es. 1d6)">
+                        <input className="input w-full" value={editing.upcastDice ?? ''}
+                            onChange={e => setEditing({ ...editing, upcastDice: e.target.value })} placeholder="vuoto = nessun upcast" />
+                    </Field>
+                    <Field label="Liv. slot/step">
+                        <input className="input w-full" type="number" min={1} value={editing.upcastEveryLevels ?? 1}
+                            onChange={e => setEditing({ ...editing, upcastEveryLevels: Math.max(1, Number(e.target.value) || 1) })}
+                            title="Livelli di slot sopra il livello base per +1 step (es. 2 → +1 dado ogni 2 livelli sopra)" />
+                    </Field>
+                    <Field label="Max step">
+                        <input className="input w-full" type="number" min={1} value={editing.upcastMaxSteps ?? ''}
+                            onChange={e => setEditing({ ...editing, upcastMaxSteps: e.target.value === '' ? undefined : Math.max(1, Number(e.target.value)) })}
+                            placeholder="—" />
+                    </Field>
+                </div>
+
                 <Field label="Tag (separati da virgola)">
                     <input className="input w-full" value={(editing.tags ?? []).join(', ')} onChange={e => setEditing({ ...editing, tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })} />
                 </Field>

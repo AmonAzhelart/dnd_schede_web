@@ -440,6 +440,10 @@ export interface Spell {
   // ── Combat / damage details (D&D 3.5) ──
   /** How the spell delivers its effect, used to drive the attack roll segment. */
   attackMode?: 'none' | 'rangedTouch' | 'meleeTouch' | 'ray' | 'normal';
+  /** Fixed base dice expression (e.g. `'2d6'`, `'1d4+1'`). Always added to the
+   *  final roll regardless of caster level or upcast. */
+  baseDice?: string;
+  // ── Legacy CL-scaling (kept for backwards compat, hidden in simple forms) ──
   /** Per-die expression scaled by caster level (e.g. `'1d6'` for fireball,
    *  `'1d4+1'` for magic missile). When set, total damage = N × perLevelDice
    *  where N = min(casterLevel / dicePerLevels, maxDice). */
@@ -450,6 +454,16 @@ export interface Spell {
   /** Hard cap on the number of damage dice (e.g. fireball=10, lightning=10,
    *  magic missile=5). Undefined = uncapped. */
   damageMaxDice?: number;
+  // ── Upcasting (heightened): extra dice when prepared in a slot above base level ──
+  /** Extra dice added per upcast "step" (e.g. `'1d6'`). Applies on top of the
+   *  base dice when the spell is prepared in a slot whose level is
+   *  higher than `level`. */
+  upcastDice?: string;
+  /** Number of slot levels above the spell's base level needed to gain one
+   *  extra upcast step. Default = 1 (one extra die per slot above base). */
+  upcastEveryLevels?: number;
+  /** Optional cap on the number of upcast steps (regardless of slot level). */
+  upcastMaxSteps?: number;
   /** Energy / damage type tag (used for resistances/conditions). */
   damageType?: string;
   /** Stat that sets the save DC (`int` for wizard, `wis` for cleric, etc.). */

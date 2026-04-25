@@ -1,5 +1,4 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import './Inventory.css';
 import { useCharacterStore } from '../store/characterStore';
 import { v4 as uuidv4 } from 'uuid';
@@ -13,6 +12,7 @@ import { useIconCatalog, sanitizeSvg } from '../services/iconCache';
 import { CatalogPicker } from './CatalogPicker';
 import { ModifierEditor } from './ModifierEditor';
 import { useMediaQuery } from './mobile/MobileShell';
+import { BottomDrawer } from './ui/BottomDrawer';
 
 /** Render an inline SVG with safe HTML insertion. */
 const SvgIcon: React.FC<{ svg: string; size?: number; className?: string }> = ({ svg, size, className }) => (
@@ -839,47 +839,40 @@ export const Inventory: React.FC = () => {
               )}
             </div>
 
-            {/* Detail panel — inline side panel on desktop, bottom-sheet on mobile. */}
-            {selectedItem && (
-              isMobileSheet ? (
-                createPortal(
-                  <div
-                    className="modal-overlay"
-                    onClick={(e) => e.target === e.currentTarget && setSelectedId(null)}
-                  >
-                    <div
-                      className="modal-box flex-col"
-                      style={{ padding: 0 }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <ItemDetailPanel
-                        item={selectedItem}
-                        onClose={() => setSelectedId(null)}
-                        onEquip={() => toggleEquipItem(selectedItem.id)}
-                        onEdit={() => startEditItem(selectedItem)}
-                        onDelete={() => deleteItemFn(selectedItem.id)}
-                        iconSvg={resolveItemSvg(selectedItem)}
-                        ammoItems={ammoItems}
-                        onSetAmmo={(ammoId) => handleSetAmmo(selectedItem.id, ammoId)}
-                      />
-                    </div>
-                  </div>,
-                  document.body,
-                )
-              ) : (
-                <div style={{ width: 'min(230px, 42%)', flexShrink: 0 }}>
+            {/* Detail panel — inline side panel on desktop, BottomDrawer on mobile. */}
+            {isMobileSheet ? (
+              <BottomDrawer
+                open={!!selectedItem}
+                onClose={() => setSelectedId(null)}
+                title={selectedItem?.name}
+                accentColor="var(--accent-gold)"
+              >
+                {selectedItem && (
                   <ItemDetailPanel
                     item={selectedItem}
                     onClose={() => setSelectedId(null)}
                     onEquip={() => toggleEquipItem(selectedItem.id)}
-                    onEdit={() => startEditItem(selectedItem)}
+                    onEdit={() => { startEditItem(selectedItem); setSelectedId(null); }}
                     onDelete={() => deleteItemFn(selectedItem.id)}
                     iconSvg={resolveItemSvg(selectedItem)}
                     ammoItems={ammoItems}
                     onSetAmmo={(ammoId) => handleSetAmmo(selectedItem.id, ammoId)}
                   />
-                </div>
-              )
+                )}
+              </BottomDrawer>
+            ) : selectedItem && (
+              <div style={{ width: 'min(230px, 42%)', flexShrink: 0 }}>
+                <ItemDetailPanel
+                  item={selectedItem}
+                  onClose={() => setSelectedId(null)}
+                  onEquip={() => toggleEquipItem(selectedItem.id)}
+                  onEdit={() => startEditItem(selectedItem)}
+                  onDelete={() => deleteItemFn(selectedItem.id)}
+                  iconSvg={resolveItemSvg(selectedItem)}
+                  ammoItems={ammoItems}
+                  onSetAmmo={(ammoId) => handleSetAmmo(selectedItem.id, ammoId)}
+                />
+              </div>
             )}
           </div>
         </div>
@@ -980,8 +973,17 @@ export const Inventory: React.FC = () => {
         </div>
       )}
 
-      {/* ─── Edit / Add Modal ─── */}
-      {(isAddingItem || editingItemId !== null) && (
+      {/* ─── Edit / Add ─ BottomDrawer on mobile, centered modal on desktop ─── */}
+      {isMobileSheet ? (
+        <BottomDrawer
+          open={isAddingItem || editingItemId !== null}
+          onClose={cancelEditItem}
+          title={editingItemId ? '⚙ MODIFICA OGGETTO' : '＋ NUOVO OGGETTO'}
+          accentColor="var(--accent-gold)"
+        >
+          <EditItemForm itemForm={itemForm} setItemForm={setItemForm} editingItemId={editingItemId} onSave={saveItem} onCancel={cancelEditItem} onPickIcon={openIconPicker} previewSvg={resolveItemSvg({ type: itemForm.type, iconId: itemForm.iconId, weaponDetails: itemForm.weaponDetails })} autoFocus />
+        </BottomDrawer>
+      ) : (isAddingItem || editingItemId !== null) && (
         <div className="inv-modal-backdrop" onClick={e => { if (e.target === e.currentTarget) cancelEditItem(); }}>
           <div className="inv-modal-box">
             <div className="inv-modal-header">

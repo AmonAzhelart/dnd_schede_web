@@ -625,3 +625,76 @@
 .inv-tx-row:hover {
     background: rgba(255, 255, 255, 0.02);
 }
+
+/* ─── BottomDrawer: override inv-detail-panel styles inside drawer ─── */
+.bd-body .inv-detail-panel {
+    border-left: none;
+    background: transparent;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    padding: 0 0 8px;
+    animation: none;
+}
+
+/* ═══════════════════════════════════════════════════
+   Mobile / tablet responsive overrides (≤ 900 px)
+   ═══════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+    /* Item grid: 3 fixed columns for comfortable thumb tapping */
+    .inv-item-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+
+    /* Cards: always show the action bar on touch screens
+       (hover doesn't work on touch, so we always display it). */
+    @media (hover: none) {
+        .inv-card-actions {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+            background: rgba(8, 8, 12, 0.82);
+        }
+
+        .inv-item-card {
+            padding-bottom: 38px;
+        }
+    }
+
+    /* Bigger touch targets for card action buttons */
+    .inv-card-btn {
+        width: 30px;
+        height: 30px;
+    }
+
+    /* Category pills: bigger, easier to tap */
+    .inv-cat-pill {
+        padding: 7px 13px;
+        font-size: 0.72rem;
+    }
+
+    /* Main tab buttons: fill width */
+    .inv-main-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .inv-main-tab-btn {
+        text-align: center;
+        padding: 9px 10px;
+    }
+
+    /* Currency coins: 2 per row on mobile */
+    .inv-coin-tile {
+        min-width: 80px;
+        flex: 1 1 calc(50% - 8px);
+    }
+}
+
+@media (min-width: 481px) and (max-width: 900px) {
+    /* Tablet: 4 columns for item grid */
+    .inv-item-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}

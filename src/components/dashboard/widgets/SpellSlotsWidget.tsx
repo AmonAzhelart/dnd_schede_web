@@ -213,7 +213,7 @@ export const SpellSlotsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) =>
     const list = prep[key] ?? [];
     const remaining = slot.total - slot.used;
     const slotsExhausted = slot.total > 0 && remaining <= 0;
-    const availableSpells = spells.filter(s => s.level === lvl);
+    const availableSpells = spells.filter(s => s.level <= lvl);
 
     return (
         <div className="w-spell-root">
@@ -301,9 +301,12 @@ export const SpellSlotsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) =>
                                     <button
                                         key={s.id} className="w-spell-picker-item"
                                         onClick={() => prepareWizardSpell(lvl, s.id)}
-                                        title={s.description}
+                                        title={s.level < lvl
+                                            ? `Upcast: prepara ${s.name} (Lv ${s.level}) in slot Lv ${lvl}`
+                                            : s.description}
                                     >
                                         <GiCrystalBall /> {s.name}
+                                        {s.level < lvl && <span style={{ marginLeft: 4, fontSize: '0.7em', opacity: 0.8 }}>↑Lv{s.level}</span>}
                                     </button>
                                 ))}
                             </div>
@@ -372,32 +375,39 @@ export const SpellSlotsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) =>
 
                 // ── Attack segment (touch attacks / rays / normal) ──\n                if (spell.attackMode && spell.attackMode !== 'none') {\n                    const isMelee = spell.attackMode === 'meleeTouch';\n                    const statMod = getStatModifier(isMelee ? 'str' : 'dex');\n                    const bab = getTotalBab();\n                    const breakdown: RollBreakdownLine[] = [\n                        { label: 'BAB', value: bab },\n                        { label: isMelee ? 'Mod. FOR' : 'Mod. DES', value: statMod },\n                    ];\n                    segments.push({\n                        ctx: {\n                            channel: 'spell.attack',\n                            spellId: spell.id,\n                            spellName: spell.name,\n                            spellLevel: spell.level,\n                            spellSchool: spell.school,\n                            spellDamageType: spell.damageType,\n                            attackMode: spell.attackMode,\n                        },\n                        label: spell.attackMode === 'meleeTouch' ? 'Tocco in mischia'\n                            : spell.attackMode === 'rangedTouch' ? 'Tocco a distanza'\n                                : spell.attackMode === 'ray' ? 'Raggio (TxC)'\n                                    : 'Tiro per colpire',\n                        baseBreakdown: breakdown,\n                    });\n                }
 
-                // ── Damage segment (scales with caster level) ──
-                if (spell.damagePerLevelDice) {
-                    const dice = computeSpellDamageDice(spell, casterLevel);
-                    segments.push({
-                        ctx: {
-                            channel: 'spell.damage',
-                            spellId: spell.id,
-                            spellName: spell.name,
-                            spellLevel: spell.level,
-                            spellSchool: spell.school,
-                            spellDamageType: spell.damageType,
-                            attackMode: spell.attackMode,
-                        },
-                        label: `Danno${spell.damageType ? ` (${spell.damageType})` : ''} – CL ${casterLevel}`,
-                        baseBreakdown: [],
-                        baseDice: dice,
-                    });
+                // ── Damage segment (scales with caster level and/or slot upcast) ──
+                if (spell.baseDice || spell.damagePerLevelDice || (spell.upcastDice && castLvl > spell.level)) {
+                    const dice = computeSpellDamageDice(spell, casterLevel, castLvl);
+                    if (dice) {
+                        const upcastNote = (spell.upcastDice && castLvl > spell.level)
+                            ? ` · ↑Lv${castLvl}` : '';
+                        segments.push({
+                            ctx: {
+                                channel: 'spell.damage',
+                                spellId: spell.id,
+                                spellName: spell.name,
+                                spellLevel: spell.level,
+                                spellSchool: spell.school,
+                                spellDamageType: spell.damageType,
+                                attackMode: spell.attackMode,
+                            },
+                            label: `Danno${spell.damageType ? ` (${spell.damageType})` : ''} – CL ${casterLevel}${upcastNote}`,
+                            baseBreakdown: [],
+                            baseDice: dice,
+                        });
+                    }
                 }
 
                 // ── Save DC segment (when spell has saveStat) ──
                 if (spell.saveStat || spell.savingThrow) {
                     const saveStat: StatType = spell.saveStat ?? 'int';
                     const statMod = getStatModifier(saveStat);
+                    // Use the slot level the spell was prepared in for the CD (upcast raises CD).
+                    const effLvl = Math.max(spell.level, castLvl);
+                    const isUpcast = effLvl > spell.level;
                     const breakdown: RollBreakdownLine[] = [
                         { label: 'Base CD', value: 10 },
-                        { label: `Liv. magia (${spell.level})`, value: spell.level },
+                        { label: isUpcast ? `Liv. slot (${effLvl})` : `Liv. magia (${effLvl})`, value: effLvl },
                         { label: `Mod. ${saveStat.toUpperCase()}`, value: statMod },
                     ];
                     segments.push({
@@ -429,7 +439,7 @@ export const SpellSlotsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) =>
                     <RollPickerModal
                         segments={segments}
                         title={spell.name}
-                        subtitle={`${spell.level === 0 ? 'Trucchetto' : `Livello ${spell.level}`}${spell.school ? ` · ${spell.school}` : ''} · CL ${casterLevel}`}
+                        subtitle={`${spell.level === 0 ? 'Trucchetto' : `Livello ${spell.level}`}${spell.school ? ` · ${spell.school}` : ''}${castLvl > spell.level ? ` · ↑Slot Lv ${castLvl}` : ''} · CL ${casterLevel}`}
                         footer={(() => {
                             const stats: [string, string | undefined][] = [
                                 ['Scuola', spell.school],
