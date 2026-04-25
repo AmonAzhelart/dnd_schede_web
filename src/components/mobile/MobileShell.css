@@ -154,7 +154,10 @@ button.mob-shell-stat {
    .w-mod-arrows / .w-mod-arrow rules from modifiers.css drive position
    and animation; we only tweak the glyph size + horizontal spread to
    suit the ~52px-wide chips. */
-.mob-shell-stat .w-mod-arrows { z-index: 3; }
+.mob-shell-stat .w-mod-arrows {
+    z-index: 3;
+}
+
 .mob-shell-stat .w-mod-arrow {
     font-size: 0.55rem;
 }
@@ -206,8 +209,15 @@ button.mob-shell-stat {
 }
 
 @keyframes mob-edit-exit-in {
-    from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .mob-shell-stat-lbl {
@@ -389,8 +399,17 @@ button.mob-shell-stat {
 }
 
 @keyframes mob-cam-pulse {
-    0%, 100% { transform: scale(1);    box-shadow: 0 0 0 2px rgba(8, 8, 12, 0.95), 0 4px 10px rgba(0, 0, 0, 0.5), 0 0 8px  rgba(201, 168, 76, 0.5); }
-    50%      { transform: scale(1.08); box-shadow: 0 0 0 2px rgba(8, 8, 12, 0.95), 0 4px 10px rgba(0, 0, 0, 0.5), 0 0 16px rgba(201, 168, 76, 0.95); }
+
+    0%,
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 2px rgba(8, 8, 12, 0.95), 0 4px 10px rgba(0, 0, 0, 0.5), 0 0 8px rgba(201, 168, 76, 0.5);
+    }
+
+    50% {
+        transform: scale(1.08);
+        box-shadow: 0 0 0 2px rgba(8, 8, 12, 0.95), 0 4px 10px rgba(0, 0, 0, 0.5), 0 0 16px rgba(201, 168, 76, 0.95);
+    }
 }
 
 .mob-shell-name {

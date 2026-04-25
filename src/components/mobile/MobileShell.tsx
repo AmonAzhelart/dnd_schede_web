@@ -137,36 +137,36 @@ export const MobileShell: React.FC<MobileShellProps> = ({
                             const modBonus = hpAura.delta > 0 ? hpAura.delta : 0;
                             const totalTemp = baseTemp + modBonus;
                             return (
-                            <>
-                                <button
-                                    type="button"
-                                    className={'mob-shell-stat hp' + (hpAura.auraClass ? ' ' + hpAura.auraClass : '')}
-                                    onClick={() => setAppTab('scheda')}
-                                    title={`Punti vita ${stats.hpCur}/${stats.hpMax}` + (totalTemp > 0 ? ` (+${totalTemp} temp)` : '')}
-                                >
-                                    <span className="mob-shell-stat-lbl">PV</span>
-                                    <span className="mob-shell-stat-val">
-                                        {stats.hpCur}<span className="sep">/</span>{stats.hpMax}
-                                        {totalTemp > 0 && (
-                                            <span className="mob-shell-stat-bonus">+{totalTemp}</span>
-                                        )}
-                                    </span>
-                                    <span className="mob-shell-stat-bar" aria-hidden>
-                                        <span
-                                            className={
-                                                'fill ' + (stats.hpPct < 25 ? 'crit' : stats.hpPct < 50 ? 'low' : 'ok')
-                                            }
-                                            style={{ width: `${stats.hpPct}%` }}
-                                        />
-                                    </span>
-                                    {hpAura.delta !== 0 && <ModifierArrows delta={hpAura.delta} count={2} />}
-                                </button>
-                                <div className={'mob-shell-stat ac' + (acAura.auraClass ? ' ' + acAura.auraClass : '')} title="Classe armatura">
-                                    <span className="mob-shell-stat-lbl">CA</span>
-                                    <span className="mob-shell-stat-val">{stats.ac}</span>
-                                    {acAura.delta !== 0 && <ModifierArrows delta={acAura.delta} count={2} />}
-                                </div>
-                            </>
+                                <>
+                                    <button
+                                        type="button"
+                                        className={'mob-shell-stat hp' + (hpAura.auraClass ? ' ' + hpAura.auraClass : '')}
+                                        onClick={() => setAppTab('scheda')}
+                                        title={`Punti vita ${stats.hpCur}/${stats.hpMax}` + (totalTemp > 0 ? ` (+${totalTemp} temp)` : '')}
+                                    >
+                                        <span className="mob-shell-stat-lbl">PV</span>
+                                        <span className="mob-shell-stat-val">
+                                            {stats.hpCur}<span className="sep">/</span>{stats.hpMax}
+                                            {totalTemp > 0 && (
+                                                <span className="mob-shell-stat-bonus">+{totalTemp}</span>
+                                            )}
+                                        </span>
+                                        <span className="mob-shell-stat-bar" aria-hidden>
+                                            <span
+                                                className={
+                                                    'fill ' + (stats.hpPct < 25 ? 'crit' : stats.hpPct < 50 ? 'low' : 'ok')
+                                                }
+                                                style={{ width: `${stats.hpPct}%` }}
+                                            />
+                                        </span>
+                                        {hpAura.delta !== 0 && <ModifierArrows delta={hpAura.delta} count={2} />}
+                                    </button>
+                                    <div className={'mob-shell-stat ac' + (acAura.auraClass ? ' ' + acAura.auraClass : '')} title="Classe armatura">
+                                        <span className="mob-shell-stat-lbl">CA</span>
+                                        <span className="mob-shell-stat-val">{stats.ac}</span>
+                                        {acAura.delta !== 0 && <ModifierArrows delta={acAura.delta} count={2} />}
+                                    </div>
+                                </>
                             );
                         })()}
                     </div>
