@@ -303,6 +303,74 @@ textarea.input {
   min-height: 80px;
 }
 
+/* === SELECT (global skin) ============================================
+   Custom dark dropdown with gold chevron. Uses color-scheme so the native
+   option popup also adopts a dark palette in modern browsers. */
+select,
+select.input {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  color-scheme: dark;
+  background-color: rgba(0, 0, 0, 0.45);
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(201, 168, 76, 0.85) 50%),
+    linear-gradient(135deg, rgba(201, 168, 76, 0.85) 50%, transparent 50%);
+  background-position:
+    calc(100% - 16px) 55%,
+    calc(100% - 11px) 55%;
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 28px;
+  cursor: pointer;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+select:focus,
+select.input:focus {
+  outline: none;
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.18);
+}
+
+select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Native option list — best-effort dark theme (Chromium / Firefox honour). */
+select option,
+select optgroup {
+  background-color: #161310;
+  color: var(--text-primary, #e8e0c8);
+}
+select optgroup {
+  font-family: var(--font-heading, inherit);
+  letter-spacing: 0.06em;
+  color: var(--accent-gold, #c9a84c);
+  font-style: normal;
+}
+select option:checked,
+select option:hover {
+  background-color: rgba(201, 168, 76, 0.18);
+  color: #fff;
+}
+
+/* Native number-input spinners are noisy on dark UI — hide them; we expose
+   our own +/- buttons where needed. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 /* === LAYOUT === */
 .app-container {
   display: flex;
@@ -1703,7 +1771,7 @@ textarea.input {
   overflow: hidden;
 }
 
-.dash-tile-body > * {
+.dash-tile-body>* {
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;
@@ -2822,4 +2890,460 @@ textarea.input {
 .notes-textarea:focus {
   border-color: rgba(201, 168, 76, 0.35) !important;
   box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.08) !important;
+}
+
+/* ============================================================
+   DASHBOARD FULLSCREEN EDIT MODE + ACTION BAR
+   Touch-first redesign: tap-to-select, stage pending placement,
+   confirm/cancel via the bottom action bar.
+   ============================================================ */
+.dash-root.is-fs-edit {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: var(--bg-primary, #0e0e10);
+  padding: 0.5rem 0.75rem 0;
+  margin: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding-bottom: 220px;
+  /* space for the sticky action bar */
+}
+
+.dash-root.is-fs-edit .dash-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, rgba(20, 20, 22, 0.95), rgba(20, 20, 22, 0.85));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.dash-root.is-fs-edit .dash-frame {
+  flex: 1 1 auto;
+}
+
+/* Selected tile: vivid gold outline so the user knows what they are editing */
+.dash-tile.is-selected {
+  outline: 2px solid var(--accent-gold, #c9a84c);
+  outline-offset: -2px;
+  box-shadow:
+    0 0 0 4px rgba(201, 168, 76, 0.18),
+    0 12px 28px rgba(0, 0, 0, 0.55) !important;
+  z-index: 3;
+}
+
+/* Tile that has an unconfirmed pending placement */
+.dash-tile.is-pending {
+  outline: 2px dashed rgba(108, 208, 122, 0.85);
+  outline-offset: -2px;
+}
+
+.dash-tile.is-pending::after {
+  content: 'da confermare';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #6cd07a;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 2px 6px;
+  border-radius: 99px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Pending ghost outline (where the tile WILL go after confirm) */
+.dash-ghost.dash-ghost-pending {
+  border: 2px dashed rgba(108, 208, 122, 0.85);
+  background: rgba(108, 208, 122, 0.10);
+  color: rgba(220, 255, 220, 0.9);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Make the grip a comfortable touch target */
+.dash-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+  border-radius: 6px;
+  color: var(--text-muted, #888);
+  transition: background 0.15s, color 0.15s;
+}
+
+.dash-grip:hover,
+.dash-grip:active {
+  background: rgba(201, 168, 76, 0.18);
+  color: var(--accent-gold);
+}
+
+/* Resize handle gets a clearer hit area */
+.dash-grid.is-edit .dash-resize-handle {
+  width: 22px;
+  height: 22px;
+  bottom: 2px;
+  right: 2px;
+}
+
+/* ─── Bottom action bar (touch-friendly, 3-row stacked layout) ─── */
+.dash-action-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem calc(0.55rem + env(safe-area-inset-bottom, 0px));
+  background:
+    linear-gradient(180deg, rgba(20, 20, 22, 0.96), rgba(14, 14, 16, 0.99));
+  border-top: 1px solid rgba(201, 168, 76, 0.32);
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: dash-action-rise 0.18s ease-out;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+@keyframes dash-action-rise {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.dash-action-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.dash-action-row-top {
+  justify-content: space-between;
+}
+
+.dash-action-row-pads {
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.dash-action-buttons {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.dash-action-info {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.dash-action-icon {
+  font-size: 1.05rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(201, 168, 76, 0.14);
+  flex-shrink: 0;
+}
+
+.dash-action-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dash-action-title {
+  font-family: var(--font-heading);
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-action-sub {
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-action-pending {
+  color: #6cd07a;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.dash-action-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  touch-action: manipulation;
+}
+
+.dash-action-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+/* Move pad: 3x3 grid with arrows */
+.dash-move-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 40px);
+  grid-template-rows: auto repeat(2, 40px);
+  gap: 4px;
+  align-items: center;
+  justify-items: center;
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.dash-move-pad .dash-pad-label {
+  grid-column: 1 / -1;
+}
+
+.dash-move-pad .dash-pad-btn.up {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.dash-move-pad .dash-pad-btn.left {
+  grid-column: 1;
+  grid-row: 3;
+}
+
+.dash-move-pad .dash-pad-btn.right {
+  grid-column: 3;
+  grid-row: 3;
+}
+
+.dash-move-pad .dash-pad-btn.down {
+  grid-column: 2;
+  grid-row: 3;
+}
+
+.dash-resize-pad {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.dash-resize-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dash-resize-val {
+  min-width: 22px;
+  text-align: center;
+  font-family: var(--font-heading);
+  font-size: 0.78rem;
+  color: var(--accent-gold);
+}
+
+.dash-pad-label {
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  min-width: 14px;
+  text-align: center;
+}
+
+.dash-pad-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid rgba(201, 168, 76, 0.28);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s, transform 0.08s;
+  touch-action: manipulation;
+  padding: 0;
+}
+
+.dash-pad-btn:hover:not(:disabled) {
+  background: rgba(201, 168, 76, 0.18);
+  color: var(--accent-gold);
+  border-color: rgba(201, 168, 76, 0.55);
+}
+
+.dash-pad-btn:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.dash-pad-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.dash-action-buttons .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.78rem;
+  min-height: 40px;
+  touch-action: manipulation;
+}
+
+.dash-action-buttons .btn.danger {
+  border-color: rgba(220, 90, 90, 0.45);
+  color: #ff8b8b;
+}
+
+.dash-action-buttons .btn.danger:hover {
+  background: rgba(220, 90, 90, 0.15);
+}
+
+.dash-action-confirm {
+  font-weight: 600;
+}
+
+.dash-action-remove {
+  width: 40px;
+  padding: 0 !important;
+  justify-content: center;
+}
+
+/* ─── Mobile/touch layout for the action bar ─── */
+@media (max-width: 720px) {
+  .dash-action-bar {
+    padding: 0.45rem 0.5rem calc(0.45rem + env(safe-area-inset-bottom, 0px));
+    gap: 0.4rem;
+  }
+
+  .dash-action-row-pads {
+    justify-content: space-between;
+    gap: 0.4rem;
+  }
+
+  .dash-move-pad {
+    grid-template-columns: repeat(3, 44px);
+    grid-template-rows: auto repeat(2, 44px);
+  }
+
+  .dash-pad-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1rem;
+  }
+
+  .dash-action-buttons {
+    flex-wrap: nowrap;
+  }
+
+  .dash-action-buttons .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+    padding: 0.6rem 0.5rem;
+    font-size: 0.78rem;
+    min-height: 44px;
+  }
+
+  .dash-action-remove {
+    flex: 0 0 44px !important;
+    width: 44px;
+  }
+
+  .dash-root.is-fs-edit {
+    padding: 0.4rem 0.5rem;
+    padding-bottom: 360px;
+  }
+}
+
+/* On very narrow screens, hide the meta sub-line so the title has room */
+@media (max-width: 420px) {
+  .dash-action-info {
+    gap: 0.4rem;
+  }
+
+  .dash-action-title {
+    font-size: 0.78rem;
+  }
+
+  .dash-action-sub {
+    font-size: 0.6rem;
+  }
+
+  .dash-action-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 0.95rem;
+  }
+
+  .dash-move-pad {
+    grid-template-columns: repeat(3, 40px);
+    grid-template-rows: auto repeat(2, 40px);
+    padding: 3px 5px;
+  }
+
+  .dash-resize-pad {
+    padding: 4px 6px;
+  }
+
+  .dash-pad-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .dash-action-buttons .btn .dash-action-btn-label {
+    display: none;
+  }
+
+  .dash-action-buttons .btn {
+    padding: 0.55rem 0.4rem;
+    min-width: 44px;
+  }
 }

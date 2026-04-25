@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FaCheck, FaPalette, FaPlus, FaTimes, FaUndo, FaGripVertical, FaThLarge, FaArrowsAlt, FaDesktop, FaTabletAlt, FaMobileAlt, FaCopy } from 'react-icons/fa';
+import { FaCheck, FaPalette, FaPlus, FaTimes, FaUndo, FaGripVertical, FaThLarge, FaArrowsAlt, FaDesktop, FaTabletAlt, FaMobileAlt, FaCopy, FaArrowUp, FaArrowDown, FaArrowLeft, FaArrowRight, FaExpandArrowsAlt, FaCompressArrowsAlt, FaTrash, FaBan } from 'react-icons/fa';
 import { useCharacterStore } from '../../store/characterStore';
 import { WIDGET_CATALOG, getWidgetDef } from './widgets';
+import { setWidgetJumpData, clearWidgetJumpData } from './widgetJumpBridge';
 import { auth } from '../../firebase';
 import { loadDashboardLayout, saveDashboardLayout } from '../../services/db';
 import {
@@ -164,9 +165,14 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
     };
     const [paletteOpen, setPaletteOpen] = useState(false);
     const [drag, setDrag] = useState<DragState | null>(null);
-    /** Scale applied to the dashboard frame while dragging so the user can see
-     *  the whole layout. 1 = no zoom; <1 = zoomed out. */
+    /** Scale applied to the dashboard frame while dragging — kept for compat
+     *  but always 1 in the new fullscreen edit flow. */
     const [dragZoom, setDragZoom] = useState(1);
+    /** Currently selected tile in edit mode (tap-to-select flow). */
+    const [selectedUid, setSelectedUid] = useState<string | null>(null);
+    /** Pending placement for the selected tile — staged via drag/nudge,
+     *  committed only when the user presses "Conferma". */
+    const [pending, setPending] = useState<{ uid: string; x: number; y: number; w: number; h: number } | null>(null);
     /** Currently focused tile (click-to-activate enables internal scrolling). */
     const [activeUid, setActiveUid] = useState<string | null>(null);
     const dashRef = useRef<HTMLDivElement | null>(null);
@@ -194,6 +200,17 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
     const [editedBp, setEditedBp] = useState<Breakpoint>(viewportBp);
     // When entering edit mode, sync to current viewport breakpoint
     useEffect(() => { if (!editMode) setEditedBp(viewportBp); }, [viewportBp, editMode]);
+
+    // Clear selection / pending when toggling edit mode or switching breakpoint
+    useEffect(() => { setSelectedUid(null); setPending(null); }, [editMode, editedBp]);
+
+    // Lock body scroll while in fullscreen edit mode
+    useEffect(() => {
+        if (!editMode) return;
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = prev; };
+    }, [editMode]);
 
     const activeBp: Breakpoint = editMode ? editedBp : viewportBp;
     const activeLayout: BreakpointLayout = layout.layouts[activeBp] ?? DEFAULT_LAYOUT.layouts[activeBp];
@@ -325,6 +342,68 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
     };
     const setRowHeight = (rowHeight: number) => mutateActive(l => ({ ...l, rowHeight }));
 
+    /* ─── Selection / pending placement (touch-friendly flow) ─── */
+    const widgetByUid = useCallback(
+        (uid: string) => activeLayout.widgets.find(w => w.uid === uid) ?? null,
+        [activeLayout.widgets],
+    );
+    const currentRectFor = useCallback((uid: string) => {
+        if (pending && pending.uid === uid) {
+            return { uid, x: pending.x, y: pending.y, w: pending.w, h: pending.h };
+        }
+        const w = widgetByUid(uid);
+        return w ? { uid, x: w.x, y: w.y, w: w.w, h: w.h } : null;
+    }, [pending, widgetByUid]);
+    const stagePending = useCallback((uid: string, rect: { x: number; y: number; w: number; h: number }) => {
+        const w = widgetByUid(uid);
+        if (!w) return;
+        const def = getWidgetDef(w.type);
+        const minW = def?.minW ?? 2;
+        const minH = def?.minH ?? 2;
+        const clamped = clampRect(rect, activeLayout.cols, minW, minH);
+        // If pending matches the original rect exactly, drop it (nothing to confirm)
+        if (clamped.x === w.x && clamped.y === w.y && clamped.w === w.w && clamped.h === w.h) {
+            setPending(null);
+            return;
+        }
+        setPending({ uid, ...clamped });
+    }, [widgetByUid, activeLayout.cols]);
+    const selectTile = useCallback((uid: string) => {
+        if (!editMode) return;
+        setSelectedUid(uid);
+    }, [editMode]);
+    const nudge = (dx: number, dy: number) => {
+        if (!selectedUid) return;
+        const cur = currentRectFor(selectedUid); if (!cur) return;
+        stagePending(selectedUid, { x: cur.x + dx, y: Math.max(0, cur.y + dy), w: cur.w, h: cur.h });
+    };
+    const resizeBy = (dw: number, dh: number) => {
+        if (!selectedUid) return;
+        const cur = currentRectFor(selectedUid); if (!cur) return;
+        stagePending(selectedUid, { x: cur.x, y: cur.y, w: cur.w + dw, h: cur.h + dh });
+    };
+    const confirmPending = () => {
+        if (pending) {
+            const target = { x: pending.x, y: pending.y, w: pending.w, h: pending.h };
+            const merged = resolveLayout(activeLayout.widgets, pending.uid, target);
+            const final = merged.map(w => w.uid === pending.uid ? { ...w, ...target } : w);
+            const compacted = compactLayout(final, pending.uid);
+            updateWidgets(() => compacted);
+            setPending(null);
+        }
+        // Always close the action bar when the user presses Conferma so they
+        // get clear feedback that the action completed (even if nothing was
+        // pending: pressing Conferma after a tap means "OK, done").
+        setSelectedUid(null);
+    };
+    const cancelPending = () => { setPending(null); setSelectedUid(null); };
+    const clearSelection = () => { setSelectedUid(null); setPending(null); };
+    const removeSelected = () => {
+        if (!selectedUid) return;
+        removeWidget(selectedUid);
+        clearSelection();
+    };
+
     /* ─── Drag (move/resize) ─── */
     const startDrag = (uid: string, mode: 'move' | 'resize') => (e: React.PointerEvent) => {
         if (!editMode) return;
@@ -344,7 +423,6 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
         const colGap = parseFloat(cs.columnGap || cs.gap || '0') || 0;
         const rowGap = parseFloat(cs.rowGap || cs.gap || '0') || 0;
         const contentW = cont.clientWidth;
-        const contentH = cont.scrollHeight;
         const colW = (contentW - (activeLayout.cols - 1) * colGap) / activeLayout.cols;
         const colPitch = colW + colGap;
         const rowPitch = activeLayout.rowHeight + rowGap;
@@ -353,37 +431,11 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
         const minW = def?.minW ?? 2;
         const minH = def?.minH ?? 2;
 
-        // Compute a zoom-out factor so the whole dashboard fits in the viewport.
-        // Only meaningful for MOVE: when resizing, the user is interacting with
-        // a single tile and zooming out (plus minimalising every other tile)
-        // is disorienting and makes the gesture feel laggy.
-        const viewportH = window.innerHeight;
-        const viewportW = window.innerWidth;
-        const reservedTop = 120;   // toolbar + edit hint
-        const reservedBottom = 40;
-        const reservedSides = 20;
-        const targetH = Math.max(200, viewportH - reservedTop - reservedBottom);
-        const targetW = Math.max(200, viewportW - reservedSides * 2);
-        const scaleH = targetH / contentH;
-        const scaleW = targetW / contentW;
-        const zoom = mode === 'resize'
-            ? 1
-            : Math.max(0.4, Math.min(1, scaleH, scaleW));
-        setDragZoom(zoom);
-
-        // If we're zooming out, scroll the dashboard frame to the top of the
-        // viewport so the entire layout is visible during the drag.
-        if (zoom < 1) {
-            const frame = cont.closest('.dash-frame') as HTMLElement | null;
-            if (frame) {
-                const frameTop = frame.getBoundingClientRect().top;
-                const desiredTop = reservedTop;
-                const scrollDelta = frameTop - desiredTop;
-                if (Math.abs(scrollDelta) > 4) {
-                    window.scrollBy({ top: scrollDelta, behavior: 'smooth' });
-                }
-            }
-        }
+        // Fullscreen edit mode handles its own scrolling, so we no longer
+        // zoom the dashboard. Keep the dragZoom state at 1 for compatibility
+        // with the phantom rendering path.
+        const zoom = 1;
+        setDragZoom(1);
 
         // Capture the pointer on the originating element so we keep getting
         // events even if the finger leaves the handle (essential for touch).
@@ -426,6 +478,61 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
             document.body.style.touchAction = 'none';
             document.body.style.overscrollBehavior = 'contain';
         }
+
+        // ── Edge auto-scroll while dragging ──
+        // The fullscreen edit overlay (`.dash-root.is-fs-edit`) is itself
+        // the scroll container; in normal mode we fall back to the window.
+        // We detect when the pointer is near the top/bottom edge and pan the
+        // viewport in that direction, keeping the action bar fixed at the bottom.
+        const fsRoot = dashRef.current?.classList.contains('is-fs-edit') ? dashRef.current : null;
+        const SCROLL_EDGE = 80;       // px from edge that triggers scroll
+        const SCROLL_MAX_SPEED = 18;  // px per frame at the very edge
+        // Reserve space at the bottom for the fixed action bar so the pointer
+        // doesn't have to ride under it to trigger downward scroll.
+        const ACTION_BAR_RESERVE = 180;
+        let scrollRafId: number | null = null;
+        let scrollPointerY = e.clientY;
+        const stepScroll = () => {
+            scrollRafId = null;
+            const y = scrollPointerY;
+            const viewportH = window.innerHeight;
+            const topEdge = SCROLL_EDGE;
+            const bottomEdge = viewportH - ACTION_BAR_RESERVE;
+            let delta = 0;
+            if (y < topEdge) {
+                const intensity = (topEdge - y) / SCROLL_EDGE;
+                delta = -Math.min(SCROLL_MAX_SPEED, Math.max(2, intensity * SCROLL_MAX_SPEED));
+            } else if (y > bottomEdge) {
+                const intensity = (y - bottomEdge) / SCROLL_EDGE;
+                delta = Math.min(SCROLL_MAX_SPEED, Math.max(2, intensity * SCROLL_MAX_SPEED));
+            }
+            if (delta !== 0) {
+                if (fsRoot) {
+                    fsRoot.scrollTop += delta;
+                } else {
+                    window.scrollBy(0, delta);
+                }
+                // Re-flush the drag math against the new scroll position so the
+                // ghost follows the pointer even when the finger is still.
+                if (lastEvent == null && rafId == null) {
+                    // Synthesize a flush from the last known pointer
+                    const synthetic = { ...({} as PointerEvent), clientX: scrollPointerX, clientY: scrollPointerY } as PointerEvent;
+                    lastEvent = synthetic;
+                    rafId = requestAnimationFrame(flush);
+                }
+                scrollRafId = requestAnimationFrame(stepScroll);
+            }
+        };
+        let scrollPointerX = e.clientX;
+        const maybeStartScroll = (ev: PointerEvent) => {
+            scrollPointerX = ev.clientX;
+            scrollPointerY = ev.clientY;
+            const viewportH = window.innerHeight;
+            const near = ev.clientY < SCROLL_EDGE || ev.clientY > viewportH - ACTION_BAR_RESERVE;
+            if (near && scrollRafId == null) {
+                scrollRafId = requestAnimationFrame(stepScroll);
+            }
+        };
 
         // rAF-throttle pointermove: touch devices fire many events per frame
         // and re-running resolveLayout for each is what makes the gesture
@@ -491,6 +598,7 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
         const onMove = (ev: PointerEvent) => {
             if (ev.pointerId !== e.pointerId) return;
             ev.preventDefault();
+            maybeStartScroll(ev);
             lastEvent = ev;
             if (rafId == null) {
                 rafId = requestAnimationFrame(flush);
@@ -502,6 +610,7 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
             window.removeEventListener('pointerup', onUp);
             window.removeEventListener('pointercancel', onUp);
             if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
+            if (scrollRafId != null) { cancelAnimationFrame(scrollRafId); scrollRafId = null; }
             lastEvent = null;
             try { captureEl.releasePointerCapture?.(e.pointerId); } catch { /* ignore */ }
             document.body.style.touchAction = prevTouchAction;
@@ -514,11 +623,16 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
             cleanup();
             const finalState = dragRef.current;
             if (finalState) {
-                // Commit the preview directly: push-down already resolved overlaps.
-                const merged = finalState.preview.map(w => w.uid === uid ? { ...w, ...finalState.ghost } : w);
-                // Compact upward to avoid leaving gaps from intermediate pushes.
-                const compacted = compactLayout(merged, uid);
-                updateWidgets(() => compacted);
+                // Stage the new placement as PENDING — do NOT commit yet.
+                // The user must press "Conferma" in the action bar to apply.
+                // This avoids accidental drops when touch is lost mid-gesture.
+                stagePending(uid, {
+                    x: finalState.ghost.x,
+                    y: finalState.ghost.y,
+                    w: finalState.ghost.w,
+                    h: finalState.ghost.h,
+                });
+                setSelectedUid(uid);
             }
             dragRef.current = null;
             setDrag(null);
@@ -530,13 +644,32 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
 
     const usedTypes = useMemo(() => new Set(activeLayout.widgets.map(w => w.type)), [activeLayout.widgets]);
 
+    /** Widgets to render: live drag preview > pending preview > raw layout. */
+    const displayWidgets: WidgetInstance[] = useMemo(() => {
+        if (drag) return drag.preview;
+        if (pending) {
+            const target = { x: pending.x, y: pending.y, w: pending.w, h: pending.h };
+            const merged = resolveLayout(activeLayout.widgets, pending.uid, target);
+            return merged.map(w => w.uid === pending.uid ? { ...w, ...target } : w);
+        }
+        return activeLayout.widgets;
+    }, [drag, pending, activeLayout.widgets]);
+
     const totalRows = useMemo(() => {
-        const widgets = drag ? drag.preview : activeLayout.widgets;
+        const widgets = displayWidgets;
         const fromWidgets = widgets.reduce((m, w) => Math.max(m, w.y + w.h), 0);
         const fromGhost = drag ? drag.ghost.y + drag.ghost.h : 0;
-        const max = Math.max(fromWidgets, fromGhost);
+        const fromPending = pending ? pending.y + pending.h : 0;
+        const max = Math.max(fromWidgets, fromGhost, fromPending);
         return Math.max(max, editMode ? max + 4 : max);
-    }, [activeLayout.widgets, editMode, drag]);
+    }, [displayWidgets, editMode, drag, pending]);
+
+    // Publish the current widget list to the WidgetJump rail (the trigger
+    // is the mobile "Panoramica" tab, registered from CharacterSheet).
+    useEffect(() => {
+        setWidgetJumpData(displayWidgets, editMode);
+        return () => clearWidgetJumpData();
+    }, [displayWidgets, editMode]);
 
     const gridStyle: React.CSSProperties = {
         gridTemplateColumns: `repeat(${activeLayout.cols}, minmax(0, 1fr))`,
@@ -553,7 +686,7 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
     const colsForBp = COL_PRESETS[activeBp];
 
     return (
-        <div ref={dashRef} className="dash-root animate-fade-in">
+        <div ref={dashRef} className={`dash-root animate-fade-in${editMode ? ' is-fs-edit' : ''}`}>
             {/* TOOLBAR — shown only in edit mode */}
             {editMode && <div className="dash-toolbar">
                 <div className="flex items-center gap-2">
@@ -677,7 +810,7 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
                     willChange: drag && drag.mode === 'move' ? 'transform' : undefined,
                 }}>
                 <div ref={containerRef} className={`dash-grid ${editMode ? 'is-edit' : ''}`} style={gridStyle}>
-                    {(drag ? drag.preview : activeLayout.widgets).map(w => {
+                    {displayWidgets.map(w => {
                         const def = getWidgetDef(w.type);
                         if (!def) return null;
                         // Hide the dragged widget from the grid entirely:
@@ -702,7 +835,8 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
                         return (
                             <div
                                 key={w.uid}
-                                className={`dash-tile ${isResizing ? 'dragging is-resizing' : ''} ${activeUid === w.uid ? 'is-active' : ''} ${drag && drag.mode === 'move' ? 'is-minimal' : ''}`}
+                                data-widget-uid={w.uid}
+                                className={`dash-tile ${isResizing ? 'dragging is-resizing' : ''} ${activeUid === w.uid ? 'is-active' : ''} ${selectedUid === w.uid && editMode ? 'is-selected' : ''} ${pending && pending.uid === w.uid && !drag ? 'is-pending' : ''} ${drag && drag.mode === 'move' ? 'is-minimal' : ''}`}
                                 style={{
                                     gridColumn: `${visualRect.x + 1} / span ${visualRect.w}`,
                                     gridRow: `${visualRect.y + 1} / span ${visualRect.h}`,
@@ -712,6 +846,7 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
                                     borderColor: drag ? (def.accent ? `${def.accent}66` : undefined) : undefined,
                                 }}
                                 onMouseDown={() => { if (!editMode) setActiveUid(w.uid); }}
+                                onClick={editMode ? () => selectTile(w.uid) : undefined}
                             >
                                 {/* Hide the chrome header during a MOVE — the
                                     minimal body shows a big readable label.
@@ -720,11 +855,15 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
                                 {!(drag && drag.mode === 'move') && (
                                     <div
                                         className="dash-tile-header"
-                                        style={{ borderBottomColor: def.accent ? `${def.accent}33` : undefined, cursor: editMode ? 'grab' : 'default', touchAction: editMode ? 'none' : undefined }}
-                                        onPointerDown={editMode ? startDrag(w.uid, 'move') : undefined}
+                                        style={{ borderBottomColor: def.accent ? `${def.accent}33` : undefined, cursor: editMode ? 'pointer' : 'default' }}
                                     >
                                         {editMode && (
-                                            <span className="dash-grip" title="Trascina per spostare"><FaGripVertical size={9} /></span>
+                                            <span
+                                                className="dash-grip"
+                                                title="Trascina per spostare"
+                                                onPointerDown={startDrag(w.uid, 'move')}
+                                                style={{ touchAction: 'none', cursor: 'grab' }}
+                                            ><FaGripVertical size={11} /></span>
                                         )}
                                         <span className="dash-tile-title" style={{ color: def.accent || 'var(--accent-gold)' }}>
                                             <span style={{ fontSize: '0.78rem' }}>{def.icon}</span>
@@ -736,7 +875,7 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
                                                     className="dash-icon-btn danger"
                                                     title="Rimuovi widget"
                                                     onPointerDown={e => e.stopPropagation()}
-                                                    onClick={() => removeWidget(w.uid)}
+                                                    onClick={(e) => { e.stopPropagation(); removeWidget(w.uid); if (selectedUid === w.uid) clearSelection(); }}
                                                     style={{ touchAction: 'manipulation' }}
                                                 >
                                                     <FaTimes size={9} />
@@ -777,6 +916,19 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
                             }}
                         >
                             <span>{drag.ghost.w} × {drag.ghost.h}</span>
+                        </div>
+                    )}
+
+                    {/* Pending placement outline — the user must press Conferma to apply. */}
+                    {editMode && pending && !drag && (
+                        <div
+                            className="dash-ghost dash-ghost-pending"
+                            style={{
+                                gridColumn: `${pending.x + 1} / span ${pending.w}`,
+                                gridRow: `${pending.y + 1} / span ${pending.h}`,
+                            }}
+                        >
+                            <span>{pending.w} × {pending.h} — in attesa di conferma</span>
                         </div>
                     )}
 
@@ -830,6 +982,100 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
                     document.body,
                 );
             })()}
+
+            {/* Bottom action bar — portaled to <body> so it stays glued to the
+                viewport regardless of any ancestor stacking context (e.g. the
+                fullscreen edit overlay or transformed dash-frame). */}
+            {editMode && selectedUid && (() => {
+                const sel = widgetByUid(selectedUid);
+                const def = sel ? getWidgetDef(sel.type) : null;
+                if (!sel || !def) return null;
+                const cur = currentRectFor(selectedUid)!;
+                const minW = def.minW ?? 2;
+                const minH = def.minH ?? 2;
+                const canShrinkW = cur.w > minW;
+                const canGrowW = cur.w < activeLayout.cols;
+                const canShrinkH = cur.h > minH;
+                const canGrowH = true;
+                const canMoveLeft = cur.x > 0;
+                const canMoveRight = cur.x + cur.w < activeLayout.cols;
+                const canMoveUp = cur.y > 0;
+                const hasPending = !!pending && pending.uid === selectedUid;
+                return createPortal(
+                    <div className="dash-action-bar" role="dialog" aria-label="Modifica widget">
+                        <div className="dash-action-row dash-action-row-top">
+                            <div className="dash-action-info">
+                                <span className="dash-action-icon" style={{ color: def.accent || 'var(--accent-gold)' }}>{def.icon}</span>
+                                <div className="dash-action-meta">
+                                    <span className="dash-action-title">{def.title}</span>
+                                    <span className="dash-action-sub">
+                                        {cur.x},{cur.y} · {cur.w}×{cur.h}
+                                        {hasPending && <em className="dash-action-pending"> · da confermare</em>}
+                                    </span>
+                                </div>
+                            </div>
+                            <button
+                                className="dash-action-close"
+                                onClick={clearSelection}
+                                title="Chiudi"
+                                aria-label="Chiudi"
+                            ><FaTimes /></button>
+                        </div>
+                        <div className="dash-action-row dash-action-row-pads">
+                            <div className="dash-move-pad" aria-label="Sposta">
+                                <span className="dash-pad-label">Sposta</span>
+                                <button className="dash-pad-btn up" onClick={() => nudge(0, -1)} disabled={!canMoveUp} title="Su"><FaArrowUp /></button>
+                                <button className="dash-pad-btn left" onClick={() => nudge(-1, 0)} disabled={!canMoveLeft} title="Sinistra"><FaArrowLeft /></button>
+                                <button className="dash-pad-btn right" onClick={() => nudge(1, 0)} disabled={!canMoveRight} title="Destra"><FaArrowRight /></button>
+                                <button className="dash-pad-btn down" onClick={() => nudge(0, 1)} title="Giù"><FaArrowDown /></button>
+                            </div>
+                            <div className="dash-resize-pad" aria-label="Ridimensiona">
+                                <div className="dash-resize-row">
+                                    <span className="dash-pad-label">L</span>
+                                    <button className="dash-pad-btn" onClick={() => resizeBy(-1, 0)} disabled={!canShrinkW} title="Restringi"><FaCompressArrowsAlt /></button>
+                                    <span className="dash-resize-val">{cur.w}</span>
+                                    <button className="dash-pad-btn" onClick={() => resizeBy(1, 0)} disabled={!canGrowW} title="Allarga"><FaExpandArrowsAlt /></button>
+                                </div>
+                                <div className="dash-resize-row">
+                                    <span className="dash-pad-label">A</span>
+                                    <button className="dash-pad-btn" onClick={() => resizeBy(0, -1)} disabled={!canShrinkH} title="Riduci"><FaCompressArrowsAlt style={{ transform: 'rotate(90deg)' }} /></button>
+                                    <span className="dash-resize-val">{cur.h}</span>
+                                    <button className="dash-pad-btn" onClick={() => resizeBy(0, 1)} disabled={!canGrowH} title="Aumenta"><FaExpandArrowsAlt style={{ transform: 'rotate(90deg)' }} /></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="dash-action-row dash-action-buttons">
+                            <button
+                                className="btn btn-secondary danger dash-action-remove"
+                                onClick={removeSelected}
+                                title="Rimuovi questo widget"
+                                aria-label="Rimuovi"
+                            >
+                                <FaTrash />
+                            </button>
+                            <button
+                                className="btn btn-secondary"
+                                onClick={cancelPending}
+                                disabled={!hasPending}
+                                title="Annulla le modifiche non confermate"
+                            >
+                                <FaBan /> <span className="dash-action-btn-label">Annulla</span>
+                            </button>
+                            <button
+                                className="btn btn-primary dash-action-confirm"
+                                onClick={confirmPending}
+                                title={hasPending ? 'Applica la nuova posizione' : 'Chiudi'}
+                            >
+                                <FaCheck /> {hasPending ? 'Conferma' : 'OK'}
+                            </button>
+                        </div>
+                    </div>,
+                    document.body,
+                );
+            })()}
+
+            {/* Press-and-hold jump pad: portaled next to the active tabs row
+                (mobile shell on small screens, sheet tabs on desktop). */}
         </div>
     );
 };

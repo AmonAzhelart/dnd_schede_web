@@ -4,6 +4,7 @@ import { useCharacterStore } from '../../../store/characterStore';
 import type { WidgetRenderProps } from '../widgetTypes';
 import type { ActiveModifier, DurationUnit, ModifierType, StatType } from '../../../types/dnd';
 import { DndIcon } from '../../DndIcon';
+import { DndSelect } from '../../ui/DndSelect';
 
 /* == Targets == */
 type TargetDef = { id: string; label: string; short: string; group: 'stat' | 'save' | 'combat' };
@@ -320,11 +321,16 @@ export const ModifiersWidget: React.FC<WidgetRenderProps> = ({ size }) => {
                             <div className="w-mod-form-grid">
                                 <label className="w-mod-form-cell">
                                     <span className="w-mod-form-lbl">Target</span>
-                                    <select className="input w-mod-input" value={draft.target} onChange={e => setDraft(d => ({ ...d, target: e.target.value }))}>
-                                        <optgroup label="Caratteristiche">{TARGETS.filter(t => t.group === 'stat').map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</optgroup>
-                                        <optgroup label="Tiri Salvezza">{TARGETS.filter(t => t.group === 'save').map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</optgroup>
-                                        <optgroup label="Combattimento">{TARGETS.filter(t => t.group === 'combat').map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</optgroup>
-                                    </select>
+                                    <DndSelect
+                                        ariaLabel="Target"
+                                        value={String(draft.target)}
+                                        onChange={v => setDraft(d => ({ ...d, target: v }))}
+                                        options={[
+                                            ...TARGETS.filter(t => t.group === 'stat').map(t => ({ value: t.id, label: t.label, group: 'Caratteristiche' })),
+                                            ...TARGETS.filter(t => t.group === 'save').map(t => ({ value: t.id, label: t.label, group: 'Tiri Salvezza' })),
+                                            ...TARGETS.filter(t => t.group === 'combat').map(t => ({ value: t.id, label: t.label, group: 'Combattimento' })),
+                                        ]}
+                                    />
                                 </label>
                                 <label className="w-mod-form-cell">
                                     <span className="w-mod-form-lbl">Valore</span>
@@ -336,17 +342,23 @@ export const ModifiersWidget: React.FC<WidgetRenderProps> = ({ size }) => {
                                 </label>
                                 <label className="w-mod-form-cell">
                                     <span className="w-mod-form-lbl">Tipo</span>
-                                    <select className="input w-mod-input" value={draft.type} onChange={e => setDraft(d => ({ ...d, type: e.target.value as ModifierType }))}>
-                                        {MODIFIER_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                                    </select>
+                                    <DndSelect
+                                        ariaLabel="Tipo"
+                                        value={draft.type}
+                                        onChange={v => setDraft(d => ({ ...d, type: v as ModifierType }))}
+                                        options={MODIFIER_TYPES.map(t => ({ value: t.id, label: t.label }))}
+                                    />
                                 </label>
                                 <label className="w-mod-form-cell">
                                     <span className="w-mod-form-lbl">Durata</span>
                                     <div className="w-mod-value-row">
                                         <input type="number" className="input w-mod-input w-mod-value-input" value={draft.duration} disabled={draft.unit === 'permanent'} onChange={e => setDraft(d => ({ ...d, duration: Math.max(1, parseInt(e.target.value || '1', 10)) }))} />
-                                        <select className="input w-mod-input" value={draft.unit} onChange={e => setDraft(d => ({ ...d, unit: e.target.value as DurationUnit }))}>
-                                            {UNIT_OPTIONS.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
-                                        </select>
+                                        <DndSelect
+                                            ariaLabel="Unità"
+                                            value={draft.unit}
+                                            onChange={v => setDraft(d => ({ ...d, unit: v as DurationUnit }))}
+                                            options={UNIT_OPTIONS.map(u => ({ value: u.id, label: u.label }))}
+                                        />
                                     </div>
                                 </label>
                                 <label className="w-mod-form-cell" style={{ gridColumn: '1 / -1' }}>

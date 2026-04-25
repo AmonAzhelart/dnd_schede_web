@@ -1,7 +1,8 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useCharacterStore } from '../store/characterStore';
 import type { CustomAttack } from '../types/dnd';
-import { FaHeart, FaStar, FaPlus, FaMinus, FaEdit, FaSearch, FaPalette, FaCheck, FaTrash } from 'react-icons/fa';
+import { FaHeart, FaStar, FaPlus, FaMinus, FaEdit, FaSearch, FaPalette, FaCheck, FaTrash, FaCamera } from 'react-icons/fa';
 import { GiSwordman, GiAxeSword, GiSpellBook, GiTreasureMap, GiAbstract024, GiUpgrade } from 'react-icons/gi';
 import { Inventory } from './Inventory';
 import { Spellbook } from './Spellbook';
@@ -10,8 +11,12 @@ import { SkillModal } from './SkillModal';
 import { SkillImportWizard } from './SkillImportWizard';
 import { SkeletonSheet } from './Skeleton';
 import { OverviewDashboard } from './dashboard/OverviewDashboard';
+import { WidgetJumpRail } from './dashboard/WidgetJumpRail';
+import { setWidgetJumpTrigger } from './dashboard/widgetJumpBridge';
 import { LevelsTab } from './LevelsTab';
 import { ModifiersWidget } from './dashboard/widgets/ModifiersWidget';
+import { useMediaQuery } from './mobile/MobileShell';
+import { setMobileContextActions } from './mobile/mobileShellSlots';
 import './CharacterSheetHeader.css';
 
 type SheetTab = 'overview' | 'combat' | 'levels' | 'skills' | 'inventory' | 'abilities' | 'spells';
@@ -20,6 +25,36 @@ const STAT_NAMES: Record<string, string> = {
   str: 'Forza', dex: 'Destrezza', con: 'Costituzione',
   int: 'Intelligenza', wis: 'Saggezza', cha: 'Carisma'
 };
+
+/**
+ * Read a user-picked image and return a data URL whose largest side is `<= maxSize`.
+ * Keeps avatars small enough to fit comfortably in a Firestore document.
+ */
+const downscaleImage = (file: File, maxSize: number): Promise<string> => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onerror = () => reject(new Error('read-failed'));
+  reader.onload = () => {
+    const img = new Image();
+    img.onerror = () => reject(new Error('decode-failed'));
+    img.onload = () => {
+      const ratio = Math.min(1, maxSize / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * ratio));
+      const h = Math.max(1, Math.round(img.height * ratio));
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('canvas-ctx')); return; }
+      ctx.drawImage(img, 0, 0, w, h);
+      try {
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      } catch (e) {
+        reject(e as Error);
+      }
+    };
+    img.src = String(reader.result);
+  };
+  reader.readAsDataURL(file);
+});
 
 export const CharacterSheet: React.FC = () => {
   const { character, setCharacter, getEffectiveStat, getStatModifier, getSkillBreakdown, updateSkill, deleteSkill,
@@ -36,6 +71,50 @@ export const CharacterSheet: React.FC = () => {
   const [showUnusable, setShowUnusable] = useState(true);
   const [headerEditing, setHeaderEditing] = useState(false);
   const [dashEditMode, setDashEditMode] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const isMobile = useMediaQuery('(max-width: 900px)');
+
+  // Live portal target for the sheet inner-tabs row inside the bottom shell.
+  const tabsSlot = isMobile ? (typeof document !== 'undefined' ? document.getElementById('mobile-shell-tabs-slot') : null) : null;
+  // Force a re-render once after mount so the slot resolves even if the shell
+  // mounts after this component on the first paint.
+  const [, forceUpdate] = useState(0);
+  useEffect(() => {
+    if (isMobile && !tabsSlot) {
+      const t = setTimeout(() => forceUpdate(x => x + 1), 0);
+      return () => clearTimeout(t);
+    }
+  }, [isMobile, tabsSlot]);
+
+  // ── Push context actions into the mobile avatar popup ───────────────
+  // Desktop keeps them inline in the header; on small screens they live
+  // under "Azioni rapide" inside the popup that opens on avatar tap.
+  useEffect(() => {
+    if (!isMobile) {
+      setMobileContextActions([]);
+      return;
+    }
+    const acts = [
+      {
+        id: 'edit-header',
+        label: headerEditing ? 'Chiudi modifica' : 'Modifica personaggio',
+        icon: <FaEdit size={13} />,
+        onClick: () => setHeaderEditing(v => !v),
+        active: headerEditing,
+      },
+    ];
+    if (activeTab === 'overview') {
+      acts.push({
+        id: 'edit-dash',
+        label: dashEditMode ? 'Termina personalizzazione' : 'Personalizza dashboard',
+        icon: dashEditMode ? <FaCheck size={12} /> : <FaPalette size={12} />,
+        onClick: () => setDashEditMode(v => !v),
+        active: dashEditMode,
+      });
+    }
+    setMobileContextActions(acts);
+    return () => setMobileContextActions([]);
+  }, [isMobile, headerEditing, dashEditMode, activeTab]);
 
   // ─── Custom Attacks state ────────────────────────────────────────
   type CAForm = Omit<CustomAttack, 'id'>;
@@ -81,7 +160,39 @@ export const CharacterSheet: React.FC = () => {
           const hpClass = hpPercent < 25 ? 'crit' : hpPercent < 50 ? 'low' : '';
           return (
             <div className="cs-header">
-              <div className="cs-avatar">{character.name.charAt(0).toUpperCase()}</div>
+              <button
+                type="button"
+                className={'cs-avatar' + (character.avatarUrl ? ' has-image' : '')}
+                onClick={() => avatarInputRef.current?.click()}
+                title={character.avatarUrl ? 'Cambia immagine' : 'Aggiungi immagine'}
+                aria-label="Modifica avatar"
+              >
+                {character.avatarUrl ? (
+                  <img src={character.avatarUrl} alt={character.name} className="cs-avatar-img" />
+                ) : (
+                  <span className="cs-avatar-initial">{character.name.charAt(0).toUpperCase()}</span>
+                )}
+                <span className="cs-avatar-overlay" aria-hidden>
+                  <FaCamera size={12} />
+                </span>
+              </button>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={async e => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (!file) return;
+                  try {
+                    const dataUrl = await downscaleImage(file, 320);
+                    setCharacter({ ...character, avatarUrl: dataUrl });
+                  } catch {
+                    /* ignore failures — user can retry or paste a URL in the drawer */
+                  }
+                }}
+              />
 
               <div className="cs-identity">
                 <h2 className="cs-name" title={character.name}>{character.name}</h2>
@@ -119,7 +230,7 @@ export const CharacterSheet: React.FC = () => {
                 </div>
                 <div className="cs-quick-cell speed">
                   <span className="cs-quick-lbl">VEL</span>
-                  <span className="cs-quick-val">{character.baseStats.speed}<span style={{ fontSize: '0.6em', opacity: 0.7 }}>ft</span></span>
+                  <span className="cs-quick-val">{character.movement?.base ?? character.baseStats.speed}<span style={{ fontSize: '0.6em', opacity: 0.7 }}>ft</span></span>
                 </div>
                 <div className="cs-quick-cell bab">
                   <span className="cs-quick-lbl">BAB</span>
@@ -147,6 +258,9 @@ export const CharacterSheet: React.FC = () => {
                   </button>
                 )}
               </div>
+              {/* Mobile: actions are surfaced via the avatar popup
+                  (see useEffect below). The inline buttons above are hidden by
+                  CSS on small screens. */}
             </div>
           );
         })()}
@@ -184,6 +298,28 @@ export const CharacterSheet: React.FC = () => {
                   <span className="cs-drawer-label">Allineamento</span>
                   <input className="input" value={character.alignment}
                     onChange={e => setCharacter({ ...character, alignment: e.target.value })} />
+                </div>
+                <div className="cs-drawer-field cs-drawer-field-wide">
+                  <span className="cs-drawer-label">Avatar</span>
+                  <div className="cs-drawer-avatar-row">
+                    <input
+                      className="input"
+                      type="url"
+                      placeholder="URL immagine (https://… o data:…)"
+                      value={character.avatarUrl ?? ''}
+                      onChange={e => setCharacter({ ...character, avatarUrl: e.target.value || undefined })}
+                    />
+                    <button type="button" className="btn-secondary cs-drawer-avatar-btn"
+                      onClick={() => avatarInputRef.current?.click()}>
+                      Carica…
+                    </button>
+                    {character.avatarUrl && (
+                      <button type="button" className="btn-secondary cs-drawer-avatar-btn"
+                        onClick={() => setCharacter({ ...character, avatarUrl: undefined })}>
+                        Rimuovi
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="cs-drawer-field">
                   <span className="cs-drawer-label">PV Max</span>
@@ -246,6 +382,34 @@ export const CharacterSheet: React.FC = () => {
             </button>
           ))}
         </div>
+        {/* Mobile: also portal the tabs into the bottom shell row 1.
+            On mobile we move "Panoramica" to the rightmost slot so the
+            press-and-hold widget jump anchors next to the avatar/stats. */}
+        {isMobile && tabsSlot && createPortal(
+          <>
+            {(() => {
+              const overview = tabs.find(t => t.id === 'overview');
+              const others = tabs.filter(t => t.id !== 'overview');
+              const ordered = overview ? [...others, overview] : tabs;
+              return ordered.map(tab => {
+                const isOverview = tab.id === 'overview';
+                return (
+                  <button
+                    key={tab.id}
+                    ref={isOverview ? (el => setWidgetJumpTrigger(el)) : undefined}
+                    className={`cs-tab ${activeTab === tab.id ? 'active' : ''}${isOverview ? ' cs-tab-jump' : ''}`}
+                    onClick={() => setActiveTab(tab.id)}
+                    title={isOverview ? `${tab.label} — tieni premuto per saltare a un widget` : tab.label}
+                    aria-label={tab.label}
+                  >
+                    {tab.icon}<span className="cs-tab-label">{tab.label}</span>
+                  </button>
+                );
+              });
+            })()}
+          </>,
+          tabsSlot,
+        )}
       </div>{/* end sticky header+tabs */}
 
       {/* ─── CONTENT AREA ───────────────────────────────── */}
@@ -925,6 +1089,9 @@ export const CharacterSheet: React.FC = () => {
       {showImportWizard && (
         <SkillImportWizard onClose={() => setShowImportWizard(false)} />
       )}
+
+      {/* Widget jump rail (anchored to the mobile "Panoramica" tab). */}
+      <WidgetJumpRail />
     </div>
   );
 };

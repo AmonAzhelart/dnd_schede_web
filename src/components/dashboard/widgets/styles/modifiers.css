@@ -521,6 +521,21 @@
     padding: 8px 10px !important;
 }
 
+/* Durata cell: number + unit select must both stay readable. */
+.w-mod-modal-body .w-mod-value-row {
+    gap: 6px;
+}
+.w-mod-modal-body .w-mod-value-row > .w-mod-value-input {
+    flex: 0 0 72px;
+    min-width: 72px;
+    text-align: center;
+}
+.w-mod-modal-body .w-mod-value-row > select.w-mod-input,
+.w-mod-modal-body .w-mod-value-row > .dnd-sel-trigger {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
 .w-mod-modal-body .w-mod-form-lbl {
     font-size: 0.66rem;
     text-transform: uppercase;
