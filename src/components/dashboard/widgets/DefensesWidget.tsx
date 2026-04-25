@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useCharacterStore } from '../../../store/characterStore';
 import type { WidgetRenderProps } from '../widgetTypes';
 import { DndIcon } from '../../DndIcon';
 import { useModifierAura, ModifierArrows } from './ModifierAura';
+import { RollPickerModal, type RollBreakdownLine } from '../../RollPickerModal';
+import type { RollContext } from '../../../services/modifiers';
 
 const SAVES = [
     { key: 'fortitude', name: 'Tempra',   short: 'TEM', stat: 'COS', iconCat: 'attribute', iconName: 'saving-throw', rune: 'ᚠ' },
@@ -10,8 +12,14 @@ const SAVES = [
     { key: 'will',      name: 'Volontà',  short: 'VOL', stat: 'SAG', iconCat: 'game',      iconName: 'concentration', rune: 'ᚹ' },
 ] as const;
 
-export const DefensesWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
+export const DefensesWidget: React.FC<WidgetRenderProps> = ({ size }) => {
     const { character, getEffectiveStat, getSaveBreakdown } = useCharacterStore();
+    const [picker, setPicker] = useState<{
+        ctx: RollContext;
+        title: string;
+        subtitle?: string;
+        breakdown: RollBreakdownLine[];
+    } | null>(null);
     if (!character) return null;
 
     const equippedArmor = character.inventory.filter(i =>
@@ -46,7 +54,11 @@ export const DefensesWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
             <button
                 type="button"
                 className={`w-def-ac ${acAura.auraClass}`}
-                onClick={() => goTo?.('combat')}
+                onClick={() => setPicker({
+                    ctx: { channel: 'ac' },
+                    title: 'Classe Armatura',
+                    breakdown: [{ label: 'CA effettiva', value: ac }],
+                })}
                 aria-label={`Classe Armatura ${ac}`}
             >
                 {acAura.auraClass && <ModifierArrows delta={acAura.delta} count={4} />}
@@ -99,9 +111,23 @@ export const DefensesWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                         showRune={showRune}
                         showBreakdown={showBreakdown}
                         saveIconSize={saveIconSize}
+                        onPick={(channel, title, breakdown) => setPicker({
+                            ctx: { channel } as RollContext,
+                            title,
+                            breakdown,
+                        })}
                     />
                 ))}
             </div>
+            {picker && (
+                <RollPickerModal
+                    ctx={picker.ctx}
+                    title={picker.title}
+                    subtitle={picker.subtitle}
+                    baseBreakdown={picker.breakdown}
+                    onClose={() => setPicker(null)}
+                />
+            )}
         </div>
     );
 };
@@ -122,11 +148,14 @@ const SaveCell: React.FC<{
     showRune: boolean;
     showBreakdown: boolean;
     saveIconSize: number;
-}> = ({ save, breakdown: b, fmt, tier, showRune, showBreakdown, saveIconSize }) => {
+    onPick: (channel: 'save.fort' | 'save.ref' | 'save.will', title: string, breakdown: RollBreakdownLine[]) => void;
+}> = ({ save, breakdown: b, fmt, tier, showRune, showBreakdown, saveIconSize, onPick }) => {
     const { key, name, short, stat, iconCat, iconName, rune } = save;
     const aura = useModifierAura(key);
     const total = b.total + aura.delta;
     const positive = total >= 0;
+    const channel: 'save.fort' | 'save.ref' | 'save.will' =
+        key === 'fortitude' ? 'save.fort' : key === 'reflex' ? 'save.ref' : 'save.will';
     const chips: { label: string; value: string }[] = [
         { label: 'base', value: `${b.base}` },
         { label: stat,   value: fmt(b.ability) },
@@ -135,11 +164,17 @@ const SaveCell: React.FC<{
         ...(aura.delta !== 0 ? [{ label: 'mod', value: fmt(aura.delta) }] : []),
     ];
     return (
-        <div
+        <button
+            type="button"
             className={`w-def-save ${key} ${positive ? 'pos' : 'neg'} ${aura.auraClass}`}
-            role="group"
             aria-label={`${name} ${fmt(total)}`}
-            title={chips.map(c => `${c.value} ${c.label}`).join(' · ')}
+            title={`Apri tiro salvezza · ${chips.map(c => `${c.value} ${c.label}`).join(' · ')}`}
+            onClick={() => onPick(channel, `Tiro salvezza · ${name}`, [
+                { label: 'Base', value: b.base },
+                { label: `Mod. ${stat}`, value: b.ability },
+                ...(b.magic !== 0 ? [{ label: 'Magico', value: b.magic }] : []),
+                ...(b.misc !== 0 ? [{ label: 'Vari', value: b.misc }] : []),
+            ])}
         >
             {aura.auraClass && <ModifierArrows delta={aura.delta} count={3} />}
             <span className="w-def-save-aura" aria-hidden />
@@ -169,6 +204,6 @@ const SaveCell: React.FC<{
             )}
 
             <span className="w-def-save-bar" aria-hidden />
-        </div>
+        </button>
     );
 };

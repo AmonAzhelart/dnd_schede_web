@@ -6,7 +6,8 @@ import { useIconCatalog, sanitizeSvg } from '../../../services/iconCache';
 import { GiCrossedSwords } from 'react-icons/gi';
 import { FaMinus, FaPlus } from 'react-icons/fa';
 import { useModifierAura, ModifierArrows } from './ModifierAura';
-import type { StatType } from '../../../types/dnd';
+import type { Item, StatType } from '../../../types/dnd';
+import { RollPickerModal, type RollSegment } from '../../RollPickerModal';
 
 const fmtSigned = (v: number) => (v >= 0 ? `+${v}` : `${v}`);
 
@@ -29,8 +30,12 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
     const { character, setCharacter, getStatModifier, getTotalBab, getMultipleAttacks } = useCharacterStore();
     const { resolveItemSvg } = useIconCatalog();
     const babAura = useModifierAura('bab');
-    const [diceRolling, setDiceRolling] = useState<string | null>(null);
     const [expanded, setExpanded] = useState<string | null>(null);
+    const [picker, setPicker] = useState<{
+        title: string;
+        subtitle?: string;
+        segments: RollSegment[];
+    } | null>(null);
 
     if (!character) return null;
 
@@ -56,16 +61,49 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
 
     const fmtList = (arr: number[]) => arr.map(fmtSigned).join(' / ');
 
-    /** Roll d20 and notify the user with the result. */
-    const rollAttack = (id: string, label: string, bonus: number, damage: string | undefined, primaryAttacks: number[]) => {
-        const roll = Math.floor(Math.random() * 20) + 1;
-        const total = roll + bonus;
-        setDiceRolling(id);
-        setTimeout(() => setDiceRolling(null), 600);
-        const progStr = primaryAttacks.length > 1
-            ? `\nProgressione: ${fmtList(primaryAttacks)}`
-            : '';
-        alert(`⚔️ ${label}\nDado: ${roll}  Bonus: ${fmtSigned(bonus)}  =  ${total}${progStr}${damage ? `\nDanno: ${damage}` : ''}`);
+    /** Open the combined attack+damage picker. The widget computes both base
+     *  breakdowns; the modal lists feat/item/class-feature bonuses for each
+     *  channel and tells you the d20 modifier and damage modifier+dice. */
+    const openAttackPicker = (
+        weapon: Item | undefined,
+        label: string,
+        attackBreakdown: RollBreakdownLine[],
+        damageBreakdown: RollBreakdownLine[],
+        opts: { isRanged: boolean; customAttackName?: string; subtitle?: string; baseDice?: string },
+    ) => {
+        const segments: RollSegment[] = [
+            {
+                ctx: { channel: 'attack', weapon, customAttackName: opts.customAttackName, isRanged: opts.isRanged },
+                label: 'Tiro per colpire',
+                baseBreakdown: attackBreakdown,
+            },
+            {
+                ctx: { channel: 'damage', weapon, customAttackName: opts.customAttackName, isRanged: opts.isRanged },
+                label: 'Danno',
+                baseBreakdown: damageBreakdown,
+                baseDice: opts.baseDice,
+            },
+        ];
+        setPicker({ title: `Attacco · ${label}`, subtitle: opts.subtitle, segments });
+    };
+
+    /** Damage-only picker (kept for the explicit "danno" button). */
+    const openDamagePicker = (
+        weapon: Item | undefined,
+        label: string,
+        breakdown: RollBreakdownLine[],
+        opts: { isRanged: boolean; customAttackName?: string; subtitle?: string; baseDice?: string },
+    ) => {
+        setPicker({
+            title: `Danno · ${label}`,
+            subtitle: opts.subtitle,
+            segments: [{
+                ctx: { channel: 'damage', weapon, customAttackName: opts.customAttackName, isRanged: opts.isRanged },
+                label: 'Danno',
+                baseBreakdown: breakdown,
+                baseDice: opts.baseDice,
+            }],
+        });
     };
 
     return (
@@ -131,25 +169,61 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                                     <div className="w-atk2-row-right">
                                         <button
                                             className="w-atk2-row-stat atk"
-                                            onClick={() => attacks.length > 1 ? setExpanded(isExpanded ? null : w.id) : rollAttack(w.id, w.name, primary, fullDamage, attacks)}
-                                            title={attacks.length > 1 ? 'Mostra progressione' : 'Tira d20'}
+                                            onClick={() => {
+                                                if (attacks.length > 1) {
+                                                    setExpanded(isExpanded ? null : w.id);
+                                                    return;
+                                                }
+                                                openAttackPicker(w, w.name,
+                                                    [
+                                                        { label: 'BAB', value: getTotalBab() },
+                                                        { label: isRanged ? 'Mod. DES' : 'Mod. FOR', value: abilityMod },
+                                                        ...(weaponBonus ? [{ label: 'Bonus arma', value: weaponBonus }] : []),
+                                                    ],
+                                                    [
+                                                        { label: 'Mod. FOR', value: isRanged ? 0 : strMod },
+                                                    ],
+                                                    { isRanged, subtitle: meta, baseDice: baseDamage });
+                                            }}
+                                            title="Apri tiro per colpire e danno"
                                         >
                                             <span className="v">{fmtSigned(primary)}</span>
                                             <span className="l">colpire</span>
                                         </button>
                                         {fullDamage && (
-                                            <div className="w-atk2-row-stat dmg">
+                                            <button
+                                                className="w-atk2-row-stat dmg"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openDamagePicker(w, w.name, [
+                                                        { label: 'Mod. FOR', value: isRanged ? 0 : strMod },
+                                                    ], { isRanged, subtitle: `Danno base: ${fullDamage}`, baseDice: baseDamage });
+                                                }}
+                                                title="Apri tiro per il danno"
+                                            >
                                                 <span className="v">{fullDamage}</span>
                                                 <span className="l">danno</span>
-                                            </div>
+                                            </button>
                                         )}
                                         <button
-                                            className={`w-atk2-roll ${diceRolling === w.id ? 'rolling' : ''}`}
-                                            onClick={(e) => { e.stopPropagation(); rollAttack(w.id, w.name, primary, fullDamage, attacks); }}
-                                            title="Tira d20"
-                                            aria-label="Tira d20"
+                                            className="w-atk2-roll"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                openAttackPicker(w, w.name,
+                                                    [
+                                                        { label: 'BAB', value: getTotalBab() },
+                                                        { label: isRanged ? 'Mod. DES' : 'Mod. FOR', value: abilityMod },
+                                                        ...(weaponBonus ? [{ label: 'Bonus arma', value: weaponBonus }] : []),
+                                                    ],
+                                                    [
+                                                        { label: 'Mod. FOR', value: isRanged ? 0 : strMod },
+                                                    ],
+                                                    { isRanged, subtitle: meta, baseDice: baseDamage });
+                                            }}
+                                            title="Apri tiro per colpire e danno"
+                                            aria-label="Apri tiro"
                                         >
-                                            <DndIcon category="dice" name="d20" size={icoMd} className={diceRolling === w.id ? 'animate-spin' : ''} />
+                                            <DndIcon category="dice" name="d20" size={icoMd} />
                                         </button>
                                     </div>
                                 </div>
@@ -229,21 +303,58 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                                         <div className="w-atk2-row-meta arcane">{meta}</div>
                                     </div>
                                     <div className="w-atk2-row-right">
-                                        <div className="w-atk2-row-stat atk">
+                                        <button
+                                            className="w-atk2-row-stat atk"
+                                            onClick={() => openAttackPicker(undefined, atk.name,
+                                                [
+                                                    ...(atk.useBab ? [{ label: 'BAB', value: getTotalBab() }] : []),
+                                                    ...(atk.attackStat ? [{ label: `Mod. ${atk.attackStat.toUpperCase()}`, value: getStatModifier(atk.attackStat) }] : []),
+                                                    ...(atk.attackBonusExtra ? [{ label: 'Bonus extra', value: atk.attackBonusExtra }] : []),
+                                                ],
+                                                [
+                                                    ...(atk.damageStat ? [{ label: `Mod. ${atk.damageStat.toUpperCase()}`, value: getStatModifier(atk.damageStat) }] : []),
+                                                    ...(atk.damageBonusExtra ? [{ label: 'Bonus extra', value: atk.damageBonusExtra }] : []),
+                                                ],
+                                                { isRanged: !!atk.range, customAttackName: atk.name, subtitle: meta, baseDice: atk.damageDice })}
+                                            title="Apri tiro per colpire e danno"
+                                        >
                                             <span className="v">{fmtSigned(bonus)}</span>
                                             <span className="l">colpire</span>
-                                        </div>
-                                        <div className="w-atk2-row-stat dmg">
+                                        </button>
+                                        <button
+                                            className="w-atk2-row-stat dmg"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                openDamagePicker(undefined, atk.name, [
+                                                    ...(atk.damageStat ? [{ label: `Mod. ${atk.damageStat.toUpperCase()}`, value: getStatModifier(atk.damageStat) }] : []),
+                                                    ...(atk.damageBonusExtra ? [{ label: 'Bonus extra', value: atk.damageBonusExtra }] : []),
+                                                ], { isRanged: !!atk.range, customAttackName: atk.name, subtitle: `Danno base: ${atk.damageDice}`, baseDice: atk.damageDice });
+                                            }}
+                                            title="Apri tiro per il danno"
+                                        >
                                             <span className="v">{dmgDisplay}</span>
                                             <span className="l">danno</span>
-                                        </div>
+                                        </button>
                                         <button
-                                            className={`w-atk2-roll ${diceRolling === atk.id ? 'rolling' : ''}`}
-                                            onClick={(e) => { e.stopPropagation(); rollAttack(atk.id, atk.name, bonus, dmgDisplay, [bonus]); }}
-                                            title="Tira d20"
-                                            aria-label="Tira d20"
+                                            className="w-atk2-roll"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                openAttackPicker(undefined, atk.name,
+                                                    [
+                                                        ...(atk.useBab ? [{ label: 'BAB', value: getTotalBab() }] : []),
+                                                        ...(atk.attackStat ? [{ label: `Mod. ${atk.attackStat.toUpperCase()}`, value: getStatModifier(atk.attackStat) }] : []),
+                                                        ...(atk.attackBonusExtra ? [{ label: 'Bonus extra', value: atk.attackBonusExtra }] : []),
+                                                    ],
+                                                    [
+                                                        ...(atk.damageStat ? [{ label: `Mod. ${atk.damageStat.toUpperCase()}`, value: getStatModifier(atk.damageStat) }] : []),
+                                                        ...(atk.damageBonusExtra ? [{ label: 'Bonus extra', value: atk.damageBonusExtra }] : []),
+                                                    ],
+                                                    { isRanged: !!atk.range, customAttackName: atk.name, subtitle: meta, baseDice: atk.damageDice });
+                                            }}
+                                            title="Apri tiro"
+                                            aria-label="Apri tiro"
                                         >
-                                            <DndIcon category="dice" name="d20" size={icoMd} className={diceRolling === atk.id ? 'animate-spin' : ''} />
+                                            <DndIcon category="dice" name="d20" size={icoMd} />
                                         </button>
                                     </div>
                                 </div>
@@ -251,6 +362,14 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                         );
                     })}
                 </div>
+            )}
+            {picker && (
+                <RollPickerModal
+                    title={picker.title}
+                    subtitle={picker.subtitle}
+                    segments={picker.segments}
+                    onClose={() => setPicker(null)}
+                />
             )}
         </div>
     );

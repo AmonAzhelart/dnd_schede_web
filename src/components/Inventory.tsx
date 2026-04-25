@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import './Inventory.css';
 import { useCharacterStore } from '../store/characterStore';
 import { v4 as uuidv4 } from 'uuid';
@@ -6,10 +7,12 @@ import {
   FaPlus, FaTrash, FaEdit, FaCheck, FaTimes,
   FaArrowUp, FaArrowDown, FaSearch, FaImage,
 } from 'react-icons/fa';
-import type { Item, WeaponDetails, ArmorDetails, AmmoDetails } from '../types/dnd';
+import type { Item, WeaponDetails, ArmorDetails, AmmoDetails, Modifier } from '../types/dnd';
 import { type CatalogIcon } from '../services/admin';
 import { useIconCatalog, sanitizeSvg } from '../services/iconCache';
 import { CatalogPicker } from './CatalogPicker';
+import { ModifierEditor } from './ModifierEditor';
+import { useMediaQuery } from './mobile/MobileShell';
 
 /** Render an inline SVG with safe HTML insertion. */
 const SvgIcon: React.FC<{ svg: string; size?: number; className?: string }> = ({ svg, size, className }) => (
@@ -57,14 +60,6 @@ const TYPE_ICON: Record<Item['type'], string> = {
   weapon: '⚔', armor: '🛡', shield: '🛡', protectiveItem: '🔮',
   gear: '🎒', consumable: '🧪', component: '✨', misc: '📜', ammo: '🏹',
 };
-const MOD_TYPES = [
-  { value: 'enhancement', label: 'Potenziamento' }, { value: 'armor', label: 'Armatura' },
-  { value: 'deflection', label: 'Deviazione' }, { value: 'dodge', label: 'Schivata' },
-  { value: 'naturalArmor', label: 'Arm. Naturale' }, { value: 'shield', label: 'Scudo' },
-  { value: 'circumstance', label: 'Circostanza' }, { value: 'untyped', label: 'Senza tipo' },
-  { value: 'resistance', label: 'Resistenza' }, { value: 'sacred', label: 'Sacro' },
-  { value: 'profane', label: 'Profano' }, { value: 'insight', label: 'Intuizione' },
-];
 const DAMAGE_TYPES = [
   { value: 'p', label: 'Perforante (p)' }, { value: 't', label: 'Tagliente (t)' },
   { value: 'c', label: 'Contundente (c)' }, { value: 'pt', label: 'Perf./Tagl.' },
@@ -91,7 +86,7 @@ const EMPTY_ITEM = (): Omit<Item, 'id'> => ({
 });
 const EMPTY_WD = (): WeaponDetails => ({
   damage: '1d6', damageType: 'c', criticalMultiplier: 'x2',
-  criticalRange: '', rangeIncrement: '', attackBonus: 0, notes: '',
+  criticalRange: '', rangeIncrement: '', attackBonus: 0, notes: '', category: '',
 });
 const EMPTY_AD = (): ArmorDetails => ({
   armorBonus: 0, maxDex: undefined, checkPenalty: 0,
@@ -109,12 +104,10 @@ const needsArmor = (t: Item['type']) => t === 'armor' || t === 'shield' || t ===
 const needsAmmo = (t: Item['type']) => t === 'ammo';
 
 // ─── Module-level form helpers (outside component to prevent focus-loss) ────
-const addMod = (setter: React.Dispatch<React.SetStateAction<Omit<Item, 'id'>>>) =>
-  setter(f => ({ ...f, modifiers: [...f.modifiers, { target: 'str', value: 1, type: 'enhancement', source: '' }] }));
-const removeMod = (setter: React.Dispatch<React.SetStateAction<Omit<Item, 'id'>>>, i: number) =>
-  setter(f => ({ ...f, modifiers: f.modifiers.filter((_, idx) => idx !== i) }));
-const updateMod = (setter: React.Dispatch<React.SetStateAction<Omit<Item, 'id'>>>, i: number, field: string, val: unknown) =>
-  setter(f => ({ ...f, modifiers: f.modifiers.map((m, idx) => idx === i ? { ...m, [field]: val } : m) }));
+const setItemModifiers = (
+  setter: React.Dispatch<React.SetStateAction<Omit<Item, 'id'>>>,
+  next: Modifier[],
+) => setter(f => ({ ...f, modifiers: next }));
 
 interface AmmoFieldsProps {
   amd: AmmoDetails;
@@ -196,6 +189,11 @@ const WeaponFields: React.FC<WeaponFieldsProps> = ({ wd, onChange }) => (
         Bonus Attacco
         <input className="input" type="number" value={wd.attackBonus ?? 0} onChange={e => onChange('attackBonus', parseInt(e.target.value) || 0)}
           style={{ fontSize: '0.82rem' }} />
+      </label>
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: '0.73rem', color: 'var(--text-muted)' }}>
+        Categoria
+        <input className="input" value={wd.category ?? ''} onChange={e => onChange('category', e.target.value)}
+          placeholder="es. spada, arco" style={{ fontSize: '0.82rem' }} />
       </label>
     </div>
     <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: 8 }}>
@@ -352,29 +350,13 @@ const EditItemForm: React.FC<EditItemFormProps> = ({ itemForm, setItemForm, edit
       )}
     </div>
     {/* Modifiers */}
-    <div style={{ marginBottom: 8 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', letterSpacing: '0.08em' }}>MODIFICATORI</span>
-        <button onClick={() => addMod(setItemForm)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-gold)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 3, padding: '2px 0' }}>
-          <FaPlus size={8} /> Aggiungi
-        </button>
-      </div>
-      {itemForm.modifiers.map((mod, i) => (
-        <div key={i} style={{ display: 'flex', gap: 5, marginBottom: 5, alignItems: 'center' }}>
-          <input className="input" value={mod.target} onChange={e => updateMod(setItemForm, i, 'target', e.target.value)}
-            placeholder="Stat (es. str, ac)" style={{ flex: 1, fontSize: '0.78rem' }} />
-          <input className="input" type="number" value={mod.value} onChange={e => updateMod(setItemForm, i, 'value', +e.target.value)}
-            style={{ width: 52, fontSize: '0.78rem', textAlign: 'center' }} />
-          <select className="input" value={mod.type} onChange={e => updateMod(setItemForm, i, 'type', e.target.value)}
-            style={{ flex: 1, fontSize: '0.78rem' }}>
-            {MOD_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
-          <button onClick={() => removeMod(setItemForm, i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-crimson)', padding: 3 }}>
-            <FaTimes size={10} />
-          </button>
-        </div>
-      ))}
-    </div>
+    <ModifierEditor
+      modifiers={itemForm.modifiers}
+      onChange={mods => setItemModifiers(setItemForm, mods)}
+      accentColor="var(--accent-gold)"
+      title="MODIFICATORI"
+      compact
+    />
     <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
       <button onClick={onCancel} className="btn-secondary" style={{ fontSize: '0.8rem' }}>Annulla</button>
       <button onClick={onSave} className="btn-primary" style={{ fontSize: '0.8rem', opacity: itemForm.name.trim() ? 1 : 0.5 }}>
@@ -648,6 +630,8 @@ export const Inventory: React.FC = () => {
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [itemForm, setItemForm] = useState<Omit<Item, 'id'>>(EMPTY_ITEM());
   const [search, setSearch] = useState('');
+  // On narrow screens the side detail panel is rendered as a bottom-sheet.
+  const isMobileSheet = useMediaQuery('(max-width: 768px)');
   // Currency
   const [txForm, setTxForm] = useState(EMPTY_TX());
   // Icon catalog (shared cache, loaded once per session)
@@ -855,20 +839,47 @@ export const Inventory: React.FC = () => {
               )}
             </div>
 
-            {/* Detail panel */}
+            {/* Detail panel — inline side panel on desktop, bottom-sheet on mobile. */}
             {selectedItem && (
-              <div style={{ width: 'min(230px, 42%)', flexShrink: 0 }}>
-                <ItemDetailPanel
-                  item={selectedItem}
-                  onClose={() => setSelectedId(null)}
-                  onEquip={() => toggleEquipItem(selectedItem.id)}
-                  onEdit={() => startEditItem(selectedItem)}
-                  onDelete={() => deleteItemFn(selectedItem.id)}
-                  iconSvg={resolveItemSvg(selectedItem)}
-                  ammoItems={ammoItems}
-                  onSetAmmo={(ammoId) => handleSetAmmo(selectedItem.id, ammoId)}
-                />
-              </div>
+              isMobileSheet ? (
+                createPortal(
+                  <div
+                    className="modal-overlay"
+                    onClick={(e) => e.target === e.currentTarget && setSelectedId(null)}
+                  >
+                    <div
+                      className="modal-box flex-col"
+                      style={{ padding: 0 }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <ItemDetailPanel
+                        item={selectedItem}
+                        onClose={() => setSelectedId(null)}
+                        onEquip={() => toggleEquipItem(selectedItem.id)}
+                        onEdit={() => startEditItem(selectedItem)}
+                        onDelete={() => deleteItemFn(selectedItem.id)}
+                        iconSvg={resolveItemSvg(selectedItem)}
+                        ammoItems={ammoItems}
+                        onSetAmmo={(ammoId) => handleSetAmmo(selectedItem.id, ammoId)}
+                      />
+                    </div>
+                  </div>,
+                  document.body,
+                )
+              ) : (
+                <div style={{ width: 'min(230px, 42%)', flexShrink: 0 }}>
+                  <ItemDetailPanel
+                    item={selectedItem}
+                    onClose={() => setSelectedId(null)}
+                    onEquip={() => toggleEquipItem(selectedItem.id)}
+                    onEdit={() => startEditItem(selectedItem)}
+                    onDelete={() => deleteItemFn(selectedItem.id)}
+                    iconSvg={resolveItemSvg(selectedItem)}
+                    ammoItems={ammoItems}
+                    onSetAmmo={(ammoId) => handleSetAmmo(selectedItem.id, ammoId)}
+                  />
+                </div>
+              )
             )}
           </div>
         </div>

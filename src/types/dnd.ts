@@ -225,11 +225,82 @@ export interface MapState {
   tokens: MapToken[];
 }
 
+/** Logical channel a modifier feeds into.
+ *  Replaces the legacy free-form `target` string.
+ *  - `attack`           — d20 to-hit (any weapon / custom attack)
+ *  - `damage`           — weapon / attack damage
+ *  - `ac`               — passive armor class
+ *  - `initiative`       — initiative roll
+ *  - `save.fort|ref|will` — saving throws
+ *  - `check.<stat>`     — raw ability check (e.g. `check.str`)
+ *  - `skill.<id|name>`  — skill check
+ *  - `cmb` / `cmd`      — combat manoeuvre bonus / defense
+ *  - any legacy `StatType` (`str`, `dex`, ...) keeps working as a *passive*
+ *    modifier on the underlying stat (back-compat).
+ */
+export type RollChannel =
+  | 'attack' | 'damage' | 'ac' | 'initiative'
+  | 'save.fort' | 'save.ref' | 'save.will'
+  | 'cmb' | 'cmd'
+  | 'spell.attack' | 'spell.damage' | 'spell.dc'
+  | `check.${StatType}`
+  | `skill.${string}`;
+
+/** Auto-detectable filter: when present, the modifier applies *only* if the
+ *  current roll context matches. Multiple conditions on the same modifier are
+ *  AND-ed together. */
+export type ModifierCondition =
+  /** Limit to melee, ranged or thrown weapon attacks. */
+  | { kind: 'weaponType'; value: 'melee' | 'ranged' | 'thrown' }
+  /** Match `Item.weaponDetails.category` (case-insensitive substring). */
+  | { kind: 'weaponCategory'; value: string }
+  /** Match `Item.name` (case-insensitive substring). Useful for unique items. */
+  | { kind: 'weaponName'; value: string }
+  /** Match `Item.weaponDetails.damageType`. */
+  | { kind: 'damageType'; value: string }
+  /** Restrict a `skill.*` modifier to a specific skill id/name. */
+  | { kind: 'skillId'; value: string }
+  /** Restrict a `save.*` modifier to a specific save. */
+  | { kind: 'saveType'; value: 'fort' | 'ref' | 'will' }
+  /** Restrict a `check.*` modifier to a specific stat. */
+  | { kind: 'abilityStat'; value: StatType }
+  /** Restrict a `spell.*` modifier to a specific spell school (case-insensitive substring). */
+  | { kind: 'spellSchool'; value: string }
+  /** Restrict a `spell.*` modifier to a specific spell name. */
+  | { kind: 'spellName'; value: string }
+  /** Restrict a `spell.*` modifier to a specific damage/energy type. */
+  | { kind: 'spellDamageType'; value: string }
+  /** Restrict a `spell.*` modifier to spells of a minimum level. */
+  | { kind: 'spellMinLevel'; value: number };
+
+/** Where this modifier may apply. When omitted the engine falls back to
+ *  the legacy `target`. */
+export type ModifierScope = 'always' | 'conditional';
+
 export interface Modifier {
-  target: StatType | string; // e.g., 'str', 'ac', 'skill.hide'
+  /** Legacy target. Still honored. Examples: `'str'`, `'ac'`, `'skill.hide'`.
+   *  New code should prefer `appliesTo` + `conditions`. */
+  target: StatType | string;
   value: number;
   type: ModifierType;
-  source: string; // The id or name of the item/feat providing the modifier
+  /** The id or name of the item/feat providing the modifier */
+  source: string;
+  /** New: explicit list of channels the bonus feeds into. When present,
+   *  takes precedence over the legacy `target` for roll resolution. */
+  appliesTo?: RollChannel[];
+  /** Auto-detected gating filters. Empty/undefined = always applies whenever
+   *  the parent (item equipped / feat active / feature active) is on. */
+  conditions?: ModifierCondition[];
+  /** When set, the modifier is shown as a manual toggle in the roll picker
+   *  with this label (e.g. "Se entro 18 m", "Bersaglio fiancheggiato"). */
+  manualPrompt?: string;
+  /** Defaults to `'always'`. `'conditional'` forces the bonus to be
+   *  user-confirmed in the roll picker even if every auto condition matches. */
+  scope?: ModifierScope;
+  /** Optional extra damage dice expression added on top of `value`.
+   *  Only meaningful for `damage` channel modifiers (e.g. `"1d6"` for
+   *  fire enchantment, `"2d6"` for sneak attack). */
+  extraDice?: string;
 }
 
 /** Time unit used by an ActiveModifier's duration counter. */
@@ -273,6 +344,9 @@ export interface WeaponDetails {
   rangeIncrement?: string; // e.g. "18m", "" for melee
   attackBonus?: number;    // per-weapon attack bonus override
   notes?: string;
+  /** Free-form taxonomy tag used by `ModifierCondition.weaponCategory`
+   *  (es. "arco", "spada", "balestra leggera"). */
+  category?: string;
 }
 
 export interface AmmoDetails {
@@ -363,6 +437,23 @@ export interface Spell {
   duration?: string;
   savingThrow?: string;
   components?: string;
+  // ── Combat / damage details (D&D 3.5) ──
+  /** How the spell delivers its effect, used to drive the attack roll segment. */
+  attackMode?: 'none' | 'rangedTouch' | 'meleeTouch' | 'ray' | 'normal';
+  /** Per-die expression scaled by caster level (e.g. `'1d6'` for fireball,
+   *  `'1d4+1'` for magic missile). When set, total damage = N × perLevelDice
+   *  where N = min(casterLevel / dicePerLevels, maxDice). */
+  damagePerLevelDice?: string;
+  /** Caster levels needed to gain one extra die (default 1). E.g. fireball=1,
+   *  magic missile uses 1 die per 2 caster levels (CL 1 → 1, CL 3 → 2 …). */
+  dicePerLevels?: number;
+  /** Hard cap on the number of damage dice (e.g. fireball=10, lightning=10,
+   *  magic missile=5). Undefined = uncapped. */
+  damageMaxDice?: number;
+  /** Energy / damage type tag (used for resistances/conditions). */
+  damageType?: string;
+  /** Stat that sets the save DC (`int` for wizard, `wis` for cleric, etc.). */
+  saveStat?: StatType;
   // Legacy compat only
   prepared?: number;
   cast?: number;

@@ -468,6 +468,16 @@
     border-radius: 2px;
 }
 
+/* When rendered inside a bottom-sheet (mobile), drop the side decorations. */
+.modal-box > .inv-detail-panel {
+    border-left: none;
+    background: transparent;
+    height: auto;
+    max-height: 88vh;
+    padding: 8px 14px 18px;
+    animation: none;
+}
+
 @keyframes detail-slide-in {
     from {
         opacity: 0;

@@ -60,6 +60,8 @@ const SCHOOL_ICON: Record<string, string> = {
 const EMPTY_SPELL = (): Omit<Spell, 'id'> => ({
   name: '', level: 1, school: 'Evocazione', description: '',
   castingTime: '', range: '', duration: '', savingThrow: '', components: '',
+  attackMode: 'none', damagePerLevelDice: '', dicePerLevels: 1,
+  damageMaxDice: undefined, damageType: '', saveStat: 'int',
 });
 
 const LevelLabel = (level: number) => level === 0 ? 'Trucchetti' : `Livello ${level}`;
@@ -118,6 +120,44 @@ const SpellEditForm: React.FC<SpellEditFormProps> = ({ form, setForm, saveSpell,
             style={{ fontSize: '0.8rem' }} />
         </div>
       ))}
+    </div>
+    {/* Combat/scaling block (D&D 3.5) */}
+    <div style={{ border: '1px solid rgba(155,89,182,0.18)', borderRadius: 8, padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ fontSize: '0.6rem', letterSpacing: '0.1em', color: 'var(--text-muted)' }}>TIRO &amp; SCALING (opzionale)</div>
+      <div className="sb-form-row">
+        <div className="sb-form-field" style={{ flex: '1 1 200px' }}>
+          <label className="sb-form-label">Tipo di TxC</label>
+          <select className="input" value={form.attackMode ?? 'none'} onChange={e => setForm(f => ({ ...f, attackMode: e.target.value as Spell['attackMode'] }))} style={{ fontSize: '0.8rem' }}>
+            <option value="none">Nessuno</option>
+            <option value="rangedTouch">Tocco a distanza</option>
+            <option value="meleeTouch">Tocco in mischia</option>
+            <option value="ray">Raggio</option>
+            <option value="normal">Attacco normale</option>
+          </select>
+        </div>
+        <div className="sb-form-field" style={{ flex: '1 1 120px' }}>
+          <label className="sb-form-label">Dadi/step (es. 1d6)</label>
+          <input className="input" value={form.damagePerLevelDice ?? ''} onChange={e => setForm(f => ({ ...f, damagePerLevelDice: e.target.value }))} placeholder="1d6" style={{ fontSize: '0.8rem' }} />
+        </div>
+        <div className="sb-form-field" style={{ flex: '0 0 80px' }}>
+          <label className="sb-form-label">Liv./step</label>
+          <input className="input" type="number" min={1} value={form.dicePerLevels ?? 1} onChange={e => setForm(f => ({ ...f, dicePerLevels: Math.max(1, +e.target.value || 1) }))} style={{ fontSize: '0.8rem' }} />
+        </div>
+        <div className="sb-form-field" style={{ flex: '0 0 80px' }}>
+          <label className="sb-form-label">Max dadi</label>
+          <input className="input" type="number" min={1} value={form.damageMaxDice ?? ''} onChange={e => setForm(f => ({ ...f, damageMaxDice: e.target.value === '' ? undefined : Math.max(1, +e.target.value) }))} placeholder="—" style={{ fontSize: '0.8rem' }} />
+        </div>
+        <div className="sb-form-field" style={{ flex: '1 1 120px' }}>
+          <label className="sb-form-label">Tipo danno</label>
+          <input className="input" value={form.damageType ?? ''} onChange={e => setForm(f => ({ ...f, damageType: e.target.value }))} placeholder="fuoco, freddo…" style={{ fontSize: '0.8rem' }} />
+        </div>
+        <div className="sb-form-field" style={{ flex: '0 0 80px' }}>
+          <label className="sb-form-label">CD da</label>
+          <select className="input" value={form.saveStat ?? 'int'} onChange={e => setForm(f => ({ ...f, saveStat: e.target.value as Spell['saveStat'] }))} style={{ fontSize: '0.8rem' }}>
+            {(['int', 'wis', 'cha', 'str', 'dex', 'con'] as const).map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
+          </select>
+        </div>
+      </div>
     </div>
     <div className="sb-form-actions">
       <button onClick={cancelEdit} className="btn-secondary" style={{ fontSize: '0.8rem' }}>Annulla</button>
@@ -462,7 +502,13 @@ export const Spellbook: React.FC = () => {
     setForm({
       name: spell.name, level: spell.level, school: spell.school, description: spell.description ?? '',
       castingTime: spell.castingTime ?? '', range: spell.range ?? '', duration: spell.duration ?? '',
-      savingThrow: spell.savingThrow ?? '', components: spell.components ?? ''
+      savingThrow: spell.savingThrow ?? '', components: spell.components ?? '',
+      attackMode: spell.attackMode ?? 'none',
+      damagePerLevelDice: spell.damagePerLevelDice ?? '',
+      dicePerLevels: spell.dicePerLevels ?? 1,
+      damageMaxDice: spell.damageMaxDice,
+      damageType: spell.damageType ?? '',
+      saveStat: spell.saveStat ?? 'int',
     });
     setEditingId(spell.id); setIsAdding(false);
   };

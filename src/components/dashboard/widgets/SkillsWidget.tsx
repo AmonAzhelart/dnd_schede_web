@@ -3,6 +3,8 @@ import { FaSearch } from 'react-icons/fa';
 import { useCharacterStore } from '../../../store/characterStore';
 import type { WidgetRenderProps, WidgetSize } from '../widgetTypes';
 import { ModifierArrows } from './ModifierAura';
+import { RollPickerModal, type RollBreakdownLine } from '../../RollPickerModal';
+import type { RollContext } from '../../../services/modifiers';
 
 const colsFor = (size: WidgetSize) =>
     size.pixelW < 280 ? 1 : size.pixelW < 460 ? 2 : size.pixelW < 720 ? 3 : 4;
@@ -18,6 +20,11 @@ export const SkillsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
     const { character, getEffectiveSkill, getSkillBreakdown, getActiveModifierDelta } = useCharacterStore();
     const [q, setQ] = useState('');
     const [trainedOnly, setTrainedOnly] = useState(false);
+    const [picker, setPicker] = useState<{
+        ctx: RollContext;
+        title: string;
+        breakdown: RollBreakdownLine[];
+    } | null>(null);
     if (!character) return null;
     const usable = Object.values(character.skills)
         .filter(s => getSkillBreakdown(s.id).usable)
@@ -49,6 +56,7 @@ export const SkillsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                 {filtered.map(skill => {
                     const total = getEffectiveSkill(skill.id);
                     const ranks = skill.ranks ?? 0;
+                    const breakdown = getSkillBreakdown(skill.id);
                     const skillDelta =
                         getActiveModifierDelta(`skill.${skill.id}`) +
                         getActiveModifierDelta(`skill.${skill.name.toLowerCase()}`);
@@ -56,15 +64,36 @@ export const SkillsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                         skillDelta > 0 ? 'w-mod-aura-buff' :
                             skillDelta < 0 ? 'w-mod-aura-malus' : '';
                     return (
-                        <div key={skill.id} className={`w-skill-row ${auraClass}`}>
+                        <button
+                            type="button"
+                            key={skill.id}
+                            className={`w-skill-row ${auraClass}`}
+                            title={`Apri prova di ${skill.name}`}
+                            onClick={() => setPicker({
+                                ctx: { channel: `skill.${skill.id}`, skillId: skill.id, skillName: skill.name },
+                                title: skill.name,
+                                breakdown: [
+                                    { label: 'Gradi', value: ranks },
+                                    { label: `Mod. ${breakdown.statName?.toUpperCase?.() ?? ''}`.trim(), value: breakdown.statMod ?? 0 },
+                                ],
+                            })}
+                        >
                             {auraClass && <ModifierArrows delta={skillDelta} count={3} />}
                             <span className={`w-skill-rank ${ranks > 0 ? 'trained' : ''}`}>{ranks > 0 ? ranks : '·'}</span>
                             <span className="w-skill-name">{skill.name}</span>
                             <span className={`w-skill-mod ${tier(total)}`}>{total >= 0 ? '+' : ''}{total}</span>
-                        </div>
+                        </button>
                     );
                 })}
             </div>
+            {picker && (
+                <RollPickerModal
+                    ctx={picker.ctx}
+                    title={picker.title}
+                    baseBreakdown={picker.breakdown}
+                    onClose={() => setPicker(null)}
+                />
+            )}
         </div>
     );
 };

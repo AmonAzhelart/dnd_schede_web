@@ -3,15 +3,7 @@ import { useCharacterStore } from '../store/characterStore';
 import { v4 as uuidv4 } from 'uuid';
 import { FaPlus, FaTrash, FaEdit, FaCheck, FaTimes, FaChevronDown, FaChevronRight } from 'react-icons/fa';
 import type { ClassFeature, ClassFeatureSubcategory } from '../types/dnd';
-
-const MOD_TYPES = [
-    { value: 'enhancement', label: 'Potenziamento' }, { value: 'armor', label: 'Armatura' },
-    { value: 'deflection', label: 'Deviazione' }, { value: 'dodge', label: 'Schivata' },
-    { value: 'naturalArmor', label: 'Arm. Naturale' }, { value: 'shield', label: 'Scudo' },
-    { value: 'circumstance', label: 'Circostanza' }, { value: 'untyped', label: 'Senza tipo' },
-    { value: 'resistance', label: 'Resistenza' }, { value: 'sacred', label: 'Sacro' },
-    { value: 'profane', label: 'Profano' }, { value: 'insight', label: 'Intuizione' },
-];
+import { ModifierEditor } from './ModifierEditor';
 
 type SubcategoryMeta = {
     key: ClassFeatureSubcategory;
@@ -65,15 +57,11 @@ interface EditFormProps {
     save: () => void;
     cancel: () => void;
     editingId: string | null;
-    addMod: () => void;
-    removeMod: (i: number) => void;
-    updateMod: (i: number, field: string, val: unknown) => void;
-    allTargetOptions: { value: string; label: string }[];
     color: string;
 }
 
 const EditForm: React.FC<EditFormProps> = ({
-    form, setForm, save, cancel, editingId, addMod, removeMod, updateMod, allTargetOptions, color
+    form, setForm, save, cancel, editingId, color
 }) => (
     <div style={{
         padding: '12px',
@@ -133,53 +121,13 @@ const EditForm: React.FC<EditFormProps> = ({
         )}
 
         {/* Modifiers */}
-        <div style={{ marginBottom: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', letterSpacing: '0.08em' }}>MODIFICATORI AL PERSONAGGIO</span>
-                <button
-                    onClick={addMod}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color, fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 3 }}
-                >
-                    <FaPlus size={8} /> Aggiungi
-                </button>
-            </div>
-            {form.modifiers.map((mod, i) => (
-                <div key={i} style={{ display: 'flex', gap: 5, marginBottom: 5, alignItems: 'center' }}>
-                    <input
-                        className="input"
-                        list="cf-mod-targets-datalist"
-                        value={mod.target}
-                        onChange={e => updateMod(i, 'target', e.target.value)}
-                        placeholder="Bersaglio (es. skill.ascoltare)"
-                        style={{ flex: 1, fontSize: '0.78rem' }}
-                    />
-                    <datalist id="cf-mod-targets-datalist">
-                        {allTargetOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </datalist>
-                    <input
-                        className="input"
-                        type="number"
-                        value={mod.value}
-                        onChange={e => updateMod(i, 'value', +e.target.value)}
-                        style={{ width: 52, fontSize: '0.78rem', textAlign: 'center' }}
-                    />
-                    <select
-                        className="input"
-                        value={mod.type}
-                        onChange={e => updateMod(i, 'type', e.target.value)}
-                        style={{ flex: 1, fontSize: '0.78rem' }}
-                    >
-                        {MOD_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                    </select>
-                    <button
-                        onClick={() => removeMod(i)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-crimson)', padding: 3 }}
-                    >
-                        <FaTimes size={10} />
-                    </button>
-                </div>
-            ))}
-        </div>
+        <ModifierEditor
+            modifiers={form.modifiers}
+            onChange={mods => setForm(f => ({ ...f, modifiers: mods }))}
+            accentColor={color}
+            title="MODIFICATORI AL PERSONAGGIO"
+            compact
+        />
 
         {/* Actions */}
         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
@@ -373,23 +321,6 @@ export const ClassFeatures: React.FC<ClassFeaturesProps> = ({ restrictTo, hideTo
 
     const features = character.classFeatures ?? [];
 
-    // Build modifier target options (shared with Feats logic)
-    const skillTargetOptions = Object.values(character.skills).map(s => ({
-        value: `skill.${s.name.toLowerCase()}`,
-        label: `Abilità: ${s.name}`,
-    }));
-    const statOptions = [
-        { value: 'str', label: 'Forza (STR)' }, { value: 'dex', label: 'Destrezza (DEX)' },
-        { value: 'con', label: 'Costituzione (CON)' }, { value: 'int', label: 'Intelligenza (INT)' },
-        { value: 'wis', label: 'Saggezza (WIS)' }, { value: 'cha', label: 'Carisma (CHA)' },
-        { value: 'ac', label: 'Classe Armatura (AC)' }, { value: 'hp', label: 'Punti Ferita (HP)' },
-        { value: 'bab', label: 'Bonus Att. Base (BAB)' }, { value: 'initiative', label: 'Iniziativa' },
-        { value: 'reflex', label: 'Tiro Salvezza: Riflessi' },
-        { value: 'fortitude', label: 'Tiro Salvezza: Tempra' },
-        { value: 'will', label: 'Tiro Salvezza: Volontà' },
-    ];
-    const allTargetOptions = [...statOptions, ...skillTargetOptions];
-
     const activeColor = SUBCATEGORY_META.find(m => m.key === (form.subcategory ?? 'active'))?.color ?? 'var(--accent-gold)';
 
     const save = () => {
@@ -441,18 +372,8 @@ export const ClassFeatures: React.FC<ClassFeaturesProps> = ({ restrictTo, hideTo
         });
     };
 
-    const addMod = () => setForm(f => ({
-        ...f,
-        modifiers: [...f.modifiers, { target: 'str', value: 1, type: 'enhancement' as const, source: '' }],
-    }));
-    const removeMod = (i: number) => setForm(f => ({
-        ...f, modifiers: f.modifiers.filter((_, idx) => idx !== i),
-    }));
-    const updateMod = (i: number, field: string, val: unknown) =>
-        setForm(f => ({ ...f, modifiers: f.modifiers.map((m, idx) => idx === i ? { ...m, [field]: val } : m) }));
-
     const editFormProps: EditFormProps = {
-        form, setForm, save, cancel, editingId, addMod, removeMod, updateMod, allTargetOptions, color: activeColor,
+        form, setForm, save, cancel, editingId, color: activeColor,
     };
 
     const hasSpentResources = features.some(

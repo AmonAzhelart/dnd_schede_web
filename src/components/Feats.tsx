@@ -3,18 +3,10 @@ import { useCharacterStore } from '../store/characterStore';
 import { v4 as uuidv4 } from 'uuid';
 import { FaPlus, FaTrash, FaEdit, FaCheck, FaTimes, FaBookOpen } from 'react-icons/fa';
 import { Virtuoso } from 'react-virtuoso';
-import type { Feat } from '../types/dnd';
+import type { Feat, Modifier } from '../types/dnd';
 import { featCatalog, type CatalogFeat } from '../services/admin';
 import { CatalogPicker } from './CatalogPicker';
-
-const MOD_TYPES = [
-    { value: 'enhancement', label: 'Potenziamento' }, { value: 'armor', label: 'Armatura' },
-    { value: 'deflection', label: 'Deviazione' }, { value: 'dodge', label: 'Schivata' },
-    { value: 'naturalArmor', label: 'Arm. Naturale' }, { value: 'shield', label: 'Scudo' },
-    { value: 'circumstance', label: 'Circostanza' }, { value: 'untyped', label: 'Senza tipo' },
-    { value: 'resistance', label: 'Resistenza' }, { value: 'sacred', label: 'Sacro' },
-    { value: 'profane', label: 'Profano' }, { value: 'insight', label: 'Intuizione' },
-];
+import { ModifierEditor } from './ModifierEditor';
 
 const EMPTY_FEAT = (): Omit<Feat, 'id'> => ({
     name: '', description: '', modifiers: [], active: true,
@@ -40,10 +32,6 @@ interface EditFormProps {
     editingId: string | null;
     isDefectForm: boolean;
     setIsDefectForm: (v: boolean) => void;
-    addMod: () => void;
-    removeMod: (i: number) => void;
-    updateMod: (i: number, field: string, val: unknown) => void;
-    allTargetOptions: { value: string; label: string }[];
 }
 interface FeatRowProps {
     feat: Feat;
@@ -60,7 +48,7 @@ interface SectionHeaderProps {
 }
 
 // â”€â”€ Sub-components at module level (prevents remount on parent re-render) â”€â”€â”€â”€â”€
-const EditForm: React.FC<EditFormProps> = ({ form, setForm, save, cancel, editingId, isDefectForm, setIsDefectForm, addMod, removeMod, updateMod, allTargetOptions }) => (
+const EditForm: React.FC<EditFormProps> = ({ form, setForm, save, cancel, editingId, isDefectForm, setIsDefectForm }) => (
     <div style={{ padding: '12px', background: isDefectForm ? 'rgba(192,57,43,0.07)' : 'rgba(155,89,182,0.07)', border: `1px solid ${isDefectForm ? 'rgba(192,57,43,0.25)' : 'rgba(155,89,182,0.25)'}`, borderRadius: 6, margin: '4px 0' }}>
         <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <input className="input" autoFocus placeholder={isDefectForm ? 'Nome difetto *' : 'Nome talento *'} value={form.name}
@@ -69,7 +57,7 @@ const EditForm: React.FC<EditFormProps> = ({ form, setForm, save, cancel, editin
                 style={{ flex: '1 1 200px', fontSize: '0.85rem' }} />
             <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.78rem', color: 'var(--text-muted)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                 <input type="checkbox" checked={isDefectForm} onChange={e => setIsDefectForm(e.target.checked)} />
-                Ãˆ un Difetto
+                È un Difetto
             </label>
             {!isDefectForm && (
                 <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.78rem', color: 'var(--text-muted)', cursor: 'pointer' }}>
@@ -81,34 +69,13 @@ const EditForm: React.FC<EditFormProps> = ({ form, setForm, save, cancel, editin
         <textarea className="input" placeholder="Descrizione..." value={form.description}
             onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
             style={{ width: '100%', minHeight: 52, fontSize: '0.82rem', resize: 'vertical', marginBottom: 8 }} />
-        <div style={{ marginBottom: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', letterSpacing: '0.08em' }}>MODIFICATORI AL PERSONAGGIO</span>
-                <button onClick={addMod} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-arcane)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 3 }}>
-                    <FaPlus size={8} /> Aggiungi
-                </button>
-            </div>
-            {form.modifiers.map((mod, i) => (
-                <div key={i} style={{ display: 'flex', gap: 5, marginBottom: 5, alignItems: 'center' }}>
-                    <input className="input" list="mod-targets-datalist" value={mod.target}
-                        onChange={e => updateMod(i, 'target', e.target.value)}
-                        placeholder="Bersaglio (es. skill.ascoltare)"
-                        style={{ flex: 1, fontSize: '0.78rem' }} />
-                    <datalist id="mod-targets-datalist">
-                        {allTargetOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </datalist>
-                    <input className="input" type="number" value={mod.value} onChange={e => updateMod(i, 'value', +e.target.value)}
-                        style={{ width: 52, fontSize: '0.78rem', textAlign: 'center' }} />
-                    <select className="input" value={mod.type} onChange={e => updateMod(i, 'type', e.target.value)}
-                        style={{ flex: 1, fontSize: '0.78rem' }}>
-                        {MOD_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                    </select>
-                    <button onClick={() => removeMod(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-crimson)', padding: 3 }}>
-                        <FaTimes size={10} />
-                    </button>
-                </div>
-            ))}
-        </div>
+        <ModifierEditor
+            modifiers={form.modifiers}
+            onChange={mods => setForm(f => ({ ...f, modifiers: mods }))}
+            accentColor={isDefectForm ? 'var(--accent-crimson)' : 'var(--accent-arcane)'}
+            title="MODIFICATORI AL PERSONAGGIO"
+            compact
+        />
         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
             <button onClick={cancel} className="btn-secondary" style={{ fontSize: '0.8rem' }}>Annulla</button>
             <button onClick={save} className="btn-primary" style={{ fontSize: '0.8rem', opacity: form.name.trim() ? 1 : 0.5 }}>
@@ -185,20 +152,6 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({ label, color, count }) =>
 export const Feats: React.FC = () => {
     const { character, toggleFeat, addFeat, updateFeat, deleteFeat } = useCharacterStore();
 
-    // Build datalist options for modifier targets
-    const skillTargetOptions = character
-        ? Object.values(character.skills).map(s => ({ value: `skill.${s.name.toLowerCase()}`, label: `AbilitÃ : ${s.name}` }))
-        : [];
-    const statOptions = [
-        { value: 'str', label: 'Forza (STR)' }, { value: 'dex', label: 'Destrezza (DEX)' },
-        { value: 'con', label: 'Costituzione (CON)' }, { value: 'int', label: 'Intelligenza (INT)' },
-        { value: 'wis', label: 'Saggezza (WIS)' }, { value: 'cha', label: 'Carisma (CHA)' },
-        { value: 'ac', label: 'Classe Armatura (AC)' }, { value: 'hp', label: 'Punti Ferita (HP)' },
-        { value: 'bab', label: 'Bonus Att. Base (BAB)' }, { value: 'initiative', label: 'Iniziativa' },
-        { value: 'reflex', label: 'Tiro Salvezza: Riflessi' }, { value: 'fortitude', label: 'Tiro Salvezza: Tempra' },
-        { value: 'will', label: 'Tiro Salvezza: VolontÃ ' },
-    ];
-    const allTargetOptions = [...statOptions, ...skillTargetOptions];
     const [editingId, setEditingId] = useState<string | null>(null);
     const [isAdding, setIsAdding] = useState(false);
     const [form, setForm] = useState<Omit<Feat, 'id'>>(EMPTY_FEAT());
@@ -221,7 +174,7 @@ export const Feats: React.FC = () => {
             id: uuidv4(),
             name: finalName,
             description: cf.description,
-            modifiers: cf.modifiers ?? [],
+            modifiers: (cf.modifiers ?? []) as Modifier[],
             active: true,
         });
         setCatalogOpen(false);
@@ -255,12 +208,7 @@ export const Feats: React.FC = () => {
         setEditingId(null); setIsAdding(false); setIsDefectForm(false); setForm(EMPTY_FEAT());
     };
 
-    const addMod = () => setForm(f => ({ ...f, modifiers: [...f.modifiers, { target: 'str', value: 1, type: 'enhancement' as any, source: '' }] }));
-    const removeMod = (i: number) => setForm(f => ({ ...f, modifiers: f.modifiers.filter((_, idx) => idx !== i) }));
-    const updateMod = (i: number, field: string, val: any) =>
-        setForm(f => ({ ...f, modifiers: f.modifiers.map((m, idx) => idx === i ? { ...m, [field]: val } : m) }));
-
-    const editFormProps: EditFormProps = { form, setForm, save, cancel, editingId, isDefectForm, setIsDefectForm, addMod, removeMod, updateMod, allTargetOptions };
+    const editFormProps: EditFormProps = { form, setForm, save, cancel, editingId, isDefectForm, setIsDefectForm };
     const featRowProps = { editingId, toggleFeat, startEdit, deleteFeat, editFormProps };
 
     // Build flat rows for Virtuoso

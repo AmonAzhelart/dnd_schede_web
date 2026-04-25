@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useCharacterStore } from '../store/characterStore';
 import { v4 as uuidv4 } from 'uuid';
-import type { Item } from '../types/dnd';
-import { FaPlus, FaTrash, FaTimes } from 'react-icons/fa';
+import type { Item, Modifier } from '../types/dnd';
+import { FaTimes } from 'react-icons/fa';
+import { ModifierEditor } from './ModifierEditor';
 
 export const ItemModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { character, setCharacter } = useCharacterStore();
@@ -10,13 +11,7 @@ export const ItemModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [description, setDescription] = useState('');
   const [type, setType] = useState<Item['type']>('gear');
   const [weight, setWeight] = useState(0);
-  const [modifiers, setModifiers] = useState<any[]>([]);
-
-  const addMod = () => setModifiers([...modifiers, { target: 'str', value: 1, type: 'enhancement', source: '' }]);
-  const removeMod = (i: number) => setModifiers(modifiers.filter((_, idx) => idx !== i));
-  const updateMod = (i: number, field: string, val: any) => {
-    const m = [...modifiers]; m[i] = { ...m[i], [field]: val }; setModifiers(m);
-  };
+  const [modifiers, setModifiers] = useState<Modifier[]>([]);
 
   const handleSave = () => {
     if (!character || !name.trim()) return;
@@ -39,7 +34,7 @@ export const ItemModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         <div className="flex-col gap-3">
           <input className="input" placeholder="Nome dell'oggetto" value={name} onChange={e => setName(e.target.value)} autoFocus />
           <div className="flex gap-2">
-            <select className="input" value={type} onChange={e => setType(e.target.value as any)} style={{ flex: 1 }}>
+            <select className="input" value={type} onChange={e => setType(e.target.value as Item['type'])} style={{ flex: 1 }}>
               <option value="weapon">Arma</option>
               <option value="armor">Armatura</option>
               <option value="shield">Scudo</option>
@@ -53,30 +48,11 @@ export const ItemModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           <textarea className="input" placeholder="Descrizione..." value={description} onChange={e => setDescription(e.target.value)} />
         </div>
 
-        <div>
-          <div className="section-header">
-            <span className="section-title">Modificatori</span>
-            <button className="btn-secondary text-xs" onClick={addMod}><FaPlus /> Aggiungi</button>
-          </div>
-          {modifiers.length === 0 && <p className="text-muted text-xs">Nessun modificatore. L'oggetto non darà bonus matematici.</p>}
-          <div className="flex-col gap-2">
-            {modifiers.map((mod, i) => (
-              <div key={i} className="flex gap-2 items-center card" style={{ padding: '0.5rem' }}>
-                <input className="input" value={mod.target} onChange={e => updateMod(i, 'target', e.target.value)} placeholder="es. str, ac" style={{ flex: 1 }} />
-                <input className="input" type="number" value={mod.value} onChange={e => updateMod(i, 'value', +e.target.value)} style={{ width: 60 }} />
-                <select className="input" value={mod.type} onChange={e => updateMod(i, 'type', e.target.value)} style={{ flex: 1 }}>
-                  <option value="enhancement">Potenziamento</option>
-                  <option value="armor">Armatura</option>
-                  <option value="deflection">Deviazione</option>
-                  <option value="dodge">Schivare</option>
-                  <option value="circumstance">Circostanza</option>
-                  <option value="untyped">Senza tipo</option>
-                </select>
-                <button className="btn-ghost" style={{ color: 'var(--accent-crimson)' }} onClick={() => removeMod(i)}><FaTrash size={12} /></button>
-              </div>
-            ))}
-          </div>
-        </div>
+        <ModifierEditor
+          modifiers={modifiers}
+          onChange={setModifiers}
+          accentColor="var(--accent-gold)"
+        />
 
         <button className="btn-primary w-full" style={{ justifyContent: 'center', marginTop: '0.5rem' }} onClick={handleSave}>
           Salva Oggetto

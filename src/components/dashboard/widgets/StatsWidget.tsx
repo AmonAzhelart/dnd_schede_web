@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { useCharacterStore } from '../../../store/characterStore';
 import type { WidgetRenderProps } from '../widgetTypes';
 import { DndIcon } from '../../DndIcon';
+import type { StatType } from '../../../types/dnd';
+import { RollPickerModal } from '../../RollPickerModal';
+import type { RollContext } from '../../../services/modifiers';
 
 const STAT_NAMES: Record<string, string> = {
     str: 'Forza', dex: 'Destrezza', con: 'Costituzione',
@@ -33,14 +36,11 @@ const MIN_FALLBACK_H = 54;
 export const StatsWidget: React.FC<WidgetRenderProps> = ({ size }) => {
     const { character, setCharacter, getEffectiveStat, getStatModifier, getActiveModifierDelta } = useCharacterStore();
     const [editing, setEditing] = useState<string | null>(null);
-    const [rolling, setRolling] = useState<string | null>(null);
+    const [picker, setPicker] = useState<{ stat: StatType; mod: number } | null>(null);
     if (!character) return null;
 
-    const roll = (stat: string, mod: number) => {
-        setRolling(stat);
-        setTimeout(() => setRolling(null), 600);
-        const r = Math.floor(Math.random() * 20) + 1;
-        alert(`🎲 ${STAT_NAMES[stat] || stat} — Dado: ${r} + Mod: ${mod >= 0 ? '+' : ''}${mod} = ${r + mod}`);
+    const openCheck = (stat: StatType, mod: number) => {
+        setPicker({ stat, mod });
     };
     const update = (stat: string, val: string) => {
         const num = parseInt(val);
@@ -122,14 +122,14 @@ export const StatsWidget: React.FC<WidgetRenderProps> = ({ size }) => {
                 const auraClass = activeDelta > 0 ? 'w-mod-aura-buff' : activeDelta < 0 ? 'w-mod-aura-malus' : '';
                 const modSign = mod >= 0 ? '+' : '−';
                 const modAbs = Math.abs(mod);
-                const tooltip = `${STAT_NAMES[stat]}: ${effective} (${modSign}${modAbs}) — click per tirare d20`;
+                const tooltip = `${STAT_NAMES[stat]}: ${effective} (${modSign}${modAbs}) — click per aprire la prova di caratteristica`;
 
                 return (
                     <div
                         key={stat}
-                        className={`w-stat-cell ${tier} ${rolling === stat ? 'is-rolling' : ''} ${auraClass}`}
+                        className={`w-stat-cell ${tier} ${auraClass}`}
                         title={tooltip}
-                        onClick={() => roll(stat, mod)}
+                        onClick={() => openCheck(stat as StatType, mod)}
                     >
                         {/* Floating arrow particles when an active modifier is in effect */}
                         {auraClass && (
@@ -205,6 +205,16 @@ export const StatsWidget: React.FC<WidgetRenderProps> = ({ size }) => {
                     </div>
                 );
             })}
+            {picker && (
+                <RollPickerModal
+                    ctx={{ channel: `check.${picker.stat}` } as RollContext}
+                    title={`Prova di ${STAT_NAMES[picker.stat]}`}
+                    baseBreakdown={[
+                        { label: `Mod. ${STAT_ABBR[picker.stat]}`, value: picker.mod },
+                    ]}
+                    onClose={() => setPicker(null)}
+                />
+            )}
         </div>
     );
 };

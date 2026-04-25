@@ -4,8 +4,10 @@ import { GiSpellBook, GiCrystalBall, GiNightSleep } from 'react-icons/gi';
 import { FaInfoCircle, FaTimes } from 'react-icons/fa';
 import { useCharacterStore } from '../../../store/characterStore';
 import type { WidgetRenderProps } from '../widgetTypes';
-import type { Spell } from '../../../types/dnd';
+import type { Spell, StatType } from '../../../types/dnd';
 import { DndIcon, getDndIconSvg } from '../../DndIcon';
+import { RollPickerModal, type RollSegment, type RollBreakdownLine } from '../../RollPickerModal';
+import { computeSpellDamageDice } from '../../../services/modifiers';
 
 const SCHOOL_ICON_SLUG: Record<string, string> = {
     'Abiurazione': 'abjuration', 'Ammaliamento': 'enchantment', 'Divinazione': 'divination',
@@ -169,10 +171,12 @@ export const SpellSlotsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) =>
         character, setSpellSlotTotal,
         prepareWizardSpell,
         castPreparedSpell, restorePreparedSpell, restWizardSpells,
+        getStatModifier, getTotalBab,
     } = useCharacterStore();
     const [pickerOpen, setPickerOpen] = useState(false);
     const [editingSlots, setEditingSlots] = useState(false);
     const [infoSpell, setInfoSpell] = useState<Spell | null>(null);
+    const [castPicker, setCastPicker] = useState<{ spell: Spell; lvl: number; prepId: string } | null>(null);
     const [activeLvl, setActiveLvl] = useState<number>(0);
 
     if (!character) return null;
@@ -320,8 +324,14 @@ export const SpellSlotsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) =>
                                 <div key={p.id} className={`w-spell-prep ${p.cast ? 'is-cast' : ''}`}>
                                     <button
                                         className="w-spell-prep-main"
-                                        onClick={() => p.cast ? restorePreparedSpell(lvl, p.id) : castPreparedSpell(lvl, p.id)}
-                                        title={p.cast ? 'Ripristina (annulla lancio)' : 'Lancia incantesimo'}
+                                        onClick={() => {
+                                            if (p.cast) {
+                                                restorePreparedSpell(lvl, p.id);
+                                            } else {
+                                                setCastPicker({ spell: s, lvl, prepId: p.id });
+                                            }
+                                        }}
+                                        title={p.cast ? 'Ripristina (annulla lancio)' : 'Lancia incantesimo (apre il dettaglio dei tiri)'}
                                     >
                                         <span className="w-spell-prep-check">{p.cast ? '✓' : ''}</span>
                                         {slug && getDndIconSvg('spell', slug) && (
@@ -353,6 +363,78 @@ export const SpellSlotsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) =>
                     onClose={() => setInfoSpell(null)}
                 />
             )}
+
+            {castPicker && (() => {
+                const { spell, lvl: castLvl, prepId } = castPicker;
+                // Caster level = sum of class levels (fallback to character.level)
+                const casterLevel = (character.classLevels?.reduce((s, cl) => s + cl.level, 0) || character.level || 1);
+                const segments: RollSegment[] = [];
+
+                // ── Attack segment (touch attacks / rays / normal) ──\n                if (spell.attackMode && spell.attackMode !== 'none') {\n                    const isMelee = spell.attackMode === 'meleeTouch';\n                    const statMod = getStatModifier(isMelee ? 'str' : 'dex');\n                    const bab = getTotalBab();\n                    const breakdown: RollBreakdownLine[] = [\n                        { label: 'BAB', value: bab },\n                        { label: isMelee ? 'Mod. FOR' : 'Mod. DES', value: statMod },\n                    ];\n                    segments.push({\n                        ctx: {\n                            channel: 'spell.attack',\n                            spellId: spell.id,\n                            spellName: spell.name,\n                            spellLevel: spell.level,\n                            spellSchool: spell.school,\n                            spellDamageType: spell.damageType,\n                            attackMode: spell.attackMode,\n                        },\n                        label: spell.attackMode === 'meleeTouch' ? 'Tocco in mischia'\n                            : spell.attackMode === 'rangedTouch' ? 'Tocco a distanza'\n                                : spell.attackMode === 'ray' ? 'Raggio (TxC)'\n                                    : 'Tiro per colpire',\n                        baseBreakdown: breakdown,\n                    });\n                }
+
+                // ── Damage segment (scales with caster level) ──
+                if (spell.damagePerLevelDice) {
+                    const dice = computeSpellDamageDice(spell, casterLevel);
+                    segments.push({
+                        ctx: {
+                            channel: 'spell.damage',
+                            spellId: spell.id,
+                            spellName: spell.name,
+                            spellLevel: spell.level,
+                            spellSchool: spell.school,
+                            spellDamageType: spell.damageType,
+                            attackMode: spell.attackMode,
+                        },
+                        label: `Danno${spell.damageType ? ` (${spell.damageType})` : ''} – CL ${casterLevel}`,
+                        baseBreakdown: [],
+                        baseDice: dice,
+                    });
+                }
+
+                // ── Save DC segment (when spell has saveStat) ──
+                if (spell.saveStat || spell.savingThrow) {
+                    const saveStat: StatType = spell.saveStat ?? 'int';
+                    const statMod = getStatModifier(saveStat);
+                    const breakdown: RollBreakdownLine[] = [
+                        { label: 'Base CD', value: 10 },
+                        { label: `Liv. magia (${spell.level})`, value: spell.level },
+                        { label: `Mod. ${saveStat.toUpperCase()}`, value: statMod },
+                    ];
+                    segments.push({
+                        ctx: {
+                            channel: 'spell.dc',
+                            spellId: spell.id,
+                            spellName: spell.name,
+                            spellLevel: spell.level,
+                            spellSchool: spell.school,
+                            spellDamageType: spell.damageType,
+                            attackMode: spell.attackMode,
+                        },
+                        label: `CD del TS${spell.savingThrow ? ` (${spell.savingThrow})` : ''}`,
+                        baseBreakdown: breakdown,
+                    });
+                }
+
+                // No combat data at all → just open the info modal instead.
+                if (segments.length === 0) {
+                    setTimeout(() => {
+                        castPreparedSpell(castLvl, prepId);
+                        setCastPicker(null);
+                        setInfoSpell(spell);
+                    }, 0);
+                    return null;
+                }
+
+                return (
+                    <RollPickerModal
+                        segments={segments}
+                        title={spell.name}
+                        subtitle={`${spell.level === 0 ? 'Trucchetto' : `Livello ${spell.level}`}${spell.school ? ` · ${spell.school}` : ''} · CL ${casterLevel}`}
+                        onConfirm={() => castPreparedSpell(castLvl, prepId)}
+                        onClose={() => setCastPicker(null)}
+                    />
+                );
+            })()}
         </div>
     );
 };

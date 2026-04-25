@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { CharacterBase, ClassLevel, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell, ActiveModifier, DurationUnit } from '../types/dnd';
 import { computeClassBab, computeClassSaveBase } from '../types/dnd';
+import { collectModifierCandidates, type ModifierCandidate, type RollContext } from '../services/modifiers';
 
 type SaveKey = 'fortitude' | 'reflex' | 'will';
 const SAVE_TO_STAT: Record<SaveKey, StatType> = { fortitude: 'con', reflex: 'dex', will: 'wis' };
@@ -98,6 +99,9 @@ interface CharacterState {
   getActiveModifierDelta: (target: StatType | string) => number;
   /** All non-paused active modifiers targeting `target`. */
   getActiveModifiersFor: (target: StatType | string) => ActiveModifier[];
+  /** New: collect every applicable modifier (item / feat / class feature /
+   *  active buff) for a roll context. Returns auto + optional candidates. */
+  getApplicableModifiers: (ctx: RollContext) => ModifierCandidate[];
 }
 
 // Helper to determine if a modifier type stacks
@@ -794,5 +798,11 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     const usable = skill.classSkill === true || ranks >= 1 || skill.canUseUntrained === true || sources.length > 0;
 
     return { statMod, statName: skill.stat, ranks, classBonus, sources, total, usable };
-  }
+  },
+
+  getApplicableModifiers: (ctx: RollContext): ModifierCandidate[] => {
+    const { character } = get();
+    if (!character) return [];
+    return collectModifierCandidates(character, ctx);
+  },
 }));

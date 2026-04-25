@@ -721,10 +721,44 @@ input[type="number"] {
     width: 100%;
   }
 
+  /* On mobile every .modal-overlay/.modal-box pair behaves as a bottom sheet:
+     overlay anchors content to the bottom edge, dialog spans full width with
+     rounded top corners and slides up. A drag handle (::before) gives it the
+     iOS/Android sheet affordance. !important defeats inline styles set by
+     individual modals (e.g. RollPickerModal sets a custom border/maxWidth). */
+  .modal-overlay {
+    align-items: flex-end !important;
+    justify-content: stretch !important;
+    padding: 0 !important;
+  }
+
   .modal-box {
-    width: 96vw;
+    width: 100% !important;
+    max-width: 100vw !important;
+    max-height: 92vh !important;
     padding: var(--space-3);
-    max-height: 85vh;
+    padding-top: calc(var(--space-3) + 14px);
+    border-radius: var(--radius-md) var(--radius-md) 0 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    border-top: 2px solid rgba(201, 168, 76, 0.4) !important;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.7) !important;
+    animation: sheetSlideUp 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+    position: relative;
+  }
+
+  .modal-box::before {
+    content: '';
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 42px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.22);
+    pointer-events: none;
   }
 
   .ov-mid-grid {
@@ -734,6 +768,11 @@ input[type="number"] {
   .ov-bot-grid {
     grid-template-columns: 1fr 1fr !important;
   }
+}
+
+@keyframes sheetSlideUp {
+  from { transform: translateY(100%); opacity: 0.4; }
+  to   { transform: translateY(0);   opacity: 1; }
 }
 
 @media (max-width: 480px) {
