@@ -34,14 +34,15 @@ const createWavePath = (y: number, amp = 2.5) =>
     `L 200 101 L -100 101 Z`;
 
 export const HpWidget: React.FC<WidgetRenderProps> = ({ size }) => {
-    const { character, getEffectiveStat, setCharacter } = useCharacterStore();
+    const { character, getEffectiveStat, setCharacter, getTotalMaxHp } = useCharacterStore();
     const hpAura = useModifierAura('hp');
     const [flashCls, setFlashCls] = useState('');
     const prevHp = useRef<number | null>(null);
     const uid = React.useId().replace(/:/g, '');
 
     const currentHp = character?.hpDetails?.current ?? character?.baseStats.hp ?? 0;
-    const maxHp = character ? (character.hpDetails?.max ?? getEffectiveStat('hp')) : 0;
+    const classMaxHp = character ? getTotalMaxHp() : 0;
+    const maxHp = classMaxHp > 0 ? classMaxHp : (character ? (character.hpDetails?.max ?? getEffectiveStat('hp')) : 0);
 
     useEffect(() => {
         if (!character) return;
@@ -69,7 +70,7 @@ export const HpWidget: React.FC<WidgetRenderProps> = ({ size }) => {
     const st = getHpState(pct, isDying);
 
     const adjust = (delta: number) => {
-        const max = character.hpDetails?.max ?? getEffectiveStat('hp');
+        const max = maxHp;
         const hpDetails = character.hpDetails ?? {};
 
         /* Healing: simply raise current HP, capped at max. */

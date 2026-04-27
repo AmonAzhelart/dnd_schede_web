@@ -60,7 +60,7 @@ const downscaleImage = (file: File, maxSize: number): Promise<string> => new Pro
 
 export const CharacterSheet: React.FC = () => {
   const { character, setCharacter, getEffectiveStat, getStatModifier, getSkillBreakdown, updateSkill, deleteSkill,
-    getTotalBab, getMultipleAttacks } = useCharacterStore();
+    getTotalBab, getMultipleAttacks, getTotalMaxHp } = useCharacterStore();
   const [activeTab, setActiveTab] = useState<SheetTab>('overview');
   const [combatSubTab, setCombatSubTab] = useState<'attacks' | 'modifiers'>('attacks');
   const [abilitiesInitialTab, setAbilitiesInitialTab] = useState<AbilitySubTab | undefined>(undefined);
@@ -157,7 +157,8 @@ export const CharacterSheet: React.FC = () => {
 
   if (!character) return <SkeletonSheet />;
 
-  const maxHp = character.hpDetails?.max ?? getEffectiveStat('hp');
+  const classMaxHp = getTotalMaxHp();
+  const maxHp = classMaxHp > 0 ? classMaxHp : (character.hpDetails?.max ?? getEffectiveStat('hp'));
   const currentHp = character.hpDetails?.current ?? character.baseStats.hp;
   const hpPercent = Math.max(0, Math.min(100, (currentHp / maxHp) * 100));
 

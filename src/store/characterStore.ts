@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { CharacterBase, ClassLevel, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell, ActiveModifier, DurationUnit } from '../types/dnd';
-import { computeClassBab, computeClassSaveBase } from '../types/dnd';
+import type { CharacterBase, ClassLevel, HpLevelLogEntry, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell, ActiveModifier, DurationUnit } from '../types/dnd';
+import { computeClassBab, computeClassSaveBase, getExpectedHpForClassLevel } from '../types/dnd';
 import { collectModifierCandidates, type ModifierCandidate, type RollContext } from '../services/modifiers';
 
 type SaveKey = 'fortitude' | 'reflex' | 'will';
@@ -80,6 +80,14 @@ interface CharacterState {
   addClassLevel: (entry: ClassLevel) => void;
   updateClassLevel: (entry: ClassLevel) => void;
   deleteClassLevel: (id: string) => void;
+  /** Computed total max HP from classLevels hit dice + Con modifier. */
+  getTotalMaxHp: () => number;
+  /** Append an entry to the HP acquisition log. */
+  addHpLevelEntry: (entry: HpLevelLogEntry) => void;
+  /** Remove the last log entry that belongs to the given classId. */
+  removeLastHpLevelEntry: (classId: string) => void;
+  /** Replace the entire HP acquisition log (for reordering). */
+  reorderHpLevelLog: (log: HpLevelLogEntry[]) => void;
   // Active (user-managed) modifiers
   addActiveModifier: (mod: ActiveModifier) => void;
   updateActiveModifier: (mod: ActiveModifier) => void;
@@ -485,7 +493,50 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
 
   deleteClassLevel: (id: string) => set((state) => {
     if (!state.character) return state;
-    return { character: { ...state.character, classLevels: (state.character.classLevels ?? []).filter(cl => cl.id !== id) } };
+    return {
+      character: {
+        ...state.character,
+        classLevels: (state.character.classLevels ?? []).filter(cl => cl.id !== id),
+        hpLevelLog: (state.character.hpLevelLog ?? []).filter(e => e.classId !== id),
+      },
+    };
+  }),
+
+  getTotalMaxHp: (): number => {
+    const { character, getStatModifier } = get();
+    if (!character) return 0;
+    const levels = character.classLevels ?? [];
+    const log = character.hpLevelLog ?? [];
+    const totalLevel = levels.reduce((s, cl) => s + cl.level, 0);
+    const conMod = getStatModifier('con');
+    const classMap = new Map(levels.map(cl => [cl.id, cl]));
+    // Sum HP using log order: position in log = total character level
+    const hpFromDice = log.reduce((sum, entry, idx) => {
+      const cl = classMap.get(entry.classId);
+      const die = cl?.hitDie ?? 0;
+      if (!die) return sum;
+      return sum + getExpectedHpForClassLevel(die, idx + 1);
+    }, 0);
+    return hpFromDice + conMod * totalLevel;
+  },
+
+  addHpLevelEntry: (entry: HpLevelLogEntry) => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, hpLevelLog: [...(state.character.hpLevelLog ?? []), entry] } };
+  }),
+
+  removeLastHpLevelEntry: (classId: string) => set((state) => {
+    if (!state.character) return state;
+    const log = state.character.hpLevelLog ?? [];
+    const lastIdx = log.map((e, i) => e.classId === classId ? i : -1).filter(i => i !== -1).at(-1);
+    if (lastIdx === undefined) return state;
+    const newLog = [...log.slice(0, lastIdx), ...log.slice(lastIdx + 1)];
+    return { character: { ...state.character, hpLevelLog: newLog } };
+  }),
+
+  reorderHpLevelLog: (log: HpLevelLogEntry[]) => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, hpLevelLog: log } };
   }),
 
   // ── Active (user-managed) modifiers ──────────────────────────────

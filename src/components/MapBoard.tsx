@@ -19,6 +19,8 @@ import type {
 } from '../types/dnd';
 import { listAllDndIcons, getDndIconSvg } from './DndIcon';
 import { useIconCatalog, sanitizeSvg } from '../services/iconCache';
+import { useMediaQuery } from './mobile/MobileShell';
+import { BottomDrawer } from './ui/BottomDrawer';
 
 /* ────────────────────── CONSTANTS ────────────────────── */
 const CELL = 40;             // logical "1 grid cell" = 40 px
@@ -234,7 +236,7 @@ const topBarStyle: React.CSSProperties = {
     padding: '0 12px', background: 'linear-gradient(180deg, #1a1410 0%, #15110d 100%)',
     borderBottom: '1px solid rgba(201,168,76,0.18)',
     boxShadow: '0 2px 12px rgba(0,0,0,0.35)', position: 'relative', zIndex: 20,
-    overflowX: 'auto', flexWrap: 'nowrap',
+    overflow: 'visible',
 };
 const topPillStyle = (active: boolean): React.CSSProperties => ({
     height: 30, padding: '0 12px', borderRadius: 6,
@@ -332,6 +334,9 @@ export const MapBoard: React.FC = () => {
     /** Toggles the modern top-bar dropdowns. */
     const [mapsMenuOpen, setMapsMenuOpen] = useState(false);
     const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+
+    const isMobile = useMediaQuery('(max-width: 640px)');
+    const [floorStackCollapsed, setFloorStackCollapsed] = useState(true);
 
     const [draftRect, setDraftRect] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
     const [draftPoints, setDraftPoints] = useState<MapPoint[] | null>(null);
@@ -1677,99 +1682,122 @@ export const MapBoard: React.FC = () => {
         });
     })();
 
+    const renderMapSelector = (anchorStyle: React.CSSProperties, floating = false) => (
+        <div style={anchorStyle} onClick={e => e.stopPropagation()}>
+            <button onClick={() => { setMapsMenuOpen(o => !o); setMoreMenuOpen(false); }}
+                style={{
+                    ...topPillStyle(mapsMenuOpen),
+                    ...(floating ? {
+                        maxWidth: 'min(58vw, 220px)',
+                        background: 'rgba(0,0,0,0.6)',
+                        backdropFilter: 'blur(8px)',
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                    } : {}),
+                }}
+                title="Cambia mappa">
+                <FaMap size={11} style={{ color: 'var(--accent-gold)' }} />
+                <span style={{ maxWidth: floating ? 130 : 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeMap.name}</span>
+                <FaCaretDown size={10} style={{ opacity: 0.7 }} />
+            </button>
+            {mapsMenuOpen && (
+                <div style={{
+                    ...dropdownPanelStyle,
+                    ...(floating
+                        ? { top: 'calc(100% + 6px)', bottom: 'auto', right: 0, left: 'auto', minWidth: 220 }
+                        : isMobile
+                            ? { top: 'auto', bottom: 'calc(100% + 6px)' }
+                            : {}),
+                }}>
+                    <div style={{ maxHeight: 280, overflowY: 'auto', padding: '4px 0' }}>
+                        {maps.map(m => (
+                            <div key={m.id} onClick={() => { selectMap(m.id); setMapsMenuOpen(false); }}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', cursor: 'pointer',
+                                    background: m.id === activeMapId ? 'rgba(201,168,76,0.1)' : 'transparent',
+                                }}
+                                onMouseEnter={e => { if (m.id !== activeMapId) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'; }}
+                                onMouseLeave={e => { if (m.id !== activeMapId) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                            >
+                                {editingMapId === m.id ? (
+                                    <form onSubmit={e => { e.preventDefault(); commitRenameMap(m.id); }} style={{ flex: 1, display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
+                                        <input autoFocus value={editingNameVal} onChange={e => setEditingNameVal(e.target.value)} onBlur={() => commitRenameMap(m.id)} onKeyDown={e => e.key === 'Escape' && setEditingMapId(null)}
+                                            style={{ flex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid var(--accent-gold)', borderRadius: 3, padding: '2px 5px', color: 'var(--text-primary)', fontSize: '0.78rem', outline: 'none' }} />
+                                    </form>
+                                ) : (
+                                    <>
+                                        <FaMap size={10} style={{ color: m.id === activeMapId ? 'var(--accent-gold)' : 'var(--text-muted)' }} />
+                                        <span style={{ flex: 1, fontSize: '0.79rem', color: m.id === activeMapId ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{m.name}</span>
+                                        <button title="Rinomina" onClick={e => { e.stopPropagation(); setEditingMapId(m.id); setEditingNameVal(m.name); }} style={iconBtnGhost}><FaPencilAlt size={9} /></button>
+                                        {maps.length > 1 && (
+                                            <button title="Elimina" onClick={e => { e.stopPropagation(); deleteMap(m.id); }} style={{ ...iconBtnGhost, color: 'var(--accent-crimson)' }}><FaTrash size={9} /></button>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                    <button onClick={() => { newMap(); setMapsMenuOpen(false); }}
+                        style={{
+                            width: '100%', padding: '8px 10px', borderTop: '1px solid rgba(201,168,76,0.15)',
+                            background: 'transparent', border: 'none', color: 'var(--accent-gold)',
+                            cursor: 'pointer', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: 6,
+                            fontFamily: 'var(--font-heading)', letterSpacing: '0.04em',
+                        }}>
+                        <FaPlus size={10} /> NUOVA MAPPA
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+
     /* ════════════════════════════════════════════════════════════ */
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', userSelect: 'none', overflow: 'hidden', background: 'var(--bg-surface)' }}>
+        <div style={{ display: 'flex', flexDirection: isMobile ? 'column-reverse' : 'column', height: '100%', userSelect: 'none', overflow: 'hidden', background: 'var(--bg-surface)' }}>
 
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━ TOP BAR ━━━━━━━━━━━━━━━━━━━━━━━━ */}
-            <div style={topBarStyle} onClick={() => { setMapsMenuOpen(false); setMoreMenuOpen(false); }}>
-                {/* Maps dropdown */}
-                <div style={{ position: 'relative', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                    <button onClick={() => { setMapsMenuOpen(o => !o); setMoreMenuOpen(false); }}
-                        style={topPillStyle(mapsMenuOpen)} title="Cambia mappa">
-                        <FaMap size={11} style={{ color: 'var(--accent-gold)' }} />
-                        <span style={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeMap.name}</span>
-                        <FaCaretDown size={10} style={{ opacity: 0.7 }} />
-                    </button>
-                    {mapsMenuOpen && (
-                        <div style={dropdownPanelStyle}>
-                            <div style={{ maxHeight: 280, overflowY: 'auto', padding: '4px 0' }}>
-                                {maps.map(m => (
-                                    <div key={m.id} onClick={() => { selectMap(m.id); setMapsMenuOpen(false); }}
-                                        style={{
-                                            display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', cursor: 'pointer',
-                                            background: m.id === activeMapId ? 'rgba(201,168,76,0.1)' : 'transparent',
-                                        }}
-                                        onMouseEnter={e => { if (m.id !== activeMapId) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'; }}
-                                        onMouseLeave={e => { if (m.id !== activeMapId) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
-                                    >
-                                        {editingMapId === m.id ? (
-                                            <form onSubmit={e => { e.preventDefault(); commitRenameMap(m.id); }} style={{ flex: 1, display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
-                                                <input autoFocus value={editingNameVal} onChange={e => setEditingNameVal(e.target.value)} onBlur={() => commitRenameMap(m.id)} onKeyDown={e => e.key === 'Escape' && setEditingMapId(null)}
-                                                    style={{ flex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid var(--accent-gold)', borderRadius: 3, padding: '2px 5px', color: 'var(--text-primary)', fontSize: '0.78rem', outline: 'none' }} />
-                                            </form>
-                                        ) : (
-                                            <>
-                                                <FaMap size={10} style={{ color: m.id === activeMapId ? 'var(--accent-gold)' : 'var(--text-muted)' }} />
-                                                <span style={{ flex: 1, fontSize: '0.79rem', color: m.id === activeMapId ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{m.name}</span>
-                                                <button title="Rinomina" onClick={e => { e.stopPropagation(); setEditingMapId(m.id); setEditingNameVal(m.name); }} style={iconBtnGhost}><FaPencilAlt size={9} /></button>
-                                                {maps.length > 1 && (
-                                                    <button title="Elimina" onClick={e => { e.stopPropagation(); deleteMap(m.id); }} style={{ ...iconBtnGhost, color: 'var(--accent-crimson)' }}><FaTrash size={9} /></button>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                            <button onClick={() => { newMap(); setMapsMenuOpen(false); }}
+            <div style={{ ...topBarStyle, ...(isMobile ? { borderBottom: 'none', borderTop: '1px solid rgba(201,168,76,0.18)', boxShadow: '0 -2px 12px rgba(0,0,0,0.35)' } : {}) }} onClick={() => { setMapsMenuOpen(false); setMoreMenuOpen(false); }}>
+                {!isMobile && renderMapSelector({ position: 'relative', flexShrink: 0 })}
+                {!isMobile && <div style={vDivider} />}
+
+                {/* ── scrollable tools strip — only this section scrolls; dropdowns outside are not clipped ── */}
+                <div style={{ display: 'flex', flex: 1, overflowX: 'auto', overflowY: 'visible', alignItems: 'center', gap: 6, minWidth: 0 }}>
+
+                    {/* Tools — horizontal palette */}
+                    <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+                        {TOOL_LIST.map(t => (
+                            <button key={t.id} title={t.label}
+                                onClick={() => { setTool(t.id); if (t.id === 'stamp') setStampPickerOpen(true); }}
                                 style={{
-                                    width: '100%', padding: '8px 10px', borderTop: '1px solid rgba(201,168,76,0.15)',
-                                    background: 'transparent', border: 'none', color: 'var(--accent-gold)',
-                                    cursor: 'pointer', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: 6,
-                                    fontFamily: 'var(--font-heading)', letterSpacing: '0.04em',
-                                }}>
-                                <FaPlus size={10} /> NUOVA MAPPA
-                            </button>
-                        </div>
-                    )}
-                </div>
+                                    ...topToolBtn,
+                                    background: tool === t.id ? 'rgba(201,168,76,0.2)' : 'transparent',
+                                    border: `1px solid ${tool === t.id ? 'rgba(201,168,76,0.5)' : 'transparent'}`,
+                                    color: tool === t.id ? 'var(--accent-gold)' : 'var(--text-secondary)',
+                                }}>{t.icon}</button>
+                        ))}
+                    </div>
 
-                <div style={vDivider} />
+                    <div style={{ flex: 1, minWidth: 8 }} />
 
-                {/* Tools — horizontal palette */}
-                <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
-                    {TOOL_LIST.map(t => (
-                        <button key={t.id} title={t.label}
-                            onClick={() => { setTool(t.id); if (t.id === 'stamp') setStampPickerOpen(true); }}
-                            style={{
-                                ...topToolBtn,
-                                background: tool === t.id ? 'rgba(201,168,76,0.2)' : 'transparent',
-                                border: `1px solid ${tool === t.id ? 'rgba(201,168,76,0.5)' : 'transparent'}`,
-                                color: tool === t.id ? 'var(--accent-gold)' : 'var(--text-secondary)',
-                            }}>{t.icon}</button>
-                    ))}
-                </div>
+                    {/* View toggles */}
+                    <button title={`Snap alla griglia (aggancio a 1/4 di casella ≈ ${SNAP_STEP}px)`} onClick={() => setSnap(s => !s)}
+                        style={{ ...topChip, ...(snap ? topChipActive : {}) }}>SNAP</button>
+                    <button title="Mostra griglia di sfondo" onClick={() => setShowGrid(v => !v)}
+                        style={{ ...topChip, ...(showGrid ? topChipActive : {}) }}>GRID</button>
+                    <button title="Pannello layer" onClick={() => setShowLayers(v => !v)}
+                        style={{ ...topToolBtn, ...(showLayers ? { background: 'rgba(201,168,76,0.2)', color: 'var(--accent-gold)', border: '1px solid rgba(201,168,76,0.5)' } : { color: 'var(--text-secondary)' }) }}>
+                        <FaLayerGroup size={12} />
+                    </button>
 
-                <div style={{ flex: 1 }} />
+                    <div style={vDivider} />
 
-                {/* View toggles */}
-                <button title={`Snap alla griglia (aggancio a 1/4 di casella ≈ ${SNAP_STEP}px)`} onClick={() => setSnap(s => !s)}
-                    style={{ ...topChip, ...(snap ? topChipActive : {}) }}>SNAP</button>
-                <button title="Mostra griglia di sfondo" onClick={() => setShowGrid(v => !v)}
-                    style={{ ...topChip, ...(showGrid ? topChipActive : {}) }}>GRID</button>
-                <button title="Pannello layer" onClick={() => setShowLayers(v => !v)}
-                    style={{ ...topToolBtn, ...(showLayers ? { background: 'rgba(201,168,76,0.2)', color: 'var(--accent-gold)', border: '1px solid rgba(201,168,76,0.5)' } : { color: 'var(--text-secondary)' }) }}>
-                    <FaLayerGroup size={12} />
-                </button>
+                    <button title="Annulla (Ctrl+Z)" onClick={() => undoRef.current()} style={{ ...topToolBtn, color: 'var(--text-secondary)' }}><FaUndo size={11} /></button>
+                    <button title="Rifai (Ctrl+Y)" onClick={() => redoRef.current()} style={{ ...topToolBtn, color: 'var(--text-secondary)' }}><FaRedo size={11} /></button>
 
-                <div style={vDivider} />
+                    <div style={vDivider} />
 
-                <button title="Annulla (Ctrl+Z)" onClick={() => undoRef.current()} style={{ ...topToolBtn, color: 'var(--text-secondary)' }}><FaUndo size={11} /></button>
-                <button title="Rifai (Ctrl+Y)" onClick={() => redoRef.current()} style={{ ...topToolBtn, color: 'var(--text-secondary)' }}><FaRedo size={11} /></button>
+                    <button title="Esporta PNG" onClick={exportPNG} style={{ ...topToolBtn, color: 'var(--text-secondary)' }}><FaDownload size={11} /></button>
 
-                <div style={vDivider} />
-
-                <button title="Esporta PNG" onClick={exportPNG} style={{ ...topToolBtn, color: 'var(--text-secondary)' }}><FaDownload size={11} /></button>
+                </div>{/* end scrollable tools strip */}
 
                 {/* More menu */}
                 <div style={{ position: 'relative', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
@@ -1778,7 +1806,7 @@ export const MapBoard: React.FC = () => {
                         <FaEllipsisV size={11} />
                     </button>
                     {moreMenuOpen && (
-                        <div style={{ ...dropdownPanelStyle, right: 0, left: 'auto', minWidth: 200 }}>
+                        <div style={{ ...dropdownPanelStyle, right: 0, left: 'auto', minWidth: 200, ...(isMobile ? { top: 'auto', bottom: 'calc(100% + 6px)' } : {}) }}>
                             <button onClick={() => { zoomFit(); setMoreMenuOpen(false); }} style={menuItemStyle}>
                                 ⤢ Adatta a contenuto <span style={menuKbd}>Ctrl+F</span>
                             </button>
@@ -1857,6 +1885,8 @@ export const MapBoard: React.FC = () => {
                     </span>
                 </div>
 
+                {isMobile && renderMapSelector({ position: 'absolute', top: 12, right: 12, zIndex: 24 }, true)}
+
                 {/* ━━━ Floor Stack (elevator) — vertical building visualizer, left edge ━━━ */}
                 <FloorStack
                     levels={sortedLevels}
@@ -1872,6 +1902,9 @@ export const MapBoard: React.FC = () => {
                     onChangeRename={setEditingLevelVal}
                     onCommitRename={commitRenameLevel}
                     onCancelRename={() => setEditingLevelId(null)}
+                    isMobile={isMobile}
+                    collapsed={isMobile && floorStackCollapsed}
+                    onToggleCollapse={() => setFloorStackCollapsed(v => !v)}
                 />
 
                 {/* Floating zoom strip — horizontal, bottom-right */}
@@ -1890,20 +1923,21 @@ export const MapBoard: React.FC = () => {
                     <button title="Adatta (Ctrl+F)" onClick={zoomFit} style={zoomBtn}>⤢</button>
                 </div>
 
-                {/* Status pill — bottom-left */}
-                <div style={{
-                    position: 'absolute', bottom: 12, left: 12,
-                    background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(8px)',
-                    border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6,
-                    padding: '5px 10px', fontSize: '0.68rem', color: 'rgba(255,255,255,0.85)',
-                    pointerEvents: 'none', letterSpacing: '0.04em', display: 'flex', gap: 8, alignItems: 'center',
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-                }}>
-                    <span style={{ color: '#f5d97a', fontFamily: 'var(--font-heading)', letterSpacing: '0.08em', fontWeight: 600 }}>{tool.toUpperCase()}</span>
-                    {snap && <span>· snap</span>}
-                    {selectedId && <span>· 1 sel.</span>}
-                    <span style={{ opacity: 0.65 }}>· V/Space · Ctrl+Z/Y/D · [/] · PgUp/Dn=piano</span>
-                </div>
+                {!isMobile && (
+                    <div style={{
+                        position: 'absolute', bottom: 12, left: 12,
+                        background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(8px)',
+                        border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6,
+                        padding: '5px 10px', fontSize: '0.68rem', color: 'rgba(255,255,255,0.85)',
+                        pointerEvents: 'none', letterSpacing: '0.04em', display: 'flex', gap: 8, alignItems: 'center',
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                    }}>
+                        <span style={{ color: '#f5d97a', fontFamily: 'var(--font-heading)', letterSpacing: '0.08em', fontWeight: 600 }}>{tool.toUpperCase()}</span>
+                        {snap && <span>· snap</span>}
+                        {selectedId && <span>· 1 sel.</span>}
+                        <span style={{ opacity: 0.65 }}>· V/Space · Ctrl+Z/Y/D · [/] · PgUp/Dn=piano</span>
+                    </div>
+                )}
 
                 {/* Stamp picker — slide-in left */}
                 {tool === 'stamp' && stampPickerOpen && (
@@ -1950,8 +1984,34 @@ export const MapBoard: React.FC = () => {
                     </div>
                 )}
 
-                {/* Inspector — slide-in right */}
-                {selectedShape && tool === 'select' && (
+                {/* Inspector — slide-in right (desktop) / bottom sheet (mobile) */}
+                {selectedShape && tool === 'select' && (isMobile ? (
+                    <BottomDrawer
+                        open
+                        onClose={() => setSelectedId(null)}
+                        title={<span style={{ fontFamily: 'var(--font-heading)', color: 'var(--accent-gold)', fontSize: '0.78rem', letterSpacing: '0.05em' }}>ELEMENTO</span>}
+                        size="auto"
+                        accentColor="rgba(201,168,76,0.4)"
+                    >
+                        <ShapeInspector
+                            key={selectedShape.id}
+                            shape={selectedShape}
+                            layers={activeLevel.layers ?? []}
+                            mapLevels={activeMap.levels}
+                            currentLevelId={activeLevelId}
+                            onChange={(patch) => updateShape(selectedShape.id, patch)}
+                            onDelete={() => removeShape(selectedShape.id)}
+                            onClose={() => setSelectedId(null)}
+                            onDuplicate={() => duplicateShape(selectedShape.id)}
+                            onBringForward={() => bringForward(selectedShape.id)}
+                            onSendBackward={() => sendBackward(selectedShape.id)}
+                            onBringToFront={() => bringToFront(selectedShape.id)}
+                            onSendToBack={() => sendToBack(selectedShape.id)}
+                            onAutoPair={(s) => autoPairStair(s)}
+                            mobile
+                        />
+                    </BottomDrawer>
+                ) : (
                     <ShapeInspector
                         key={selectedShape.id}
                         shape={selectedShape}
@@ -1968,7 +2028,7 @@ export const MapBoard: React.FC = () => {
                         onSendToBack={() => sendToBack(selectedShape.id)}
                         onAutoPair={(s) => autoPairStair(s)}
                     />
-                )}
+                ))}
 
                 {/* Layers panel — floating right */}
                 {showLayers && (
@@ -2005,8 +2065,11 @@ interface InspectorProps {
     onSendToBack: () => void;
     /** Create a counterpart stair on the linked level and cross-link them. */
     onAutoPair: (shape: MapStairShape) => void;
+    /** When true the component renders without its own absolute-position wrapper
+     *  (it is already hosted inside a BottomDrawer on mobile). */
+    mobile?: boolean;
 }
-const ShapeInspector: React.FC<InspectorProps> = ({ shape, layers, mapLevels, currentLevelId, onChange, onDelete, onClose, onDuplicate, onBringForward, onSendBackward, onBringToFront, onSendToBack, onAutoPair }) => {
+const ShapeInspector: React.FC<InspectorProps> = ({ shape, layers, mapLevels, currentLevelId, onChange, onDelete, onClose, onDuplicate, onBringForward, onSendBackward, onBringToFront, onSendToBack, onAutoPair, mobile }) => {
     const [draft, setDraft] = useState<MapShape>(shape);
     useEffect(() => setDraft(shape), [shape.id, shape]);
     const commit = useCallback((p: Partial<MapShape>) => {
@@ -2020,7 +2083,7 @@ const ShapeInspector: React.FC<InspectorProps> = ({ shape, layers, mapLevels, cu
     };
 
     return (
-        <div style={{
+        <div style={mobile ? { padding: '0.75rem', overflowY: 'auto' } : {
             position: 'absolute', top: 8, right: 8, width: 240, maxHeight: 'calc(100% - 16px)',
             zIndex: 25, background: 'var(--glass-bg)', backdropFilter: 'blur(16px)',
             border: '1px solid rgba(201,168,76,0.25)', borderRadius: 8, padding: '0.75rem',
@@ -2030,7 +2093,7 @@ const ShapeInspector: React.FC<InspectorProps> = ({ shape, layers, mapLevels, cu
                 <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.78rem', color: 'var(--accent-gold)', letterSpacing: '0.05em' }}>
                     {KIND_LABEL[draft.kind]}
                 </span>
-                <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><FaTimes size={11} /></button>
+                {!mobile && <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><FaTimes size={11} /></button>}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -2243,15 +2306,199 @@ interface FloorStackProps {
     onChangeRename: (val: string) => void;
     onCommitRename: (id: string) => void;
     onCancelRename: () => void;
+    isMobile?: boolean;
+    collapsed?: boolean;
+    onToggleCollapse?: () => void;
 }
 const FloorStack: React.FC<FloorStackProps> = ({
     levels, activeLevelId, canDelete, editingId, editingVal,
     onSwitch, onAddAbove, onAddBelow, onDelete,
     onStartRename, onChangeRename, onCommitRename, onCancelRename,
+    isMobile, collapsed, onToggleCollapse,
 }) => {
     const ROW_H = 32;     // every floor is the SAME height
     const PANEL_W = 168;  // fixed panel width
     const activeIdx = levels.findIndex(l => l.id === activeLevelId);
+    const activeLevel = levels.find(l => l.id === activeLevelId);
+
+    const stackRef = useRef<HTMLDivElement>(null);
+    const mobileOpenHeight = Math.min(levels.length, 8) * ROW_H + 84;
+
+    useEffect(() => {
+        if (!isMobile || collapsed || !onToggleCollapse) return;
+        const onPointerDown = (ev: PointerEvent) => {
+            const target = ev.target as Node | null;
+            if (target && stackRef.current?.contains(target)) return;
+            onToggleCollapse();
+        };
+        window.addEventListener('pointerdown', onPointerDown);
+        return () => window.removeEventListener('pointerdown', onPointerDown);
+    }, [isMobile, collapsed, onToggleCollapse]);
+
+    if (isMobile) {
+        return (
+            <div ref={stackRef} style={{
+                position: 'absolute', bottom: 58, left: 12,
+                zIndex: 22, pointerEvents: 'auto',
+                width: collapsed ? 58 : PANEL_W,
+                maxWidth: 'calc(100% - 104px)',
+                transition: 'width 0.24s ease',
+            }}>
+                <div style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 0,
+                    background: 'linear-gradient(180deg, rgba(20,16,12,0.92) 0%, rgba(15,12,9,0.96) 100%)',
+                    backdropFilter: 'blur(14px)',
+                    border: '1px solid rgba(201,168,76,0.35)', borderRadius: 8,
+                    boxShadow: '0 12px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)',
+                    overflow: 'hidden', transformOrigin: 'bottom left',
+                }}>
+                    <button onClick={() => onToggleCollapse?.()} title={collapsed ? 'Mostra piani' : 'Nascondi piani'}
+                        style={{
+                            height: 28, padding: collapsed ? '0 8px' : '0 10px', border: 'none', background: 'transparent',
+                            color: '#f5d97a', cursor: 'pointer', display: 'flex', alignItems: 'center',
+                            justifyContent: collapsed ? 'center' : 'space-between', gap: 6,
+                            fontFamily: 'var(--font-heading)', fontSize: '0.7rem', letterSpacing: '0.08em', fontWeight: 700,
+                        }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                            <FaLayerGroup size={11} />
+                            {!collapsed && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeLevel ? `${getLevelShortLabel(activeLevel.floor)} · ${activeLevel.label}` : 'PIANI'}</span>}
+                        </span>
+                        {!collapsed && <FaCaretDown size={10} style={{ opacity: 0.8 }} />}
+                    </button>
+
+                    <div style={{
+                        maxHeight: collapsed ? 0 : mobileOpenHeight,
+                        opacity: collapsed ? 0 : 1,
+                        overflow: 'hidden', pointerEvents: collapsed ? 'none' : 'auto',
+                        transition: 'max-height 0.24s ease, opacity 0.18s ease',
+                    }}>
+                        <div style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '6px 8px 6px 10px',
+                            borderTop: '1px solid rgba(201,168,76,0.18)',
+                            borderBottom: '1px solid rgba(201,168,76,0.18)',
+                            background: 'rgba(0,0,0,0.35)',
+                        }}>
+                            <span style={{
+                                fontSize: '0.6rem', letterSpacing: '0.18em', fontWeight: 700,
+                                color: '#c9a84c', fontFamily: 'var(--font-heading)',
+                            }}>PIANI</span>
+                            <button onClick={onAddAbove} title="Aggiungi piano sopra" style={floorIconBtn}>
+                                <FaPlus size={9} />
+                            </button>
+                        </div>
+
+                        <div style={{ position: 'relative', display: 'flex' }}>
+                            <div style={{
+                                position: 'relative', width: 14, flexShrink: 0,
+                                background: 'rgba(0,0,0,0.3)',
+                                borderRight: '1px solid rgba(201,168,76,0.12)',
+                            }}>
+                                {activeIdx >= 0 && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: activeIdx * ROW_H + ROW_H / 2 - 8,
+                                        left: 2, width: 10, height: 16,
+                                        background: 'linear-gradient(180deg, #f5d97a 0%, #c9a84c 100%)',
+                                        borderRadius: 2,
+                                        boxShadow: '0 0 8px rgba(201,168,76,0.6)',
+                                        transition: 'top 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    }} />
+                                )}
+                            </div>
+
+                            <div style={{
+                                flex: 1, display: 'flex', flexDirection: 'column',
+                                maxHeight: ROW_H * 8, overflowY: 'auto',
+                            }}>
+                                {levels.map(lv => {
+                                    const active = lv.id === activeLevelId;
+                                    const isEditing = editingId === lv.id;
+                                    return (
+                                        <div key={lv.id}
+                                            onClick={() => {
+                                                if (isEditing) return;
+                                                onSwitch(lv.id);
+                                                onToggleCollapse?.();
+                                            }}
+                                            onDoubleClick={() => onStartRename(lv.id, lv.label)}
+                                            title={`${getLevelFullLabel(lv.floor)} · ${lv.label} (doppio click per rinominare)`}
+                                            style={{
+                                                display: 'flex', alignItems: 'center', gap: 6,
+                                                padding: '0 8px', height: ROW_H, flexShrink: 0,
+                                                background: active ? 'rgba(201,168,76,0.14)' : 'transparent',
+                                                borderBottom: '1px solid rgba(255,255,255,0.04)',
+                                                cursor: 'pointer', transition: 'background 0.15s',
+                                                position: 'relative',
+                                            }}>
+                                            <span style={{
+                                                fontSize: '0.62rem', fontFamily: 'var(--font-heading)',
+                                                letterSpacing: '0.06em', fontWeight: 700,
+                                                color: active ? '#f5d97a' : 'rgba(255,255,255,0.55)',
+                                                minWidth: 22, textAlign: 'center', flexShrink: 0,
+                                            }}>
+                                                {getLevelShortLabel(lv.floor)}
+                                            </span>
+                                            {isEditing ? (
+                                                <form onSubmit={e => { e.preventDefault(); onCommitRename(lv.id); }}
+                                                    onClick={e => e.stopPropagation()} style={{ flex: 1 }}>
+                                                    <input autoFocus value={editingVal}
+                                                        onChange={e => onChangeRename(e.target.value)}
+                                                        onBlur={() => onCommitRename(lv.id)}
+                                                        onKeyDown={e => e.key === 'Escape' && onCancelRename()}
+                                                        style={{
+                                                            width: '100%', background: 'rgba(0,0,0,0.4)',
+                                                            border: '1px solid var(--accent-gold)', borderRadius: 3,
+                                                            padding: '2px 5px', color: '#fff', fontSize: '0.72rem',
+                                                            outline: 'none',
+                                                        }} />
+                                                </form>
+                                            ) : (
+                                                <>
+                                                    <span style={{
+                                                        flex: 1, fontSize: '0.72rem',
+                                                        color: active ? '#fff' : 'rgba(255,255,255,0.6)',
+                                                        fontWeight: active ? 600 : 400,
+                                                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                                    }}>
+                                                        {lv.label}
+                                                    </span>
+                                                    {active && canDelete && (
+                                                        <button title="Elimina piano"
+                                                            onClick={e => { e.stopPropagation(); onDelete(lv.id); }}
+                                                            style={{
+                                                                background: 'none', border: 'none', cursor: 'pointer',
+                                                                color: '#e74c3c', padding: 2, opacity: 0.7,
+                                                                display: 'flex', alignItems: 'center', lineHeight: 1,
+                                                            }}><FaTimes size={9} /></button>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '5px 8px 5px 10px',
+                            borderTop: '1px solid rgba(201,168,76,0.18)',
+                            background: 'rgba(0,0,0,0.35)',
+                        }}>
+                            <span style={{
+                                fontSize: '0.55rem', letterSpacing: '0.12em',
+                                color: 'rgba(255,255,255,0.45)', fontFamily: 'var(--font-heading)',
+                            }}>Tap fuori per chiudere</span>
+                            <button onClick={onAddBelow} title="Aggiungi piano sotto (interrato)" style={floorIconBtn}>
+                                <FaPlus size={9} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div style={{
@@ -2275,9 +2522,16 @@ const FloorStack: React.FC<FloorStackProps> = ({
                     fontSize: '0.6rem', letterSpacing: '0.18em', fontWeight: 700,
                     color: '#c9a84c', fontFamily: 'var(--font-heading)',
                 }}>PIANI</span>
-                <button onClick={onAddAbove} title="Aggiungi piano sopra" style={floorIconBtn}>
-                    <FaPlus size={9} />
-                </button>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                    <button onClick={onAddAbove} title="Aggiungi piano sopra" style={floorIconBtn}>
+                        <FaPlus size={9} />
+                    </button>
+                    {isMobile && onToggleCollapse && (
+                        <button onClick={onToggleCollapse} title="Chiudi" style={{ ...floorIconBtn, color: 'var(--text-muted)' }}>
+                            <FaTimes size={9} />
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* ── Stack body with elevator rail on the left ── */}

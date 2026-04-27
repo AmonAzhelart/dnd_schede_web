@@ -1,10 +1,10 @@
 import React from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { FaPlus, FaTrash, FaShieldAlt, FaRunning, FaBrain, FaInfoCircle } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaShieldAlt, FaRunning, FaBrain, FaInfoCircle, FaHeart, FaArrowUp, FaArrowDown } from 'react-icons/fa';
 import { GiSwordsEmblem, GiUpgrade } from 'react-icons/gi';
 import { useCharacterStore } from '../store/characterStore';
 import type { BabProgression, SaveProgression, ClassLevel } from '../types/dnd';
-import { CLASS_BAB_PRESETS, CLASS_SAVE_PRESETS, computeClassBab, computeClassSaveBase } from '../types/dnd';
+import { CLASS_BAB_PRESETS, CLASS_SAVE_PRESETS, CLASS_HIT_DIE_PRESETS, computeClassBab, computeClassSaveBase, getHpForTotalLevel } from '../types/dnd';
 import './LevelsTab.css';
 
 const BAB_OPTIONS: { value: BabProgression; label: string; hint: string }[] = [
@@ -12,6 +12,8 @@ const BAB_OPTIONS: { value: BabProgression; label: string; hint: string }[] = [
     { value: 'medium', label: 'Media', hint: '×¾' },
     { value: 'low', label: 'Bassa', hint: '×½' },
 ];
+
+const HIT_DIE_OPTIONS: number[] = [4, 6, 8, 10, 12];
 
 const SAVE_DEFS: {
     key: 'fortitude' | 'reflex' | 'will';
@@ -29,26 +31,45 @@ const SAVE_DEFS: {
 export const LevelsTab: React.FC = () => {
     const {
         character, addClassLevel, updateClassLevel, deleteClassLevel,
-        getTotalBab, getSaveBreakdown,
+        getTotalBab, getSaveBreakdown, getTotalMaxHp,
+        addHpLevelEntry, removeLastHpLevelEntry, reorderHpLevelLog,
     } = useCharacterStore();
 
     if (!character) return null;
     const classLevels = character.classLevels ?? [];
+    const hpLevelLog = character.hpLevelLog ?? [];
     const totalLevel = classLevels.reduce((s, cl) => s + cl.level, 0);
+    const totalMaxHp = getTotalMaxHp();
 
-    const addNew = () => addClassLevel({
-        id: uuidv4(),
-        className: '',
-        level: 1,
-        babProgression: 'high',
-        fortSave: 'good',
-        refSave: 'poor',
-        willSave: 'poor',
+    // For each log entry (position = total char level), compute HP per class
+    const logEntriesByClass = new Map<string, { totalLevel: number; hp: number }[]>();
+    hpLevelLog.forEach((entry, idx) => {
+        const cl = classLevels.find(c => c.id === entry.classId);
+        const die = cl?.hitDie ?? 0;
+        const charLevel = idx + 1;
+        const hp = die ? getHpForTotalLevel(die, charLevel) : 0;
+        if (!logEntriesByClass.has(entry.classId)) logEntriesByClass.set(entry.classId, []);
+        logEntriesByClass.get(entry.classId)!.push({ totalLevel: charLevel, hp });
     });
+
+    const addNew = () => {
+        const id = uuidv4();
+        addClassLevel({
+            id,
+            className: '',
+            level: 1,
+            babProgression: 'high',
+            fortSave: 'good',
+            refSave: 'poor',
+            willSave: 'poor',
+        });
+        addHpLevelEntry({ id: uuidv4(), classId: id, classLevelNumber: 1 });
+    };
 
     const handleClassNameChange = (cl: ClassLevel, name: string) => {
         const bab = CLASS_BAB_PRESETS[name];
         const sv = CLASS_SAVE_PRESETS[name];
+        const hd = CLASS_HIT_DIE_PRESETS[name];
         updateClassLevel({
             ...cl,
             className: name,
@@ -56,7 +77,22 @@ export const LevelsTab: React.FC = () => {
             fortSave: sv?.fort ?? cl.fortSave,
             refSave: sv?.ref ?? cl.refSave,
             willSave: sv?.will ?? cl.willSave,
+            hitDie: hd ?? cl.hitDie,
         });
+    };
+
+    const handleLevelUp = (cl: ClassLevel) => {
+        const newLevel = Math.min(20, cl.level + 1);
+        if (newLevel <= cl.level) return;
+        updateClassLevel({ ...cl, level: newLevel });
+        addHpLevelEntry({ id: uuidv4(), classId: cl.id, classLevelNumber: newLevel });
+    };
+
+    const handleLevelDown = (cl: ClassLevel) => {
+        const newLevel = Math.max(1, cl.level - 1);
+        if (newLevel >= cl.level) return;
+        removeLastHpLevelEntry(cl.id);
+        updateClassLevel({ ...cl, level: newLevel });
     };
 
     const fmt = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
@@ -89,6 +125,32 @@ export const LevelsTab: React.FC = () => {
                                     {cl.className || '?'} {cl.level} → +{computeClassBab(cl.level, cl.babProgression)}
                                 </span>
                             ))}
+                    </div>
+                </div>
+
+                <div className="lv-hero-cell hp">
+                    <div className="lv-cap">PF Max (classi)</div>
+                    <div className="lv-hero-row1">
+                        <FaHeart className="lv-icon" size={14} />
+                        <span className="lv-big">{totalMaxHp}</span>
+                    </div>
+                    <div className="lv-sub">
+                        {classLevels.length === 0
+                            ? <span>nessuna classe</span>
+                            : classLevels.map(cl => {
+                                const die = cl.hitDie;
+                                if (!die) return (
+                                    <span key={cl.id} className="chip" style={{ color: 'var(--accent-gold)' }}>
+                                        {cl.className || '?'}: dado ?
+                                    </span>
+                                );
+                                const classHp = (logEntriesByClass.get(cl.id) ?? []).reduce((s, e) => s + e.hp, 0);
+                                return (
+                                    <span key={cl.id} className="chip">
+                                        {cl.className || '?'} d{die} → {classHp}
+                                    </span>
+                                );
+                            })}
                     </div>
                 </div>
 
@@ -139,6 +201,7 @@ export const LevelsTab: React.FC = () => {
                 const babVal = computeClassBab(cl.level, cl.babProgression);
                 const isPreset = !!CLASS_BAB_PRESETS[cl.className];
                 const datalistId = `classlist-${cl.id}`;
+                const die = cl.hitDie;
 
                 return (
                     <div key={cl.id} className="lv-card">
@@ -161,14 +224,14 @@ export const LevelsTab: React.FC = () => {
                             <div className="lv-stepper" title="Livello in questa classe">
                                 <button
                                     className="minus"
-                                    onClick={() => updateClassLevel({ ...cl, level: Math.max(1, cl.level - 1) })}
+                                    onClick={() => handleLevelDown(cl)}
                                     disabled={cl.level <= 1}
                                     aria-label="Diminuisci livello"
                                 >−</button>
                                 <div className="lv-num">{cl.level}</div>
                                 <button
                                     className="plus"
-                                    onClick={() => updateClassLevel({ ...cl, level: Math.min(20, cl.level + 1) })}
+                                    onClick={() => handleLevelUp(cl)}
                                     disabled={cl.level >= 20}
                                     aria-label="Aumenta livello"
                                 >+</button>
@@ -187,6 +250,24 @@ export const LevelsTab: React.FC = () => {
                                             title={`Progressione ${opt.label} (${opt.hint})`}
                                         >
                                             {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div title="Dado Vita (Hit Die)">
+                                <div style={{ fontSize: '0.55rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 3, textAlign: 'center' }}>
+                                    Dado Vita
+                                </div>
+                                <div className="lv-seg hp-seg">
+                                    {HIT_DIE_OPTIONS.map(d => (
+                                        <button
+                                            key={d}
+                                            className={cl.hitDie === d ? 'active' : ''}
+                                            onClick={() => updateClassLevel({ ...cl, hitDie: d })}
+                                            title={`d${d}`}
+                                        >
+                                            d{d}
                                         </button>
                                     ))}
                                 </div>
@@ -239,6 +320,34 @@ export const LevelsTab: React.FC = () => {
                             })}
                         </div>
 
+                        {/* HP breakdown */}
+                        {die ? (
+                            <div className="lv-hp-section">
+                                <div className="lv-hp-head">
+                                    <FaHeart size={10} />
+                                    <span>Punti Ferita per Livello</span>
+                                    <span className="lv-hp-die">d{die}</span>
+                                </div>
+                                <div className="lv-hp-grid">
+                                    {(logEntriesByClass.get(cl.id) ?? []).map((e, i) => {
+                                        const isFirst = e.totalLevel === 1;
+                                        const isEven = e.totalLevel % 2 === 0;
+                                        return (
+                                            <div key={i} className={`lv-hp-cell ${isFirst ? 'first' : isEven ? 'even' : 'odd'}`}>
+                                                <span className="lv-hp-lvnum">Lv.{e.totalLevel}</span>
+                                                <span className="lv-hp-val">+{e.hp}</span>
+                                                {isFirst && <span className="lv-hp-tag">max</span>}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="lv-hp-missing">
+                                <FaHeart size={10} /> Seleziona il dado vita per calcolare i PF
+                            </div>
+                        )}
+
                         {/* Footer */}
                         <div className="lv-card-foot">
                             <span>
@@ -254,11 +363,75 @@ export const LevelsTab: React.FC = () => {
                                     {' / '}
                                     +{computeClassSaveBase(cl.level, cl.willSave ?? 'poor')}
                                 </span>
+                                {die && (
+                                    <>
+                                        {' · '}
+                                        <FaHeart size={9} style={{ color: 'var(--accent-hp)', verticalAlign: 'middle', marginRight: 2 }} />
+                                        <span style={{ color: 'var(--accent-hp)' }}>
+                                            {(logEntriesByClass.get(cl.id) ?? []).reduce((s, e) => s + e.hp, 0)} PF
+                                        </span>
+                                    </>
+                                )}
                             </span>
                         </div>
                     </div>
                 );
             })}
+
+            {/* ─── HP Acquisition log ──────────────────────── */}
+            {hpLevelLog.length > 0 && (
+                <details className="lv-formula lv-hp-log-details" open>
+                    <summary><FaHeart size={11} /> Ordine Acquisizione Livelli</summary>
+                    <div className="lv-hp-log">
+                        {hpLevelLog.map((entry, idx) => {
+                            const cl = classLevels.find(c => c.id === entry.classId);
+                            const className = cl?.className || '?';
+                            const die = cl?.hitDie;
+                            const totalCharLevel = idx + 1;
+                            const hp = die ? getHpForTotalLevel(die, totalCharLevel) : null;
+                            const isFirst = totalCharLevel === 1;
+                            const isEven = totalCharLevel % 2 === 0;
+                            return (
+                                <div key={entry.id} className="lv-log-row">
+                                    <span className="lv-log-pos">{idx + 1}</span>
+                                    <span className="lv-log-class">{className}</span>
+                                    <span className="lv-log-lvnum">Lv.{entry.classLevelNumber}</span>
+                                    {hp !== null ? (
+                                        <span className={`lv-log-hp ${isFirst ? 'first' : isEven ? 'even' : 'odd'}`}>
+                                            +{hp} PF
+                                            {isFirst && <span className="lv-hp-tag">max</span>}
+                                        </span>
+                                    ) : (
+                                        <span className="lv-log-hp missing">dado ?</span>
+                                    )}
+                                    <div className="lv-log-btns">
+                                        <button
+                                            disabled={idx === 0}
+                                            onClick={() => {
+                                                const newLog = [...hpLevelLog];
+                                                [newLog[idx - 1], newLog[idx]] = [newLog[idx], newLog[idx - 1]];
+                                                reorderHpLevelLog(newLog);
+                                            }}
+                                            title="Sposta su"
+                                            aria-label="Sposta su"
+                                        ><FaArrowUp size={9} /></button>
+                                        <button
+                                            disabled={idx === hpLevelLog.length - 1}
+                                            onClick={() => {
+                                                const newLog = [...hpLevelLog];
+                                                [newLog[idx], newLog[idx + 1]] = [newLog[idx + 1], newLog[idx]];
+                                                reorderHpLevelLog(newLog);
+                                            }}
+                                            title="Sposta giù"
+                                            aria-label="Sposta giù"
+                                        ><FaArrowDown size={9} /></button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </details>
+            )}
 
             {/* ─── Formulas ─────────────────────────────────── */}
             <details className="lv-formula">
@@ -269,6 +442,8 @@ export const LevelsTab: React.FC = () => {
                         <li><strong>TS Buono:</strong> <code>2 + ⌊Livello / 2⌋</code> — <strong>TS Scarso:</strong> <code>⌊Livello / 3⌋</code></li>
                         <li><strong>Tempra</strong> = base + mod. Costituzione · <strong>Riflessi</strong> = base + mod. Destrezza · <strong>Volontà</strong> = base + mod. Saggezza</li>
                         <li>I contributi delle singole classi vengono <em>sommati</em> per personaggi multiclasse.</li>
+                        <li><strong>PF Lv.1:</strong> massimo del dado vita · <strong>PF Lv. pari:</strong> <code>⌊dado/2⌋</code> · <strong>PF Lv. dispari (≥3):</strong> <code>⌊dado/2⌋ + 1</code></li>
+                        <li><strong>PF Max totale</strong> = somma PF da classi + modificatore COS × livello totale</li>
                     </ul>
                 </div>
             </details>

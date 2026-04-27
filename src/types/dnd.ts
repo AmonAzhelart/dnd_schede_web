@@ -14,6 +14,8 @@ export interface ClassLevel {
   fortSave?: SaveProgression;
   refSave?: SaveProgression;
   willSave?: SaveProgression;
+  /** Hit die size for this class (4, 6, 8, 10, or 12) */
+  hitDie?: number;
 }
 
 /** Preset class → BAB progression mappings for D&D 3.5 */
@@ -63,6 +65,42 @@ export const computeClassBab = (level: number, prog: BabProgression): number =>
   prog === 'high' ? level
     : prog === 'medium' ? Math.floor(level * 3 / 4)
       : Math.floor(level / 2);
+
+/** Preset class → hit die size for D&D 3.5 */
+export const CLASS_HIT_DIE_PRESETS: Record<string, number> = {
+  'Barbaro': 12, 'Barbarian': 12,
+  'Guerriero': 10, 'Fighter': 10,
+  'Paladino': 10, 'Paladin': 10,
+  'Ranger': 8,
+  'Chierico': 8, 'Cleric': 8,
+  'Druido': 8, 'Druid': 8,
+  'Monaco': 8, 'Monk': 8,
+  'Bardo': 6, 'Bard': 6,
+  'Ladro': 6, 'Rogue': 6,
+  'Mago': 4, 'Wizard': 4,
+  'Stregone': 4, 'Sorcerer': 4,
+  'Negromante': 4, 'Warlock': 4,
+  'Fattucchiere': 4,
+};
+
+/** HP gained when a character reaches a given **total** character level.
+ *  Total level 1 (first level ever) = max die value.
+ *  Even total levels = floor(die/2)      (metà bassa).
+ *  Odd total levels ≥ 3               = floor(die/2) + 1  (metà alta). */
+export const getHpForTotalLevel = (die: number, totalLevel: number): number => {
+  if (totalLevel === 1) return die;
+  return totalLevel % 2 === 0 ? Math.floor(die / 2) : Math.floor(die / 2) + 1;
+};
+
+/** @deprecated Use {@link getHpForTotalLevel} with the total character level. */
+export const getExpectedHpForClassLevel = getHpForTotalLevel;
+
+/** A single entry in the HP acquisition log (tracks the order levels were gained). */
+export interface HpLevelLogEntry {
+  id: string;
+  classId: string;
+  classLevelNumber: number;
+}
 
 export type ModifierType =
   | 'enhancement'
@@ -615,6 +653,8 @@ export interface CharacterBase {
   customAttacks?: CustomAttack[];
   /** Multiclass entries. When present, BAB is computed from these instead of baseStats.bab */
   classLevels?: ClassLevel[];
+  /** Ordered log of level acquisitions (tracks which class level was gained in which order). */
+  hpLevelLog?: HpLevelLogEntry[];
   /** User-managed temporary buffs / malus applied to any stat. */
   activeModifiers?: ActiveModifier[];
   /** Chronological archive of removed/expired modifiers (max 30, newest first). */
