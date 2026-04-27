@@ -546,11 +546,11 @@
     background: rgba(224, 108, 108, 0.03);
 }
 
-.lv-hp-log-details > summary {
+.lv-hp-log-details>summary {
     color: var(--accent-hp);
 }
 
-.lv-hp-log-details > summary::before {
+.lv-hp-log-details>summary::before {
     color: var(--accent-hp);
 }
 
