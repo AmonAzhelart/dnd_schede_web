@@ -44,6 +44,9 @@ export interface ModifierCandidate {
     /** Optional extra damage dice (e.g. `"1d6"`). Currently only damage
      *  channel uses it; other channels keep it undefined. */
     extraDice?: string;
+    /** When set, the default ability stat for this roll is replaced by this
+     *  stat (e.g. Weapon Finesse: `statOverride = 'dex'`). */
+    statOverride?: StatType;
     /** Auto-applies (no manual confirmation needed): all auto conditions match,
      *  scope ≠ conditional, no manualPrompt. */
     auto: boolean;
@@ -235,6 +238,7 @@ function makeCandidate(
         value: mod.value,
         type: mod.type,
         extraDice: mod.extraDice,
+        statOverride: mod.statOverride,
         auto,
         label,
         available: condsOk,
@@ -480,4 +484,57 @@ export function computeSpellDamageDice(
         return `${totalCount}d${a.faces}${sign}`;
     }
     return `${baseExpr} + ${upcastExpr}`;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Stat override resolution
+// ──────────────────────────────────────────────────────────────────────────────
+
+/** Returns the stat type that should replace the default ability modifier for
+ *  the given roll context, or `null` if no active override applies.
+ *  Sources: equipped items, active feats, active class features.
+ *  When multiple overrides match, the one giving the highest modifier value wins
+ *  (so the player always benefits from the most favourable substitution). */
+export function resolveStatOverride(
+    character: CharacterBase,
+    ctx: RollContext,
+    getStatMod: (stat: StatType) => number,
+): StatType | null {
+    const channel = ctx.channel;
+    const overrides: { stat: StatType; modValue: number }[] = [];
+
+    const tryMod = (mod: Modifier) => {
+        if (!mod.statOverride) return;
+        const channels = modifierChannels(mod);
+        // For skill channels, honor both id- and name-based keys (same as feedsChannel)
+        let matches = channels.includes(channel as RollChannel);
+        if (!matches && channel.startsWith('skill.') && ctx.channel.startsWith('skill.')) {
+            const sc = ctx as Extract<RollContext, { channel: `skill.${string}` }>;
+            const wanted = new Set([
+                `skill.${sc.skillId.toLowerCase()}`,
+                `skill.${sc.skillName.toLowerCase()}`,
+            ]);
+            matches = channels.some(c => wanted.has(c.toLowerCase()));
+        }
+        if (!matches) return;
+        if (!conditionsMatch(mod, ctx)) return;
+        overrides.push({ stat: mod.statOverride, modValue: getStatMod(mod.statOverride) });
+    };
+
+    character.inventory.forEach(item => {
+        if (!item.equipped) return;
+        item.modifiers.forEach(tryMod);
+    });
+    character.feats.forEach(feat => {
+        if (!feat.active) return;
+        feat.modifiers.forEach(tryMod);
+    });
+    (character.classFeatures ?? []).forEach((cf: import('../types/dnd').ClassFeature) => {
+        if (!cf.active) return;
+        (cf.modifiers ?? []).forEach(tryMod);
+    });
+
+    if (overrides.length === 0) return null;
+    // Pick the override that gives the best (highest) modifier value.
+    return overrides.reduce((best, cur) => cur.modValue > best.modValue ? cur : best).stat;
 }

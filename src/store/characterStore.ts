@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { CharacterBase, ClassLevel, HpLevelLogEntry, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell, ActiveModifier, DurationUnit } from '../types/dnd';
 import { computeClassBab, computeClassSaveBase, getExpectedHpForClassLevel } from '../types/dnd';
-import { collectModifierCandidates, type ModifierCandidate, type RollContext } from '../services/modifiers';
+import { collectModifierCandidates, resolveStatOverride, type ModifierCandidate, type RollContext } from '../services/modifiers';
 
 type SaveKey = 'fortitude' | 'reflex' | 'will';
 const SAVE_TO_STAT: Record<SaveKey, StatType> = { fortitude: 'con', reflex: 'dex', will: 'wis' };
@@ -748,7 +748,10 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     const skill = character.skills[skillId];
     if (!skill) return 0;
 
-    const statMod = getStatModifier(skill.stat);
+    // Check if any feat/item overrides the stat for this skill
+    const skillCtx: RollContext = { channel: `skill.${skillId}`, skillId, skillName: skill.name };
+    const statOverride = resolveStatOverride(character, skillCtx, getStatModifier);
+    const statMod = getStatModifier(statOverride ?? skill.stat);
     let total = skill.ranks + statMod;
 
     // Note: D&D 3.5 — "abilità di classe" influisce solo sul costo dei gradi
@@ -800,7 +803,11 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     const skill = character.skills[skillId];
     if (!skill) return empty;
 
-    const statMod = getStatModifier(skill.stat);
+    // Check for stat override from feats/items/class features
+    const skillCtx: RollContext = { channel: `skill.${skillId}`, skillId, skillName: skill.name };
+    const statOverride = resolveStatOverride(character, skillCtx, getStatModifier);
+    const effectiveStatName: StatType = statOverride ?? skill.stat;
+    const statMod = getStatModifier(effectiveStatName);
     const ranks = skill.ranks;
     // D&D 3.5: nessun bonus +3, "di classe" influisce solo sul costo dei gradi.
     const classBonus = 0;
@@ -848,7 +855,7 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     // Usable iff at least one of: classSkill OR ranks≥1 OR canUseUntrained OR has external bonus source
     const usable = skill.classSkill === true || ranks >= 1 || skill.canUseUntrained === true || sources.length > 0;
 
-    return { statMod, statName: skill.stat, ranks, classBonus, sources, total, usable };
+    return { statMod, statName: effectiveStatName, ranks, classBonus, sources, total, usable };
   },
 
   getApplicableModifiers: (ctx: RollContext): ModifierCandidate[] => {

@@ -50,6 +50,7 @@ body {
 html,
 body,
 #root {
+  height: 100%;
   background-color: #0d0d0f !important;
   color: #e8e0d0;
   -webkit-filter: none !important;

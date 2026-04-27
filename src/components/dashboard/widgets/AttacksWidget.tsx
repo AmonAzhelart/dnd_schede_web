@@ -8,6 +8,11 @@ import { FaMinus, FaPlus } from 'react-icons/fa';
 import { useModifierAura, ModifierArrows } from './ModifierAura';
 import type { Item, StatType } from '../../../types/dnd';
 import { RollPickerModal, type RollSegment } from '../../RollPickerModal';
+import { resolveStatOverride } from '../../../services/modifiers';
+
+const STAT_LABELS: Record<StatType, string> = {
+    str: 'FOR', dex: 'DES', con: 'COS', int: 'INT', wis: 'SAG', cha: 'CAR',
+};
 
 const fmtSigned = (v: number) => (v >= 0 ? `+${v}` : `${v}`);
 
@@ -136,7 +141,32 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                             ? character.inventory.find(i => i.id === w.equippedAmmoId)
                             : undefined;
                         const ammoAtkBonus = loadedAmmo?.ammoDetails?.attackBonus ?? 0;
-                        const abilityMod = isRanged ? dexMod : strMod;
+                        // Resolve stat overrides from feats / items / class features
+                        const atkStatOverride = resolveStatOverride(
+                            character,
+                            { channel: 'attack', weapon: w, isRanged },
+                            getStatModifier,
+                        );
+                        const dmgStatOverride = resolveStatOverride(
+                            character,
+                            { channel: 'damage', weapon: w, isRanged },
+                            getStatModifier,
+                        );
+                        const atkStat: StatType = atkStatOverride ?? (isRanged ? 'dex' : 'str');
+                        const dmgStat: StatType | null = dmgStatOverride ?? (isRanged ? null : 'str');
+                        const abilityMod = getStatModifier(atkStat);
+                        const dmgStatMod = dmgStat ? getStatModifier(dmgStat) : 0;
+                        // Build labels with substitution hint when override is active
+                        const defaultAtkStat: StatType = isRanged ? 'dex' : 'str';
+                        const defaultDmgStat: StatType | null = isRanged ? null : 'str';
+                        const atkStatLabel = atkStatOverride
+                            ? `Mod. ${STAT_LABELS[atkStat]} (↑ da ${STAT_LABELS[defaultAtkStat]})`
+                            : `Mod. ${STAT_LABELS[atkStat]}`;
+                        const dmgStatLabel = dmgStat
+                            ? (dmgStatOverride && dmgStatOverride !== defaultDmgStat
+                                ? `Mod. ${STAT_LABELS[dmgStat]} (↑ da ${defaultDmgStat ? STAT_LABELS[defaultDmgStat] : '—'})`
+                                : `Mod. ${STAT_LABELS[dmgStat]}`)
+                            : null;
                         const weaponBonus = (w.weaponDetails?.attackBonus ?? 0) + ammoAtkBonus;
                         const attacks = getMultipleAttacks(abilityMod + weaponBonus + babAura.delta);
                         const primary = attacks[0];
@@ -177,11 +207,11 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                                                 openAttackPicker(w, w.name,
                                                     [
                                                         { label: 'BAB', value: getTotalBab() },
-                                                        { label: isRanged ? 'Mod. DES' : 'Mod. FOR', value: abilityMod },
+                                                        { label: atkStatLabel, value: abilityMod },
                                                         ...(weaponBonus ? [{ label: 'Bonus arma', value: weaponBonus }] : []),
                                                     ],
                                                     [
-                                                        { label: 'Mod. FOR', value: isRanged ? 0 : strMod },
+                                                        ...(dmgStatLabel ? [{ label: dmgStatLabel, value: dmgStatMod }] : []),
                                                     ],
                                                     { isRanged, subtitle: meta, baseDice: baseDamage });
                                             }}
@@ -196,7 +226,7 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     openDamagePicker(w, w.name, [
-                                                        { label: 'Mod. FOR', value: isRanged ? 0 : strMod },
+                                                        ...(dmgStatLabel ? [{ label: dmgStatLabel, value: dmgStatMod }] : []),
                                                     ], { isRanged, subtitle: `Danno base: ${fullDamage}`, baseDice: baseDamage });
                                                 }}
                                                 title="Apri tiro per il danno"
@@ -212,11 +242,11 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                                                 openAttackPicker(w, w.name,
                                                     [
                                                         { label: 'BAB', value: getTotalBab() },
-                                                        { label: isRanged ? 'Mod. DES' : 'Mod. FOR', value: abilityMod },
+                                                        { label: atkStatLabel, value: abilityMod },
                                                         ...(weaponBonus ? [{ label: 'Bonus arma', value: weaponBonus }] : []),
                                                     ],
                                                     [
-                                                        { label: 'Mod. FOR', value: isRanged ? 0 : strMod },
+                                                        ...(dmgStatLabel ? [{ label: dmgStatLabel, value: dmgStatMod }] : []),
                                                     ],
                                                     { isRanged, subtitle: meta, baseDice: baseDamage });
                                             }}

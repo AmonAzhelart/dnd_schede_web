@@ -339,6 +339,12 @@ export interface Modifier {
    *  Only meaningful for `damage` channel modifiers (e.g. `"1d6"` for
    *  fire enchantment, `"2d6"` for sneak attack). */
   extraDice?: string;
+  /** When set, the default ability stat for this roll channel is replaced by
+   *  the modifier of `statOverride`.  Classic example: Weapon Finesse sets
+   *  `statOverride: 'dex'` on an `attack` modifier with `weaponType=melee`.
+   *  The `value` field is still applied on top (use 0 when only a swap is
+   *  needed with no flat bonus). */
+  statOverride?: StatType;
 }
 
 /** Time unit used by an ActiveModifier's duration counter. */

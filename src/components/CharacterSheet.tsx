@@ -16,6 +16,7 @@ import { setWidgetJumpTrigger } from './dashboard/widgetJumpBridge';
 import { LevelsTab } from './LevelsTab';
 import { ModifiersWidget } from './dashboard/widgets/ModifiersWidget';
 import { useModifierAura, ModifierArrows } from './dashboard/widgets/ModifierAura';
+import { resolveStatOverride } from '../services/modifiers';
 import { useMediaQuery } from './mobile/MobileShell';
 import { setMobileContextActions, setMobileAvatarTapOverride, setMobileEditExit } from './mobile/mobileShellSlots';
 import './CharacterSheetHeader.css';
@@ -173,7 +174,7 @@ export const CharacterSheet: React.FC = () => {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }} className="animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }} className="animate-fade-in">
       {/* ─── STICKY HEADER + TABS ───────────────────────────── */}
       <div style={{ flexShrink: 0, padding: '0.5rem 0.75rem 0', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         {/* ─── CHARACTER HEADER ─────────────────────────── */}
@@ -454,8 +455,8 @@ export const CharacterSheet: React.FC = () => {
       {/* ─── CONTENT AREA ───────────────────────────────── */}
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '0 0.75rem' }}>
 
-        {/* ─── SIMPLE SCROLL TABS (overview / combat / skills) ─── */}
-        {(activeTab === 'overview' || activeTab === 'combat' || activeTab === 'skills' || activeTab === 'levels') && (
+        {/* ─── SIMPLE SCROLL TABS (overview / combat / skills / abilities) ─── */}
+        {(activeTab === 'overview' || activeTab === 'combat' || activeTab === 'skills' || activeTab === 'levels' || activeTab === 'abilities') && (
           <div style={{ flex: 1, overflowY: 'auto', paddingTop: '1rem', paddingBottom: '2rem' }}>
 
             {activeTab === 'levels' && <LevelsTab />}
@@ -584,7 +585,12 @@ export const CharacterSheet: React.FC = () => {
                             .filter(i => i.equipped && i.type === 'weapon')
                             .map(w => {
                               const isRanged = !!(w.weaponDetails?.rangeIncrement);
-                              const abilityMod = isRanged ? getStatModifier('dex') : getStatModifier('str');
+                              const atkStatOverride = resolveStatOverride(
+                                character,
+                                { channel: 'attack', weapon: w, isRanged },
+                                getStatModifier,
+                              );
+                              const abilityMod = getStatModifier(atkStatOverride ?? (isRanged ? 'dex' : 'str'));
                               const weaponBonus = w.weaponDetails?.attackBonus ?? 0;
                               const attacks = getMultipleAttacks(abilityMod + weaponBonus);
                               const fmtA = (arr: number[]) => arr.map(v => (v >= 0 ? `+${v}` : `${v}`)).join('/');
@@ -1112,12 +1118,13 @@ export const CharacterSheet: React.FC = () => {
                 })()}
               </div>
             )}
+
+            {activeTab === 'abilities' && <AbilitiesPage initialTab={abilitiesInitialTab} />}
           </div>
         )}
 
         {/* ─── COMPONENT TABS ─────────────────────────────────── */}
         {activeTab === 'inventory' && <Inventory />}
-        {activeTab === 'abilities' && <AbilitiesPage initialTab={abilitiesInitialTab} />}
         {activeTab === 'spells' && <Spellbook />}
       </div>
 

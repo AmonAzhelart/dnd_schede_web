@@ -74,12 +74,14 @@ export const AbilitiesPage: React.FC<Props> = ({ initialTab }) => {
     const activeMeta = SUBTABS.find(t => t.key === tab)!;
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 12 }}>
-            {/* ─── Sub-tab bar ─── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* ─── Sub-tab bar (sticky) ─── */}
             <div
                 className="glass-panel"
                 style={{
-                    flexShrink: 0,
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 10,
                     padding: 6,
                     display: 'flex',
                     gap: 6,
@@ -169,7 +171,7 @@ export const AbilitiesPage: React.FC<Props> = ({ initialTab }) => {
             </div>
 
             {/* ─── Active sub-tab body ─── */}
-            <div style={{ flex: 1, minHeight: 0 }}>
+            <div>
                 {tab === 'feats' ? (
                     <Feats />
                 ) : (

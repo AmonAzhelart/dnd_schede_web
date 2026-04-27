@@ -249,7 +249,29 @@ export const ModifierEditor: React.FC<ModifierEditorProps> = ({
                                 </button>
                             </div>
 
-                            {/* Row 2: scope chooser */}
+                            {/* Row 2: stat override (optional) */}
+                            <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap', fontSize: '0.72rem' }}>
+                                <span style={{ color: 'var(--text-muted)', flexShrink: 0 }} title="Sostituisce la caratteristica di default usata per questo tiro">
+                                    Usa caratteristica:
+                                </span>
+                                <select
+                                    className="input"
+                                    value={mod.statOverride ?? ''}
+                                    onChange={e => update(i, m => ({
+                                        ...m,
+                                        statOverride: e.target.value ? e.target.value as StatType : undefined,
+                                    }))}
+                                    style={{ flex: '0 0 120px', fontSize: '0.76rem' }}
+                                    title="Weapon Finesse, Grazia della Lama, ecc."
+                                >
+                                    <option value="">— Default —</option>
+                                    {(['str', 'dex', 'con', 'int', 'wis', 'cha'] as StatType[]).map(s => (
+                                        <option key={s} value={s}>{s.toUpperCase()}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Row 3: scope chooser */}
                             <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                                 <label title="Si applica sempre quando la sorgente è attiva (e le condizioni sono soddisfatte)" style={{ display: 'flex', alignItems: 'center', gap: 3, cursor: 'pointer' }}>
                                     <input

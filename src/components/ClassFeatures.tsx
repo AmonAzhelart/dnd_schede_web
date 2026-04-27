@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useCharacterStore } from '../store/characterStore';
 import { v4 as uuidv4 } from 'uuid';
 import { FaPlus, FaTrash, FaEdit, FaCheck, FaTimes, FaChevronDown, FaChevronRight } from 'react-icons/fa';
-import type { ClassFeature, ClassFeatureSubcategory } from '../types/dnd';
+import type { ClassFeature, ClassFeatureSubcategory, Modifier, StatType } from '../types/dnd';
 import { ModifierEditor } from './ModifierEditor';
+import { ROLL_CHANNEL_LABELS } from '../services/modifiers';
 
 type SubcategoryMeta = {
     key: ClassFeatureSubcategory;
@@ -143,6 +144,62 @@ const EditForm: React.FC<EditFormProps> = ({
     </div>
 );
 
+// ── Helpers ────────────────────────────────────────────────────────────────────
+const STAT_SHORT: Record<StatType, string> = {
+    str: 'FOR', dex: 'DES', con: 'COS', int: 'INT', wis: 'SAG', cha: 'CAR',
+};
+
+function channelLabel(ch: string): string {
+    const found = ROLL_CHANNEL_LABELS.find(r => r.value === ch);
+    if (found) return found.label;
+    if (ch.startsWith('skill.')) return `Abilità: ${ch.slice(6)}`;
+    if (ch.startsWith('check.')) return `Prova di ${STAT_SHORT[ch.slice(6) as StatType] ?? ch.slice(6).toUpperCase()}`;
+    if (ch.startsWith('save.')) {
+        const map: Record<string, string> = { fort: 'TS Tempra', ref: 'TS Riflessi', will: 'TS Volontà' };
+        return map[ch.slice(5)] ?? ch;
+    }
+    return ch.toUpperCase();
+}
+
+function modifierSummary(m: Modifier): { channel: string; typeLabel: string; valueStr: string; conditions: string; statOverride?: string } {
+    const ch = m.appliesTo?.[0] ?? m.target;
+    const typeLabels: Record<string, string> = {
+        enhancement: 'Potenziamento', armor: 'Armatura', deflection: 'Deviazione',
+        dodge: 'Schivata', naturalArmor: 'Arm. Naturale', shield: 'Scudo',
+        circumstance: 'Circostanza', untyped: 'Senza tipo', resistance: 'Resistenza',
+        sacred: 'Sacro', profane: 'Profano', insight: 'Intuizione',
+        morale: 'Morale', luck: 'Fortuna', competence: 'Competenza',
+        racial: 'Razziale', size: 'Taglia', synergy: 'Sinergia', alchemical: 'Alchemico',
+    };
+    const valueParts: string[] = [];
+    if (m.value !== 0) valueParts.push(`${m.value >= 0 ? '+' : ''}${m.value}`);
+    if (m.extraDice) valueParts.push(`+${m.extraDice.replace(/^\+\s*/, '')}`);
+    const condParts: string[] = [];
+    (m.conditions ?? []).forEach(c => {
+        switch (c.kind) {
+            case 'weaponType': condParts.push(c.value === 'melee' ? 'Mischia' : c.value === 'ranged' ? 'Distanza' : 'Lancio'); break;
+            case 'weaponCategory': condParts.push(`Arma: ${c.value}`); break;
+            case 'weaponName': condParts.push(`Con: ${c.value}`); break;
+            case 'damageType': condParts.push(`Danno: ${c.value}`); break;
+            case 'skillId': condParts.push(`Solo: ${c.value}`); break;
+            case 'saveType': condParts.push({ fort: 'TS Tempra', ref: 'TS Riflessi', will: 'TS Volontà' }[c.value] ?? c.value); break;
+            case 'abilityStat': condParts.push(`Prova ${STAT_SHORT[c.value] ?? c.value}`); break;
+            case 'spellSchool': condParts.push(`Scuola: ${c.value}`); break;
+            case 'spellName': condParts.push(`Magia: ${c.value}`); break;
+            case 'spellDamageType': condParts.push(`Tipo: ${c.value}`); break;
+            case 'spellMinLevel': condParts.push(`Lv ≥ ${c.value}`); break;
+        }
+    });
+    if (m.manualPrompt) condParts.push(m.manualPrompt);
+    return {
+        channel: channelLabel(ch),
+        typeLabel: typeLabels[m.type] ?? m.type,
+        valueStr: valueParts.join(' ') || '—',
+        conditions: condParts.join(' · '),
+        statOverride: m.statOverride ? STAT_SHORT[m.statOverride] : undefined,
+    };
+}
+
 // ── Feature Row ────────────────────────────────────────────────────────────────
 interface FeatureRowProps {
     feature: ClassFeature;
@@ -158,6 +215,8 @@ interface FeatureRowProps {
 const FeatureRow: React.FC<FeatureRowProps> = ({
     feature, editingId, onEdit, onDelete, onSpend, onRecover, editFormElement, color
 }) => {
+    const [expanded, setExpanded] = useState(false);
+
     if (editingId === feature.id) return <>{editFormElement}</>;
 
     const hasResource = feature.subcategory === 'active'
@@ -166,133 +225,260 @@ const FeatureRow: React.FC<FeatureRowProps> = ({
     const usedCount = feature.resourceUsed ?? 0;
     const maxCount = feature.resourceMax ?? 0;
     const exhausted = hasResource && usedCount >= maxCount;
+    const remaining = maxCount - usedCount;
+
+    const hasMods = feature.modifiers.length > 0;
+    const hasDesc = !!feature.description?.trim();
+    const isExpandable = hasDesc || hasMods;
 
     return (
-        <div
-            style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.035)' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-        >
-            {/* Left accent bar */}
-            <div style={{
-                width: 3, alignSelf: 'stretch', borderRadius: 2, flexShrink: 0,
-                background: feature.active ? color : 'var(--text-muted)',
-            }} />
-
-            {/* Content */}
-            <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+            borderBottom: '1px solid rgba(255,255,255,0.05)',
+            background: expanded ? `${color}06` : 'transparent',
+            transition: 'background 0.15s',
+        }}>
+            {/* ── Main row ── */}
+            <div
+                style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '10px 14px',
+                    cursor: isExpandable ? 'pointer' : 'default',
+                }}
+                onClick={() => isExpandable && setExpanded(v => !v)}
+                onMouseEnter={e => { if (!expanded) e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
+                onMouseLeave={e => { if (!expanded) e.currentTarget.style.background = 'transparent'; }}
+            >
+                {/* Accent bar */}
                 <div style={{
-                    fontFamily: 'var(--font-heading)', fontSize: '0.9rem',
-                    color: feature.active ? color : 'var(--text-muted)',
-                    display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
-                }}>
-                    {feature.name}
-                    {exhausted && (
+                    width: 3, alignSelf: 'stretch', borderRadius: 2, flexShrink: 0,
+                    background: feature.active ? color : 'var(--text-muted)',
+                }} />
+
+                {/* Expand chevron */}
+                {isExpandable ? (
+                    <span style={{ color: color, opacity: 0.6, fontSize: '0.65rem', flexShrink: 0, width: 10 }}>
+                        {expanded ? <FaChevronDown /> : <FaChevronRight />}
+                    </span>
+                ) : (
+                    <div style={{ width: 10, flexShrink: 0 }} />
+                )}
+
+                {/* Name + badges */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <span style={{
-                            fontSize: '0.6rem', padding: '1px 6px', borderRadius: 3,
-                            background: 'rgba(192,57,43,0.15)', border: '1px solid rgba(192,57,43,0.35)',
-                            color: 'var(--accent-crimson)',
+                            fontFamily: 'var(--font-heading)', fontSize: '0.9rem',
+                            color: feature.active ? color : 'var(--text-muted)',
                         }}>
-                            ESAURITA
+                            {feature.name}
                         </span>
-                    )}
-                </div>
-
-                {feature.description && (
-                    <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: 3, fontStyle: 'italic', lineHeight: 1.45 }}>
-                        {feature.description}
-                    </div>
-                )}
-
-                {/* Resource pips */}
-                {hasResource && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                            {feature.resourceName || 'Usi'}:
-                        </span>
-                        <div style={{ display: 'flex', gap: 3 }}>
-                            {Array.from({ length: maxCount }).map((_, i) => (
-                                <div key={i} style={{
-                                    width: 11, height: 11, borderRadius: '50%',
-                                    background: i < usedCount ? 'rgba(192,57,43,0.3)' : color,
-                                    opacity: i < usedCount ? 0.4 : 0.85,
-                                    border: `1px solid ${i < usedCount ? 'var(--accent-crimson)' : color}`,
-                                    flexShrink: 0,
-                                }} />
-                            ))}
-                        </div>
-                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                            {maxCount - usedCount}/{maxCount}
-                        </span>
-                    </div>
-                )}
-
-                {/* Modifier badges */}
-                {feature.modifiers.length > 0 && (
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 5 }}>
-                        {feature.modifiers.map((m, i) => {
-                            const targetLabel = m.target.toLowerCase().startsWith('skill.')
-                                ? m.target.slice(6).replace(/^\w/, c => c.toUpperCase())
-                                : m.target.toUpperCase();
+                        {!feature.active && (
+                            <span style={{
+                                fontSize: '0.6rem', padding: '1px 6px', borderRadius: 3,
+                                background: 'rgba(100,100,100,0.15)', border: '1px solid rgba(100,100,100,0.3)',
+                                color: 'var(--text-muted)',
+                            }}>INATTIVA</span>
+                        )}
+                        {exhausted && (
+                            <span style={{
+                                fontSize: '0.6rem', padding: '1px 6px', borderRadius: 3,
+                                background: 'rgba(192,57,43,0.15)', border: '1px solid rgba(192,57,43,0.35)',
+                                color: 'var(--accent-crimson)',
+                            }}>ESAURITA</span>
+                        )}
+                        {/* Compact modifier summary badges (when collapsed) */}
+                        {!expanded && hasMods && feature.modifiers.map((m, i) => {
+                            const s = modifierSummary(m);
+                            const valueParts: string[] = [];
+                            if (m.value !== 0) valueParts.push(`${m.value >= 0 ? '+' : ''}${m.value}`);
+                            if (m.extraDice) valueParts.push(`+${m.extraDice.replace(/^\+\s*/, '')}`);
                             return (
                                 <span key={i} style={{
-                                    fontSize: '0.68rem', padding: '1px 7px', borderRadius: 3,
+                                    fontSize: '0.62rem', padding: '1px 6px', borderRadius: 3,
                                     background: `${color}18`, border: `1px solid ${color}44`, color,
+                                    fontFamily: 'var(--font-mono, monospace)',
                                 }}>
-                                    {m.value >= 0 ? '+' : ''}{m.value} {targetLabel}
+                                    {valueParts.join(' ') || '—'} {s.channel}
                                 </span>
                             );
                         })}
                     </div>
+
+                    {/* Resource pips row */}
+                    {hasResource && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                                {feature.resourceName || 'Usi'}:
+                            </span>
+                            <div style={{ display: 'flex', gap: 3 }}>
+                                {Array.from({ length: maxCount }).map((_, i) => (
+                                    <div key={i} style={{
+                                        width: 11, height: 11, borderRadius: '50%', flexShrink: 0,
+                                        background: i < usedCount ? 'rgba(192,57,43,0.3)' : color,
+                                        opacity: i < usedCount ? 0.35 : 0.85,
+                                        border: `1px solid ${i < usedCount ? 'var(--accent-crimson)' : color}`,
+                                    }} />
+                                ))}
+                            </div>
+                            <span style={{ fontSize: '0.65rem', color: remaining === 0 ? 'var(--accent-crimson)' : 'var(--text-muted)' }}>
+                                {remaining}/{maxCount}
+                            </span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Resource buttons */}
+                {hasResource && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flexShrink: 0 }}>
+                        <button
+                            onClick={e => { e.stopPropagation(); onSpend(feature.id); }}
+                            disabled={exhausted}
+                            style={{
+                                padding: '2px 8px', borderRadius: 4, fontSize: '0.68rem',
+                                cursor: exhausted ? 'not-allowed' : 'pointer',
+                                background: exhausted ? 'rgba(192,57,43,0.08)' : `${color}18`,
+                                border: `1px solid ${exhausted ? 'rgba(192,57,43,0.25)' : `${color}44`}`,
+                                color: exhausted ? 'var(--accent-crimson)' : color,
+                                opacity: exhausted ? 0.5 : 1,
+                            }}
+                        >Usa</button>
+                        <button
+                            onClick={e => { e.stopPropagation(); onRecover(feature.id); }}
+                            disabled={usedCount === 0}
+                            style={{
+                                padding: '2px 8px', borderRadius: 4, fontSize: '0.68rem',
+                                cursor: usedCount === 0 ? 'not-allowed' : 'pointer',
+                                background: 'rgba(39,174,96,0.08)',
+                                border: '1px solid rgba(39,174,96,0.25)',
+                                color: 'var(--accent-success)',
+                                opacity: usedCount === 0 ? 0.4 : 1,
+                            }}
+                        >Rec.</button>
+                    </div>
                 )}
+
+                {/* Edit / Delete */}
+                <button
+                    onClick={e => { e.stopPropagation(); onEdit(feature); }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px 5px', flexShrink: 0 }}
+                    title="Modifica"
+                ><FaEdit size={11} /></button>
+                <button
+                    onClick={e => { e.stopPropagation(); onDelete(feature.id); }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-crimson)', padding: '4px 5px', opacity: 0.5, flexShrink: 0 }}
+                    title="Elimina"
+                ><FaTrash size={11} /></button>
             </div>
 
-            {/* Resource use / recover buttons */}
-            {hasResource && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flexShrink: 0 }}>
-                    <button
-                        onClick={() => onSpend(feature.id)}
-                        disabled={exhausted}
-                        style={{
-                            padding: '2px 8px', borderRadius: 4, fontSize: '0.68rem',
-                            cursor: exhausted ? 'not-allowed' : 'pointer',
-                            background: exhausted ? 'rgba(192,57,43,0.08)' : `${color}18`,
-                            border: `1px solid ${exhausted ? 'rgba(192,57,43,0.25)' : `${color}44`}`,
-                            color: exhausted ? 'var(--accent-crimson)' : color,
-                            opacity: exhausted ? 0.5 : 1,
-                        }}
-                    >
-                        Usa
-                    </button>
-                    <button
-                        onClick={() => onRecover(feature.id)}
-                        disabled={usedCount === 0}
-                        style={{
-                            padding: '2px 8px', borderRadius: 4, fontSize: '0.68rem',
-                            cursor: usedCount === 0 ? 'not-allowed' : 'pointer',
-                            background: 'rgba(39,174,96,0.08)',
-                            border: '1px solid rgba(39,174,96,0.25)',
-                            color: 'var(--accent-success)',
-                            opacity: usedCount === 0 ? 0.4 : 1,
-                        }}
-                    >
-                        Rec.
-                    </button>
+            {/* ── Expanded detail panel ── */}
+            {expanded && (
+                <div style={{
+                    padding: '0 14px 14px 29px',
+                    display: 'flex', flexDirection: 'column', gap: 10,
+                }}>
+                    {/* Description */}
+                    {hasDesc && (
+                        <div style={{
+                            fontSize: '0.81rem', color: 'var(--text-secondary)',
+                            lineHeight: 1.55, fontStyle: 'italic',
+                            padding: '8px 10px',
+                            background: 'rgba(255,255,255,0.03)',
+                            borderRadius: 5,
+                            borderLeft: `2px solid ${color}55`,
+                        }}>
+                            {feature.description}
+                        </div>
+                    )}
+
+                    {/* Modifiers detail table */}
+                    {hasMods && (
+                        <div>
+                            <div style={{
+                                fontSize: '0.6rem', letterSpacing: '0.1em',
+                                color: 'var(--text-muted)', marginBottom: 5,
+                            }}>
+                                MODIFICATORI ({feature.modifiers.length})
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                {feature.modifiers.map((m, i) => {
+                                    const s = modifierSummary(m);
+                                    return (
+                                        <div key={i} style={{
+                                            display: 'flex', alignItems: 'center', gap: 6,
+                                            padding: '5px 8px', borderRadius: 5,
+                                            background: `${color}0d`,
+                                            border: `1px solid ${color}2a`,
+                                            flexWrap: 'wrap',
+                                        }}>
+                                            {/* Value */}
+                                            <span style={{
+                                                fontFamily: 'var(--font-mono, monospace)',
+                                                fontSize: '0.88rem', fontWeight: 700,
+                                                color, minWidth: 36,
+                                            }}>
+                                                {s.valueStr}
+                                            </span>
+                                            {/* Channel */}
+                                            <span style={{
+                                                fontSize: '0.78rem', color: 'var(--text-primary)', flex: 1,
+                                            }}>
+                                                {s.channel}
+                                            </span>
+                                            {/* Stat override badge */}
+                                            {s.statOverride && (
+                                                <span style={{
+                                                    fontSize: '0.63rem', padding: '1px 6px', borderRadius: 3,
+                                                    background: 'rgba(155,89,182,0.15)',
+                                                    border: '1px solid rgba(155,89,182,0.35)',
+                                                    color: 'var(--accent-arcane)',
+                                                }}>
+                                                    usa {s.statOverride}
+                                                </span>
+                                            )}
+                                            {/* Type badge */}
+                                            <span style={{
+                                                fontSize: '0.63rem', padding: '1px 6px', borderRadius: 3,
+                                                background: `${color}15`, border: `1px solid ${color}33`,
+                                                color: 'var(--text-muted)',
+                                            }}>
+                                                {s.typeLabel}
+                                            </span>
+                                            {/* Conditions */}
+                                            {s.conditions && (
+                                                <span style={{
+                                                    fontSize: '0.63rem', padding: '1px 6px', borderRadius: 3,
+                                                    background: 'rgba(241,196,15,0.1)',
+                                                    border: '1px solid rgba(241,196,15,0.25)',
+                                                    color: 'var(--accent-gold)',
+                                                }}>
+                                                    {s.conditions}
+                                                </span>
+                                            )}
+                                            {/* Scope badge */}
+                                            {m.scope === 'conditional' && (
+                                                <span style={{
+                                                    fontSize: '0.6rem', padding: '1px 5px', borderRadius: 3,
+                                                    background: 'rgba(52,152,219,0.12)',
+                                                    border: '1px solid rgba(52,152,219,0.3)',
+                                                    color: 'var(--accent-ice)',
+                                                }}>
+                                                    toggle
+                                                </span>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {!hasDesc && !hasMods && (
+                        <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                            Nessuna descrizione o modificatore configurato.
+                        </div>
+                    )}
                 </div>
             )}
-
-            <button
-                onClick={() => onEdit(feature)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px 5px', flexShrink: 0 }}
-            >
-                <FaEdit size={11} />
-            </button>
-            <button
-                onClick={() => onDelete(feature.id)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-crimson)', padding: '4px 5px', opacity: 0.5, flexShrink: 0 }}
-            >
-                <FaTrash size={11} />
-            </button>
         </div>
     );
 };
@@ -388,7 +574,7 @@ export const ClassFeatures: React.FC<ClassFeaturesProps> = ({ restrictTo, hideTo
     const restrictMeta = isRestricted ? SUBCATEGORY_META.find(m => m.key === restrictTo) : null;
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 14 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
             {/* ── Header ─────────────────────────────── */}
             {!hideToolbar && <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
@@ -450,7 +636,7 @@ export const ClassFeatures: React.FC<ClassFeaturesProps> = ({ restrictTo, hideTo
             )}
 
             {/* ── Sections ───────────────────────────── */}
-            <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '2rem', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: '1rem' }}>
                 {visibleMeta.map(meta => {
                     const sectionFeatures = features.filter(f => f.subcategory === meta.key);
                     const isCollapsed = collapsed.has(meta.key);
