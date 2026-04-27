@@ -1454,8 +1454,8 @@ input[type="number"] {
 .dash-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.55rem;
   padding: 0.45rem 0.75rem;
   background: linear-gradient(180deg, rgba(201, 168, 76, 0.06), rgba(201, 168, 76, 0.02));
   border: 1px solid rgba(201, 168, 76, 0.18);
@@ -1464,6 +1464,103 @@ input[type="number"] {
   top: 0;
   z-index: 5;
   backdrop-filter: blur(8px);
+}
+
+/* Title + icon: desktop shrinks to content size, mobile grows to push Fatto right */
+.dash-toolbar-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.dash-toolbar-meta {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Breakpoint switcher container */
+.dash-toolbar-bp-row {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+/* Secondary controls (col/rowH/copy/add/reset) */
+.dash-toolbar-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+}
+
+/* Fatto — pushed to the right on desktop via margin-left: auto */
+.dash-toolbar-done {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* ── Mobile: 3-row stacked toolbar ── */
+@media (max-width: 720px) {
+  .dash-toolbar {
+    padding: 0.5rem 0.6rem;
+    gap: 0.45rem;
+    align-items: center;
+  }
+
+  /* Row 1: title (grows) */
+  .dash-toolbar-title-group {
+    order: 1;
+    flex: 1 1 auto;
+  }
+
+  /* Row 1 right: Fatto */
+  .dash-toolbar-done {
+    order: 2;
+    margin-left: 0;
+  }
+
+  /* Hide the meta "(N widget · N col · Npx)" on narrow screens */
+  .dash-toolbar-meta {
+    display: none;
+  }
+
+  /* Row 2: breakpoint switcher — full-width */
+  .dash-toolbar-bp-row {
+    order: 3;
+    flex: 1 0 100%;
+  }
+
+  .dash-toolbar-bp-row .dash-bp-switch {
+    width: 100%;
+    display: flex;
+  }
+
+  .dash-toolbar-bp-row .dash-bp-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 7px 4px;
+    font-size: 0.7rem;
+  }
+
+  /* Row 3: controls — horizontally scrollable single line */
+  .dash-toolbar-controls-row {
+    order: 4;
+    flex: 1 0 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-bottom: 2px;
+  }
+
+  .dash-toolbar-controls-row::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .dash-palette {

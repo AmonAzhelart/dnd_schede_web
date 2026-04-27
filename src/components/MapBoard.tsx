@@ -234,6 +234,7 @@ const topBarStyle: React.CSSProperties = {
     padding: '0 12px', background: 'linear-gradient(180deg, #1a1410 0%, #15110d 100%)',
     borderBottom: '1px solid rgba(201,168,76,0.18)',
     boxShadow: '0 2px 12px rgba(0,0,0,0.35)', position: 'relative', zIndex: 20,
+    overflowX: 'auto', flexWrap: 'nowrap',
 };
 const topPillStyle = (active: boolean): React.CSSProperties => ({
     height: 30, padding: '0 12px', borderRadius: 6,
@@ -253,7 +254,7 @@ const topChip: React.CSSProperties = {
     height: 26, padding: '0 9px', borderRadius: 4, fontSize: '0.66rem',
     fontFamily: 'var(--font-heading)', letterSpacing: '0.1em',
     background: 'transparent', border: '1px solid rgba(255,255,255,0.08)',
-    color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.12s',
+    color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.12s', flexShrink: 0,
 };
 const topChipActive: React.CSSProperties = {
     background: 'rgba(201,168,76,0.18)', border: '1px solid rgba(201,168,76,0.5)',
@@ -309,6 +310,8 @@ export const MapBoard: React.FC = () => {
     const [stagePos, setStagePos] = useState({ x: 200, y: 100 });
     const [isPanning, setIsPanning] = useState(false);
     const panStartRef = useRef({ x: 0, y: 0 });
+    const lastTouchDistRef = useRef<number | null>(null);
+    const lastTouchMidRef = useRef<{ x: number; y: number } | null>(null);
 
     const [snap, setSnap] = useState(true);
     const [showGrid, setShowGrid] = useState(true);
@@ -741,6 +744,12 @@ export const MapBoard: React.FC = () => {
         if (!pp) return null;
         return stageToWorld(pp.x, pp.y);
     };
+    /** Extracts clientX/Y from either a MouseEvent or a TouchEvent. */
+    const getClientXY = (e: any): { x: number; y: number } => {
+        if (e.evt?.touches?.length > 0) return { x: e.evt.touches[0].clientX, y: e.evt.touches[0].clientY };
+        if (e.evt?.changedTouches?.length > 0) return { x: e.evt.changedTouches[0].clientX, y: e.evt.changedTouches[0].clientY };
+        return { x: e.evt?.clientX ?? 0, y: e.evt?.clientY ?? 0 };
+    };
 
     /* ─── drawing handlers ─── */
     const finishPolygon = () => {
@@ -769,7 +778,8 @@ export const MapBoard: React.FC = () => {
         const p = pointerWorld(e); if (!p) return;
         if (e.evt.button === 1 || e.evt.button === 2 || tool === 'pan') {
             setIsPanning(true);
-            panStartRef.current = { x: e.evt.clientX - stagePos.x, y: e.evt.clientY - stagePos.y };
+            const cp = getClientXY(e);
+            panStartRef.current = { x: cp.x - stagePos.x, y: cp.y - stagePos.y };
             return;
         }
         if (tool === 'select') {
@@ -825,7 +835,8 @@ export const MapBoard: React.FC = () => {
     };
     const handleMouseMove = (e: any) => {
         if (isPanning) {
-            setStagePos({ x: e.evt.clientX - panStartRef.current.x, y: e.evt.clientY - panStartRef.current.y });
+            const cp = getClientXY(e);
+            setStagePos({ x: cp.x - panStartRef.current.x, y: cp.y - panStartRef.current.y });
             return;
         }
         const p = pointerWorld(e); if (!p) return;
@@ -888,6 +899,59 @@ export const MapBoard: React.FC = () => {
     };
     const handleDblClick = () => {
         if (tool === 'polygon' || tool === 'line') finishPolygon();
+    };
+    /* ─── touch handlers ─── */
+    const handleTouchStart = (e: any) => {
+        const touches = e.evt.touches;
+        if (touches && touches.length === 2) {
+            // Two-finger: begin pinch-zoom + pan; cancel any ongoing draw.
+            e.evt.preventDefault();
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            lastTouchDistRef.current = Math.hypot(dx, dy);
+            lastTouchMidRef.current = {
+                x: (touches[0].clientX + touches[1].clientX) / 2,
+                y: (touches[0].clientY + touches[1].clientY) / 2,
+            };
+            setIsPanning(false);
+            setDraftRect(null);
+            return;
+        }
+        lastTouchDistRef.current = null;
+        lastTouchMidRef.current = null;
+        handleMouseDown(e);
+    };
+    const handleTouchMove = (e: any) => {
+        e.evt.preventDefault();
+        const touches = e.evt.touches;
+        if (touches && touches.length === 2 && lastTouchDistRef.current !== null) {
+            // Pinch-zoom + two-finger pan.
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            const newDist = Math.hypot(dx, dy);
+            const midX = (touches[0].clientX + touches[1].clientX) / 2;
+            const midY = (touches[0].clientY + touches[1].clientY) / 2;
+            const rect = stageRef.current?.container()?.getBoundingClientRect();
+            const stageMidX = midX - (rect?.left ?? 0);
+            const stageMidY = midY - (rect?.top ?? 0);
+            const zoomFactor = newDist / lastTouchDistRef.current;
+            const newScale = Math.min(6, Math.max(0.1, stageScale * zoomFactor));
+            const wx = (stageMidX - stagePos.x) / stageScale;
+            const wy = (stageMidY - stagePos.y) / stageScale;
+            const panDx = lastTouchMidRef.current ? midX - lastTouchMidRef.current.x : 0;
+            const panDy = lastTouchMidRef.current ? midY - lastTouchMidRef.current.y : 0;
+            setStagePos({ x: stageMidX - wx * newScale + panDx, y: stageMidY - wy * newScale + panDy });
+            setStageScale(newScale);
+            lastTouchDistRef.current = newDist;
+            lastTouchMidRef.current = { x: midX, y: midY };
+            return;
+        }
+        handleMouseMove(e);
+    };
+    const handleTouchEnd = () => {
+        lastTouchDistRef.current = null;
+        lastTouchMidRef.current = null;
+        handleMouseUp();
     };
     const handleWheel = (e: any) => {
         e.evt.preventDefault();
@@ -1620,7 +1684,7 @@ export const MapBoard: React.FC = () => {
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━ TOP BAR ━━━━━━━━━━━━━━━━━━━━━━━━ */}
             <div style={topBarStyle} onClick={() => { setMapsMenuOpen(false); setMoreMenuOpen(false); }}>
                 {/* Maps dropdown */}
-                <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <div style={{ position: 'relative', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                     <button onClick={() => { setMapsMenuOpen(o => !o); setMoreMenuOpen(false); }}
                         style={topPillStyle(mapsMenuOpen)} title="Cambia mappa">
                         <FaMap size={11} style={{ color: 'var(--accent-gold)' }} />
@@ -1673,7 +1737,7 @@ export const MapBoard: React.FC = () => {
                 <div style={vDivider} />
 
                 {/* Tools — horizontal palette */}
-                <div style={{ display: 'flex', gap: 2 }}>
+                <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
                     {TOOL_LIST.map(t => (
                         <button key={t.id} title={t.label}
                             onClick={() => { setTool(t.id); if (t.id === 'stamp') setStampPickerOpen(true); }}
@@ -1708,7 +1772,7 @@ export const MapBoard: React.FC = () => {
                 <button title="Esporta PNG" onClick={exportPNG} style={{ ...topToolBtn, color: 'var(--text-secondary)' }}><FaDownload size={11} /></button>
 
                 {/* More menu */}
-                <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <div style={{ position: 'relative', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                     <button title="Altre azioni" onClick={() => { setMoreMenuOpen(o => !o); setMapsMenuOpen(false); }}
                         style={{ ...topToolBtn, color: 'var(--text-secondary)' }}>
                         <FaEllipsisV size={11} />
@@ -1735,6 +1799,7 @@ export const MapBoard: React.FC = () => {
             <div ref={containerRef} style={{
                 flex: 1, position: 'relative', background: PAPER_BG, overflow: 'hidden', minHeight: 0,
                 cursor: tool === 'pan' ? 'grab' : tool === 'select' ? 'default' : 'crosshair',
+                touchAction: 'none',
             }}>
                 <Stage ref={stageRef}
                     width={canvasSize.w}
@@ -1746,6 +1811,10 @@ export const MapBoard: React.FC = () => {
                     onMouseUp={handleMouseUp}
                     onMouseLeave={() => { setIsPanning(false); setDraftRect(null); setHoverPoint(null); if (tool === 'freehand' && draftPoints) finishPolygon(); }}
                     onDblClick={handleDblClick}
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    onDblTap={handleDblClick}
                     onWheel={handleWheel}
                     onContextMenu={e => e.evt.preventDefault()}
                 >

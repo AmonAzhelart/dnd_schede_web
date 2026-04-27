@@ -689,76 +689,76 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
         <div ref={dashRef} className={`dash-root animate-fade-in${editMode ? ' is-fs-edit' : ''}`}>
             {/* TOOLBAR — shown only in edit mode */}
             {editMode && <div className="dash-toolbar">
-                <div className="flex items-center gap-2">
-                    <FaPalette size={11} style={{ color: 'var(--accent-gold)' }} />
-                    <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.8rem', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>
+                {/* Row 1: title info + Fatto (always visible, always together) */}
+                <div className="dash-toolbar-title-group">
+                    <FaPalette size={11} style={{ color: 'var(--accent-gold)', flexShrink: 0 }} />
+                    <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.8rem', letterSpacing: '0.08em', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                         La Tua Dashboard
                     </span>
-                    <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>
+                    <span className="dash-toolbar-meta" style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>
                         {activeLayout.widgets.length} widget · {activeLayout.cols} col · {activeLayout.rowHeight}px
                     </span>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap" style={{ justifyContent: 'flex-end' }}>
-                    {editMode && (
-                        <>
-                            {/* Breakpoint selector */}
-                            <div className="dash-bp-switch" role="tablist" aria-label="Breakpoint">
-                                {BREAKPOINTS.slice().reverse().map(bp => (
-                                    <button
-                                        key={bp.id}
-                                        role="tab"
-                                        aria-selected={editedBp === bp.id}
-                                        className={`dash-bp-btn ${editedBp === bp.id ? 'active' : ''}`}
-                                        onClick={() => setEditedBp(bp.id)}
-                                        title={`Layout ${bp.label}${viewportBp === bp.id ? ' (corrente)' : ''}`}
-                                    >
-                                        {BP_ICONS[bp.id]}
-                                        <span className="dash-bp-label">{bp.label}</span>
-                                        {viewportBp === bp.id && <span className="dash-bp-dot" title="Breakpoint corrente" />}
-                                    </button>
-                                ))}
-                            </div>
-                            <label className="dash-toolbar-control" title="Numero di colonne della griglia">
-                                <FaThLarge size={9} />
-                                <select className="dash-size-select" value={activeLayout.cols} onChange={e => setCols(parseInt(e.target.value))}>
-                                    {colsForBp.map(c => <option key={c} value={c}>{c} col</option>)}
-                                </select>
-                            </label>
-                            <label className="dash-toolbar-control" title="Altezza di una riga della griglia">
-                                <FaArrowsAlt size={9} />
-                                <select className="dash-size-select" value={activeLayout.rowHeight} onChange={e => setRowHeight(parseInt(e.target.value))}>
-                                    {ROW_HEIGHT_PRESETS.map(h => <option key={h} value={h}>{h}px</option>)}
-                                </select>
-                            </label>
-                            <div className="dash-copy-menu">
-                                <button className="btn btn-secondary btn-sm" title="Copia layout da un altro breakpoint">
-                                    <FaCopy size={9} /> Copia da
+                {/* Row 2: breakpoint switcher (full-width on mobile) */}
+                <div className="dash-toolbar-bp-row">
+                    <div className="dash-bp-switch" role="tablist" aria-label="Breakpoint">
+                        {BREAKPOINTS.slice().reverse().map(bp => (
+                            <button
+                                key={bp.id}
+                                role="tab"
+                                aria-selected={editedBp === bp.id}
+                                className={`dash-bp-btn ${editedBp === bp.id ? 'active' : ''}`}
+                                onClick={() => setEditedBp(bp.id)}
+                                title={`Layout ${bp.label}${viewportBp === bp.id ? ' (corrente)' : ''}`}
+                            >
+                                {BP_ICONS[bp.id]}
+                                <span className="dash-bp-label">{bp.label}</span>
+                                {viewportBp === bp.id && <span className="dash-bp-dot" title="Breakpoint corrente" />}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                {/* Row 3: secondary controls (scrollable on mobile) */}
+                <div className="dash-toolbar-controls-row">
+                    <label className="dash-toolbar-control" title="Numero di colonne della griglia">
+                        <FaThLarge size={9} />
+                        <select className="dash-size-select" value={activeLayout.cols} onChange={e => setCols(parseInt(e.target.value))}>
+                            {colsForBp.map(c => <option key={c} value={c}>{c} col</option>)}
+                        </select>
+                    </label>
+                    <label className="dash-toolbar-control" title="Altezza di una riga della griglia">
+                        <FaArrowsAlt size={9} />
+                        <select className="dash-size-select" value={activeLayout.rowHeight} onChange={e => setRowHeight(parseInt(e.target.value))}>
+                            {ROW_HEIGHT_PRESETS.map(h => <option key={h} value={h}>{h}px</option>)}
+                        </select>
+                    </label>
+                    <div className="dash-copy-menu">
+                        <button className="btn btn-secondary btn-sm" title="Copia layout da un altro breakpoint">
+                            <FaCopy size={9} /> Copia da
+                        </button>
+                        <div className="dash-copy-dropdown">
+                            {BREAKPOINTS.filter(b => b.id !== activeBp).map(b => (
+                                <button key={b.id} onClick={() => copyFromOther(b.id)}>
+                                    {BP_ICONS[b.id]} {b.label}
                                 </button>
-                                <div className="dash-copy-dropdown">
-                                    {BREAKPOINTS.filter(b => b.id !== activeBp).map(b => (
-                                        <button key={b.id} onClick={() => copyFromOther(b.id)}>
-                                            {BP_ICONS[b.id]} {b.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            <button className="btn btn-secondary btn-sm" onClick={() => setPaletteOpen(p => !p)}>
-                                <FaPlus size={9} /> Aggiungi widget
-                            </button>
-                            <button className="btn btn-secondary btn-sm" onClick={resetActive} title={`Ripristina layout di default per ${activeBp}`}>
-                                <FaUndo size={9} /> Reset
-                            </button>
-                        </>
-                    )}
-                    {/* "Fatto" button — inside toolbar; clicking also propagates to parent via setEditMode */}
-                    <button
-                        className="btn btn-sm btn-primary"
-                        onClick={() => { setEditMode(false); setPaletteOpen(false); }}
-                        title="Termina personalizzazione"
-                    >
-                        <FaCheck size={9} /> Fatto
+                            ))}
+                        </div>
+                    </div>
+                    <button className="btn btn-secondary btn-sm" onClick={() => setPaletteOpen(p => !p)}>
+                        <FaPlus size={9} /> Aggiungi widget
+                    </button>
+                    <button className="btn btn-secondary btn-sm" onClick={resetActive} title={`Ripristina layout di default per ${activeBp}`}>
+                        <FaUndo size={9} /> Reset
                     </button>
                 </div>
+                {/* Fatto button — always last / top-right on mobile */}
+                <button
+                    className="btn btn-sm btn-primary dash-toolbar-done"
+                    onClick={() => { setEditMode(false); setPaletteOpen(false); }}
+                    title="Termina personalizzazione"
+                >
+                    <FaCheck size={9} /> Fatto
+                </button>
             </div>}
 
             {editMode && (
