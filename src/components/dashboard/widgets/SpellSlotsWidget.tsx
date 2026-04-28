@@ -1,13 +1,15 @@
 ﻿import React, { useMemo, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { GiSpellBook, GiCrystalBall, GiNightSleep } from 'react-icons/gi';
-import { FaInfoCircle, FaTimes } from 'react-icons/fa';
+import { GiSpellBook, GiCrystalBall, GiNightSleep, GiMagicSwirl } from 'react-icons/gi';
+import { FaInfoCircle, FaTimes, FaDragon, FaCheck, FaMinus, FaPlus } from 'react-icons/fa';
 import { useCharacterStore } from '../../../store/characterStore';
 import type { WidgetRenderProps } from '../widgetTypes';
-import type { Spell, StatType } from '../../../types/dnd';
+import type { Spell, StatType, ActiveSummon, Creature } from '../../../types/dnd';
 import { DndIcon, getDndIconSvg } from '../../DndIcon';
 import { RollPickerModal, type RollSegment, type RollBreakdownLine } from '../../RollPickerModal';
 import { computeSpellDamageDice } from '../../../services/modifiers';
+import { creatureCatalog } from '../../../services/admin';
+import { v4 as uuidv4 } from 'uuid';
 
 const SCHOOL_ICON_SLUG: Record<string, string> = {
     'Abiurazione': 'abjuration', 'Ammaliamento': 'enchantment', 'Divinazione': 'divination',
@@ -172,12 +174,43 @@ export const SpellSlotsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) =>
         prepareWizardSpell,
         castPreparedSpell, restorePreparedSpell, restWizardSpells,
         getStatModifier, getTotalBab,
+        addSummon, computeSummonOverrides,
     } = useCharacterStore();
     const [pickerOpen, setPickerOpen] = useState(false);
     const [editingSlots, setEditingSlots] = useState(false);
     const [infoSpell, setInfoSpell] = useState<Spell | null>(null);
     const [castPicker, setCastPicker] = useState<{ spell: Spell; lvl: number; prepId: string } | null>(null);
     const [activeLvl, setActiveLvl] = useState<number>(0);
+    // summon selections: creatureId → count (0 = not summoned)
+    const [summonSelections, setSummonSelections] = useState<Record<string, number>>({});
+    // resolved creature objects for the current spell's linked ids
+    const [summonableCreatures, setSummonableCreatures] = useState<{ id: string; name: string; creature: Creature }[]>([]);
+
+    // Resolve summonable creatures when castPicker spell changes
+    useEffect(() => {
+        const ids = castPicker?.spell.summonableCreatureIds ?? [];
+        if (ids.length === 0) { setSummonableCreatures([]); setSummonSelections({}); return; }
+        const bestiary = character?.bestiary ?? [];
+        const resolved: { id: string; name: string; creature: Creature }[] = [];
+        const missingFromCatalog: string[] = [];
+        ids.forEach(id => {
+            const entry = bestiary.find(e => e.id === id);
+            if (entry) { resolved.push({ id, name: entry.creature.name, creature: entry.creature }); }
+            else { missingFromCatalog.push(id); }
+        });
+        if (missingFromCatalog.length > 0) {
+            creatureCatalog.list().then(cats => {
+                missingFromCatalog.forEach(id => {
+                    const cat = cats.find(c => c.id === id);
+                    if (cat) resolved.push({ id, name: cat.name, creature: cat as Creature });
+                });
+                setSummonableCreatures([...resolved]);
+            });
+        } else {
+            setSummonableCreatures(resolved);
+        }
+        setSummonSelections({});
+    }, [castPicker?.spell.id, character?.bestiary]);
 
     if (!character) return null;
     const slots = character.spellSlots ?? {};
@@ -426,7 +459,8 @@ export const SpellSlotsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) =>
                 }
 
                 // No combat data at all → just open the info modal instead.
-                if (segments.length === 0) {
+                // (unless it has linked creatures — then show the summon picker)
+                if (segments.length === 0 && summonableCreatures.length === 0) {
                     setTimeout(() => {
                         castPreparedSpell(castLvl, prepId);
                         setCastPicker(null);
@@ -435,78 +469,165 @@ export const SpellSlotsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) =>
                     return null;
                 }
 
-                return (
-                    <RollPickerModal
-                        segments={segments}
-                        title={spell.name}
-                        subtitle={`${spell.level === 0 ? 'Trucchetto' : `Livello ${spell.level}`}${spell.school ? ` · ${spell.school}` : ''}${castLvl > spell.level ? ` · ↑Slot Lv ${castLvl}` : ''} · CL ${casterLevel}`}
-                        footer={(() => {
-                            const stats: [string, string | undefined][] = [
-                                ['Scuola', spell.school],
-                                ['Tempo lancio', spell.castingTime],
-                                ['Gittata', spell.range],
-                                ['Durata', spell.duration],
-                                ['Tiro salv.', spell.savingThrow],
-                                ['Componenti', spell.components],
-                                ['Tipo danno', spell.damageType],
-                            ];
-                            const visibleStats = stats.filter(([, v]) => v && String(v).trim());
-                            if (visibleStats.length === 0 && !spell.description) return null;
-                            return (
+                const handleConfirmCast = () => {
+                    castPreparedSpell(castLvl, prepId);
+                    // Spawn selected summons
+                    Object.entries(summonSelections).forEach(([id, count]) => {
+                        if (count <= 0) return;
+                        const entry = summonableCreatures.find(c => c.id === id);
+                        if (!entry) return;
+                        const overrides = computeSummonOverrides(entry.creature);
+                        const effHp = entry.creature.hp + overrides.filter(o => o.stat === 'hp').reduce((s, o) => s + o.value, 0);
+                        for (let i = 0; i < count; i++) {
+                            const summon: ActiveSummon = {
+                                id: uuidv4(),
+                                creature: { ...entry.creature, imageData: undefined } as Creature,
+                                originId: id,
+                                appliedOverrides: overrides,
+                                currentHp: effHp,
+                                summonSpellId: spell.id,
+                                summonSpellName: spell.name,
+                                roundsRemaining: null,
+                                conditions: [],
+                                activeEffects: [],
+                                summonedAt: new Date().toISOString(),
+                            };
+                            addSummon(summon);
+                        }
+                    });
+                };
+
+                // Build footer: spell info + summon picker (if applicable)
+                const spellInfoFooter = (() => {
+                    const stats: [string, string | undefined][] = [
+                        ['Scuola', spell.school],
+                        ['Tempo lancio', spell.castingTime],
+                        ['Gittata', spell.range],
+                        ['Durata', spell.duration],
+                        ['Tiro salv.', spell.savingThrow],
+                        ['Componenti', spell.components],
+                        ['Tipo danno', spell.damageType],
+                    ];
+                    const visibleStats = stats.filter(([, v]) => v && String(v).trim());
+                    return (
+                        <>
+                            {(visibleStats.length > 0 || spell.description) && (
                                 <div style={{
                                     padding: 10, borderRadius: 8,
                                     background: 'rgba(155,89,182,0.05)',
                                     border: '1px solid rgba(155,89,182,0.2)',
                                     display: 'flex', flexDirection: 'column', gap: 8,
                                 }}>
-                                    <div style={{
-                                        fontSize: '0.62rem', letterSpacing: '0.12em',
-                                        color: 'var(--accent-arcane)', fontWeight: 600,
-                                    }}>DESCRIZIONE INCANTESIMO</div>
-
+                                    <div style={{ fontSize: '0.62rem', letterSpacing: '0.12em', color: 'var(--accent-arcane)', fontWeight: 600 }}>
+                                        DESCRIZIONE INCANTESIMO
+                                    </div>
                                     {visibleStats.length > 0 && (
-                                        <div style={{
-                                            display: 'grid',
-                                            gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
-                                            gap: 6,
-                                        }}>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 6 }}>
                                             {visibleStats.map(([k, v]) => (
-                                                <div key={k} style={{
-                                                    background: 'rgba(0,0,0,0.25)',
-                                                    padding: '5px 7px',
-                                                    borderRadius: 5,
-                                                    border: '1px solid rgba(155,89,182,0.15)',
-                                                }}>
-                                                    <div style={{
-                                                        fontSize: '0.52rem',
-                                                        color: 'var(--text-muted)',
-                                                        textTransform: 'uppercase',
-                                                        letterSpacing: '0.08em',
-                                                        marginBottom: 2,
-                                                    }}>{k}</div>
+                                                <div key={k} style={{ background: 'rgba(0,0,0,0.25)', padding: '5px 7px', borderRadius: 5, border: '1px solid rgba(155,89,182,0.15)' }}>
+                                                    <div style={{ fontSize: '0.52rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>{k}</div>
                                                     <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>{v}</div>
                                                 </div>
                                             ))}
                                         </div>
                                     )}
-
                                     {spell.description && (
-                                        <p style={{
-                                            margin: 0,
-                                            color: 'var(--text-primary)',
-                                            fontSize: '0.82rem',
-                                            lineHeight: 1.5,
-                                            whiteSpace: 'pre-wrap',
-                                            maxHeight: 220,
-                                            overflowY: 'auto',
-                                        }}>
+                                        <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.82rem', lineHeight: 1.5, whiteSpace: 'pre-wrap', maxHeight: 220, overflowY: 'auto' }}>
                                             {spell.description}
                                         </p>
                                     )}
                                 </div>
-                            );
-                        })()}
-                        onConfirm={() => castPreparedSpell(castLvl, prepId)}
+                            )}
+
+                            {/* ── Creature Summon Picker ── */}
+                            {summonableCreatures.length > 0 && (
+                                <div style={{ padding: 10, borderRadius: 8, background: 'rgba(231,76,60,0.05)', border: '1px solid rgba(231,76,60,0.25)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                    <div style={{ fontSize: '0.62rem', letterSpacing: '0.12em', color: 'var(--accent-crimson)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                        <FaDragon size={9} /> SCEGLI LE CREATURE DA EVOCARE
+                                    </div>
+                                    {summonableCreatures.map(entry => {
+                                        const count = summonSelections[entry.id] ?? 0;
+                                        const overrides = computeSummonOverrides(entry.creature);
+                                        const effHp = entry.creature.hp + overrides.filter(o => o.stat === 'hp').reduce((s, o) => s + o.value, 0);
+                                        const effStr = entry.creature.str + overrides.filter(o => o.stat === 'str').reduce((s, o) => s + o.value, 0);
+                                        const effCon = entry.creature.con + overrides.filter(o => o.stat === 'con').reduce((s, o) => s + o.value, 0);
+                                        const hasBonus = overrides.length > 0;
+                                        return (
+                                            <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: count > 0 ? 'rgba(231,76,60,0.1)' : 'rgba(0,0,0,0.15)', borderRadius: 7, padding: '7px 10px', border: `1px solid ${count > 0 ? 'rgba(231,76,60,0.4)' : 'rgba(255,255,255,0.06)'}`, transition: 'all 0.15s' }}>
+                                                <FaDragon size={12} style={{ color: count > 0 ? 'var(--accent-crimson)' : 'var(--text-muted)', flexShrink: 0 }} />
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: count > 0 ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{entry.name}</div>
+                                                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
+                                                        <span>CA {entry.creature.ac}</span>
+                                                        <span style={{ color: hasBonus ? 'var(--accent-success)' : undefined }}>
+                                                            PF {effHp}{hasBonus && entry.creature.hp !== effHp ? ` (base ${entry.creature.hp})` : ''}
+                                                        </span>
+                                                        {hasBonus && (
+                                                            <span style={{ color: 'var(--accent-success)' }}>
+                                                                FOR {effStr} · COS {effCon}
+                                                            </span>
+                                                        )}
+                                                        {overrides.map((o, i) => (
+                                                            <span key={i} style={{ color: 'var(--accent-success)', fontStyle: 'italic' }}>
+                                                                {o.source}: {o.stat.toUpperCase()} {o.value > 0 ? '+' : ''}{o.value}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                                                    <button onClick={() => setSummonSelections(s => ({ ...s, [entry.id]: Math.max(0, (s[entry.id] ?? 0) - 1) }))}
+                                                        disabled={count === 0}
+                                                        style={{ width: 24, height: 24, borderRadius: 4, border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.06)', color: 'var(--text-primary)', cursor: count === 0 ? 'not-allowed' : 'pointer', opacity: count === 0 ? 0.35 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <FaMinus size={8} />
+                                                    </button>
+                                                    <span style={{ minWidth: 18, textAlign: 'center', fontFamily: 'var(--font-heading)', fontSize: '0.9rem', color: count > 0 ? 'var(--accent-crimson)' : 'var(--text-muted)' }}>
+                                                        {count}
+                                                    </span>
+                                                    <button onClick={() => setSummonSelections(s => ({ ...s, [entry.id]: (s[entry.id] ?? 0) + 1 }))}
+                                                        style={{ width: 24, height: 24, borderRadius: 4, border: '1px solid rgba(231,76,60,0.4)', background: 'rgba(231,76,60,0.15)', color: 'var(--accent-crimson)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <FaPlus size={8} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                    {Object.values(summonSelections).some(c => c > 0) && (
+                                        <div style={{ fontSize: '0.65rem', color: 'var(--accent-success)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                            <GiMagicSwirl size={10} />
+                                            {Object.values(summonSelections).reduce((s, c) => s + c, 0)} creatura/e verrà evocata alla conferma del tiro
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </>
+                    );
+                })();
+
+                // Spells with linked creatures but no combat segments → show summon-only modal
+                if (segments.length === 0) {
+                    return (
+                        <RollPickerModal
+                            segments={[{
+                                ctx: { channel: 'spell.dc', spellId: spell.id, spellName: spell.name, spellLevel: spell.level, spellSchool: spell.school },
+                                label: spell.name,
+                                baseBreakdown: [],
+                            }]}
+                            title={spell.name}
+                            subtitle={`${spell.level === 0 ? 'Trucchetto' : `Livello ${spell.level}`}${spell.school ? ` · ${spell.school}` : ''} · CL ${casterLevel}`}
+                            footer={spellInfoFooter}
+                            onConfirm={handleConfirmCast}
+                            onClose={() => setCastPicker(null)}
+                        />
+                    );
+                }
+
+                return (
+                    <RollPickerModal
+                        segments={segments}
+                        title={spell.name}
+                        subtitle={`${spell.level === 0 ? 'Trucchetto' : `Livello ${spell.level}`}${spell.school ? ` · ${spell.school}` : ''}${castLvl > spell.level ? ` · ↑Slot Lv ${castLvl}` : ''} · CL ${casterLevel}`}
+                        footer={spellInfoFooter}
+                        onConfirm={handleConfirmCast}
                         onClose={() => setCastPicker(null)}
                     />
                 );

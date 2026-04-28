@@ -2,7 +2,7 @@
 import { createPortal } from 'react-dom';
 import { useCharacterStore } from '../store/characterStore';
 import type { CustomAttack } from '../types/dnd';
-import { FaHeart, FaStar, FaPlus, FaMinus, FaEdit, FaSearch, FaPalette, FaCheck, FaTrash, FaCamera } from 'react-icons/fa';
+import { FaHeart, FaStar, FaPlus, FaMinus, FaEdit, FaSearch, FaPalette, FaCheck, FaTrash, FaCamera, FaDragon } from 'react-icons/fa';
 import { GiSwordman, GiAxeSword, GiSpellBook, GiTreasureMap, GiAbstract024, GiUpgrade } from 'react-icons/gi';
 import { Inventory } from './Inventory';
 import { Spellbook } from './Spellbook';
@@ -19,10 +19,11 @@ import { useModifierAura, ModifierArrows } from './dashboard/widgets/ModifierAur
 import { resolveStatOverride } from '../services/modifiers';
 import { useMediaQuery } from './mobile/MobileShell';
 import { setMobileContextActions, setMobileAvatarTapOverride, setMobileEditExit } from './mobile/mobileShellSlots';
+import { BestiaryPage } from './BestiaryPage';
 import './CharacterSheetHeader.css';
 import './dashboard/widgets/styles/modifiers.css';
 
-type SheetTab = 'overview' | 'combat' | 'levels' | 'skills' | 'inventory' | 'abilities' | 'spells';
+type SheetTab = 'overview' | 'combat' | 'levels' | 'skills' | 'inventory' | 'abilities' | 'spells' | 'bestiary';
 
 const STAT_NAMES: Record<string, string> = {
   str: 'Forza', dex: 'Destrezza', con: 'Costituzione',
@@ -171,6 +172,7 @@ export const CharacterSheet: React.FC = () => {
     { id: 'inventory', label: 'Inventario', icon: <GiTreasureMap /> },
     { id: 'abilities', label: 'Privilegi di Classe', icon: <GiAbstract024 /> },
     { id: 'spells', label: 'Grimorio', icon: <GiSpellBook /> },
+    { id: 'bestiary', label: 'Bestiario', icon: <FaDragon /> },
   ];
 
   return (
@@ -1126,6 +1128,7 @@ export const CharacterSheet: React.FC = () => {
         {/* ─── COMPONENT TABS ─────────────────────────────────── */}
         {activeTab === 'inventory' && <Inventory />}
         {activeTab === 'spells' && <Spellbook />}
+        {activeTab === 'bestiary' && <BestiaryPage />}
       </div>
 
       {/* ─── MODALS ──────────────────────────────────────────── */}

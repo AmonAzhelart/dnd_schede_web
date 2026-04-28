@@ -1,20 +1,20 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     FaUserPlus, FaTrash, FaPlus, FaSave, FaTimes, FaSearch,
     FaScroll, FaStar, FaImage, FaEnvelope, FaCheck, FaBolt,
-    FaFolder, FaFolderPlus, FaArrowLeft, FaUpload,
+    FaFolder, FaFolderPlus, FaArrowLeft, FaUpload, FaDragon, FaEdit,
 } from 'react-icons/fa';
 import {
     SUPERADMIN_EMAIL,
     listInvites, addInvite, removeInvite, type Invite,
-    spellCatalog, skillCatalog, featCatalog, iconCatalog,
-    type CatalogSpell, type CatalogSkill, type CatalogFeat, type CatalogIcon,
+    spellCatalog, skillCatalog, featCatalog, iconCatalog, creatureCatalog,
+    type CatalogSpell, type CatalogSkill, type CatalogFeat, type CatalogIcon, type CatalogCreature,
 } from '../../services/admin';
 import { refreshIconCache, ICON_SLOT_GROUPS } from '../../services/iconCache';
-import type { StatType } from '../../types/dnd';
+import type { StatType, CreatureSize, CreatureTypeCategory, CreatureAlignment, CreatureAction, CreatureSpecialAbility } from '../../types/dnd';
 import { v4 as uuid } from 'uuid';
 
-type Section = 'invites' | 'spells' | 'skills' | 'feats' | 'icons';
+type Section = 'invites' | 'spells' | 'skills' | 'feats' | 'icons' | 'bestiary';
 
 const SECTIONS: { id: Section; label: string; icon: React.ReactNode }[] = [
     { id: 'invites', label: 'Inviti', icon: <FaEnvelope /> },
@@ -22,6 +22,7 @@ const SECTIONS: { id: Section; label: string; icon: React.ReactNode }[] = [
     { id: 'skills', label: 'Abilità', icon: <FaStar /> },
     { id: 'feats', label: 'Talenti', icon: <FaBolt /> },
     { id: 'icons', label: 'Icone SVG', icon: <FaImage /> },
+    { id: 'bestiary', label: 'Bestiario', icon: <FaDragon /> },
 ];
 
 interface Props {
@@ -62,6 +63,7 @@ export function BackOffice({ currentUserEmail }: Props) {
                 {section === 'skills' && <SkillsPanel currentUserEmail={currentUserEmail} />}
                 {section === 'feats' && <FeatsPanel currentUserEmail={currentUserEmail} />}
                 {section === 'icons' && <IconsPanel currentUserEmail={currentUserEmail} />}
+                {section === 'bestiary' && <BestiaryPanel currentUserEmail={currentUserEmail} />}
             </div>
         </div>
     );
@@ -802,6 +804,340 @@ function FeatsPanel({ currentUserEmail }: { currentUserEmail: string }) {
                             </div>
                             <button className="btn-ghost text-xs" onClick={() => setEditing(f)}>Modifica</button>
                             <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => remove(f.id)}><FaTrash /></button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+/* ────────────────────────────── BESTIARY ────────────────────────────── */
+
+const CREATURE_SIZES: CreatureSize[] = ['Minuscola', 'Piccola', 'Media', 'Grande', 'Enorme', 'Mastodontica', 'Colossale'];
+const CREATURE_TYPES: CreatureTypeCategory[] = [
+    'Aberrazione', 'Animale', 'Costrutto', 'Drago', 'Elementale', 'Fatato', 'Gigante',
+    'Umanoide', 'Bestia Magica', 'Umanoide Mostruoso', 'Melma', 'Esterno', 'Vegetale', 'Non Morto', 'Verme',
+];
+const CREATURE_ALIGNMENTS: CreatureAlignment[] = [
+    'Legale Buono', 'Neutrale Buono', 'Caotico Buono',
+    'Legale Neutrale', 'Neutrale', 'Caotico Neutrale',
+    'Legale Malvagio', 'Neutrale Malvagio', 'Caotico Malvagio',
+];
+
+const EMPTY_CREATURE = (): CatalogCreature => ({
+    id: uuid(), name: '', size: 'Media', type: 'Bestia Magica', alignment: 'Neutrale',
+    str: 10, dex: 10, con: 10, int: 2, wis: 10, cha: 4,
+    hp: 10, ac: 12, speed: 9, bab: 0,
+    fortitude: 0, reflex: 0, will: 0,
+    actions: [], specialAbilities: [],
+    description: '', challengeRating: '1', tags: [],
+});
+
+/** Compress an image file (for creature portraits) to a small base64 data URL. */
+async function compressCreatureImage(file: File): Promise<{ data: string; type: 'svg' | 'webp' | 'png' }> {
+    if (file.type === 'image/svg+xml') {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onerror = () => reject(new Error('read-failed'));
+            reader.onload = () => resolve({ data: String(reader.result), type: 'svg' });
+            reader.readAsText(file);
+        });
+    }
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('read-failed'));
+        reader.onload = () => {
+            const img = new Image();
+            img.onerror = () => reject(new Error('decode-failed'));
+            img.onload = () => {
+                const MAX = 256;
+                const ratio = Math.min(1, MAX / Math.max(img.width, img.height));
+                const w = Math.max(1, Math.round(img.width * ratio));
+                const h = Math.max(1, Math.round(img.height * ratio));
+                const canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) { reject(new Error('canvas')); return; }
+                ctx.drawImage(img, 0, 0, w, h);
+                resolve({ data: canvas.toDataURL('image/webp', 0.75), type: 'webp' });
+            };
+            img.src = String(reader.result);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function BestiaryPanel({ currentUserEmail }: { currentUserEmail: string }) {
+    const [items, setItems] = useState<CatalogCreature[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [editing, setEditing] = useState<CatalogCreature | null>(null);
+    const [search, setSearch] = useState('');
+    const [imgUploading, setImgUploading] = useState(false);
+    const imgInputRef = useRef<HTMLInputElement>(null);
+
+    const refresh = async () => { setLoading(true); setItems(await creatureCatalog.list()); setLoading(false); };
+    useEffect(() => { refresh(); }, []);
+
+    const filtered = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        if (!q) return items;
+        return items.filter(i => i.name.toLowerCase().includes(q) || (i.type || '').toLowerCase().includes(q) || (i.challengeRating || '').includes(q));
+    }, [items, search]);
+
+    const save = async () => {
+        if (!editing || !editing.name.trim()) return;
+        await creatureCatalog.upsert({ ...editing, createdBy: editing.createdBy ?? currentUserEmail });
+        setEditing(null);
+        await refresh();
+    };
+
+    const remove = async (id: string) => {
+        if (!confirm('Eliminare questa creatura dal catalogo condiviso?')) return;
+        await creatureCatalog.remove(id);
+        await refresh();
+    };
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!editing || !e.target.files?.length) return;
+        setImgUploading(true);
+        try {
+            const { data, type } = await compressCreatureImage(e.target.files[0]);
+            setEditing({ ...editing, imageData: data, imageType: type });
+        } catch { /* ignore */ }
+        finally { setImgUploading(false); if (imgInputRef.current) imgInputRef.current.value = ''; }
+    };
+
+    const addAction = () => {
+        if (!editing) return;
+        const a: CreatureAction = { id: uuid(), name: '', damage: '', damageType: '', range: 'Mischia' };
+        setEditing({ ...editing, actions: [...(editing.actions ?? []), a] });
+    };
+    const updateAction = (a: CreatureAction) => {
+        if (!editing) return;
+        setEditing({ ...editing, actions: (editing.actions ?? []).map(x => x.id === a.id ? a : x) });
+    };
+    const removeAction = (id: string) => {
+        if (!editing) return;
+        setEditing({ ...editing, actions: (editing.actions ?? []).filter(x => x.id !== id) });
+    };
+
+    const addAbility = () => {
+        if (!editing) return;
+        const a: CreatureSpecialAbility = { id: uuid(), name: '', description: '', abilityType: 'EX' };
+        setEditing({ ...editing, specialAbilities: [...(editing.specialAbilities ?? []), a] });
+    };
+    const updateAbility = (a: CreatureSpecialAbility) => {
+        if (!editing) return;
+        setEditing({ ...editing, specialAbilities: (editing.specialAbilities ?? []).map(x => x.id === a.id ? a : x) });
+    };
+    const removeAbility = (id: string) => {
+        if (!editing) return;
+        setEditing({ ...editing, specialAbilities: (editing.specialAbilities ?? []).filter(x => x.id !== id) });
+    };
+
+    if (editing) {
+        const e = editing;
+        const set = (patch: Partial<CatalogCreature>) => setEditing({ ...e, ...patch });
+        const n = (v: string) => Number(v) || 0;
+
+        return (
+            <div className="glass-panel flex-col gap-3">
+                <div className="section-header">
+                    <span className="section-title">{items.find(i => i.id === e.id) ? 'Modifica' : 'Nuova'} Creatura</span>
+                    <div className="flex gap-2">
+                        <button className="btn-secondary text-sm" onClick={() => setEditing(null)}><FaTimes /> Annulla</button>
+                        <button className="btn-primary text-sm" onClick={save}><FaSave /> Salva</button>
+                    </div>
+                </div>
+
+                {/* ── Image ── */}
+                <div className="flex gap-3 items-start" style={{ flexWrap: 'wrap' }}>
+                    {e.imageData ? (
+                        <div style={{ position: 'relative', width: 80, height: 80, flexShrink: 0 }}>
+                            {e.imageType === 'svg'
+                                ? <div style={{ width: 80, height: 80, borderRadius: 'var(--radius-sm)', overflow: 'hidden', background: 'var(--bg-surface)' }} dangerouslySetInnerHTML={{ __html: e.imageData }} />
+                                : <img src={e.imageData} alt="" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 'var(--radius-sm)' }} />
+                            }
+                            <button className="btn-ghost text-xs" style={{ position: 'absolute', top: 0, right: 0, color: 'var(--accent-crimson)', background: 'rgba(0,0,0,0.6)', borderRadius: '50%' }}
+                                onClick={() => set({ imageData: undefined, imageType: undefined })}>✕</button>
+                        </div>
+                    ) : (
+                        <div style={{ width: 80, height: 80, borderRadius: 'var(--radius-sm)', background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 28, flexShrink: 0, cursor: 'pointer' }}
+                            onClick={() => imgInputRef.current?.click()}>
+                            <FaDragon />
+                        </div>
+                    )}
+                    <div className="flex-col gap-1">
+                        <input ref={imgInputRef} type="file" accept="image/svg+xml,image/webp,image/png" style={{ display: 'none' }} onChange={handleImageUpload} />
+                        <button className="btn-secondary text-sm" onClick={() => imgInputRef.current?.click()} disabled={imgUploading}>
+                            <FaUpload /> {imgUploading ? 'Caricamento…' : 'Carica immagine (SVG/WebP)'}
+                        </button>
+                        <span className="text-xs text-muted">max 256×256 px, SVG o WebP consigliato</span>
+                    </div>
+                </div>
+
+                {/* ── Identity ── */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: 'var(--space-2)' }}>
+                    <Field label="Nome *"><input className="input w-full" value={e.name} onChange={ev => set({ name: ev.target.value })} /></Field>
+                    <Field label="Taglia">
+                        <select className="input w-full" value={e.size} onChange={ev => set({ size: ev.target.value as CreatureSize })}>
+                            {CREATURE_SIZES.map(s => <option key={s}>{s}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Tipo">
+                        <select className="input w-full" value={e.type} onChange={ev => set({ type: ev.target.value as CreatureTypeCategory })}>
+                            {CREATURE_TYPES.map(t => <option key={t}>{t}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Sottotipo"><input className="input w-full" value={e.subtype ?? ''} onChange={ev => set({ subtype: ev.target.value })} /></Field>
+                    <Field label="Allineamento">
+                        <select className="input w-full" value={e.alignment ?? 'Neutrale'} onChange={ev => set({ alignment: ev.target.value as CreatureAlignment })}>
+                            {CREATURE_ALIGNMENTS.map(a => <option key={a}>{a}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="CR"><input className="input w-full" value={e.challengeRating ?? ''} onChange={ev => set({ challengeRating: ev.target.value })} placeholder="es. 5, 1/2" /></Field>
+                    <Field label="Fonte"><input className="input w-full" value={e.source ?? ''} onChange={ev => set({ source: ev.target.value })} placeholder="es. Monster Manual" /></Field>
+                </div>
+
+                {/* ── Ability scores ── */}
+                <div className="section-header" style={{ marginTop: 8 }}><span className="section-title text-sm">Caratteristiche</span></div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 'var(--space-2)' }}>
+                    {(['str', 'dex', 'con', 'int', 'wis', 'cha'] as const).map(s => (
+                        <Field key={s} label={s.toUpperCase()}>
+                            <input className="input w-full" type="number" min={1} value={(e as any)[s]} onChange={ev => set({ [s]: n(ev.target.value) })} />
+                        </Field>
+                    ))}
+                </div>
+
+                {/* ── Combat ── */}
+                <div className="section-header" style={{ marginTop: 8 }}><span className="section-title text-sm">Combattimento</span></div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px,1fr))', gap: 'var(--space-2)' }}>
+                    <Field label="PF max"><input className="input w-full" type="number" min={1} value={e.hp} onChange={ev => set({ hp: n(ev.target.value) })} /></Field>
+                    <Field label="Dadi PF (es. 4d8+8)"><input className="input w-full" value={e.hpDice ?? ''} onChange={ev => set({ hpDice: ev.target.value })} /></Field>
+                    <Field label="CA"><input className="input w-full" type="number" value={e.ac} onChange={ev => set({ ac: n(ev.target.value) })} /></Field>
+                    <Field label="CA Naturale"><input className="input w-full" type="number" value={e.acNatural ?? 0} onChange={ev => set({ acNatural: n(ev.target.value) })} /></Field>
+                    <Field label="BAB"><input className="input w-full" type="number" value={e.bab} onChange={ev => set({ bab: n(ev.target.value) })} /></Field>
+                    <Field label="Presa"><input className="input w-full" type="number" value={e.grapple ?? 0} onChange={ev => set({ grapple: n(ev.target.value) })} /></Field>
+                    <Field label="Velocità (m)"><input className="input w-full" type="number" value={e.speed} onChange={ev => set({ speed: n(ev.target.value) })} /></Field>
+                    <Field label="Volo (m)"><input className="input w-full" type="number" value={e.fly ?? 0} onChange={ev => set({ fly: n(ev.target.value) || undefined })} /></Field>
+                    <Field label="Nuoto (m)"><input className="input w-full" type="number" value={e.swim ?? 0} onChange={ev => set({ swim: n(ev.target.value) || undefined })} /></Field>
+                    <Field label="Scalata (m)"><input className="input w-full" type="number" value={e.climb ?? 0} onChange={ev => set({ climb: n(ev.target.value) || undefined })} /></Field>
+                </div>
+
+                {/* ── Saves ── */}
+                <div className="section-header" style={{ marginTop: 8 }}><span className="section-title text-sm">Tiri Salvezza</span></div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-2)' }}>
+                    <Field label="Tempra"><input className="input w-full" type="number" value={e.fortitude} onChange={ev => set({ fortitude: n(ev.target.value) })} /></Field>
+                    <Field label="Riflessi"><input className="input w-full" type="number" value={e.reflex} onChange={ev => set({ reflex: n(ev.target.value) })} /></Field>
+                    <Field label="Volontà"><input className="input w-full" type="number" value={e.will} onChange={ev => set({ will: n(ev.target.value) })} /></Field>
+                </div>
+
+                {/* ── Defense ── */}
+                <div className="section-header" style={{ marginTop: 8 }}><span className="section-title text-sm">Difese & Sensi</span></div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: 'var(--space-2)' }}>
+                    <Field label="Riduzione Danni"><input className="input w-full" value={e.damageReduction ?? ''} onChange={ev => set({ damageReduction: ev.target.value })} placeholder="es. 5/magico" /></Field>
+                    <Field label="Res. Incantesimi"><input className="input w-full" type="number" value={e.spellResistance ?? 0} onChange={ev => set({ spellResistance: n(ev.target.value) || undefined })} /></Field>
+                    <Field label="Resistenze"><input className="input w-full" value={e.resistances ?? ''} onChange={ev => set({ resistances: ev.target.value })} placeholder="es. fuoco 10" /></Field>
+                    <Field label="Immunità"><input className="input w-full" value={e.immunities ?? ''} onChange={ev => set({ immunities: ev.target.value })} /></Field>
+                    <Field label="Vulnerabilità"><input className="input w-full" value={e.weaknesses ?? ''} onChange={ev => set({ weaknesses: ev.target.value })} /></Field>
+                    <Field label="Visione nel buio (m)"><input className="input w-full" type="number" value={e.darkvision ?? 0} onChange={ev => set({ darkvision: n(ev.target.value) || undefined })} /></Field>
+                    <Field label="Olfatto"><input className="input w-full" type="checkbox" checked={e.scent ?? false} onChange={ev => set({ scent: ev.target.checked })} style={{ width: 'auto' }} /></Field>
+                </div>
+
+                {/* ── Actions ── */}
+                <div className="section-header" style={{ marginTop: 8 }}>
+                    <span className="section-title text-sm">Attacchi</span>
+                    <button className="btn-secondary text-xs" onClick={addAction}><FaPlus /> Aggiungi attacco</button>
+                </div>
+                {(e.actions ?? []).map(a => (
+                    <div key={a.id} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px,1fr))', gap: 'var(--space-1)', background: 'var(--bg-surface)', padding: 'var(--space-2)', borderRadius: 'var(--radius-sm)' }}>
+                        <Field label="Nome attacco"><input className="input w-full" value={a.name} onChange={ev => updateAction({ ...a, name: ev.target.value })} /></Field>
+                        <Field label="Bonus attacco"><input className="input w-full" type="number" value={a.attackBonus ?? 0} onChange={ev => updateAction({ ...a, attackBonus: Number(ev.target.value) })} /></Field>
+                        <Field label="Danno (es. 1d8+3)"><input className="input w-full" value={a.damage ?? ''} onChange={ev => updateAction({ ...a, damage: ev.target.value })} /></Field>
+                        <Field label="Tipo danno"><input className="input w-full" value={a.damageType ?? ''} onChange={ev => updateAction({ ...a, damageType: ev.target.value })} placeholder="taglio, fuoco…" /></Field>
+                        <Field label="Critico"><input className="input w-full" value={a.criticalRange ?? '20'} onChange={ev => updateAction({ ...a, criticalRange: ev.target.value })} /></Field>
+                        <Field label="Mult. critico"><input className="input w-full" value={a.criticalMultiplier ?? '×2'} onChange={ev => updateAction({ ...a, criticalMultiplier: ev.target.value })} /></Field>
+                        <Field label="Gittata"><input className="input w-full" value={a.range ?? 'Mischia'} onChange={ev => updateAction({ ...a, range: ev.target.value })} /></Field>
+                        <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                            <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => removeAction(a.id)}><FaTrash /> Rimuovi</button>
+                        </div>
+                    </div>
+                ))}
+
+                {/* ── Special Abilities ── */}
+                <div className="section-header" style={{ marginTop: 8 }}>
+                    <span className="section-title text-sm">Capacità Speciali</span>
+                    <button className="btn-secondary text-xs" onClick={addAbility}><FaPlus /> Aggiungi capacità</button>
+                </div>
+                {(e.specialAbilities ?? []).map(a => (
+                    <div key={a.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 1fr auto', gap: 'var(--space-1)', background: 'var(--bg-surface)', padding: 'var(--space-2)', borderRadius: 'var(--radius-sm)', alignItems: 'start' }}>
+                        <Field label="Nome"><input className="input w-full" value={a.name} onChange={ev => updateAbility({ ...a, name: ev.target.value })} /></Field>
+                        <Field label="Tipo">
+                            <select className="input w-full" value={a.abilityType} onChange={ev => updateAbility({ ...a, abilityType: ev.target.value as 'EX' | 'SP' | 'SU' })}>
+                                <option value="EX">EX</option>
+                                <option value="SP">SP</option>
+                                <option value="SU">SU</option>
+                            </select>
+                        </Field>
+                        <Field label="Descrizione"><textarea className="input w-full" rows={2} value={a.description} onChange={ev => updateAbility({ ...a, description: ev.target.value })} /></Field>
+                        <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 2 }}>
+                            <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => removeAbility(a.id)}><FaTrash /></button>
+                        </div>
+                    </div>
+                ))}
+
+                {/* ── Flavor ── */}
+                <div className="section-header" style={{ marginTop: 8 }}><span className="section-title text-sm">Ambientazione & Note</span></div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))', gap: 'var(--space-2)' }}>
+                    <Field label="Habitat"><input className="input w-full" value={e.habitat ?? ''} onChange={ev => set({ habitat: ev.target.value })} /></Field>
+                    <Field label="Organizzazione"><input className="input w-full" value={e.organization ?? ''} onChange={ev => set({ organization: ev.target.value })} /></Field>
+                    <Field label="Tesoro"><input className="input w-full" value={e.treasureValue ?? ''} onChange={ev => set({ treasureValue: ev.target.value })} /></Field>
+                    <Field label="Tag (separati da virgola)">
+                        <input className="input w-full" value={(e.tags ?? []).join(', ')} onChange={ev => set({ tags: ev.target.value.split(',').map(s => s.trim()).filter(Boolean) })} />
+                    </Field>
+                </div>
+                <Field label="Descrizione">
+                    <textarea className="input w-full" rows={5} value={e.description ?? ''} onChange={ev => set({ description: ev.target.value })} />
+                </Field>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex-col gap-3">
+            <div className="flex gap-2 items-center" style={{ flexWrap: 'wrap' }}>
+                <div className="flex items-center gap-2" style={{ flex: '1 1 240px', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', padding: '0.4rem 0.75rem' }}>
+                    <FaSearch className="text-muted" />
+                    <input className="w-full" style={{ background: 'transparent', border: 'none', color: 'inherit', outline: 'none' }} placeholder="Cerca creatura…" value={search} onChange={e => setSearch(e.target.value)} />
+                </div>
+                <button className="btn-primary text-sm" onClick={() => setEditing(EMPTY_CREATURE())}><FaPlus /> Nuova Creatura</button>
+            </div>
+            <div className="glass-panel">
+                {loading && <div className="text-muted text-sm">Caricamento…</div>}
+                {!loading && filtered.length === 0 && <div className="text-muted text-sm">Nessuna creatura nel catalogo.</div>}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--space-2)' }}>
+                    {filtered.map(c => (
+                        <div key={c.id} className="card" style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: 12 }}>
+                            {/* Thumbnail */}
+                            <div style={{ width: 48, height: 48, borderRadius: 'var(--radius-sm)', background: 'var(--bg-surface)', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-gold)', fontSize: 22 }}>
+                                {c.imageData && c.imageType === 'svg'
+                                    ? <span dangerouslySetInnerHTML={{ __html: c.imageData }} style={{ display: 'flex', width: '100%', height: '100%' }} />
+                                    : c.imageData
+                                        ? <img src={c.imageData} alt="" style={{ width: 48, height: 48, objectFit: 'cover' }} />
+                                        : <FaDragon />
+                                }
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
+                                <div className="text-xs text-muted">{c.size} {c.type}{c.subtype ? ` (${c.subtype})` : ''}</div>
+                                <div className="text-xs text-muted">CR {c.challengeRating ?? '?'} · CA {c.ac} · PF {c.hp}</div>
+                                <div className="text-xs text-muted">BAB +{c.bab} · For {c.fortitude}/{c.reflex}/{c.will}</div>
+                            </div>
+                            <div className="flex gap-1">
+                                <button className="btn-ghost text-xs" onClick={() => setEditing({ ...c })} title="Modifica"><FaEdit /></button>
+                                <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => remove(c.id)} title="Elimina"><FaTrash /></button>
+                            </div>
                         </div>
                     ))}
                 </div>

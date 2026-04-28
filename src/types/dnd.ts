@@ -435,12 +435,30 @@ export interface Item {
   iconId?: string;
 }
 
+/** Specifies how a feat/feature/item modifies creature stats on summon or pet acquisition. */
+export type CreatureModifierAppliesTo = 'allSummons' | 'allPets' | 'all';
+
+export interface CreatureModifier {
+  /** Which creatures do this affect */
+  appliesTo: CreatureModifierAppliesTo;
+  /** Stat key to modify */
+  stat: 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha' | 'ac' | 'hp';
+  /** Signed value (positive = bonus, negative = penalty) */
+  value: number;
+  /** Modifier type for stacking rules */
+  type: ModifierType;
+  /** Human-readable tag for display, e.g. "Aumentare Evocazioni" */
+  label?: string;
+}
+
 export interface Feat {
   id: string;
   name: string;
   description: string;
   modifiers: Modifier[];
   active: boolean; // Some feats are toggleable (like Power Attack)
+  /** Modifiers automatically applied to summoned/pet creatures when this feat is active */
+  creatureModifiers?: CreatureModifier[];
 }
 
 export type ClassFeatureSubcategory = 'active' | 'passive' | 'option';
@@ -458,6 +476,8 @@ export interface ClassFeature {
   resourceMax?: number;
   /** Currently spent uses */
   resourceUsed?: number;
+  /** Modifiers automatically applied to summoned/pet creatures when this feature is active */
+  creatureModifiers?: CreatureModifier[];
 }
 
 export interface Skill {
@@ -512,6 +532,8 @@ export interface Spell {
   damageType?: string;
   /** Stat that sets the save DC (`int` for wizard, `wis` for cleric, etc.). */
   saveStat?: StatType;
+  /** IDs of catalog creatures (BestiaryEntry) that can be summoned with this spell */
+  summonableCreatureIds?: string[];
   // Legacy compat only
   prepared?: number;
   cast?: number;
@@ -665,4 +687,178 @@ export interface CharacterBase {
   activeModifiers?: ActiveModifier[];
   /** Chronological archive of removed/expired modifiers (max 30, newest first). */
   modifiersHistory?: ActiveModifier[];
+  /** Personal bestiary: catalog refs + custom creatures */
+  bestiary?: BestiaryEntry[];
+  /** Currently active summons */
+  activeSummons?: ActiveSummon[];
+  /** Pets / companions */
+  activePets?: ActivePet[];
+}
+
+// ─────────────────────────── BESTIARY ────────────────────────────
+
+export type CreatureSize =
+  | 'Minuscola' | 'Piccola' | 'Media' | 'Grande' | 'Enorme' | 'Mastodontica' | 'Colossale';
+
+export type CreatureTypeCategory =
+  | 'Aberrazione' | 'Animale' | 'Costrutto' | 'Drago' | 'Elementale'
+  | 'Fatato' | 'Gigante' | 'Umanoide' | 'Bestia Magica' | 'Umanoide Mostruoso'
+  | 'Melma' | 'Esterno' | 'Vegetale' | 'Non Morto' | 'Verme';
+
+export type CreatureAlignment =
+  | 'Legale Buono' | 'Neutrale Buono' | 'Caotico Buono'
+  | 'Legale Neutrale' | 'Neutrale' | 'Caotico Neutrale'
+  | 'Legale Malvagio' | 'Neutrale Malvagio' | 'Caotico Malvagio';
+
+export interface CreatureAction {
+  id: string;
+  name: string;
+  attackBonus?: number;
+  /** Damage expression, e.g. "1d8+3" */
+  damage?: string;
+  damageType?: string;
+  criticalRange?: string;
+  criticalMultiplier?: string;
+  range?: string;
+  notes?: string;
+}
+
+export interface CreatureSpecialAbility {
+  id: string;
+  name: string;
+  description: string;
+  /** EX = straordinaria, SP = magica, SU = soprannaturale */
+  abilityType: 'EX' | 'SP' | 'SU';
+}
+
+export interface Creature {
+  id: string;
+  name: string;
+  /** Base64 data URL (webp/png) or inline SVG markup. Stripped in active summon copies. */
+  imageData?: string;
+  imageType?: 'svg' | 'webp' | 'png';
+
+  size: CreatureSize;
+  type: CreatureTypeCategory;
+  subtype?: string;
+  alignment?: CreatureAlignment;
+
+  // Core ability scores
+  str: number;
+  dex: number;
+  con: number;
+  int: number;
+  wis: number;
+  cha: number;
+
+  // Combat
+  hp: number;
+  hpDice?: string;
+  ac: number;
+  acNatural?: number;
+  speed: number;
+  fly?: number;
+  swim?: number;
+  climb?: number;
+  burrow?: number;
+  bab: number;
+  grapple?: number;
+
+  // Saves
+  fortitude: number;
+  reflex: number;
+  will: number;
+
+  // Senses
+  darkvision?: number;
+  lowLightVision?: boolean;
+  scent?: boolean;
+  blindsight?: number;
+  tremorsense?: number;
+
+  // Defense
+  damageReduction?: string;
+  spellResistance?: number;
+  resistances?: string;
+  immunities?: string;
+  weaknesses?: string;
+
+  // Offense
+  actions: CreatureAction[];
+  specialAbilities: CreatureSpecialAbility[];
+
+  // Spells
+  spellsKnown?: Array<{ id: string; name: string; level: number; description?: string }>;
+  spellLikeAbilities?: Array<{ id: string; name: string; description?: string; usesPerDay?: string }>;
+
+  // Meta
+  description?: string;
+  habitat?: string;
+  organization?: string;
+  challengeRating?: string;
+  source?: string;
+  tags?: string[];
+  treasureValue?: string;
+}
+
+/** An entry in the character's personal bestiary (catalog ref + optional notes) */
+export interface BestiaryEntry {
+  id: string;
+  /** If sourced from the shared catalog, the catalog doc id */
+  catalogId?: string;
+  /** Full creature data (snapshot or custom) */
+  creature: Creature;
+  /** Character-specific notes about this creature */
+  characterNotes?: string;
+  addedAt: string;
+}
+
+/** Applied stat override in a summon/pet (from feats, spells, items) */
+export interface CreatureStatOverride {
+  source: string;
+  stat: 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha' | 'ac' | 'hp';
+  value: number;
+  type: ModifierType;
+}
+
+/** Spell / condition active on a summon or pet */
+export interface CreatureActiveEffect {
+  id: string;
+  name: string;
+  roundsLeft?: number;
+  notes?: string;
+}
+
+/** An actively summoned creature tracked during play */
+export interface ActiveSummon {
+  id: string;
+  /** Creature data (without imageData to save space) */
+  creature: Creature;
+  /** Reference back to bestiary entry or catalog id */
+  originId?: string;
+  /** Computed stat overrides applied at summon time */
+  appliedOverrides: CreatureStatOverride[];
+  currentHp: number;
+  /** Spell that created this summon */
+  summonSpellId?: string;
+  summonSpellName?: string;
+  /** Remaining duration */
+  roundsRemaining?: number | null;
+  durationUnit?: DurationUnit;
+  conditions?: string[];
+  activeEffects?: CreatureActiveEffect[];
+  summonedAt: string;
+}
+
+/** A pet / animal companion tracked during play */
+export interface ActivePet {
+  id: string;
+  creature: Creature;
+  originId?: string;
+  appliedOverrides: CreatureStatOverride[];
+  currentHp: number;
+  nickname?: string;
+  conditions?: string[];
+  activeEffects?: CreatureActiveEffect[];
+  addedAt: string;
 }

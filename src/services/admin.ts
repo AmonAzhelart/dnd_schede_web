@@ -10,7 +10,7 @@ import {
     orderBy,
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import type { Spell, StatType, Modifier } from '../types/dnd';
+import type { Spell, StatType, Modifier, Creature, CreatureModifier } from '../types/dnd';
 
 /** SuperAdmin: can manage invites and the shared back-office catalogs. */
 export const SUPERADMIN_EMAIL = 'fonti.alessandro98@gmail.com';
@@ -104,6 +104,20 @@ export interface CatalogFeat {
     updatedAt?: any;
 }
 
+/** A creature entry in the shared bestiary catalog. */
+export interface CatalogCreature extends Creature {
+    createdBy?: string;
+    updatedAt?: any;
+}
+
+/** Shared feat / talent with optional creature modifier support. */
+export interface CatalogFeatWithCreatureModifiers extends CatalogFeat {
+    creatureModifiers?: CreatureModifier[];
+}
+
+// forward-compat alias (same shape, different semantic intent)
+export type { CatalogFeat };
+
 /** A reusable SVG asset (e.g. inventory icons). */
 export interface CatalogIcon {
     id: string;
@@ -179,6 +193,7 @@ export const skillCatalog = makeCatalog<CatalogSkill>('catalog_skills');
 export const featCatalog = makeCatalog<CatalogFeat>('catalog_feats');
 export const iconCatalog = makeCatalog<CatalogIcon>('catalog_icons');
 export const widgetCatalog = makeCatalog<CatalogWidget>('catalog_widgets');
+export const creatureCatalog = makeCatalog<CatalogCreature>('catalog_creatures');
 
 // Suppress unused "AnyCatalog" — reserved for future generic helpers.
 export type _AnyCatalog = AnyCatalog;

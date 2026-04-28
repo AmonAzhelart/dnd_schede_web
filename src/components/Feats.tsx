@@ -3,13 +3,14 @@ import { useCharacterStore } from '../store/characterStore';
 import { v4 as uuidv4 } from 'uuid';
 import { FaPlus, FaTrash, FaEdit, FaCheck, FaTimes, FaBookOpen } from 'react-icons/fa';
 import { Virtuoso } from 'react-virtuoso';
-import type { Feat, Modifier } from '../types/dnd';
+import type { Feat, Modifier, CreatureModifier } from '../types/dnd';
 import { featCatalog, type CatalogFeat } from '../services/admin';
 import { CatalogPicker } from './CatalogPicker';
 import { ModifierEditor } from './ModifierEditor';
+import { CreatureModifierEditor } from './CreatureModifierEditor';
 
 const EMPTY_FEAT = (): Omit<Feat, 'id'> => ({
-    name: '', description: '', modifiers: [], active: true,
+    name: '', description: '', modifiers: [], creatureModifiers: [], active: true,
 });
 
 type FeatCategory = 'feat' | 'defect' | 'racial' | 'class';
@@ -75,6 +76,11 @@ const EditForm: React.FC<EditFormProps> = ({ form, setForm, save, cancel, editin
             accentColor={isDefectForm ? 'var(--accent-crimson)' : 'var(--accent-arcane)'}
             title="MODIFICATORI AL PERSONAGGIO"
             compact
+        />
+        <CreatureModifierEditor
+            modifiers={form.creatureModifiers ?? []}
+            onChange={cms => setForm(f => ({ ...f, creatureModifiers: cms }))}
+            accentColor={isDefectForm ? 'var(--accent-crimson)' : 'var(--accent-gold)'}
         />
         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
             <button onClick={cancel} className="btn-secondary" style={{ fontSize: '0.8rem' }}>Annulla</button>
@@ -175,6 +181,7 @@ export const Feats: React.FC = () => {
             name: finalName,
             description: cf.description,
             modifiers: (cf.modifiers ?? []) as Modifier[],
+            creatureModifiers: (cf.creatureModifiers ?? []) as CreatureModifier[],
             active: true,
         });
         setCatalogOpen(false);
