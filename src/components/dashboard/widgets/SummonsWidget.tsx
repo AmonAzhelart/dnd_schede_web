@@ -206,8 +206,8 @@ const CreaturePopup: React.FC<PopupProps> = ({
     const hpGradient = dead
         ? '#636e72'
         : pct > 0.6 ? 'linear-gradient(90deg,#1abc6a,#2ecc71)'
-        : pct > 0.3 ? 'linear-gradient(90deg,#c9a83c,#f0c040)'
-        : 'linear-gradient(90deg,#a93226,#e74c3c)';
+            : pct > 0.3 ? 'linear-gradient(90deg,#c9a83c,#f0c040)'
+                : 'linear-gradient(90deg,#a93226,#e74c3c)';
 
     const modColor = (val: number) => {
         const m = mod(val);
@@ -218,11 +218,11 @@ const CreaturePopup: React.FC<PopupProps> = ({
     };
 
     const statItems = [
-        { cat: 'attribute', icon: 'ac',      label: 'CA',   val: String(effStat('ac')), hi: true },
-        { cat: 'combat',    icon: 'melee',   label: 'BAB',  val: `+${cr.bab}`,          hi: false },
-        { cat: 'movement',  icon: 'walking', label: 'Vel.', val: `${cr.speed}m`,        hi: false },
-        ...(cr.fly  ? [{ cat: 'movement', icon: 'flying',    label: 'Volo',  val: `${cr.fly}m`,  hi: false }] : []),
-        ...(cr.swim ? [{ cat: 'movement', icon: 'swimming',  label: 'Nuoto', val: `${cr.swim}m`, hi: false }] : []),
+        { cat: 'attribute', icon: 'ac', label: 'CA', val: String(effStat('ac')), hi: true },
+        { cat: 'combat', icon: 'melee', label: 'BAB', val: `+${cr.bab}`, hi: false },
+        { cat: 'movement', icon: 'walking', label: 'Vel.', val: `${cr.speed}m`, hi: false },
+        ...(cr.fly ? [{ cat: 'movement', icon: 'flying', label: 'Volo', val: `${cr.fly}m`, hi: false }] : []),
+        ...(cr.swim ? [{ cat: 'movement', icon: 'swimming', label: 'Nuoto', val: `${cr.swim}m`, hi: false }] : []),
     ];
 
     const S = ({ children }: { children: string }) => (
@@ -412,9 +412,9 @@ const CreaturePopup: React.FC<PopupProps> = ({
                     <S>Tiri Salvezza</S>
                     <div className="cpop-saves-row">
                         {[
-                            { l: 'Tempra',   v: cr.fortitude },
+                            { l: 'Tempra', v: cr.fortitude },
                             { l: 'Riflessi', v: cr.reflex },
-                            { l: 'Volontà',  v: cr.will },
+                            { l: 'Volontà', v: cr.will },
                         ].map(s => (
                             <div key={s.l} className="cpop-save-pill">
                                 <div className="cpop-save-val" style={{ color: s.v >= 0 ? 'var(--text-primary)' : 'var(--accent-crimson)' }}>
@@ -430,11 +430,11 @@ const CreaturePopup: React.FC<PopupProps> = ({
                         <>
                             <S>Difese</S>
                             {[
-                                cr.damageReduction && { l: 'RD',         v: cr.damageReduction,         c: 'var(--text-secondary)' },
-                                cr.spellResistance && { l: 'RM',         v: String(cr.spellResistance), c: 'var(--text-secondary)' },
-                                cr.resistances     && { l: 'Resistenze', v: cr.resistances,             c: 'var(--text-secondary)' },
-                                cr.immunities      && { l: 'Immunità',   v: cr.immunities,              c: 'var(--text-secondary)' },
-                                cr.weaknesses      && { l: 'Debolezze',  v: cr.weaknesses,              c: 'var(--accent-crimson)' },
+                                cr.damageReduction && { l: 'RD', v: cr.damageReduction, c: 'var(--text-secondary)' },
+                                cr.spellResistance && { l: 'RM', v: String(cr.spellResistance), c: 'var(--text-secondary)' },
+                                cr.resistances && { l: 'Resistenze', v: cr.resistances, c: 'var(--text-secondary)' },
+                                cr.immunities && { l: 'Immunità', v: cr.immunities, c: 'var(--text-secondary)' },
+                                cr.weaknesses && { l: 'Debolezze', v: cr.weaknesses, c: 'var(--accent-crimson)' },
                             ].filter(Boolean).map((d: any) => (
                                 <div key={d.l} className="cpop-def-item">
                                     <span style={{ fontSize: '0.57rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', flexShrink: 0 }}>{d.l}</span>

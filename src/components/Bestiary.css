@@ -26,6 +26,7 @@
   transition: border-color 0.18s, transform 0.12s;
   cursor: pointer;
 }
+
 .creature-card:hover {
   border-color: var(--accent-gold);
   transform: translateY(-2px);
@@ -159,10 +160,21 @@
   transition: width 0.3s ease;
 }
 
-.tracker-hp-fill.healthy  { background: #2ecc71; }
-.tracker-hp-fill.wounded  { background: #f0c040; }
-.tracker-hp-fill.critical { background: #e74c3c; }
-.tracker-hp-fill.dead     { background: #636e72; }
+.tracker-hp-fill.healthy {
+  background: #2ecc71;
+}
+
+.tracker-hp-fill.wounded {
+  background: #f0c040;
+}
+
+.tracker-hp-fill.critical {
+  background: #e74c3c;
+}
+
+.tracker-hp-fill.dead {
+  background: #636e72;
+}
 
 .tracker-body {
   padding: var(--space-2) var(--space-3);
@@ -254,7 +266,10 @@
   overflow: hidden;
 }
 
-.cpop-identity { flex: 1; min-width: 0; }
+.cpop-identity {
+  flex: 1;
+  min-width: 0;
+}
 
 .cpop-name {
   font-family: var(--font-heading);
@@ -301,10 +316,16 @@
   font-size: 12px;
   transition: background 0.15s, color 0.15s;
 }
-.cpop-close:hover { background: rgba(255,255,255,0.11); color: var(--text-primary); }
+
+.cpop-close:hover {
+  background: rgba(255, 255, 255, 0.11);
+  color: var(--text-primary);
+}
 
 /* ── HP strip ── */
-.cpop-hp-area { padding: 11px 0 13px; }
+.cpop-hp-area {
+  padding: 11px 0 13px;
+}
 
 .cpop-hp-row {
   display: flex;
@@ -371,7 +392,7 @@
   flex-shrink: 0;
 }
 
-.cpop-sec > span {
+.cpop-sec>span {
   font-size: 0.52rem;
   font-family: var(--font-heading);
   text-transform: uppercase;
@@ -385,7 +406,11 @@
 }
 
 /* ── Tracker (shown first) ── */
-.cpop-tracker { display: flex; flex-direction: column; gap: 6px; }
+.cpop-tracker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
 .cpop-track-row {
   display: grid;
@@ -412,8 +437,13 @@
 }
 
 .cpop-track-grp input[type='number']::-webkit-inner-spin-button,
-.cpop-track-grp input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; }
-.cpop-track-grp input[type='number'] { -moz-appearance: textfield; }
+.cpop-track-grp input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+
+.cpop-track-grp input[type='number'] {
+  -moz-appearance: textfield;
+}
 
 .cpop-track-grp button {
   flex-shrink: 0;
@@ -428,7 +458,11 @@
   white-space: nowrap;
 }
 
-.cpop-quick-row { display: flex; gap: 6px; align-items: center; }
+.cpop-quick-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
 
 .cpop-quick {
   padding: 6px 14px;
@@ -531,7 +565,7 @@
   background: rgba(255, 255, 255, 0.03);
 }
 
-.cpop-save-pill + .cpop-save-pill {
+.cpop-save-pill+.cpop-save-pill {
   border-left: 1px solid rgba(255, 255, 255, 0.07);
 }
 
@@ -585,9 +619,18 @@
   border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.cpop-card.ability { border-color: rgba(155, 89, 182, 0.16); }
-.cpop-card.ability .cpop-card-head { background: rgba(155, 89, 182, 0.06); }
-.cpop-card.ability .cpop-card-body { border-top-color: rgba(155, 89, 182, 0.1); color: var(--text-secondary); }
+.cpop-card.ability {
+  border-color: rgba(155, 89, 182, 0.16);
+}
+
+.cpop-card.ability .cpop-card-head {
+  background: rgba(155, 89, 182, 0.06);
+}
+
+.cpop-card.ability .cpop-card-body {
+  border-top-color: rgba(155, 89, 182, 0.1);
+  color: var(--text-secondary);
+}
 
 /* ── Defense rows ── */
 .cpop-def-item {
@@ -603,14 +646,30 @@
 }
 
 @media (max-width: 480px) {
-  .cpop { max-height: 98dvh; border-radius: 10px 10px 0 0; align-self: flex-end; }
-  .cpop-overlay { align-items: flex-end; padding: 0; }
-  .cpop-name { font-size: 1rem; }
-  .cpop-abilities { grid-template-columns: repeat(3, 1fr); }
-  .cpop-combat { flex-wrap: wrap; }
-  .cpop-combat .cpop-cs { flex: 1 1 calc(50% - 3px); }
+  .cpop {
+    max-height: 98dvh;
+    border-radius: 10px 10px 0 0;
+    align-self: flex-end;
+  }
+
+  .cpop-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .cpop-name {
+    font-size: 1rem;
+  }
+
+  .cpop-abilities {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .cpop-combat {
+    flex-wrap: wrap;
+  }
+
+  .cpop-combat .cpop-cs {
+    flex: 1 1 calc(50% - 3px);
+  }
 }
-
-
-
-
