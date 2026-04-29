@@ -205,3 +205,412 @@
   border-color: rgba(231, 76, 60, 0.3);
   color: #e74c3c;
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   Creature Widget Popup  (cpop-*)
+   ══════════════════════════════════════════════════════════════════ */
+
+.cpop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0, 0, 0, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  backdrop-filter: blur(4px);
+}
+
+.cpop {
+  width: 100%;
+  max-width: 560px;
+  max-height: 94dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+/* ── Header ── */
+.cpop-header {
+  flex-shrink: 0;
+  padding: 14px 14px 0;
+  position: relative;
+}
+
+.cpop-header-inner {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding-right: 36px;
+}
+
+.cpop-portrait-wrap {
+  flex-shrink: 0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.cpop-identity { flex: 1; min-width: 0; }
+
+.cpop-name {
+  font-family: var(--font-heading);
+  font-size: 1.2rem;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0 0 4px;
+}
+
+.cpop-meta {
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.cpop-badges {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.cpop-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: background 0.15s, color 0.15s;
+}
+.cpop-close:hover { background: rgba(255,255,255,0.11); color: var(--text-primary); }
+
+/* ── HP strip ── */
+.cpop-hp-area { padding: 11px 0 13px; }
+
+.cpop-hp-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 7px;
+}
+
+.cpop-hp-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  font-family: var(--font-heading);
+}
+
+.cpop-hp-val {
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.cpop-hp-track {
+  height: 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.cpop-hp-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1), background 0.4s;
+}
+
+/* ── Body: single scrollable column ── */
+.cpop-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 14px 18px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ── Section label ── */
+.cpop-sec {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 14px 0 8px;
+}
+
+.cpop-sec-bar {
+  width: 3px;
+  height: 12px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.cpop-sec > span {
+  font-size: 0.52rem;
+  font-family: var(--font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+
+.cpop-sec-line {
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/* ── Tracker (shown first) ── */
+.cpop-tracker { display: flex; flex-direction: column; gap: 6px; }
+
+.cpop-track-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.cpop-track-grp {
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid transparent;
+}
+
+.cpop-track-grp input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 8px 9px;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+}
+
+.cpop-track-grp input[type='number']::-webkit-inner-spin-button,
+.cpop-track-grp input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; }
+.cpop-track-grp input[type='number'] { -moz-appearance: textfield; }
+
+.cpop-track-grp button {
+  flex-shrink: 0;
+  padding: 0 11px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.72rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-heading);
+  white-space: nowrap;
+}
+
+.cpop-quick-row { display: flex; gap: 6px; align-items: center; }
+
+.cpop-quick {
+  padding: 6px 14px;
+  border-radius: 7px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  font-family: var(--font-heading);
+  border: 1px solid;
+  background: transparent;
+}
+
+/* ── Combat stats row ── */
+.cpop-combat {
+  display: flex;
+  gap: 6px;
+}
+
+.cpop-cs {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.cpop-cs.hi {
+  background: rgba(201, 168, 76, 0.07);
+  border-color: rgba(201, 168, 76, 0.2);
+}
+
+.cpop-cs-val {
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.cpop-cs-lbl {
+  font-size: 0.5rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+/* ── Ability grid ── */
+.cpop-abilities {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 5px;
+}
+
+.cpop-ab {
+  border-radius: 9px;
+  padding: 9px 4px 8px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.cpop-ab.boosted {
+  background: rgba(46, 204, 113, 0.07);
+  border-color: rgba(46, 204, 113, 0.24);
+}
+
+.cpop-ab-score {
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  line-height: 1;
+  margin: 4px 0 2px;
+}
+
+.cpop-ab-mod {
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
+.cpop-ab-abbr {
+  font-size: 0.46rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Saves inline ── */
+.cpop-saves-row {
+  display: flex;
+  gap: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.cpop-save-pill {
+  flex: 1;
+  text-align: center;
+  padding: 8px 6px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.cpop-save-pill + .cpop-save-pill {
+  border-left: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.cpop-save-val {
+  font-family: var(--font-heading);
+  font-size: 0.98rem;
+  line-height: 1;
+  margin-bottom: 3px;
+}
+
+.cpop-save-lbl {
+  font-size: 0.48rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── Override chips ── */
+.cpop-overrides {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: rgba(46, 204, 113, 0.05);
+  border: 1px solid rgba(46, 204, 113, 0.15);
+}
+
+/* ── Action / ability cards ── */
+.cpop-card {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  margin-bottom: 5px;
+}
+
+.cpop-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 11px;
+  background: rgba(255, 255, 255, 0.025);
+  flex-wrap: wrap;
+}
+
+.cpop-card-body {
+  padding: 6px 11px 8px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.cpop-card.ability { border-color: rgba(155, 89, 182, 0.16); }
+.cpop-card.ability .cpop-card-head { background: rgba(155, 89, 182, 0.06); }
+.cpop-card.ability .cpop-card-body { border-top-color: rgba(155, 89, 182, 0.1); color: var(--text-secondary); }
+
+/* ── Defense rows ── */
+.cpop-def-item {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 5px 10px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 4px;
+  font-size: 0.72rem;
+}
+
+@media (max-width: 480px) {
+  .cpop { max-height: 98dvh; border-radius: 10px 10px 0 0; align-self: flex-end; }
+  .cpop-overlay { align-items: flex-end; padding: 0; }
+  .cpop-name { font-size: 1rem; }
+  .cpop-abilities { grid-template-columns: repeat(3, 1fr); }
+  .cpop-combat { flex-wrap: wrap; }
+  .cpop-combat .cpop-cs { flex: 1 1 calc(50% - 3px); }
+}
+
+
+
+
