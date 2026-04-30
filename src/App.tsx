@@ -7,17 +7,21 @@ import { MapBoard } from './components/MapBoard';
 import { AdventureDiary } from './components/AdventureDiary';
 import { CharacterSheet } from './components/CharacterSheet';
 import { SkeletonCharacterCard, SkeletonSheet } from './components/Skeleton';
-import { getUserCharacters, createNewCharacterDb, saveCharacterToDb } from './services/db';
+import { getUserCharacters, createCharacterWithDataDb, saveCharacterToDb, deleteCharacterDb } from './services/db';
 import type { CharacterBase } from './types/dnd';
+import { CharacterWizard } from './components/wizard/CharacterWizard';
 import { GiSwordman, GiTreasureMap } from 'react-icons/gi';
-import { FaBookOpen, FaGoogle, FaSignOutAlt, FaPlus, FaChevronLeft, FaCog } from 'react-icons/fa';
-import { isEmailAllowed, isSuperAdmin } from './services/admin';
-import { BackOffice } from './components/backoffice/BackOffice';
+import { FaBookOpen, FaGoogle, FaSignOutAlt, FaPlus, FaChevronLeft, FaCog, FaTrash } from 'react-icons/fa';
+import { isEmailAllowed, isSuperAdmin, getInvite } from './services/admin';
+import { BackOffice, type Section } from './components/backoffice/BackOffice';
 import { MobileShell } from './components/mobile/MobileShell';
+import { LanguageSwitcher } from './components/ui/LanguageSwitcher';
+import { useTranslation } from 'react-i18next';
 
 type Tab = 'scheda' | 'diario' | 'mappe' | 'backoffice';
 
 function App() {
+  const { t } = useTranslation();
   const { character, setCharacter } = useCharacterStore();
   const [activeTab, setActiveTab] = useState<Tab>('scheda');
   const [user, setUser] = useState<User | null>(null);
@@ -25,6 +29,10 @@ function App() {
   const [loadingChars, setLoadingChars] = useState(true);
   const [accessChecked, setAccessChecked] = useState(false);
   const [accessAllowed, setAccessAllowed] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<CharacterBase | null>(null);
+  /** Sections allowed for this user from their Firestore invite (undefined = superAdmin = all). */
+  const [userSections, setUserSections] = useState<Section[] | undefined>(undefined);
 
   // ── Auto-save ──────────────────────────────────────────
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -79,6 +87,13 @@ function App() {
           setUserCharacters([]);
           return;
         }
+        // Load backoffice section permissions
+        if (!isSuperAdmin(u.email)) {
+          const inv = await getInvite(u.email);
+          setUserSections(inv?.sections?.length ? (inv.sections as Section[]) : undefined);
+        } else {
+          setUserSections(undefined); // superAdmin sees everything
+        }
         setLoadingChars(true);
         const chars = await getUserCharacters(u.uid);
         setUserCharacters(chars);
@@ -107,12 +122,22 @@ function App() {
     setCharacter(char);
   };
 
-  const handleCreateCharacter = async () => {
+  const handleCreateCharacter = () => {
     if (!user) return;
-    const name = prompt('Nome del personaggio:');
-    if (!name?.trim()) return;
+    setShowWizard(true);
+  };
+
+  const handleDeleteCharacter = async (char: CharacterBase) => {
+    await deleteCharacterDb(char.id);
+    setUserCharacters(prev => prev.filter(c => c.id !== char.id));
+    if (character?.id === char.id) setCharacter(null as any);
+    setConfirmDelete(null);
+  };
+
+  const handleWizardComplete = async (charData: Omit<CharacterBase, 'id'>) => {
+    setShowWizard(false);
     setLoadingChars(true);
-    const c = await createNewCharacterDb(user.uid, name.trim());
+    const c = await createCharacterWithDataDb(charData);
     setUserCharacters(prev => [...prev, c]);
     setLoadingChars(false);
     selectCharacter(c);
@@ -129,8 +154,11 @@ function App() {
             L'account <strong>{user.email}</strong> non è autorizzato.<br />
             Contatta l'amministratore per richiedere un invito.
           </p>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
+            <LanguageSwitcher />
+          </div>
           <button className="btn-secondary w-full" style={{ justifyContent: 'center' }} onClick={handleLogout}>
-            <FaSignOutAlt /> Esci
+            <FaSignOutAlt /> {t('app.logout')}
           </button>
         </div>
       </div>
@@ -154,32 +182,26 @@ function App() {
   }
 
   const superAdmin = isSuperAdmin(user.email);
+  const hasBackofficeAccess = superAdmin || !!userSections;
 
   // ── BACKOFFICE-ONLY VIEW (no character required) ──────
-  if (superAdmin && activeTab === 'backoffice' && !character) {
+  if (hasBackofficeAccess && activeTab === 'backoffice' && !character) {
     return (
-      <div className="app-container centered">
-        <div className="glass-panel animate-fade-in flex-col gap-3" style={{ width: 'min(1000px, 95vw)', height: '85vh' }}>
-          <div className="section-header">
-            <h2 style={{ fontSize: '1.4rem', margin: 0 }}>Back-Office</h2>
-            <div className="flex gap-2">
-              <button className="btn-secondary text-sm" onClick={() => setActiveTab('scheda')}><FaChevronLeft /> Torna ai personaggi</button>
-              <button className="btn-ghost text-sm" style={{ color: 'var(--accent-crimson)' }} onClick={handleLogout}><FaSignOutAlt /> Logout</button>
-            </div>
-          </div>
-          <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
-            <BackOffice currentUserEmail={user.email ?? ''} />
-          </div>
-        </div>
+      <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-base)' }} className="animate-fade-in">
+        <BackOffice
+          currentUserEmail={user.email ?? ''}
+          allowedSections={userSections}
+          onBack={() => setActiveTab('scheda')}
+        />
       </div>
     );
   }
 
-  // ── CHARACTER SELECTION ────────────────────────────────
   if (!character) {
     return (
-      <div className="app-container centered">
-        <div className="glass-panel animate-fade-in flex-col gap-4" style={{ width: 520 }}>
+      <>
+        <div className="app-container centered">
+          <div className="glass-panel animate-fade-in flex-col gap-4" style={{ width: 520 }}>
           <div style={{ textAlign: 'center' }}>
             <h1 className="text-gradient" style={{ fontSize: '2rem' }}>D&D Nexus</h1>
             <p className="text-muted text-sm" style={{ marginTop: '0.25rem' }}>Benvenuto, {user.displayName}</p>
@@ -210,7 +232,8 @@ function App() {
 
             <div className="flex-col gap-2">
               {userCharacters.map(c => (
-                <button key={c.id} className="btn-secondary w-full" style={{ justifyContent: 'space-between', padding: '0.9rem 1.2rem', borderRadius: 'var(--radius-sm)' }} onClick={() => selectCharacter(c)}>
+                <div key={c.id} style={{ display:'flex', gap:'0.5rem', alignItems:'stretch' }}>
+                <button className="btn-secondary w-full" style={{ justifyContent: 'space-between', padding: '0.9rem 1.2rem', borderRadius: 'var(--radius-sm)', flex:1 }} onClick={() => selectCharacter(c)}>
                   <div className="flex items-center gap-3">
                     <div style={{
                       width: 36,
@@ -235,6 +258,14 @@ function App() {
                   </div>
                   <span className="text-muted" style={{ fontSize: '1.2rem' }}>›</span>
                 </button>
+                <button
+                  className="btn-ghost"
+                  style={{ color:'var(--accent-crimson)', padding:'0 0.7rem', borderRadius:'var(--radius-sm)', border:'1px solid rgba(192,57,43,0.25)', flexShrink:0 }}
+                  title={`Elimina ${c.name}`}
+                  onClick={() => setConfirmDelete(c)}>
+                  <FaTrash size={13} />
+                </button>
+                </div>
               ))}
             </div>
           </div>
@@ -250,6 +281,43 @@ function App() {
           </button>
         </div>
       </div>
+
+      {/* ── CHARACTER CREATION WIZARD ── */}
+      {showWizard && user && (
+        <CharacterWizard
+          userId={user.uid}
+          onComplete={handleWizardComplete}
+          onCancel={() => setShowWizard(false)}
+        />
+      )}
+
+      {/* ── CONFIRM DELETE DIALOG ── */}
+      {confirmDelete && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.82)', zIndex:2000, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}>
+          <div className="glass-panel animate-fade-in" style={{ width:380, textAlign:'center' }}>
+            <div style={{ fontSize:'2.5rem', marginBottom:'0.5rem' }}>⚠️</div>
+            <h3 style={{ fontFamily:'var(--font-heading)', color:'var(--accent-crimson)', marginBottom:'0.5rem', fontSize:'1.2rem' }}>Elimina Personaggio</h3>
+            <p style={{ color:'var(--text-secondary)', marginBottom:'0.5rem', fontSize:'0.9rem' }}>
+              Sei sicuro di voler eliminare <strong style={{ color:'var(--text-primary)' }}>{confirmDelete.name}</strong>?
+            </p>
+            <p style={{ color:'var(--text-muted)', marginBottom:'1.5rem', fontSize:'0.78rem' }}>
+              Tutti i dati del personaggio (scheda, diario, talenti, abilità) verranno rimossi in modo definitivo e irreversibile.
+            </p>
+            <div style={{ display:'flex', gap:'0.75rem' }}>
+              <button className="btn-secondary w-full" style={{ justifyContent:'center' }} onClick={() => setConfirmDelete(null)}>
+                Annulla
+              </button>
+              <button
+                className="btn-primary w-full"
+                style={{ justifyContent:'center', background:'var(--accent-crimson)', borderColor:'var(--accent-crimson)' }}
+                onClick={() => handleDeleteCharacter(confirmDelete)}>
+                <FaTrash size={11} /> Elimina
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
     );
   }
 
@@ -258,7 +326,7 @@ function App() {
     { id: 'scheda', label: 'Scheda', icon: <GiSwordman size={18} /> },
     { id: 'diario', label: 'Diario & NPC', icon: <FaBookOpen size={16} /> },
     { id: 'mappe', label: 'Mappe', icon: <GiTreasureMap size={18} /> },
-    ...(superAdmin ? [{ id: 'backoffice' as Tab, label: 'Back-Office', icon: <FaCog size={16} /> }] : []),
+    ...(hasBackofficeAccess ? [{ id: 'backoffice' as Tab, label: 'Back-Office', icon: <FaCog size={16} /> }] : []),
   ];
 
   return (
@@ -324,8 +392,8 @@ function App() {
             <MapBoard />
           </div>
         )}
-        {activeTab === 'backoffice' && superAdmin && (
-          <BackOffice currentUserEmail={user.email ?? ''} />
+        {activeTab === 'backoffice' && hasBackofficeAccess && (
+          <BackOffice currentUserEmail={user.email ?? ''} allowedSections={userSections} onBack={() => setActiveTab('scheda')} />
         )}
       </main>
 

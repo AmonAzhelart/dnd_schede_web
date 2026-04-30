@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CharacterBase, ClassLevel, HpLevelLogEntry, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell, ActiveModifier, DurationUnit, BestiaryEntry, ActiveSummon, ActivePet, Creature, CreatureStatOverride } from '../types/dnd';
+import type { CharacterBase, ClassLevel, HpLevelLogEntry, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell, ActiveModifier, DurationUnit, BestiaryEntry, ActiveSummon, ActivePet, Creature, CreatureStatOverride, CreatureRuntimeModifier } from '../types/dnd';
 import { computeClassBab, computeClassSaveBase, getExpectedHpForClassLevel } from '../types/dnd';
 import { collectModifierCandidates, resolveStatOverride, type ModifierCandidate, type RollContext } from '../services/modifiers';
 
@@ -131,6 +131,11 @@ interface CharacterState {
   updatePetHp: (id: string, delta: number) => void;
   /** Compute stat overrides from active feats/features/items for a pet */
   computePetOverrides: (creature: Creature) => CreatureStatOverride[];
+
+  // ── Creature runtime modifiers (summons & pets) ──────────────────────
+  addCreatureRuntimeModifier: (kind: 'summon' | 'pet', id: string, mod: CreatureRuntimeModifier) => void;
+  removeCreatureRuntimeModifier: (kind: 'summon' | 'pet', id: string, modId: string) => void;
+  tickCreatureRuntimeModifiers: (kind: 'summon' | 'pet', id: string, by?: number) => void;
 }
 
 // Helper to determine if a modifier type stacks
@@ -957,7 +962,16 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     if (!state.character) return state;
     const activeSummons = (state.character.activeSummons ?? []).map(s => {
       if (s.id !== id) return s;
-      const effective = s.creature.hp + s.appliedOverrides.filter(o => o.stat === 'hp').reduce((acc, o) => acc + o.value, 0);
+      const hpFromRuntime = aggregateModifiers((s.runtimeModifiers ?? []).filter(m => m.stat === 'hp').map(m => ({ type: m.type, value: m.value })));
+      const hpFromStatic = s.appliedOverrides.filter(o => o.stat === 'hp').reduce((acc, o) => acc + o.value, 0);
+      const conBonus = aggregateModifiers([
+        ...s.appliedOverrides.filter(o => o.stat === 'con').map(o => ({ type: o.type, value: o.value })),
+        ...(s.runtimeModifiers ?? []).filter(m => m.stat === 'con').map(m => ({ type: m.type, value: m.value })),
+      ]);
+      const dConMod = Math.floor((s.creature.con + conBonus - 10) / 2) - Math.floor((s.creature.con - 10) / 2);
+      const hdMatch = s.creature.hpDice?.match(/^(\d+)d\d+/);
+      const hdCount = hdMatch ? parseInt(hdMatch[1], 10) : 0;
+      const effective = s.creature.hp + hpFromStatic + hpFromRuntime + dConMod * hdCount;
       return { ...s, currentHp: Math.max(0, Math.min(effective, s.currentHp + delta)) };
     });
     return { character: { ...state.character, activeSummons } };
@@ -1008,9 +1022,67 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     if (!state.character) return state;
     const activePets = (state.character.activePets ?? []).map(p => {
       if (p.id !== id) return p;
-      const effective = p.creature.hp + p.appliedOverrides.filter(o => o.stat === 'hp').reduce((acc, o) => acc + o.value, 0);
+      const hpFromRuntime = aggregateModifiers((p.runtimeModifiers ?? []).filter(m => m.stat === 'hp').map(m => ({ type: m.type, value: m.value })));
+      const hpFromStatic = p.appliedOverrides.filter(o => o.stat === 'hp').reduce((acc, o) => acc + o.value, 0);
+      const conBonus = aggregateModifiers([
+        ...p.appliedOverrides.filter(o => o.stat === 'con').map(o => ({ type: o.type, value: o.value })),
+        ...(p.runtimeModifiers ?? []).filter(m => m.stat === 'con').map(m => ({ type: m.type, value: m.value })),
+      ]);
+      const dConMod = Math.floor((p.creature.con + conBonus - 10) / 2) - Math.floor((p.creature.con - 10) / 2);
+      const hdMatch = p.creature.hpDice?.match(/^(\d+)d\d+/);
+      const hdCount = hdMatch ? parseInt(hdMatch[1], 10) : 0;
+      const effective = p.creature.hp + hpFromStatic + hpFromRuntime + dConMod * hdCount;
       return { ...p, currentHp: Math.max(0, Math.min(effective, p.currentHp + delta)) };
     });
     return { character: { ...state.character, activePets } };
+  }),
+
+  addCreatureRuntimeModifier: (kind, id, mod) => set((state) => {
+    if (!state.character) return state;
+    if (kind === 'summon') {
+      const activeSummons = (state.character.activeSummons ?? []).map(s =>
+        s.id !== id ? s : { ...s, runtimeModifiers: [...(s.runtimeModifiers ?? []), mod] }
+      );
+      return { character: { ...state.character, activeSummons } };
+    } else {
+      const activePets = (state.character.activePets ?? []).map(p =>
+        p.id !== id ? p : { ...p, runtimeModifiers: [...(p.runtimeModifiers ?? []), mod] }
+      );
+      return { character: { ...state.character, activePets } };
+    }
+  }),
+
+  removeCreatureRuntimeModifier: (kind, id, modId) => set((state) => {
+    if (!state.character) return state;
+    if (kind === 'summon') {
+      const activeSummons = (state.character.activeSummons ?? []).map(s =>
+        s.id !== id ? s : { ...s, runtimeModifiers: (s.runtimeModifiers ?? []).filter(m => m.id !== modId) }
+      );
+      return { character: { ...state.character, activeSummons } };
+    } else {
+      const activePets = (state.character.activePets ?? []).map(p =>
+        p.id !== id ? p : { ...p, runtimeModifiers: (p.runtimeModifiers ?? []).filter(m => m.id !== modId) }
+      );
+      return { character: { ...state.character, activePets } };
+    }
+  }),
+
+  tickCreatureRuntimeModifiers: (kind, id, by = 1) => set((state) => {
+    if (!state.character) return state;
+    const tick = (mods: CreatureRuntimeModifier[]): CreatureRuntimeModifier[] =>
+      mods
+        .map(m => m.roundsRemaining == null ? m : { ...m, roundsRemaining: Math.max(0, m.roundsRemaining - by) })
+        .filter(m => m.roundsRemaining == null || m.roundsRemaining > 0);
+    if (kind === 'summon') {
+      const activeSummons = (state.character.activeSummons ?? []).map(s =>
+        s.id !== id ? s : { ...s, runtimeModifiers: tick(s.runtimeModifiers ?? []) }
+      );
+      return { character: { ...state.character, activeSummons } };
+    } else {
+      const activePets = (state.character.activePets ?? []).map(p =>
+        p.id !== id ? p : { ...p, runtimeModifiers: tick(p.runtimeModifiers ?? []) }
+      );
+      return { character: { ...state.character, activePets } };
+    }
   }),
 }));

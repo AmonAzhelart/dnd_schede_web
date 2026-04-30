@@ -367,14 +367,85 @@
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1), background 0.4s;
 }
 
-/* ── Body: single scrollable column ── */
+/* ── Body: tab bar + layout container ── */
 .cpop-body {
   flex: 1;
-  overflow-y: auto;
-  padding: 6px 14px 18px;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Mobile tab bar (hidden on desktop) ── */
+.cpop-tabs {
+  display: none;
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.cpop-tabs::-webkit-scrollbar { display: none; }
+
+.cpop-tab {
+  flex-shrink: 0;
+  padding: 9px 16px;
+  font-size: 0.72rem;
+  font-family: var(--font-heading);
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.cpop-tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent-gold);
+}
+.cpop-tab-badge {
+  font-size: 0.58rem;
+  padding: 1px 5px;
+  border-radius: 10px;
+  background: rgba(201, 168, 76, 0.18);
+  color: var(--accent-gold);
+  font-family: var(--font-heading);
+}
+
+/* ── Two-column layout (desktop) ── */
+.cpop-layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.cpop-left {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 14px 18px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cpop-right {
+  width: 280px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  padding: 6px 14px 18px;
+  border-left: 1px solid rgba(255, 255, 255, 0.07);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Groups are transparent wrappers on desktop — content flows into .cpop-left */
+.cpop-group {
+  display: contents;
 }
 
 /* ── Section label ── */
@@ -645,6 +716,59 @@
   font-size: 0.72rem;
 }
 
+/* ── Desktop: widen the popup ── */
+@media (min-width: 640px) {
+  .cpop {
+    max-width: 860px;
+  }
+}
+
+/* ── Mobile ≤639px: tab panels ── */
+@media (max-width: 639px) {
+  .cpop-tabs {
+    display: flex;
+  }
+
+  /* Both .cpop-left and .cpop-right collapse to transparent containers;
+     the actual panels (.cpop-group and .cpop-right itself) fill the layout area */
+  .cpop-layout {
+    position: relative;
+  }
+
+  .cpop-left {
+    display: contents; /* transparent – groups become direct children of layout */
+  }
+
+  /* All groups hidden on mobile by default */
+  .cpop-group {
+    display: none;
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    padding: 6px 14px 18px;
+    flex-direction: column;
+  }
+  .cpop-group.cpop-ms {
+    display: flex;
+  }
+
+  /* Right aside also becomes an absolute panel on mobile */
+  .cpop-right {
+    display: none;
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    padding: 6px 14px 18px;
+    flex-direction: column;
+    width: auto;
+    border-left: none;
+  }
+  .cpop-right.cpop-ms {
+    display: flex;
+  }
+}
+
+/* ── Smallest phones: slide-up sheet ── */
 @media (max-width: 480px) {
   .cpop {
     max-height: 98dvh;

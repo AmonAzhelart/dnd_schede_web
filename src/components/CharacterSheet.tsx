@@ -1,4 +1,5 @@
 ﻿import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { useCharacterStore } from '../store/characterStore';
 import type { CustomAttack } from '../types/dnd';
@@ -61,6 +62,7 @@ const downscaleImage = (file: File, maxSize: number): Promise<string> => new Pro
 });
 
 export const CharacterSheet: React.FC = () => {
+  const { t } = useTranslation();
   const { character, setCharacter, getEffectiveStat, getStatModifier, getSkillBreakdown, updateSkill, deleteSkill,
     getTotalBab, getMultipleAttacks, getTotalMaxHp } = useCharacterStore();
   const [activeTab, setActiveTab] = useState<SheetTab>('overview');
@@ -101,7 +103,7 @@ export const CharacterSheet: React.FC = () => {
     const acts = [
       {
         id: 'edit-header',
-        label: headerEditing ? 'Chiudi modifica' : 'Modifica personaggio',
+        label: headerEditing ? t('sheet.closeEdit') : t('sheet.editCharacter'),
         icon: <FaEdit size={13} />,
         onClick: () => setHeaderEditing(v => !v),
         active: headerEditing,
@@ -110,7 +112,7 @@ export const CharacterSheet: React.FC = () => {
     if (activeTab === 'overview') {
       acts.push({
         id: 'edit-dash',
-        label: dashEditMode ? 'Termina personalizzazione' : 'Personalizza dashboard',
+        label: dashEditMode ? t('sheet.endCustomize') : t('sheet.customizeDashboard'),
         icon: dashEditMode ? <FaCheck size={12} /> : <FaPalette size={12} />,
         onClick: () => setDashEditMode(v => !v),
         active: dashEditMode,
@@ -165,14 +167,14 @@ export const CharacterSheet: React.FC = () => {
   const hpPercent = Math.max(0, Math.min(100, (currentHp / maxHp) * 100));
 
   const tabs: { id: SheetTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'overview', label: 'Panoramica', icon: <GiSwordman /> },
-    { id: 'combat', label: 'Combattimento', icon: <GiAxeSword /> },
-    { id: 'levels', label: 'Livelli', icon: <GiUpgrade /> },
-    { id: 'skills', label: 'Abilità', icon: <FaStar /> },
-    { id: 'inventory', label: 'Inventario', icon: <GiTreasureMap /> },
-    { id: 'abilities', label: 'Privilegi di Classe', icon: <GiAbstract024 /> },
-    { id: 'spells', label: 'Grimorio', icon: <GiSpellBook /> },
-    { id: 'bestiary', label: 'Bestiario', icon: <FaDragon /> },
+    { id: 'overview', label: t('sheet.tabs.overview'), icon: <GiSwordman /> },
+    { id: 'combat', label: t('sheet.tabs.combat'), icon: <GiAxeSword /> },
+    { id: 'levels', label: t('sheet.tabs.levels'), icon: <GiUpgrade /> },
+    { id: 'skills', label: t('sheet.tabs.skills'), icon: <FaStar /> },
+    { id: 'inventory', label: t('sheet.tabs.inventory'), icon: <GiTreasureMap /> },
+    { id: 'abilities', label: t('sheet.tabs.abilities'), icon: <GiAbstract024 /> },
+    { id: 'spells', label: t('sheet.tabs.spells'), icon: <GiSpellBook /> },
+    { id: 'bestiary', label: t('sheet.tabs.bestiary'), icon: <FaDragon /> },
   ];
 
   return (

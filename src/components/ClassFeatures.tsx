@@ -31,9 +31,16 @@ const SUBCATEGORY_META: SubcategoryMeta[] = [
         emptyMsg: 'Nessuna capacità passiva. Es: Stile di Combattimento, Sensi Acuti.',
     },
     {
+        key: 'talent',
+        label: 'Talenti',
+        headerLabel: 'TALENTI',
+        color: 'var(--accent-gold)',
+        emptyMsg: 'Nessun talento di classe. Es: Talento Bonus del Guerriero, Talento Metamagico.',
+    },
+    {
         key: 'option',
-        label: 'Talenti & Opzioni',
-        headerLabel: 'TALENTI & OPZIONI DI PERSONALIZZAZIONE',
+        label: 'Opzioni di Personalizzazione',
+        headerLabel: 'OPZIONI DI PERSONALIZZAZIONE',
         color: 'var(--accent-arcane)',
         emptyMsg: 'Nessuna opzione. Es: Invocazioni Occulte, Manovre del Guerriero, Metamorfosi.',
     },

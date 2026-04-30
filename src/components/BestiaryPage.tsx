@@ -11,9 +11,9 @@ import { creatureCatalog, type CatalogCreature } from '../services/admin';
 import type {
     BestiaryEntry, ActiveSummon, ActivePet, Creature, CreatureSize,
     CreatureTypeCategory, CreatureAlignment, CreatureAction, CreatureSpecialAbility,
-    CreatureStatOverride,
+    CreatureStatOverride, CreatureRuntimeModifier,
 } from '../types/dnd';
-import { mod, signMod, CreaturePortrait, StatBlock, type StatBlockProps } from './CreatureStatBlock';
+import { mod, signMod, CreaturePortrait, StatBlock, computeEffectiveCreatureStats, type StatBlockProps } from './CreatureStatBlock';
 import './Bestiary.css';
 const pctColor = (p: number) => p > 0.6 ? 'healthy' : p > 0.3 ? 'wounded' : p > 0 ? 'critical' : 'dead';
 
@@ -236,6 +236,7 @@ interface TrackerCardProps {
     currentHp: number;
     maxHp: number;
     overrides: CreatureStatOverride[];
+    runtimeModifiers?: CreatureRuntimeModifier[];
     conditions?: string[];
     onHpDelta: (delta: number) => void;
     onDismiss: () => void;
@@ -243,9 +244,12 @@ interface TrackerCardProps {
     extra?: React.ReactNode;
 }
 
-const TrackerCard: React.FC<TrackerCardProps> = ({ name, creature, currentHp, maxHp, overrides, conditions, onHpDelta, onDismiss, onEdit, extra }) => {
+const TrackerCard: React.FC<TrackerCardProps> = ({ name, creature, currentHp, maxHp, overrides, runtimeModifiers, conditions, onHpDelta, onDismiss, onEdit, extra }) => {
     const pct = maxHp > 0 ? Math.max(0, currentHp / maxHp) : 0;
     const [delta, setDelta] = useState(1);
+
+    const eff = computeEffectiveCreatureStats(creature, overrides, runtimeModifiers ?? []);
+    const sign = (n: number) => (n >= 0 ? '+' : '') + n;
 
     return (
         <div className="tracker-card">
@@ -281,12 +285,23 @@ const TrackerCard: React.FC<TrackerCardProps> = ({ name, creature, currentHp, ma
                     {currentHp <= 0 && <FaSkull style={{ color: '#636e72', marginLeft: 4 }} />}
                 </div>
 
-                {/* Override chips */}
+                {/* Override chips (from feats/items) */}
                 {overrides.length > 0 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
                         {overrides.map((o, i) => (
                             <span key={i} className={`override-chip${o.value < 0 ? ' negative' : ''}`} style={{ fontSize: '0.62rem' }}>
                                 {o.stat.toUpperCase()} {o.value >= 0 ? '+' : ''}{o.value} ({o.source})
+                            </span>
+                        ))}
+                    </div>
+                )}
+
+                {/* Runtime modifier chips */}
+                {(runtimeModifiers ?? []).length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                        {(runtimeModifiers ?? []).map(m => (
+                            <span key={m.id} className={`override-chip${m.value < 0 ? ' negative' : ''}`} style={{ fontSize: '0.62rem' }}>
+                                {m.name} {sign(m.value)}{m.roundsRemaining != null ? ` (${m.roundsRemaining}r)` : ''}
                             </span>
                         ))}
                     </div>
@@ -299,11 +314,13 @@ const TrackerCard: React.FC<TrackerCardProps> = ({ name, creature, currentHp, ma
                     </div>
                 )}
 
-                {/* Key stats */}
+                {/* Key stats — effective values */}
                 <div style={{ display: 'flex', gap: 8, marginTop: 8, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    <span>CA {creature.ac}</span>
+                    <span>CA {eff.ac}</span>
                     <span>BAB +{creature.bab}</span>
-                    <span>For/Rif/Vol: {creature.fortitude}/{creature.reflex}/{creature.will}</span>
+                    <span title={`For base:${sign(creature.fortitude)} Rif base:${sign(creature.reflex)} Vol base:${sign(creature.will)}`}>
+                        For/Rif/Vol: {sign(eff.fort)}/{sign(eff.reflex)}/{sign(eff.will)}
+                    </span>
                 </div>
                 {extra}
             </div>
@@ -414,6 +431,7 @@ export const BestiaryPage: React.FC = () => {
         addSummon, updateSummon, removeSummon, updateSummonHp,
         addPet, updatePet, removePet, updatePetHp,
         computeSummonOverrides, computePetOverrides,
+        addCreatureRuntimeModifier, removeCreatureRuntimeModifier,
     } = useCharacterStore();
 
     const [tab, setTab] = useState<BestiaryTab>('catalogo');
@@ -560,6 +578,9 @@ export const BestiaryPage: React.FC = () => {
                 <StatBlock
                     creature={editingSummon.creature}
                     overrides={editingSummon.appliedOverrides}
+                    runtimeModifiers={editingSummon.runtimeModifiers ?? []}
+                    onAddRuntimeModifier={(m) => addCreatureRuntimeModifier('summon', editingSummon.id, m)}
+                    onRemoveRuntimeModifier={(mid) => removeCreatureRuntimeModifier('summon', editingSummon.id, mid)}
                     onClose={() => setEditingSummon(null)}
                     actionLabel="Rimuovi evocazione"
                     actionIcon={<FaTimes />}
@@ -576,6 +597,9 @@ export const BestiaryPage: React.FC = () => {
                 <StatBlock
                     creature={editingPet.creature}
                     overrides={editingPet.appliedOverrides}
+                    runtimeModifiers={editingPet.runtimeModifiers ?? []}
+                    onAddRuntimeModifier={(m) => addCreatureRuntimeModifier('pet', editingPet.id, m)}
+                    onRemoveRuntimeModifier={(mid) => removeCreatureRuntimeModifier('pet', editingPet.id, mid)}
                     onClose={() => setEditingPet(null)}
                     actionLabel="Rimuovi compagno"
                     actionIcon={<FaTimes />}
@@ -708,15 +732,16 @@ export const BestiaryPage: React.FC = () => {
                         {summons.length === 0 && <div className="text-muted text-sm">Nessuna creatura evocata. Vai al catalogo o al bestiario personale per evocare.</div>}
                         <div className="tracker-grid">
                             {summons.map(s => {
-                                const effHp = s.creature.hp + s.appliedOverrides.filter(o => o.stat === 'hp').reduce((acc, o) => acc + o.value, 0);
+                                const eff = computeEffectiveCreatureStats(s.creature, s.appliedOverrides, s.runtimeModifiers ?? []);
                                 return (
                                     <TrackerCard
                                         key={s.id}
                                         name={s.creature.name}
                                         creature={s.creature}
                                         currentHp={s.currentHp}
-                                        maxHp={effHp}
+                                        maxHp={eff.hp}
                                         overrides={s.appliedOverrides}
+                                        runtimeModifiers={s.runtimeModifiers}
                                         conditions={s.conditions}
                                         onHpDelta={delta => updateSummonHp(s.id, delta)}
                                         onDismiss={() => { if (confirm(`Rimuovere evocazione di ${s.creature.name}?`)) removeSummon(s.id); }}
@@ -746,15 +771,16 @@ export const BestiaryPage: React.FC = () => {
                         {pets.length === 0 && <div className="text-muted text-sm">Nessun compagno. Vai al catalogo o al bestiario personale e usa "Aggiungi come Compagno".</div>}
                         <div className="tracker-grid">
                             {pets.map(p => {
-                                const effHp = p.creature.hp + p.appliedOverrides.filter(o => o.stat === 'hp').reduce((acc, o) => acc + o.value, 0);
+                                const eff = computeEffectiveCreatureStats(p.creature, p.appliedOverrides, p.runtimeModifiers ?? []);
                                 return (
                                     <TrackerCard
                                         key={p.id}
                                         name={p.nickname ?? p.creature.name}
                                         creature={p.creature}
                                         currentHp={p.currentHp}
-                                        maxHp={effHp}
+                                        maxHp={eff.hp}
                                         overrides={p.appliedOverrides}
+                                        runtimeModifiers={p.runtimeModifiers}
                                         conditions={p.conditions}
                                         onHpDelta={delta => updatePetHp(p.id, delta)}
                                         onDismiss={() => { if (confirm(`Rimuovere ${p.nickname ?? p.creature.name}?`)) removePet(p.id); }}

@@ -63,5 +63,8 @@ service cloud.firestore {
     match /catalog_icons/{id}    { allow read: if isAllowed(); allow write: if isSuperAdmin(); }
     match /catalog_widgets/{id}   { allow read: if isAllowed(); allow write: if isSuperAdmin(); }
     match /catalog_creatures/{id} { allow read: if isAllowed(); allow write: if isSuperAdmin(); }
+    match /catalog_races/{id}     { allow read: if isAllowed(); allow write: if isSuperAdmin(); }
+    match /catalog_classes/{id}   { allow read: if isAllowed(); allow write: if isSuperAdmin(); }
+    match /catalog_languages/{id} { allow read: if isAllowed(); allow write: if isSuperAdmin(); }
   }
 }

@@ -461,7 +461,7 @@ export interface Feat {
   creatureModifiers?: CreatureModifier[];
 }
 
-export type ClassFeatureSubcategory = 'active' | 'passive' | 'option';
+export type ClassFeatureSubcategory = 'active' | 'passive' | 'talent' | 'option';
 
 export interface ClassFeature {
   id: string;
@@ -821,6 +821,28 @@ export interface CreatureStatOverride {
   type: ModifierType;
 }
 
+/** Stats targetable by a runtime modifier on an active summon / pet.
+ *  Ability scores propagate to derived stats automatically:
+ *  CON → Tempra, DEX → CA + Riflessi, STR → attacco + danno (mischia), WIS → Volontà. */
+export type CreatureRuntimeStat =
+  | 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha'
+  | 'ac' | 'hp'
+  | 'fort' | 'ref' | 'will'
+  | 'attack' | 'damage';
+
+/** A temporary buff/debuff applied directly to an active summon or pet during play.
+ *  (e.g. Benedizione, Forza del Toro, Penalità da condizione) */
+export interface CreatureRuntimeModifier {
+  id: string;
+  /** Human-readable label (e.g. "Forza del Toro", "Benedizione") */
+  name: string;
+  stat: CreatureRuntimeStat;
+  value: number;
+  type: ModifierType;
+  /** Remaining rounds; null / undefined = permanent until manually removed */
+  roundsRemaining?: number | null;
+}
+
 /** Spell / condition active on a summon or pet */
 export interface CreatureActiveEffect {
   id: string;
@@ -847,6 +869,8 @@ export interface ActiveSummon {
   durationUnit?: DurationUnit;
   conditions?: string[];
   activeEffects?: CreatureActiveEffect[];
+  /** Temporary buffs/debuffs added at runtime (Benedizione, Forza del Toro, ecc.) */
+  runtimeModifiers?: CreatureRuntimeModifier[];
   summonedAt: string;
 }
 
@@ -860,5 +884,7 @@ export interface ActivePet {
   nickname?: string;
   conditions?: string[];
   activeEffects?: CreatureActiveEffect[];
+  /** Temporary buffs/debuffs added at runtime */
+  runtimeModifiers?: CreatureRuntimeModifier[];
   addedAt: string;
 }

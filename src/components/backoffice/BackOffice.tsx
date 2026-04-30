@@ -1,69 +1,185 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     FaUserPlus, FaTrash, FaPlus, FaSave, FaTimes, FaSearch,
     FaScroll, FaStar, FaImage, FaEnvelope, FaCheck, FaBolt,
     FaFolder, FaFolderPlus, FaArrowLeft, FaUpload, FaDragon, FaEdit,
+    FaUsers, FaShieldAlt, FaLanguage, FaSeedling, FaChevronLeft,
+    FaLock, FaUnlock,
 } from 'react-icons/fa';
 import {
-    SUPERADMIN_EMAIL,
-    listInvites, addInvite, removeInvite, type Invite,
+    SUPERADMIN_EMAIL, isSuperAdmin,
+    listInvites, addInvite, removeInvite, updateInviteSections, type Invite,
     spellCatalog, skillCatalog, featCatalog, iconCatalog, creatureCatalog,
     type CatalogSpell, type CatalogSkill, type CatalogFeat, type CatalogIcon, type CatalogCreature,
 } from '../../services/admin';
+import { seedAll, type SeedReport } from '../../services/seedCatalogs';
 import { refreshIconCache, ICON_SLOT_GROUPS } from '../../services/iconCache';
-import type { StatType, CreatureSize, CreatureTypeCategory, CreatureAlignment, CreatureAction, CreatureSpecialAbility } from '../../types/dnd';
+import type { StatType, CreatureSize, CreatureTypeCategory, CreatureAlignment, CreatureAction, CreatureSpecialAbility, Modifier, CreatureModifier } from '../../types/dnd';
 import { v4 as uuid } from 'uuid';
+import { ModifierEditor } from '../ModifierEditor';
+import { CreatureModifierEditor } from '../CreatureModifierEditor';
+import { RacesPanel } from './RacesPanel';
+import { ClassesPanel } from './ClassesPanel';
+import { LanguagesPanel } from './LanguagesPanel';
 
-type Section = 'invites' | 'spells' | 'skills' | 'feats' | 'icons' | 'bestiary';
+export type Section = 'invites' | 'spells' | 'skills' | 'feats' | 'icons' | 'bestiary' | 'races' | 'classes' | 'languages';
 
-const SECTIONS: { id: Section; label: string; icon: React.ReactNode }[] = [
-    { id: 'invites', label: 'Inviti', icon: <FaEnvelope /> },
-    { id: 'spells', label: 'Magie', icon: <FaScroll /> },
-    { id: 'skills', label: 'Abilità', icon: <FaStar /> },
-    { id: 'feats', label: 'Talenti', icon: <FaBolt /> },
-    { id: 'icons', label: 'Icone SVG', icon: <FaImage /> },
-    { id: 'bestiary', label: 'Bestiario', icon: <FaDragon /> },
+/** All sections that can be assigned to an invited user. SuperAdmin sees invites too. */
+export const ALL_SECTIONS: { id: Section; labelKey: string; icon: React.ReactNode; superAdminOnly?: boolean }[] = [
+    { id: 'invites',   labelKey: 'backoffice.tabs.invites',   icon: <FaEnvelope />,   superAdminOnly: true },
+    { id: 'races',     labelKey: 'backoffice.tabs.races',     icon: <FaUsers /> },
+    { id: 'classes',   labelKey: 'backoffice.tabs.classes',   icon: <FaShieldAlt /> },
+    { id: 'languages', labelKey: 'backoffice.tabs.languages', icon: <FaLanguage /> },
+    { id: 'spells',    labelKey: 'backoffice.tabs.spells',    icon: <FaScroll /> },
+    { id: 'skills',    labelKey: 'backoffice.tabs.skills',    icon: <FaStar /> },
+    { id: 'feats',     labelKey: 'backoffice.tabs.feats',     icon: <FaBolt /> },
+    { id: 'icons',     labelKey: 'backoffice.tabs.icons',     icon: <FaImage /> },
+    { id: 'bestiary',  labelKey: 'backoffice.tabs.bestiary',  icon: <FaDragon /> },
 ];
 
 interface Props {
     currentUserEmail: string;
+    /** Sections this user is allowed to see. Undefined = all (SuperAdmin). */
+    allowedSections?: Section[];
+    onBack?: () => void;
 }
 
-export function BackOffice({ currentUserEmail }: Props) {
-    const [section, setSection] = useState<Section>('invites');
+export function BackOffice({ currentUserEmail, allowedSections, onBack }: Props) {
+    const { t } = useTranslation();
+    const sa = isSuperAdmin(currentUserEmail);
+
+    const visibleSections = ALL_SECTIONS.filter(s => {
+        if (sa) return true;
+        if (s.superAdminOnly) return false;
+        if (!allowedSections || allowedSections.length === 0) return true;
+        return allowedSections.includes(s.id);
+    });
+
+    const [section, setSection] = useState<Section>(visibleSections[0]?.id ?? 'races');
+    const [seeding, setSeeding] = useState(false);
+    const [seedMsg, setSeedMsg] = useState<string | null>(null);
+
+    // keep current section valid when visibleSections changes
+    useEffect(() => {
+        if (!visibleSections.find(s => s.id === section)) {
+            setSection(visibleSections[0]?.id ?? 'races');
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [allowedSections]);
+
+    async function runSeed(overwrite: boolean) {
+        const label = overwrite
+            ? 'Sovrascrivere TUTTE le razze, classi e lingue del catalogo con i preset di default? Le modifiche fatte a mano andranno perse.'
+            : 'Popolare il catalogo Firestore con i preset di default (razze, classi, lingue)? Le voci esistenti non verranno toccate.';
+        if (!confirm(label)) return;
+        setSeeding(true);
+        setSeedMsg(null);
+        try {
+            const report: SeedReport = await seedAll({ overwrite });
+            setSeedMsg(
+                `Seed completato: razze ${report.races.written}/${report.races.skipped} • ` +
+                `classi ${report.classes.written}/${report.classes.skipped} • ` +
+                `lingue ${report.languages.written}/${report.languages.skipped} • ` +
+                `abilità ${report.skills.written}/${report.skills.skipped} • ` +
+                `talenti ${report.feats.written}/${report.feats.skipped}.`,
+            );
+        } catch (e) {
+            console.error('[backoffice] seed failed', e);
+            setSeedMsg('Errore durante il seeding — vedi console per dettagli.');
+        } finally {
+            setSeeding(false);
+        }
+    }
+
+    const sectionLabel = t(visibleSections.find(s => s.id === section)?.labelKey ?? '');
 
     return (
-        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: 'var(--space-5)', gap: 'var(--space-3)' }} className="animate-fade-in">
-            <div className="section-header" style={{ flexShrink: 0 }}>
-                <div>
-                    <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Back-Office</h2>
-                    <span className="text-muted text-sm">Pannello di amministrazione globale</span>
-                </div>
-                <span className="text-xs text-muted">SuperAdmin: {SUPERADMIN_EMAIL}</span>
-            </div>
-
-            <div className="flex gap-2" style={{ flexWrap: 'wrap', flexShrink: 0 }}>
-                {SECTIONS.map(s => (
-                    <button
-                        key={s.id}
-                        className={`btn-secondary text-sm ${section === s.id ? 'active' : ''}`}
-                        style={section === s.id
-                            ? { background: 'rgba(201,168,76,0.15)', borderColor: 'var(--accent-gold)', color: 'var(--accent-gold)' }
-                            : undefined}
-                        onClick={() => setSection(s.id)}
-                    >
-                        {s.icon} {s.label}
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+            {/* ── Top bar ── */}
+            <div style={{
+                display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0,
+                padding: '0 24px', height: 56,
+                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                background: 'rgba(0,0,0,0.25)',
+            }}>
+                {onBack && (
+                    <button className="btn-ghost text-sm" onClick={onBack} style={{ marginRight: 4 }}>
+                        <FaChevronLeft />
                     </button>
-                ))}
+                )}
+                <span className="text-gradient" style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700, letterSpacing: '0.04em' }}>
+                    D&amp;D Nexus
+                </span>
+                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 18 }}>|</span>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Back-Office</span>
+                <div style={{ flex: 1 }} />
+                {sa && (
+                    <>
+                        <button className="btn-secondary text-xs" disabled={seeding} onClick={() => runSeed(false)} title="Aggiunge i preset mancanti">
+                            <FaSeedling /> {seeding ? 'Seeding…' : 'Popola catalogo'}
+                        </button>
+                        <button className="btn-secondary text-xs" disabled={seeding} onClick={() => runSeed(true)} style={{ borderColor: 'var(--accent-crimson)' }} title="Sovrascrive preset (distruttivo)">
+                            <FaSeedling /> Reseed
+                        </button>
+                    </>
+                )}
+                <span className="text-xs text-muted" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200 }}>{currentUserEmail}</span>
             </div>
 
-            <div style={{ flex: 1, overflowY: 'auto' }}>
-                {section === 'invites' && <InvitesPanel currentUserEmail={currentUserEmail} />}
-                {section === 'spells' && <SpellsPanel currentUserEmail={currentUserEmail} />}
-                {section === 'skills' && <SkillsPanel currentUserEmail={currentUserEmail} />}
-                {section === 'feats' && <FeatsPanel currentUserEmail={currentUserEmail} />}
-                {section === 'icons' && <IconsPanel currentUserEmail={currentUserEmail} />}
-                {section === 'bestiary' && <BestiaryPanel currentUserEmail={currentUserEmail} />}
+            {seedMsg && (
+                <div className="text-xs" style={{ padding: '6px 24px', background: 'rgba(201,168,76,0.1)', borderBottom: '1px solid rgba(201,168,76,0.2)', color: 'var(--accent-gold)' }}>
+                    {seedMsg}
+                </div>
+            )}
+
+            {/* ── Master-detail body ── */}
+            <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+                {/* ── Sidebar ── */}
+                <nav style={{
+                    width: 220, flexShrink: 0, display: 'flex', flexDirection: 'column',
+                    borderRight: '1px solid rgba(255,255,255,0.06)',
+                    background: 'rgba(0,0,0,0.18)',
+                    overflowY: 'auto', padding: '16px 0',
+                }}>
+                    {visibleSections.map(s => {
+                        const active = section === s.id;
+                        return (
+                            <button
+                                key={s.id}
+                                onClick={() => setSection(s.id)}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: 10,
+                                    padding: '10px 20px',
+                                    background: active ? 'rgba(201,168,76,0.12)' : 'transparent',
+                                    borderLeft: `3px solid ${active ? 'var(--accent-gold)' : 'transparent'}`,
+                                    border: 'none', borderLeft: `3px solid ${active ? 'var(--accent-gold)' : 'transparent'}`,
+                                    color: active ? 'var(--accent-gold)' : 'var(--text-secondary)',
+                                    cursor: 'pointer', textAlign: 'left', width: '100%',
+                                    fontSize: '0.85rem', fontFamily: 'var(--font-body)',
+                                    transition: 'background 0.15s, color 0.15s',
+                                }}
+                            >
+                                <span style={{ opacity: active ? 1 : 0.6, fontSize: 14 }}>{s.icon}</span>
+                                {t(s.labelKey)}
+                            </button>
+                        );
+                    })}
+                </nav>
+
+                {/* ── Content ── */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <h2 style={{ margin: 0, fontSize: '1.25rem', fontFamily: 'var(--font-heading)' }}>{sectionLabel}</h2>
+                    {section === 'invites'   && <InvitesPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'races'     && <RacesPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'classes'   && <ClassesPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'languages' && <LanguagesPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'spells'    && <SpellsPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'skills'    && <SkillsPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'feats'     && <FeatsPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'icons'     && <IconsPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'bestiary'  && <BestiaryPanel currentUserEmail={currentUserEmail} />}
+                </div>
             </div>
         </div>
     );
@@ -71,13 +187,21 @@ export function BackOffice({ currentUserEmail }: Props) {
 
 /* ────────────────────────────── INVITES ────────────────────────────── */
 
+/** Sections that can be granted to invited users (excludes superAdminOnly). */
+const GRANTABLE_SECTIONS = ALL_SECTIONS.filter(s => !s.superAdminOnly);
+
 function InvitesPanel({ currentUserEmail }: { currentUserEmail: string }) {
+    const { t } = useTranslation();
     const [invites, setInvites] = useState<Invite[]>([]);
     const [loading, setLoading] = useState(true);
     const [busy, setBusy] = useState(false);
     const [email, setEmail] = useState('');
     const [note, setNote] = useState('');
+    const [newSections, setNewSections] = useState<string[]>([]);
     const [error, setError] = useState<string | null>(null);
+    /** invite being edited for section changes */
+    const [editingSections, setEditingSections] = useState<string | null>(null);
+    const [editSectionDraft, setEditSectionDraft] = useState<string[]>([]);
 
     const refresh = async () => {
         setLoading(true);
@@ -86,18 +210,18 @@ function InvitesPanel({ currentUserEmail }: { currentUserEmail: string }) {
     };
     useEffect(() => { refresh(); }, []);
 
+    const toggleNewSection = (id: string) =>
+        setNewSections(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
         const trimmed = email.trim();
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-            setError('Email non valida.');
-            return;
-        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) { setError('Email non valida.'); return; }
         setBusy(true);
         try {
-            await addInvite(trimmed, currentUserEmail, note.trim() || undefined);
-            setEmail(''); setNote('');
+            await addInvite(trimmed, currentUserEmail, note.trim() || undefined, newSections);
+            setEmail(''); setNote(''); setNewSections([]);
             await refresh();
         } catch (err: any) {
             setError(err?.message ?? 'Errore.');
@@ -112,48 +236,144 @@ function InvitesPanel({ currentUserEmail }: { currentUserEmail: string }) {
         await refresh();
     };
 
+    const startEditSections = (inv: Invite) => {
+        setEditingSections(inv.email);
+        setEditSectionDraft(inv.sections ?? []);
+    };
+
+    const saveSections = async () => {
+        if (!editingSections) return;
+        await updateInviteSections(editingSections, editSectionDraft);
+        setEditingSections(null);
+        await refresh();
+    };
+
     return (
         <div className="flex-col gap-4">
+            {/* ── New invite form ── */}
             <div className="glass-panel">
                 <div className="section-header"><span className="section-title">Nuovo Invito</span></div>
-                <form onSubmit={submit} className="flex gap-2" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                    <div style={{ flex: '1 1 240px' }}>
-                        <label className="text-xs text-muted">Email</label>
-                        <input className="input w-full" type="email" placeholder="utente@example.com" value={email} onChange={e => setEmail(e.target.value)} required />
+                <form onSubmit={submit} className="flex-col gap-3">
+                    <div className="flex gap-2" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                        <div style={{ flex: '1 1 240px' }}>
+                            <label className="text-xs text-muted">Email</label>
+                            <input className="input w-full" type="email" placeholder="utente@example.com" value={email} onChange={e => setEmail(e.target.value)} required />
+                        </div>
+                        <div style={{ flex: '1 1 240px' }}>
+                            <label className="text-xs text-muted">Nota (opzionale)</label>
+                            <input className="input w-full" type="text" placeholder="Es. Master Marco" value={note} onChange={e => setNote(e.target.value)} />
+                        </div>
+                        <button className="btn-primary" type="submit" disabled={busy}>
+                            <FaUserPlus /> {busy ? 'Invio…' : 'Invita'}
+                        </button>
                     </div>
-                    <div style={{ flex: '1 1 240px' }}>
-                        <label className="text-xs text-muted">Nota (opzionale)</label>
-                        <input className="input w-full" type="text" placeholder="Es. Master Marco" value={note} onChange={e => setNote(e.target.value)} />
+
+                    {/* Section permissions */}
+                    <div>
+                        <label className="text-xs text-muted" style={{ display: 'block', marginBottom: 6 }}>
+                            Accesso sezioni BackOffice&nbsp;
+                            <span style={{ color: 'var(--text-secondary)' }}>(nessuna selezione = accesso completo al catalogo)</span>
+                        </label>
+                        <div className="flex" style={{ flexWrap: 'wrap', gap: 6 }}>
+                            {GRANTABLE_SECTIONS.map(s => {
+                                const on = newSections.includes(s.id);
+                                return (
+                                    <button key={s.id} type="button" onClick={() => toggleNewSection(s.id)} style={{
+                                        display: 'flex', alignItems: 'center', gap: 5,
+                                        padding: '4px 10px', borderRadius: 20, fontSize: '0.75rem', cursor: 'pointer',
+                                        border: `1px solid ${on ? 'var(--accent-gold)' : 'rgba(255,255,255,0.12)'}`,
+                                        background: on ? 'rgba(201,168,76,0.15)' : 'transparent',
+                                        color: on ? 'var(--accent-gold)' : 'var(--text-secondary)',
+                                    }}>
+                                        {s.icon} {t(s.labelKey)}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
-                    <button className="btn-primary" type="submit" disabled={busy}>
-                        <FaUserPlus /> {busy ? 'Invio…' : 'Invita'}
-                    </button>
                 </form>
                 {error && <div className="text-xs" style={{ color: 'var(--accent-crimson)', marginTop: 8 }}>{error}</div>}
             </div>
 
+            {/* ── User list ── */}
             <div className="glass-panel">
                 <div className="section-header">
                     <span className="section-title">Utenti Autorizzati ({invites.length + 1})</span>
                 </div>
-                <div className="flex-col gap-1">
-                    <div className="flex items-center gap-2" style={{ padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)' }}>
-                        <FaCheck style={{ color: 'var(--accent-gold)' }} />
-                        <span style={{ fontFamily: 'var(--font-heading)', color: 'var(--accent-gold)' }}>{SUPERADMIN_EMAIL}</span>
-                        <span className="text-xs text-muted">SuperAdmin</span>
+                <div className="flex-col gap-2">
+                    {/* SuperAdmin row */}
+                    <div className="flex items-center gap-2" style={{ padding: '0.6rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)' }}>
+                        <FaCheck style={{ color: 'var(--accent-gold)', flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontFamily: 'var(--font-heading)', color: 'var(--accent-gold)' }}>{SUPERADMIN_EMAIL}</div>
+                            <div className="text-xs text-muted">SuperAdmin — accesso totale</div>
+                        </div>
+                        <FaUnlock style={{ color: 'var(--accent-gold)', opacity: 0.6, flexShrink: 0 }} />
                     </div>
+
                     {loading && <div className="text-muted text-sm">Caricamento…</div>}
                     {!loading && invites.length === 0 && <div className="text-muted text-sm">Nessun invito al momento.</div>}
+
                     {invites.map(inv => (
-                        <div key={inv.email} className="flex items-center gap-2" style={{ padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)' }}>
-                            <FaEnvelope className="text-muted" />
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.email}</div>
-                                {inv.note && <div className="text-xs text-muted">{inv.note}</div>}
-                            </div>
-                            <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => handleRemove(inv.email)} title="Revoca">
-                                <FaTrash />
-                            </button>
+                        <div key={inv.email} className="flex-col gap-2" style={{ padding: '0.6rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            {editingSections === inv.email ? (
+                                <div className="flex-col gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <FaEnvelope className="text-muted" style={{ flexShrink: 0 }} />
+                                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.email}</span>
+                                        <button className="btn-primary text-xs" onClick={saveSections}><FaSave /> Salva</button>
+                                        <button className="btn-ghost text-xs" onClick={() => setEditingSections(null)}><FaTimes /></button>
+                                    </div>
+                                    <div className="flex" style={{ flexWrap: 'wrap', gap: 6 }}>
+                                        {GRANTABLE_SECTIONS.map(s => {
+                                            const on = editSectionDraft.includes(s.id);
+                                            return (
+                                                <button key={s.id} type="button"
+                                                    onClick={() => setEditSectionDraft(prev => prev.includes(s.id) ? prev.filter(x => x !== s.id) : [...prev, s.id])}
+                                                    style={{
+                                                        display: 'flex', alignItems: 'center', gap: 5,
+                                                        padding: '4px 10px', borderRadius: 20, fontSize: '0.75rem', cursor: 'pointer',
+                                                        border: `1px solid ${on ? 'var(--accent-gold)' : 'rgba(255,255,255,0.12)'}`,
+                                                        background: on ? 'rgba(201,168,76,0.15)' : 'transparent',
+                                                        color: on ? 'var(--accent-gold)' : 'var(--text-secondary)',
+                                                    }}>
+                                                    {s.icon} {t(s.labelKey)}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="text-xs text-muted">Nessuna selezione = accesso completo al catalogo</div>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <FaEnvelope className="text-muted" style={{ flexShrink: 0 }} />
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.email}</div>
+                                        <div className="flex" style={{ flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                                            {(!inv.sections || inv.sections.length === 0) ? (
+                                                <span className="text-xs text-muted" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                    <FaUnlock style={{ opacity: 0.5 }} /> Catalogo completo
+                                                </span>
+                                            ) : inv.sections.map(sid => {
+                                                const sec = GRANTABLE_SECTIONS.find(s => s.id === sid);
+                                                if (!sec) return null;
+                                                return (
+                                                    <span key={sid} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.7rem', padding: '2px 7px', borderRadius: 10, background: 'rgba(201,168,76,0.1)', color: 'var(--accent-gold)', border: '1px solid rgba(201,168,76,0.2)' }}>
+                                                        {sec.icon} {t(sec.labelKey)}
+                                                    </span>
+                                                );
+                                            })}
+                                        </div>
+                                        {inv.note && <div className="text-xs text-muted" style={{ marginTop: 2 }}>{inv.note}</div>}
+                                    </div>
+                                    <button className="btn-ghost text-xs" onClick={() => startEditSections(inv)} title="Modifica accessi">
+                                        <FaLock />
+                                    </button>
+                                    <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => handleRemove(inv.email)} title="Revoca">
+                                        <FaTrash />
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>
@@ -714,7 +934,7 @@ function sanitizeSvg(svg: string): string {
 /* ────────────────────────────── FEATS ────────────────────────────── */
 
 const EMPTY_FEAT_CAT = (): CatalogFeat => ({
-    id: uuid(), name: '', description: '', modifiers: [], isDefect: false,
+    id: uuid(), name: '', description: '', modifiers: [], creatureModifiers: [], isDefect: false,
 });
 
 function FeatsPanel({ currentUserEmail }: { currentUserEmail: string }) {
@@ -773,9 +993,18 @@ function FeatsPanel({ currentUserEmail }: { currentUserEmail: string }) {
                 <Field label="Tag (separati da virgola)">
                     <input className="input w-full" value={(editing.tags ?? []).join(', ')} onChange={e => setEditing({ ...editing, tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })} />
                 </Field>
-                <div className="text-xs text-muted">
-                    I modificatori dettagliati possono essere aggiunti manualmente sulla scheda dopo l'import.
-                </div>
+                <ModifierEditor
+                    modifiers={editing.modifiers ?? []}
+                    onChange={mods => setEditing({ ...editing, modifiers: mods as Modifier[] })}
+                    accentColor={editing.isDefect ? 'var(--accent-crimson)' : 'var(--accent-arcane)'}
+                    title="MODIFICATORI AL PERSONAGGIO"
+                    compact
+                />
+                <CreatureModifierEditor
+                    modifiers={(editing.creatureModifiers ?? []) as CreatureModifier[]}
+                    onChange={cms => setEditing({ ...editing, creatureModifiers: cms })}
+                    accentColor={editing.isDefect ? 'var(--accent-crimson)' : 'var(--accent-gold)'}
+                />
             </div>
         );
     }
