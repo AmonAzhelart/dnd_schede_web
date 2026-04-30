@@ -1,4 +1,4 @@
-import { doc, setDoc, getDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { CharacterBase } from '../types/dnd';
 import type { DashboardLayout } from '../components/dashboard/widgetTypes';
@@ -70,6 +70,24 @@ export const createNewCharacterDb = async (userId: string, name: string): Promis
   await setDoc(docRef, newChar);
 
   return newChar as CharacterBase;
+};
+
+/** Permanently deletes a character document from Firestore. */
+export const deleteCharacterDb = async (characterId: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, 'characters', characterId));
+  } catch (error) {
+    console.error('Error deleting character:', error);
+  }
+};
+
+/** Creates a new character document pre-populated with full wizard data. */
+export const createCharacterWithDataDb = async (data: Omit<CharacterBase, 'id'>): Promise<CharacterBase> => {
+  const sanitized = JSON.parse(JSON.stringify(data));
+  const docRef = await addDoc(collection(db, 'characters'), sanitized);
+  const char = { ...data, id: docRef.id } as CharacterBase;
+  await setDoc(docRef, { ...sanitized, id: docRef.id });
+  return char;
 };
 
 // === User settings (Drive folder, dashboard layouts ...) ===

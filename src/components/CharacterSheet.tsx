@@ -1,8 +1,9 @@
 ﻿import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { useCharacterStore } from '../store/characterStore';
 import type { CustomAttack } from '../types/dnd';
-import { FaHeart, FaStar, FaPlus, FaMinus, FaEdit, FaSearch, FaPalette, FaCheck, FaTrash, FaCamera } from 'react-icons/fa';
+import { FaHeart, FaStar, FaPlus, FaMinus, FaEdit, FaSearch, FaPalette, FaCheck, FaTrash, FaCamera, FaDragon } from 'react-icons/fa';
 import { GiSwordman, GiAxeSword, GiSpellBook, GiTreasureMap, GiAbstract024, GiUpgrade } from 'react-icons/gi';
 import { Inventory } from './Inventory';
 import { Spellbook } from './Spellbook';
@@ -19,10 +20,11 @@ import { useModifierAura, ModifierArrows } from './dashboard/widgets/ModifierAur
 import { resolveStatOverride } from '../services/modifiers';
 import { useMediaQuery } from './mobile/MobileShell';
 import { setMobileContextActions, setMobileAvatarTapOverride, setMobileEditExit } from './mobile/mobileShellSlots';
+import { BestiaryPage } from './BestiaryPage';
 import './CharacterSheetHeader.css';
 import './dashboard/widgets/styles/modifiers.css';
 
-type SheetTab = 'overview' | 'combat' | 'levels' | 'skills' | 'inventory' | 'abilities' | 'spells';
+type SheetTab = 'overview' | 'combat' | 'levels' | 'skills' | 'inventory' | 'abilities' | 'spells' | 'bestiary';
 
 const STAT_NAMES: Record<string, string> = {
   str: 'Forza', dex: 'Destrezza', con: 'Costituzione',
@@ -60,6 +62,7 @@ const downscaleImage = (file: File, maxSize: number): Promise<string> => new Pro
 });
 
 export const CharacterSheet: React.FC = () => {
+  const { t } = useTranslation();
   const { character, setCharacter, getEffectiveStat, getStatModifier, getSkillBreakdown, updateSkill, deleteSkill,
     getTotalBab, getMultipleAttacks, getTotalMaxHp } = useCharacterStore();
   const [activeTab, setActiveTab] = useState<SheetTab>('overview');
@@ -100,7 +103,7 @@ export const CharacterSheet: React.FC = () => {
     const acts = [
       {
         id: 'edit-header',
-        label: headerEditing ? 'Chiudi modifica' : 'Modifica personaggio',
+        label: headerEditing ? t('sheet.closeEdit') : t('sheet.editCharacter'),
         icon: <FaEdit size={13} />,
         onClick: () => setHeaderEditing(v => !v),
         active: headerEditing,
@@ -109,7 +112,7 @@ export const CharacterSheet: React.FC = () => {
     if (activeTab === 'overview') {
       acts.push({
         id: 'edit-dash',
-        label: dashEditMode ? 'Termina personalizzazione' : 'Personalizza dashboard',
+        label: dashEditMode ? t('sheet.endCustomize') : t('sheet.customizeDashboard'),
         icon: dashEditMode ? <FaCheck size={12} /> : <FaPalette size={12} />,
         onClick: () => setDashEditMode(v => !v),
         active: dashEditMode,
@@ -164,13 +167,14 @@ export const CharacterSheet: React.FC = () => {
   const hpPercent = Math.max(0, Math.min(100, (currentHp / maxHp) * 100));
 
   const tabs: { id: SheetTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'overview', label: 'Panoramica', icon: <GiSwordman /> },
-    { id: 'combat', label: 'Combattimento', icon: <GiAxeSword /> },
-    { id: 'levels', label: 'Livelli', icon: <GiUpgrade /> },
-    { id: 'skills', label: 'Abilità', icon: <FaStar /> },
-    { id: 'inventory', label: 'Inventario', icon: <GiTreasureMap /> },
-    { id: 'abilities', label: 'Privilegi di Classe', icon: <GiAbstract024 /> },
-    { id: 'spells', label: 'Grimorio', icon: <GiSpellBook /> },
+    { id: 'overview', label: t('sheet.tabs.overview'), icon: <GiSwordman /> },
+    { id: 'combat', label: t('sheet.tabs.combat'), icon: <GiAxeSword /> },
+    { id: 'levels', label: t('sheet.tabs.levels'), icon: <GiUpgrade /> },
+    { id: 'skills', label: t('sheet.tabs.skills'), icon: <FaStar /> },
+    { id: 'inventory', label: t('sheet.tabs.inventory'), icon: <GiTreasureMap /> },
+    { id: 'abilities', label: t('sheet.tabs.abilities'), icon: <GiAbstract024 /> },
+    { id: 'spells', label: t('sheet.tabs.spells'), icon: <GiSpellBook /> },
+    { id: 'bestiary', label: t('sheet.tabs.bestiary'), icon: <FaDragon /> },
   ];
 
   return (
@@ -465,7 +469,7 @@ export const CharacterSheet: React.FC = () => {
             {activeTab === 'overview' && (
               <OverviewDashboard goTo={(t) => {
                 // Legacy compatibility: map old tab names to the new merged 'abilities' tab.
-                if (t === 'feats') { setAbilitiesInitialTab('feats'); setActiveTab('abilities'); return; }
+                if (t === 'feats') { setAbilitiesInitialTab('active'); setActiveTab('abilities'); return; }
                 if (t === 'classfeatures') { setAbilitiesInitialTab('active'); setActiveTab('abilities'); return; }
                 if (t.startsWith('abilities:')) {
                   setAbilitiesInitialTab(t.slice('abilities:'.length) as AbilitySubTab);
@@ -1126,6 +1130,7 @@ export const CharacterSheet: React.FC = () => {
         {/* ─── COMPONENT TABS ─────────────────────────────────── */}
         {activeTab === 'inventory' && <Inventory />}
         {activeTab === 'spells' && <Spellbook />}
+        {activeTab === 'bestiary' && <BestiaryPage />}
       </div>
 
       {/* ─── MODALS ──────────────────────────────────────────── */}

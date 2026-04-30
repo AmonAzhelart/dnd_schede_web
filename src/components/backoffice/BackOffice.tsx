@@ -1,67 +1,185 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     FaUserPlus, FaTrash, FaPlus, FaSave, FaTimes, FaSearch,
     FaScroll, FaStar, FaImage, FaEnvelope, FaCheck, FaBolt,
-    FaFolder, FaFolderPlus, FaArrowLeft, FaUpload,
+    FaFolder, FaFolderPlus, FaArrowLeft, FaUpload, FaDragon, FaEdit,
+    FaUsers, FaShieldAlt, FaLanguage, FaSeedling, FaChevronLeft,
+    FaLock, FaUnlock,
 } from 'react-icons/fa';
 import {
-    SUPERADMIN_EMAIL,
-    listInvites, addInvite, removeInvite, type Invite,
-    spellCatalog, skillCatalog, featCatalog, iconCatalog,
-    type CatalogSpell, type CatalogSkill, type CatalogFeat, type CatalogIcon,
+    SUPERADMIN_EMAIL, isSuperAdmin,
+    listInvites, addInvite, removeInvite, updateInviteSections, type Invite,
+    spellCatalog, skillCatalog, featCatalog, iconCatalog, creatureCatalog,
+    type CatalogSpell, type CatalogSkill, type CatalogFeat, type CatalogIcon, type CatalogCreature,
 } from '../../services/admin';
+import { seedAll, type SeedReport } from '../../services/seedCatalogs';
 import { refreshIconCache, ICON_SLOT_GROUPS } from '../../services/iconCache';
-import type { StatType } from '../../types/dnd';
+import type { StatType, CreatureSize, CreatureTypeCategory, CreatureAlignment, CreatureAction, CreatureSpecialAbility, Modifier, CreatureModifier } from '../../types/dnd';
 import { v4 as uuid } from 'uuid';
+import { ModifierEditor } from '../ModifierEditor';
+import { CreatureModifierEditor } from '../CreatureModifierEditor';
+import { RacesPanel } from './RacesPanel';
+import { ClassesPanel } from './ClassesPanel';
+import { LanguagesPanel } from './LanguagesPanel';
 
-type Section = 'invites' | 'spells' | 'skills' | 'feats' | 'icons';
+export type Section = 'invites' | 'spells' | 'skills' | 'feats' | 'icons' | 'bestiary' | 'races' | 'classes' | 'languages';
 
-const SECTIONS: { id: Section; label: string; icon: React.ReactNode }[] = [
-    { id: 'invites', label: 'Inviti', icon: <FaEnvelope /> },
-    { id: 'spells', label: 'Magie', icon: <FaScroll /> },
-    { id: 'skills', label: 'Abilità', icon: <FaStar /> },
-    { id: 'feats', label: 'Talenti', icon: <FaBolt /> },
-    { id: 'icons', label: 'Icone SVG', icon: <FaImage /> },
+/** All sections that can be assigned to an invited user. SuperAdmin sees invites too. */
+export const ALL_SECTIONS: { id: Section; labelKey: string; icon: React.ReactNode; superAdminOnly?: boolean }[] = [
+    { id: 'invites',   labelKey: 'backoffice.tabs.invites',   icon: <FaEnvelope />,   superAdminOnly: true },
+    { id: 'races',     labelKey: 'backoffice.tabs.races',     icon: <FaUsers /> },
+    { id: 'classes',   labelKey: 'backoffice.tabs.classes',   icon: <FaShieldAlt /> },
+    { id: 'languages', labelKey: 'backoffice.tabs.languages', icon: <FaLanguage /> },
+    { id: 'spells',    labelKey: 'backoffice.tabs.spells',    icon: <FaScroll /> },
+    { id: 'skills',    labelKey: 'backoffice.tabs.skills',    icon: <FaStar /> },
+    { id: 'feats',     labelKey: 'backoffice.tabs.feats',     icon: <FaBolt /> },
+    { id: 'icons',     labelKey: 'backoffice.tabs.icons',     icon: <FaImage /> },
+    { id: 'bestiary',  labelKey: 'backoffice.tabs.bestiary',  icon: <FaDragon /> },
 ];
 
 interface Props {
     currentUserEmail: string;
+    /** Sections this user is allowed to see. Undefined = all (SuperAdmin). */
+    allowedSections?: Section[];
+    onBack?: () => void;
 }
 
-export function BackOffice({ currentUserEmail }: Props) {
-    const [section, setSection] = useState<Section>('invites');
+export function BackOffice({ currentUserEmail, allowedSections, onBack }: Props) {
+    const { t } = useTranslation();
+    const sa = isSuperAdmin(currentUserEmail);
+
+    const visibleSections = ALL_SECTIONS.filter(s => {
+        if (sa) return true;
+        if (s.superAdminOnly) return false;
+        if (!allowedSections || allowedSections.length === 0) return true;
+        return allowedSections.includes(s.id);
+    });
+
+    const [section, setSection] = useState<Section>(visibleSections[0]?.id ?? 'races');
+    const [seeding, setSeeding] = useState(false);
+    const [seedMsg, setSeedMsg] = useState<string | null>(null);
+
+    // keep current section valid when visibleSections changes
+    useEffect(() => {
+        if (!visibleSections.find(s => s.id === section)) {
+            setSection(visibleSections[0]?.id ?? 'races');
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [allowedSections]);
+
+    async function runSeed(overwrite: boolean) {
+        const label = overwrite
+            ? 'Sovrascrivere TUTTE le razze, classi e lingue del catalogo con i preset di default? Le modifiche fatte a mano andranno perse.'
+            : 'Popolare il catalogo Firestore con i preset di default (razze, classi, lingue)? Le voci esistenti non verranno toccate.';
+        if (!confirm(label)) return;
+        setSeeding(true);
+        setSeedMsg(null);
+        try {
+            const report: SeedReport = await seedAll({ overwrite });
+            setSeedMsg(
+                `Seed completato: razze ${report.races.written}/${report.races.skipped} • ` +
+                `classi ${report.classes.written}/${report.classes.skipped} • ` +
+                `lingue ${report.languages.written}/${report.languages.skipped} • ` +
+                `abilità ${report.skills.written}/${report.skills.skipped} • ` +
+                `privilegi di classe ${report.feats.written}/${report.feats.skipped}.`,
+            );
+        } catch (e) {
+            console.error('[backoffice] seed failed', e);
+            setSeedMsg('Errore durante il seeding — vedi console per dettagli.');
+        } finally {
+            setSeeding(false);
+        }
+    }
+
+    const sectionLabel = t(visibleSections.find(s => s.id === section)?.labelKey ?? '');
 
     return (
-        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: 'var(--space-5)', gap: 'var(--space-3)' }} className="animate-fade-in">
-            <div className="section-header" style={{ flexShrink: 0 }}>
-                <div>
-                    <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Back-Office</h2>
-                    <span className="text-muted text-sm">Pannello di amministrazione globale</span>
-                </div>
-                <span className="text-xs text-muted">SuperAdmin: {SUPERADMIN_EMAIL}</span>
-            </div>
-
-            <div className="flex gap-2" style={{ flexWrap: 'wrap', flexShrink: 0 }}>
-                {SECTIONS.map(s => (
-                    <button
-                        key={s.id}
-                        className={`btn-secondary text-sm ${section === s.id ? 'active' : ''}`}
-                        style={section === s.id
-                            ? { background: 'rgba(201,168,76,0.15)', borderColor: 'var(--accent-gold)', color: 'var(--accent-gold)' }
-                            : undefined}
-                        onClick={() => setSection(s.id)}
-                    >
-                        {s.icon} {s.label}
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+            {/* ── Top bar ── */}
+            <div style={{
+                display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0,
+                padding: '0 24px', height: 56,
+                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                background: 'rgba(0,0,0,0.25)',
+            }}>
+                {onBack && (
+                    <button className="btn-ghost text-sm" onClick={onBack} style={{ marginRight: 4 }}>
+                        <FaChevronLeft />
                     </button>
-                ))}
+                )}
+                <span className="text-gradient" style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700, letterSpacing: '0.04em' }}>
+                    D&amp;D Nexus
+                </span>
+                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 18 }}>|</span>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Back-Office</span>
+                <div style={{ flex: 1 }} />
+                {sa && (
+                    <>
+                        <button className="btn-secondary text-xs" disabled={seeding} onClick={() => runSeed(false)} title="Aggiunge i preset mancanti">
+                            <FaSeedling /> {seeding ? 'Seeding…' : 'Popola catalogo'}
+                        </button>
+                        <button className="btn-secondary text-xs" disabled={seeding} onClick={() => runSeed(true)} style={{ borderColor: 'var(--accent-crimson)' }} title="Sovrascrive preset (distruttivo)">
+                            <FaSeedling /> Reseed
+                        </button>
+                    </>
+                )}
+                <span className="text-xs text-muted" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200 }}>{currentUserEmail}</span>
             </div>
 
-            <div style={{ flex: 1, overflowY: 'auto' }}>
-                {section === 'invites' && <InvitesPanel currentUserEmail={currentUserEmail} />}
-                {section === 'spells' && <SpellsPanel currentUserEmail={currentUserEmail} />}
-                {section === 'skills' && <SkillsPanel currentUserEmail={currentUserEmail} />}
-                {section === 'feats' && <FeatsPanel currentUserEmail={currentUserEmail} />}
-                {section === 'icons' && <IconsPanel currentUserEmail={currentUserEmail} />}
+            {seedMsg && (
+                <div className="text-xs" style={{ padding: '6px 24px', background: 'rgba(201,168,76,0.1)', borderBottom: '1px solid rgba(201,168,76,0.2)', color: 'var(--accent-gold)' }}>
+                    {seedMsg}
+                </div>
+            )}
+
+            {/* ── Master-detail body ── */}
+            <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+                {/* ── Sidebar ── */}
+                <nav style={{
+                    width: 220, flexShrink: 0, display: 'flex', flexDirection: 'column',
+                    borderRight: '1px solid rgba(255,255,255,0.06)',
+                    background: 'rgba(0,0,0,0.18)',
+                    overflowY: 'auto', padding: '16px 0',
+                }}>
+                    {visibleSections.map(s => {
+                        const active = section === s.id;
+                        return (
+                            <button
+                                key={s.id}
+                                onClick={() => setSection(s.id)}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: 10,
+                                    padding: '10px 20px',
+                                    background: active ? 'rgba(201,168,76,0.12)' : 'transparent',
+                                    borderTop: 'none', borderRight: 'none', borderBottom: 'none',
+                                    borderLeft: `3px solid ${active ? 'var(--accent-gold)' : 'transparent'}`,
+                                    color: active ? 'var(--accent-gold)' : 'var(--text-secondary)',
+                                    cursor: 'pointer', textAlign: 'left', width: '100%',
+                                    fontSize: '0.85rem', fontFamily: 'var(--font-body)',
+                                    transition: 'background 0.15s, color 0.15s',
+                                }}
+                            >
+                                <span style={{ opacity: active ? 1 : 0.6, fontSize: 14 }}>{s.icon}</span>
+                                {t(s.labelKey)}
+                            </button>
+                        );
+                    })}
+                </nav>
+
+                {/* ── Content ── */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <h2 style={{ margin: 0, fontSize: '1.25rem', fontFamily: 'var(--font-heading)' }}>{sectionLabel}</h2>
+                    {section === 'invites'   && <InvitesPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'races'     && <RacesPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'classes'   && <ClassesPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'languages' && <LanguagesPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'spells'    && <SpellsPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'skills'    && <SkillsPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'feats'     && <FeatsPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'icons'     && <IconsPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'bestiary'  && <BestiaryPanel currentUserEmail={currentUserEmail} />}
+                </div>
             </div>
         </div>
     );
@@ -69,13 +187,21 @@ export function BackOffice({ currentUserEmail }: Props) {
 
 /* ────────────────────────────── INVITES ────────────────────────────── */
 
+/** Sections that can be granted to invited users (excludes superAdminOnly). */
+const GRANTABLE_SECTIONS = ALL_SECTIONS.filter(s => !s.superAdminOnly);
+
 function InvitesPanel({ currentUserEmail }: { currentUserEmail: string }) {
+    const { t } = useTranslation();
     const [invites, setInvites] = useState<Invite[]>([]);
     const [loading, setLoading] = useState(true);
     const [busy, setBusy] = useState(false);
     const [email, setEmail] = useState('');
     const [note, setNote] = useState('');
+    const [newSections, setNewSections] = useState<string[]>([]);
     const [error, setError] = useState<string | null>(null);
+    /** invite being edited for section changes */
+    const [editingSections, setEditingSections] = useState<string | null>(null);
+    const [editSectionDraft, setEditSectionDraft] = useState<string[]>([]);
 
     const refresh = async () => {
         setLoading(true);
@@ -84,18 +210,18 @@ function InvitesPanel({ currentUserEmail }: { currentUserEmail: string }) {
     };
     useEffect(() => { refresh(); }, []);
 
+    const toggleNewSection = (id: string) =>
+        setNewSections(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
         const trimmed = email.trim();
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-            setError('Email non valida.');
-            return;
-        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) { setError('Email non valida.'); return; }
         setBusy(true);
         try {
-            await addInvite(trimmed, currentUserEmail, note.trim() || undefined);
-            setEmail(''); setNote('');
+            await addInvite(trimmed, currentUserEmail, note.trim() || undefined, newSections);
+            setEmail(''); setNote(''); setNewSections([]);
             await refresh();
         } catch (err: any) {
             setError(err?.message ?? 'Errore.');
@@ -110,48 +236,144 @@ function InvitesPanel({ currentUserEmail }: { currentUserEmail: string }) {
         await refresh();
     };
 
+    const startEditSections = (inv: Invite) => {
+        setEditingSections(inv.email);
+        setEditSectionDraft(inv.sections ?? []);
+    };
+
+    const saveSections = async () => {
+        if (!editingSections) return;
+        await updateInviteSections(editingSections, editSectionDraft);
+        setEditingSections(null);
+        await refresh();
+    };
+
     return (
         <div className="flex-col gap-4">
+            {/* ── New invite form ── */}
             <div className="glass-panel">
                 <div className="section-header"><span className="section-title">Nuovo Invito</span></div>
-                <form onSubmit={submit} className="flex gap-2" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                    <div style={{ flex: '1 1 240px' }}>
-                        <label className="text-xs text-muted">Email</label>
-                        <input className="input w-full" type="email" placeholder="utente@example.com" value={email} onChange={e => setEmail(e.target.value)} required />
+                <form onSubmit={submit} className="flex-col gap-3">
+                    <div className="flex gap-2" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                        <div style={{ flex: '1 1 240px' }}>
+                            <label className="text-xs text-muted">Email</label>
+                            <input className="input w-full" type="email" placeholder="utente@example.com" value={email} onChange={e => setEmail(e.target.value)} required />
+                        </div>
+                        <div style={{ flex: '1 1 240px' }}>
+                            <label className="text-xs text-muted">Nota (opzionale)</label>
+                            <input className="input w-full" type="text" placeholder="Es. Master Marco" value={note} onChange={e => setNote(e.target.value)} />
+                        </div>
+                        <button className="btn-primary" type="submit" disabled={busy}>
+                            <FaUserPlus /> {busy ? 'Invio…' : 'Invita'}
+                        </button>
                     </div>
-                    <div style={{ flex: '1 1 240px' }}>
-                        <label className="text-xs text-muted">Nota (opzionale)</label>
-                        <input className="input w-full" type="text" placeholder="Es. Master Marco" value={note} onChange={e => setNote(e.target.value)} />
+
+                    {/* Section permissions */}
+                    <div>
+                        <label className="text-xs text-muted" style={{ display: 'block', marginBottom: 6 }}>
+                            Accesso sezioni BackOffice&nbsp;
+                            <span style={{ color: 'var(--text-secondary)' }}>(nessuna selezione = accesso completo al catalogo)</span>
+                        </label>
+                        <div className="flex" style={{ flexWrap: 'wrap', gap: 6 }}>
+                            {GRANTABLE_SECTIONS.map(s => {
+                                const on = newSections.includes(s.id);
+                                return (
+                                    <button key={s.id} type="button" onClick={() => toggleNewSection(s.id)} style={{
+                                        display: 'flex', alignItems: 'center', gap: 5,
+                                        padding: '4px 10px', borderRadius: 20, fontSize: '0.75rem', cursor: 'pointer',
+                                        border: `1px solid ${on ? 'var(--accent-gold)' : 'rgba(255,255,255,0.12)'}`,
+                                        background: on ? 'rgba(201,168,76,0.15)' : 'transparent',
+                                        color: on ? 'var(--accent-gold)' : 'var(--text-secondary)',
+                                    }}>
+                                        {s.icon} {t(s.labelKey)}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
-                    <button className="btn-primary" type="submit" disabled={busy}>
-                        <FaUserPlus /> {busy ? 'Invio…' : 'Invita'}
-                    </button>
                 </form>
                 {error && <div className="text-xs" style={{ color: 'var(--accent-crimson)', marginTop: 8 }}>{error}</div>}
             </div>
 
+            {/* ── User list ── */}
             <div className="glass-panel">
                 <div className="section-header">
                     <span className="section-title">Utenti Autorizzati ({invites.length + 1})</span>
                 </div>
-                <div className="flex-col gap-1">
-                    <div className="flex items-center gap-2" style={{ padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)' }}>
-                        <FaCheck style={{ color: 'var(--accent-gold)' }} />
-                        <span style={{ fontFamily: 'var(--font-heading)', color: 'var(--accent-gold)' }}>{SUPERADMIN_EMAIL}</span>
-                        <span className="text-xs text-muted">SuperAdmin</span>
+                <div className="flex-col gap-2">
+                    {/* SuperAdmin row */}
+                    <div className="flex items-center gap-2" style={{ padding: '0.6rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)' }}>
+                        <FaCheck style={{ color: 'var(--accent-gold)', flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontFamily: 'var(--font-heading)', color: 'var(--accent-gold)' }}>{SUPERADMIN_EMAIL}</div>
+                            <div className="text-xs text-muted">SuperAdmin — accesso totale</div>
+                        </div>
+                        <FaUnlock style={{ color: 'var(--accent-gold)', opacity: 0.6, flexShrink: 0 }} />
                     </div>
+
                     {loading && <div className="text-muted text-sm">Caricamento…</div>}
                     {!loading && invites.length === 0 && <div className="text-muted text-sm">Nessun invito al momento.</div>}
+
                     {invites.map(inv => (
-                        <div key={inv.email} className="flex items-center gap-2" style={{ padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)' }}>
-                            <FaEnvelope className="text-muted" />
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.email}</div>
-                                {inv.note && <div className="text-xs text-muted">{inv.note}</div>}
-                            </div>
-                            <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => handleRemove(inv.email)} title="Revoca">
-                                <FaTrash />
-                            </button>
+                        <div key={inv.email} className="flex-col gap-2" style={{ padding: '0.6rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            {editingSections === inv.email ? (
+                                <div className="flex-col gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <FaEnvelope className="text-muted" style={{ flexShrink: 0 }} />
+                                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.email}</span>
+                                        <button className="btn-primary text-xs" onClick={saveSections}><FaSave /> Salva</button>
+                                        <button className="btn-ghost text-xs" onClick={() => setEditingSections(null)}><FaTimes /></button>
+                                    </div>
+                                    <div className="flex" style={{ flexWrap: 'wrap', gap: 6 }}>
+                                        {GRANTABLE_SECTIONS.map(s => {
+                                            const on = editSectionDraft.includes(s.id);
+                                            return (
+                                                <button key={s.id} type="button"
+                                                    onClick={() => setEditSectionDraft(prev => prev.includes(s.id) ? prev.filter(x => x !== s.id) : [...prev, s.id])}
+                                                    style={{
+                                                        display: 'flex', alignItems: 'center', gap: 5,
+                                                        padding: '4px 10px', borderRadius: 20, fontSize: '0.75rem', cursor: 'pointer',
+                                                        border: `1px solid ${on ? 'var(--accent-gold)' : 'rgba(255,255,255,0.12)'}`,
+                                                        background: on ? 'rgba(201,168,76,0.15)' : 'transparent',
+                                                        color: on ? 'var(--accent-gold)' : 'var(--text-secondary)',
+                                                    }}>
+                                                    {s.icon} {t(s.labelKey)}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="text-xs text-muted">Nessuna selezione = accesso completo al catalogo</div>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <FaEnvelope className="text-muted" style={{ flexShrink: 0 }} />
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.email}</div>
+                                        <div className="flex" style={{ flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                                            {(!inv.sections || inv.sections.length === 0) ? (
+                                                <span className="text-xs text-muted" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                    <FaUnlock style={{ opacity: 0.5 }} /> Catalogo completo
+                                                </span>
+                                            ) : inv.sections.map(sid => {
+                                                const sec = GRANTABLE_SECTIONS.find(s => s.id === sid);
+                                                if (!sec) return null;
+                                                return (
+                                                    <span key={sid} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.7rem', padding: '2px 7px', borderRadius: 10, background: 'rgba(201,168,76,0.1)', color: 'var(--accent-gold)', border: '1px solid rgba(201,168,76,0.2)' }}>
+                                                        {sec.icon} {t(sec.labelKey)}
+                                                    </span>
+                                                );
+                                            })}
+                                        </div>
+                                        {inv.note && <div className="text-xs text-muted" style={{ marginTop: 2 }}>{inv.note}</div>}
+                                    </div>
+                                    <button className="btn-ghost text-xs" onClick={() => startEditSections(inv)} title="Modifica accessi">
+                                        <FaLock />
+                                    </button>
+                                    <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => handleRemove(inv.email)} title="Revoca">
+                                        <FaTrash />
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>
@@ -712,7 +934,8 @@ function sanitizeSvg(svg: string): string {
 /* ────────────────────────────── FEATS ────────────────────────────── */
 
 const EMPTY_FEAT_CAT = (): CatalogFeat => ({
-    id: uuid(), name: '', description: '', modifiers: [], isDefect: false,
+    id: uuid(), name: '', description: '', modifiers: [], creatureModifiers: [],
+    subcategory: 'passive', resourceName: '', resourceMax: undefined,
 });
 
 function FeatsPanel({ currentUserEmail }: { currentUserEmail: string }) {
@@ -720,6 +943,7 @@ function FeatsPanel({ currentUserEmail }: { currentUserEmail: string }) {
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState<CatalogFeat | null>(null);
     const [search, setSearch] = useState('');
+    const [activeTab, setActiveTab] = useState<'active' | 'passive'>('active');
 
     const refresh = async () => {
         setLoading(true);
@@ -730,13 +954,14 @@ function FeatsPanel({ currentUserEmail }: { currentUserEmail: string }) {
 
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase();
-        if (!q) return items;
-        return items.filter(i =>
-            i.name.toLowerCase().includes(q) ||
-            (i.description ?? '').toLowerCase().includes(q) ||
-            (i.tags ?? []).some(t => t.toLowerCase().includes(q)),
-        );
-    }, [items, search]);
+        return items
+            .filter(i => (i.subcategory ?? 'passive') === activeTab)
+            .filter(i => !q ||
+                i.name.toLowerCase().includes(q) ||
+                (i.description ?? '').toLowerCase().includes(q) ||
+                (i.tags ?? []).some(t => t.toLowerCase().includes(q)),
+            );
+    }, [items, search, activeTab]);
 
     const save = async () => {
         if (!editing || !editing.name.trim()) return;
@@ -745,35 +970,441 @@ function FeatsPanel({ currentUserEmail }: { currentUserEmail: string }) {
         await refresh();
     };
     const remove = async (id: string) => {
-        if (!confirm('Eliminare questo talento?')) return;
+        if (!confirm('Eliminare questo privilegio di classe?')) return;
         await featCatalog.remove(id);
         await refresh();
     };
 
     if (editing) {
+        const isActive = (editing.subcategory ?? 'passive') === 'active';
+        const accent = isActive ? 'var(--accent-warning)' : 'var(--accent-success)';
         return (
             <div className="glass-panel flex-col gap-3">
                 <div className="section-header">
-                    <span className="section-title">{items.find(i => i.id === editing.id) ? 'Modifica' : 'Nuovo'} Talento</span>
+                    <span className="section-title">{items.find(i => i.id === editing.id) ? 'Modifica' : 'Nuovo'} Privilegio di Classe</span>
                     <div className="flex gap-2">
                         <button className="btn-secondary text-sm" onClick={() => setEditing(null)}><FaTimes /> Annulla</button>
                         <button className="btn-primary text-sm" onClick={save}><FaSave /> Salva</button>
                     </div>
                 </div>
                 <Field label="Nome"><input className="input w-full" value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} /></Field>
-                <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={!!editing.isDefect} onChange={e => setEditing({ ...editing, isDefect: e.target.checked })} />
-                    È un Difetto
-                </label>
-                <Field label="Descrizione">
-                    <textarea className="input w-full" rows={6} value={editing.description} onChange={e => setEditing({ ...editing, description: e.target.value })} />
+                <Field label="Tipo">
+                    <div className="flex gap-2">
+                        {(['active', 'passive'] as const).map(s => {
+                            const on = (editing.subcategory ?? 'passive') === s;
+                            const color = s === 'active' ? 'var(--accent-warning)' : 'var(--accent-success)';
+                            return (
+                                <button
+                                    key={s}
+                                    onClick={() => setEditing({ ...editing, subcategory: s })}
+                                    style={{
+                                        fontSize: '0.78rem', padding: '6px 14px', borderRadius: 6, cursor: 'pointer',
+                                        border: `1px solid ${on ? color : 'rgba(255,255,255,0.12)'}`,
+                                        background: on ? `${color}22` : 'transparent',
+                                        color: on ? color : 'var(--text-secondary)',
+                                        fontFamily: 'var(--font-heading)',
+                                    }}
+                                >
+                                    {s === 'active' ? 'Capacità Attiva' : 'Capacità Passiva'}
+                                </button>
+                            );
+                        })}
+                    </div>
                 </Field>
+                <Field label="Descrizione">
+                    <textarea className="input w-full" rows={4} value={editing.description} onChange={e => setEditing({ ...editing, description: e.target.value })} />
+                </Field>
+                {isActive && (
+                    <div className="flex gap-2">
+                        <input
+                            className="input"
+                            style={{ flex: 1 }}
+                            placeholder="Nome risorsa (es. Incanalare Divinità)"
+                            value={editing.resourceName ?? ''}
+                            onChange={e => setEditing({ ...editing, resourceName: e.target.value })}
+                        />
+                        <input
+                            type="number"
+                            className="input"
+                            style={{ width: 120 }}
+                            placeholder="Usi max"
+                            min={1}
+                            value={editing.resourceMax ?? ''}
+                            onChange={e => setEditing({ ...editing, resourceMax: e.target.value ? Number(e.target.value) : undefined })}
+                        />
+                    </div>
+                )}
                 <Field label="Tag (separati da virgola)">
                     <input className="input w-full" value={(editing.tags ?? []).join(', ')} onChange={e => setEditing({ ...editing, tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })} />
                 </Field>
-                <div className="text-xs text-muted">
-                    I modificatori dettagliati possono essere aggiunti manualmente sulla scheda dopo l'import.
+                <ModifierEditor
+                    modifiers={editing.modifiers ?? []}
+                    onChange={mods => setEditing({ ...editing, modifiers: mods as Modifier[] })}
+                    accentColor={accent}
+                    title="MODIFICATORI AL PERSONAGGIO"
+                    compact
+                />
+                <CreatureModifierEditor
+                    modifiers={(editing.creatureModifiers ?? []) as CreatureModifier[]}
+                    onChange={cms => setEditing({ ...editing, creatureModifiers: cms })}
+                    accentColor="var(--accent-gold)"
+                />
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex-col gap-3">
+            {/* Internal tab bar */}
+            <div className="flex" style={{ gap: 4 }}>
+                {(['active', 'passive'] as const).map(s => {
+                    const on = activeTab === s;
+                    const color = s === 'active' ? 'var(--accent-warning)' : 'var(--accent-success)';
+                    const label = s === 'active' ? 'Capacità Attive' : 'Capacità Passive';
+                    const cnt = items.filter(i => (i.subcategory ?? 'passive') === s).length;
+                    return (
+                        <button
+                            key={s}
+                            onClick={() => setActiveTab(s)}
+                            style={{
+                                flex: 1, padding: '7px 12px', borderRadius: 6, cursor: 'pointer',
+                                fontFamily: 'var(--font-heading)', fontSize: '0.82rem',
+                                border: `1px solid ${on ? color + '66' : 'rgba(255,255,255,0.06)'}`,
+                                background: on ? `linear-gradient(180deg,${color}22,${color}11)` : 'rgba(255,255,255,0.02)',
+                                color: on ? color : 'var(--text-secondary)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                            }}
+                        >
+                            {label}
+                            <span style={{ fontSize: '0.65rem', padding: '0 6px', borderRadius: 8,
+                                background: on ? `${color}33` : 'rgba(255,255,255,0.05)',
+                                border: `1px solid ${on ? color + '44' : 'rgba(255,255,255,0.08)'}`,
+                                color: on ? color : 'var(--text-muted)' }}>{cnt}</span>
+                        </button>
+                    );
+                })}
+            </div>
+            <div className="flex gap-2 items-center" style={{ flexWrap: 'wrap' }}>
+                <div className="flex items-center gap-2" style={{ flex: '1 1 240px', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', padding: '0.4rem 0.75rem' }}>
+                    <FaSearch className="text-muted" />
+                    <input className="w-full" style={{ background: 'transparent', border: 'none', color: 'inherit', outline: 'none' }} placeholder="Cerca…" value={search} onChange={e => setSearch(e.target.value)} />
                 </div>
+                <button className="btn-primary text-sm" onClick={() => setEditing({ ...EMPTY_FEAT_CAT(), subcategory: activeTab })}><FaPlus /> Nuovo Privilegio</button>
+            </div>
+            <div className="glass-panel">
+                {loading && <div className="text-muted text-sm">Caricamento…</div>}
+                {!loading && filtered.length === 0 && <div className="text-muted text-sm">Nessun privilegio nel catalogo.</div>}
+                <div className="flex-col gap-1">
+                    {filtered.map(f => {
+                        const sub = f.subcategory ?? 'passive';
+                        const subColor = sub === 'active' ? 'var(--accent-warning)' : 'var(--accent-success)';
+                        return (
+                            <div key={f.id} className="flex items-center gap-2" style={{ padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)' }}>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontFamily: 'var(--font-heading)', color: subColor }}>
+                                        {f.name}
+                                    </div>
+                                    {f.description && <div className="text-xs text-muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.description}</div>}
+                                </div>
+                                <button className="btn-ghost text-xs" onClick={() => setEditing(f)}>Modifica</button>
+                                <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => remove(f.id)}><FaTrash /></button>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+/* ────────────────────────────── BESTIARY ────────────────────────────── */
+
+const CREATURE_SIZES: CreatureSize[] = ['Minuscola', 'Piccola', 'Media', 'Grande', 'Enorme', 'Mastodontica', 'Colossale'];
+const CREATURE_TYPES: CreatureTypeCategory[] = [
+    'Aberrazione', 'Animale', 'Costrutto', 'Drago', 'Elementale', 'Fatato', 'Gigante',
+    'Umanoide', 'Bestia Magica', 'Umanoide Mostruoso', 'Melma', 'Esterno', 'Vegetale', 'Non Morto', 'Verme',
+];
+const CREATURE_ALIGNMENTS: CreatureAlignment[] = [
+    'Legale Buono', 'Neutrale Buono', 'Caotico Buono',
+    'Legale Neutrale', 'Neutrale', 'Caotico Neutrale',
+    'Legale Malvagio', 'Neutrale Malvagio', 'Caotico Malvagio',
+];
+
+const EMPTY_CREATURE = (): CatalogCreature => ({
+    id: uuid(), name: '', size: 'Media', type: 'Bestia Magica', alignment: 'Neutrale',
+    str: 10, dex: 10, con: 10, int: 2, wis: 10, cha: 4,
+    hp: 10, ac: 12, speed: 9, bab: 0,
+    fortitude: 0, reflex: 0, will: 0,
+    actions: [], specialAbilities: [],
+    description: '', challengeRating: '1', tags: [],
+});
+
+/** Compress an image file (for creature portraits) to a small base64 data URL. */
+async function compressCreatureImage(file: File): Promise<{ data: string; type: 'svg' | 'webp' | 'png' }> {
+    if (file.type === 'image/svg+xml') {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onerror = () => reject(new Error('read-failed'));
+            reader.onload = () => resolve({ data: String(reader.result), type: 'svg' });
+            reader.readAsText(file);
+        });
+    }
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('read-failed'));
+        reader.onload = () => {
+            const img = new Image();
+            img.onerror = () => reject(new Error('decode-failed'));
+            img.onload = () => {
+                const MAX = 256;
+                const ratio = Math.min(1, MAX / Math.max(img.width, img.height));
+                const w = Math.max(1, Math.round(img.width * ratio));
+                const h = Math.max(1, Math.round(img.height * ratio));
+                const canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) { reject(new Error('canvas')); return; }
+                ctx.drawImage(img, 0, 0, w, h);
+                resolve({ data: canvas.toDataURL('image/webp', 0.75), type: 'webp' });
+            };
+            img.src = String(reader.result);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function BestiaryPanel({ currentUserEmail }: { currentUserEmail: string }) {
+    const [items, setItems] = useState<CatalogCreature[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [editing, setEditing] = useState<CatalogCreature | null>(null);
+    const [search, setSearch] = useState('');
+    const [imgUploading, setImgUploading] = useState(false);
+    const imgInputRef = useRef<HTMLInputElement>(null);
+
+    const refresh = async () => { setLoading(true); setItems(await creatureCatalog.list()); setLoading(false); };
+    useEffect(() => { refresh(); }, []);
+
+    const filtered = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        if (!q) return items;
+        return items.filter(i => i.name.toLowerCase().includes(q) || (i.type || '').toLowerCase().includes(q) || (i.challengeRating || '').includes(q));
+    }, [items, search]);
+
+    const save = async () => {
+        if (!editing || !editing.name.trim()) return;
+        await creatureCatalog.upsert({ ...editing, createdBy: editing.createdBy ?? currentUserEmail });
+        setEditing(null);
+        await refresh();
+    };
+
+    const remove = async (id: string) => {
+        if (!confirm('Eliminare questa creatura dal catalogo condiviso?')) return;
+        await creatureCatalog.remove(id);
+        await refresh();
+    };
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!editing || !e.target.files?.length) return;
+        setImgUploading(true);
+        try {
+            const { data, type } = await compressCreatureImage(e.target.files[0]);
+            setEditing({ ...editing, imageData: data, imageType: type });
+        } catch { /* ignore */ }
+        finally { setImgUploading(false); if (imgInputRef.current) imgInputRef.current.value = ''; }
+    };
+
+    const addAction = () => {
+        if (!editing) return;
+        const a: CreatureAction = { id: uuid(), name: '', damage: '', damageType: '', range: 'Mischia' };
+        setEditing({ ...editing, actions: [...(editing.actions ?? []), a] });
+    };
+    const updateAction = (a: CreatureAction) => {
+        if (!editing) return;
+        setEditing({ ...editing, actions: (editing.actions ?? []).map(x => x.id === a.id ? a : x) });
+    };
+    const removeAction = (id: string) => {
+        if (!editing) return;
+        setEditing({ ...editing, actions: (editing.actions ?? []).filter(x => x.id !== id) });
+    };
+
+    const addAbility = () => {
+        if (!editing) return;
+        const a: CreatureSpecialAbility = { id: uuid(), name: '', description: '', abilityType: 'EX' };
+        setEditing({ ...editing, specialAbilities: [...(editing.specialAbilities ?? []), a] });
+    };
+    const updateAbility = (a: CreatureSpecialAbility) => {
+        if (!editing) return;
+        setEditing({ ...editing, specialAbilities: (editing.specialAbilities ?? []).map(x => x.id === a.id ? a : x) });
+    };
+    const removeAbility = (id: string) => {
+        if (!editing) return;
+        setEditing({ ...editing, specialAbilities: (editing.specialAbilities ?? []).filter(x => x.id !== id) });
+    };
+
+    if (editing) {
+        const e = editing;
+        const set = (patch: Partial<CatalogCreature>) => setEditing({ ...e, ...patch });
+        const n = (v: string) => Number(v) || 0;
+
+        return (
+            <div className="glass-panel flex-col gap-3">
+                <div className="section-header">
+                    <span className="section-title">{items.find(i => i.id === e.id) ? 'Modifica' : 'Nuova'} Creatura</span>
+                    <div className="flex gap-2">
+                        <button className="btn-secondary text-sm" onClick={() => setEditing(null)}><FaTimes /> Annulla</button>
+                        <button className="btn-primary text-sm" onClick={save}><FaSave /> Salva</button>
+                    </div>
+                </div>
+
+                {/* ── Image ── */}
+                <div className="flex gap-3 items-start" style={{ flexWrap: 'wrap' }}>
+                    {e.imageData ? (
+                        <div style={{ position: 'relative', width: 80, height: 80, flexShrink: 0 }}>
+                            {e.imageType === 'svg'
+                                ? <div style={{ width: 80, height: 80, borderRadius: 'var(--radius-sm)', overflow: 'hidden', background: 'var(--bg-surface)' }} dangerouslySetInnerHTML={{ __html: e.imageData }} />
+                                : <img src={e.imageData} alt="" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 'var(--radius-sm)' }} />
+                            }
+                            <button className="btn-ghost text-xs" style={{ position: 'absolute', top: 0, right: 0, color: 'var(--accent-crimson)', background: 'rgba(0,0,0,0.6)', borderRadius: '50%' }}
+                                onClick={() => set({ imageData: undefined, imageType: undefined })}>✕</button>
+                        </div>
+                    ) : (
+                        <div style={{ width: 80, height: 80, borderRadius: 'var(--radius-sm)', background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 28, flexShrink: 0, cursor: 'pointer' }}
+                            onClick={() => imgInputRef.current?.click()}>
+                            <FaDragon />
+                        </div>
+                    )}
+                    <div className="flex-col gap-1">
+                        <input ref={imgInputRef} type="file" accept="image/svg+xml,image/webp,image/png" style={{ display: 'none' }} onChange={handleImageUpload} />
+                        <button className="btn-secondary text-sm" onClick={() => imgInputRef.current?.click()} disabled={imgUploading}>
+                            <FaUpload /> {imgUploading ? 'Caricamento…' : 'Carica immagine (SVG/WebP)'}
+                        </button>
+                        <span className="text-xs text-muted">max 256×256 px, SVG o WebP consigliato</span>
+                    </div>
+                </div>
+
+                {/* ── Identity ── */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: 'var(--space-2)' }}>
+                    <Field label="Nome *"><input className="input w-full" value={e.name} onChange={ev => set({ name: ev.target.value })} /></Field>
+                    <Field label="Taglia">
+                        <select className="input w-full" value={e.size} onChange={ev => set({ size: ev.target.value as CreatureSize })}>
+                            {CREATURE_SIZES.map(s => <option key={s}>{s}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Tipo">
+                        <select className="input w-full" value={e.type} onChange={ev => set({ type: ev.target.value as CreatureTypeCategory })}>
+                            {CREATURE_TYPES.map(t => <option key={t}>{t}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Sottotipo"><input className="input w-full" value={e.subtype ?? ''} onChange={ev => set({ subtype: ev.target.value })} /></Field>
+                    <Field label="Allineamento">
+                        <select className="input w-full" value={e.alignment ?? 'Neutrale'} onChange={ev => set({ alignment: ev.target.value as CreatureAlignment })}>
+                            {CREATURE_ALIGNMENTS.map(a => <option key={a}>{a}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="CR"><input className="input w-full" value={e.challengeRating ?? ''} onChange={ev => set({ challengeRating: ev.target.value })} placeholder="es. 5, 1/2" /></Field>
+                    <Field label="Fonte"><input className="input w-full" value={e.source ?? ''} onChange={ev => set({ source: ev.target.value })} placeholder="es. Monster Manual" /></Field>
+                </div>
+
+                {/* ── Ability scores ── */}
+                <div className="section-header" style={{ marginTop: 8 }}><span className="section-title text-sm">Caratteristiche</span></div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 'var(--space-2)' }}>
+                    {(['str', 'dex', 'con', 'int', 'wis', 'cha'] as const).map(s => (
+                        <Field key={s} label={s.toUpperCase()}>
+                            <input className="input w-full" type="number" min={1} value={(e as any)[s]} onChange={ev => set({ [s]: n(ev.target.value) })} />
+                        </Field>
+                    ))}
+                </div>
+
+                {/* ── Combat ── */}
+                <div className="section-header" style={{ marginTop: 8 }}><span className="section-title text-sm">Combattimento</span></div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px,1fr))', gap: 'var(--space-2)' }}>
+                    <Field label="PF max"><input className="input w-full" type="number" min={1} value={e.hp} onChange={ev => set({ hp: n(ev.target.value) })} /></Field>
+                    <Field label="Dadi PF (es. 4d8+8)"><input className="input w-full" value={e.hpDice ?? ''} onChange={ev => set({ hpDice: ev.target.value })} /></Field>
+                    <Field label="CA"><input className="input w-full" type="number" value={e.ac} onChange={ev => set({ ac: n(ev.target.value) })} /></Field>
+                    <Field label="CA Naturale"><input className="input w-full" type="number" value={e.acNatural ?? 0} onChange={ev => set({ acNatural: n(ev.target.value) })} /></Field>
+                    <Field label="BAB"><input className="input w-full" type="number" value={e.bab} onChange={ev => set({ bab: n(ev.target.value) })} /></Field>
+                    <Field label="Presa"><input className="input w-full" type="number" value={e.grapple ?? 0} onChange={ev => set({ grapple: n(ev.target.value) })} /></Field>
+                    <Field label="Velocità (m)"><input className="input w-full" type="number" value={e.speed} onChange={ev => set({ speed: n(ev.target.value) })} /></Field>
+                    <Field label="Volo (m)"><input className="input w-full" type="number" value={e.fly ?? 0} onChange={ev => set({ fly: n(ev.target.value) || undefined })} /></Field>
+                    <Field label="Nuoto (m)"><input className="input w-full" type="number" value={e.swim ?? 0} onChange={ev => set({ swim: n(ev.target.value) || undefined })} /></Field>
+                    <Field label="Scalata (m)"><input className="input w-full" type="number" value={e.climb ?? 0} onChange={ev => set({ climb: n(ev.target.value) || undefined })} /></Field>
+                </div>
+
+                {/* ── Saves ── */}
+                <div className="section-header" style={{ marginTop: 8 }}><span className="section-title text-sm">Tiri Salvezza</span></div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-2)' }}>
+                    <Field label="Tempra"><input className="input w-full" type="number" value={e.fortitude} onChange={ev => set({ fortitude: n(ev.target.value) })} /></Field>
+                    <Field label="Riflessi"><input className="input w-full" type="number" value={e.reflex} onChange={ev => set({ reflex: n(ev.target.value) })} /></Field>
+                    <Field label="Volontà"><input className="input w-full" type="number" value={e.will} onChange={ev => set({ will: n(ev.target.value) })} /></Field>
+                </div>
+
+                {/* ── Defense ── */}
+                <div className="section-header" style={{ marginTop: 8 }}><span className="section-title text-sm">Difese & Sensi</span></div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: 'var(--space-2)' }}>
+                    <Field label="Riduzione Danni"><input className="input w-full" value={e.damageReduction ?? ''} onChange={ev => set({ damageReduction: ev.target.value })} placeholder="es. 5/magico" /></Field>
+                    <Field label="Res. Incantesimi"><input className="input w-full" type="number" value={e.spellResistance ?? 0} onChange={ev => set({ spellResistance: n(ev.target.value) || undefined })} /></Field>
+                    <Field label="Resistenze"><input className="input w-full" value={e.resistances ?? ''} onChange={ev => set({ resistances: ev.target.value })} placeholder="es. fuoco 10" /></Field>
+                    <Field label="Immunità"><input className="input w-full" value={e.immunities ?? ''} onChange={ev => set({ immunities: ev.target.value })} /></Field>
+                    <Field label="Vulnerabilità"><input className="input w-full" value={e.weaknesses ?? ''} onChange={ev => set({ weaknesses: ev.target.value })} /></Field>
+                    <Field label="Visione nel buio (m)"><input className="input w-full" type="number" value={e.darkvision ?? 0} onChange={ev => set({ darkvision: n(ev.target.value) || undefined })} /></Field>
+                    <Field label="Olfatto"><input className="input w-full" type="checkbox" checked={e.scent ?? false} onChange={ev => set({ scent: ev.target.checked })} style={{ width: 'auto' }} /></Field>
+                </div>
+
+                {/* ── Actions ── */}
+                <div className="section-header" style={{ marginTop: 8 }}>
+                    <span className="section-title text-sm">Attacchi</span>
+                    <button className="btn-secondary text-xs" onClick={addAction}><FaPlus /> Aggiungi attacco</button>
+                </div>
+                {(e.actions ?? []).map(a => (
+                    <div key={a.id} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px,1fr))', gap: 'var(--space-1)', background: 'var(--bg-surface)', padding: 'var(--space-2)', borderRadius: 'var(--radius-sm)' }}>
+                        <Field label="Nome attacco"><input className="input w-full" value={a.name} onChange={ev => updateAction({ ...a, name: ev.target.value })} /></Field>
+                        <Field label="Bonus attacco"><input className="input w-full" type="number" value={a.attackBonus ?? 0} onChange={ev => updateAction({ ...a, attackBonus: Number(ev.target.value) })} /></Field>
+                        <Field label="Danno (es. 1d8+3)"><input className="input w-full" value={a.damage ?? ''} onChange={ev => updateAction({ ...a, damage: ev.target.value })} /></Field>
+                        <Field label="Tipo danno"><input className="input w-full" value={a.damageType ?? ''} onChange={ev => updateAction({ ...a, damageType: ev.target.value })} placeholder="taglio, fuoco…" /></Field>
+                        <Field label="Critico"><input className="input w-full" value={a.criticalRange ?? '20'} onChange={ev => updateAction({ ...a, criticalRange: ev.target.value })} /></Field>
+                        <Field label="Mult. critico"><input className="input w-full" value={a.criticalMultiplier ?? '×2'} onChange={ev => updateAction({ ...a, criticalMultiplier: ev.target.value })} /></Field>
+                        <Field label="Gittata"><input className="input w-full" value={a.range ?? 'Mischia'} onChange={ev => updateAction({ ...a, range: ev.target.value })} /></Field>
+                        <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                            <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => removeAction(a.id)}><FaTrash /> Rimuovi</button>
+                        </div>
+                    </div>
+                ))}
+
+                {/* ── Special Abilities ── */}
+                <div className="section-header" style={{ marginTop: 8 }}>
+                    <span className="section-title text-sm">Capacità Speciali</span>
+                    <button className="btn-secondary text-xs" onClick={addAbility}><FaPlus /> Aggiungi capacità</button>
+                </div>
+                {(e.specialAbilities ?? []).map(a => (
+                    <div key={a.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 1fr auto', gap: 'var(--space-1)', background: 'var(--bg-surface)', padding: 'var(--space-2)', borderRadius: 'var(--radius-sm)', alignItems: 'start' }}>
+                        <Field label="Nome"><input className="input w-full" value={a.name} onChange={ev => updateAbility({ ...a, name: ev.target.value })} /></Field>
+                        <Field label="Tipo">
+                            <select className="input w-full" value={a.abilityType} onChange={ev => updateAbility({ ...a, abilityType: ev.target.value as 'EX' | 'SP' | 'SU' })}>
+                                <option value="EX">EX</option>
+                                <option value="SP">SP</option>
+                                <option value="SU">SU</option>
+                            </select>
+                        </Field>
+                        <Field label="Descrizione"><textarea className="input w-full" rows={2} value={a.description} onChange={ev => updateAbility({ ...a, description: ev.target.value })} /></Field>
+                        <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 2 }}>
+                            <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => removeAbility(a.id)}><FaTrash /></button>
+                        </div>
+                    </div>
+                ))}
+
+                {/* ── Flavor ── */}
+                <div className="section-header" style={{ marginTop: 8 }}><span className="section-title text-sm">Ambientazione & Note</span></div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))', gap: 'var(--space-2)' }}>
+                    <Field label="Habitat"><input className="input w-full" value={e.habitat ?? ''} onChange={ev => set({ habitat: ev.target.value })} /></Field>
+                    <Field label="Organizzazione"><input className="input w-full" value={e.organization ?? ''} onChange={ev => set({ organization: ev.target.value })} /></Field>
+                    <Field label="Tesoro"><input className="input w-full" value={e.treasureValue ?? ''} onChange={ev => set({ treasureValue: ev.target.value })} /></Field>
+                    <Field label="Tag (separati da virgola)">
+                        <input className="input w-full" value={(e.tags ?? []).join(', ')} onChange={ev => set({ tags: ev.target.value.split(',').map(s => s.trim()).filter(Boolean) })} />
+                    </Field>
+                </div>
+                <Field label="Descrizione">
+                    <textarea className="input w-full" rows={5} value={e.description ?? ''} onChange={ev => set({ description: ev.target.value })} />
+                </Field>
             </div>
         );
     }
@@ -783,25 +1414,35 @@ function FeatsPanel({ currentUserEmail }: { currentUserEmail: string }) {
             <div className="flex gap-2 items-center" style={{ flexWrap: 'wrap' }}>
                 <div className="flex items-center gap-2" style={{ flex: '1 1 240px', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', padding: '0.4rem 0.75rem' }}>
                     <FaSearch className="text-muted" />
-                    <input className="w-full" style={{ background: 'transparent', border: 'none', color: 'inherit', outline: 'none' }} placeholder="Cerca…" value={search} onChange={e => setSearch(e.target.value)} />
+                    <input className="w-full" style={{ background: 'transparent', border: 'none', color: 'inherit', outline: 'none' }} placeholder="Cerca creatura…" value={search} onChange={e => setSearch(e.target.value)} />
                 </div>
-                <button className="btn-primary text-sm" onClick={() => setEditing(EMPTY_FEAT_CAT())}><FaPlus /> Nuovo Talento</button>
+                <button className="btn-primary text-sm" onClick={() => setEditing(EMPTY_CREATURE())}><FaPlus /> Nuova Creatura</button>
             </div>
             <div className="glass-panel">
                 {loading && <div className="text-muted text-sm">Caricamento…</div>}
-                {!loading && filtered.length === 0 && <div className="text-muted text-sm">Nessun talento nel catalogo.</div>}
-                <div className="flex-col gap-1">
-                    {filtered.map(f => (
-                        <div key={f.id} className="flex items-center gap-2" style={{ padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)' }}>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontFamily: 'var(--font-heading)' }}>
-                                    {f.name}
-                                    {f.isDefect && <span className="text-xs" style={{ color: 'var(--accent-crimson)', marginLeft: 6 }}>[Difetto]</span>}
-                                </div>
-                                {f.description && <div className="text-xs text-muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.description}</div>}
+                {!loading && filtered.length === 0 && <div className="text-muted text-sm">Nessuna creatura nel catalogo.</div>}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--space-2)' }}>
+                    {filtered.map(c => (
+                        <div key={c.id} className="card" style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: 12 }}>
+                            {/* Thumbnail */}
+                            <div style={{ width: 48, height: 48, borderRadius: 'var(--radius-sm)', background: 'var(--bg-surface)', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-gold)', fontSize: 22 }}>
+                                {c.imageData && c.imageType === 'svg'
+                                    ? <span dangerouslySetInnerHTML={{ __html: c.imageData }} style={{ display: 'flex', width: '100%', height: '100%' }} />
+                                    : c.imageData
+                                        ? <img src={c.imageData} alt="" style={{ width: 48, height: 48, objectFit: 'cover' }} />
+                                        : <FaDragon />
+                                }
                             </div>
-                            <button className="btn-ghost text-xs" onClick={() => setEditing(f)}>Modifica</button>
-                            <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => remove(f.id)}><FaTrash /></button>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
+                                <div className="text-xs text-muted">{c.size} {c.type}{c.subtype ? ` (${c.subtype})` : ''}</div>
+                                <div className="text-xs text-muted">CR {c.challengeRating ?? '?'} · CA {c.ac} · PF {c.hp}</div>
+                                <div className="text-xs text-muted">BAB +{c.bab} · For {c.fortitude}/{c.reflex}/{c.will}</div>
+                            </div>
+                            <div className="flex gap-1">
+                                <button className="btn-ghost text-xs" onClick={() => setEditing({ ...c })} title="Modifica"><FaEdit /></button>
+                                <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => remove(c.id)} title="Elimina"><FaTrash /></button>
+                            </div>
                         </div>
                     ))}
                 </div>

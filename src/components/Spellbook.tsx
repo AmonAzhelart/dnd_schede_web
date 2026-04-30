@@ -2,10 +2,10 @@
 import { createPortal } from 'react-dom';
 import { useCharacterStore } from '../store/characterStore';
 import { v4 as uuidv4 } from 'uuid';
-import { FaPlus, FaTrash, FaEdit, FaCheck, FaMoon, FaBookOpen, FaCalendarDay, FaMinus, FaSearch, FaClock, FaArrowsAltH, FaHourglass, FaShieldAlt, FaFeather, FaBolt, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaEdit, FaCheck, FaMoon, FaBookOpen, FaCalendarDay, FaMinus, FaSearch, FaClock, FaArrowsAltH, FaHourglass, FaShieldAlt, FaFeather, FaBolt, FaEye, FaEyeSlash, FaDragon, FaTimes } from 'react-icons/fa';
 import { GiSpellBook, GiCrystalBall, GiBookmarklet } from 'react-icons/gi';
 import type { Spell } from '../types/dnd';
-import { spellCatalog, type CatalogSpell } from '../services/admin';
+import { spellCatalog, creatureCatalog, type CatalogSpell, type CatalogCreature } from '../services/admin';
 import { useIconCatalog } from '../services/iconCache';
 import { CatalogPicker } from './CatalogPicker';
 import { DndIcon, getDndIconSvg } from './DndIcon';
@@ -64,6 +64,7 @@ const EMPTY_SPELL = (): Omit<Spell, 'id'> => ({
   castingTime: '', range: '', duration: '', savingThrow: '', components: '',
   attackMode: 'none', baseDice: '', damageType: '', saveStat: 'int',
   upcastDice: '', upcastEveryLevels: 1, upcastMaxSteps: undefined,
+  summonableCreatureIds: [],
 });
 
 const LevelLabel = (level: number) => level === 0 ? 'Trucchetti' : `Livello ${level}`;
@@ -88,10 +89,59 @@ interface SpellRowProps {
   deleteSpell: (id: string) => void;
   formProps: SpellEditFormProps;
   isMobile?: boolean;
+  /** id → name for all known creatures (personal bestiary + catalog) */
+  creatureNameMap: Record<string, string>;
 }
 
 // ── Sub-components at module level (prevents remount on parent re-render) ─────
-const SpellEditForm: React.FC<SpellEditFormProps> = ({ form, setForm, saveSpell, cancelEdit, editingId, autoFocus }) => (
+const SpellEditForm: React.FC<SpellEditFormProps> = ({ form, setForm, saveSpell, cancelEdit, editingId, autoFocus }) => {
+  const { character } = useCharacterStore();
+  const bestiary = character?.bestiary ?? [];
+  const linkedIds: string[] = form.summonableCreatureIds ?? [];
+
+  // Load catalog creatures for the picker
+  const [catalogCreatures, setCatalogCreatures] = useState<CatalogCreature[]>([]);
+  useEffect(() => {
+    creatureCatalog.list().then(setCatalogCreatures);
+  }, []);
+
+  // Merge: personal bestiary entries + catalog creatures not already in personal
+  type PickerItem = { id: string; name: string; cr?: number | string; type?: string; source: 'personale' | 'catalogo' };
+  const pickerItems: PickerItem[] = [
+    ...bestiary.map(e => ({ id: e.id, name: e.creature.name, cr: e.creature.challengeRating, type: e.creature.type, source: 'personale' as const })),
+    ...catalogCreatures
+      .filter(c => !bestiary.some(e => e.catalogId === c.id))
+      .map(c => ({ id: c.id, name: c.name, cr: c.challengeRating, type: c.type, source: 'catalogo' as const })),
+  ];
+
+  const [creatureSearch, setCreatureSearch] = useState('');
+  const [crFilter, setCrFilter] = useState<'all' | 'low' | 'mid' | 'high'>('all');
+
+  const crNum = (cr: number | string | undefined) => {
+    if (cr === undefined) return 0;
+    if (typeof cr === 'number') return cr;
+    const parts = String(cr).split('/');
+    return parts.length === 2 ? Number(parts[0]) / Number(parts[1]) : Number(cr) || 0;
+  };
+
+  const filteredPickerItems = pickerItems.filter(item => {
+    const q = creatureSearch.trim().toLowerCase();
+    if (q && !item.name.toLowerCase().includes(q) && !(item.type ?? '').toLowerCase().includes(q)) return false;
+    if (crFilter === 'low' && crNum(item.cr) > 3) return false;
+    if (crFilter === 'mid' && (crNum(item.cr) < 4 || crNum(item.cr) > 10)) return false;
+    if (crFilter === 'high' && crNum(item.cr) < 11) return false;
+    return true;
+  });
+
+  const linkedItems = pickerItems.filter(i => linkedIds.includes(i.id));
+
+  const toggleCreature = (id: string) => {
+    setForm(f => {
+      const ids = f.summonableCreatureIds ?? [];
+      return { ...f, summonableCreatureIds: ids.includes(id) ? ids.filter(i => i !== id) : [...ids, id] };
+    });
+  };
+  return (
   <div className="sb-edit-form">
     <div className="sb-form-row">
       <input className="input" autoFocus={autoFocus} placeholder="Nome incantesimo *" value={form.name}
@@ -175,6 +225,87 @@ const SpellEditForm: React.FC<SpellEditFormProps> = ({ form, setForm, saveSpell,
         </div>
       </div>
     </div>
+    {/* ── Creature Evocabili ─────────────────────────────────────────── */}
+    <div style={{ border: '1px solid rgba(231,76,60,0.2)', borderRadius: 8, padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ fontSize: '0.6rem', letterSpacing: '0.1em', color: 'var(--accent-crimson)', display: 'flex', alignItems: 'center', gap: 4 }}>
+        <FaDragon size={9} /> CREATURE EVOCABILI (opzionale)
+      </div>
+
+      {/* Linked badges */}
+      {linkedItems.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+          {linkedItems.map(item => (
+            <button key={item.id} onClick={() => toggleCreature(item.id)}
+              title="Clicca per scollegare"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                padding: '3px 8px', borderRadius: 20, fontSize: '0.72rem', cursor: 'pointer',
+                background: 'rgba(231,76,60,0.22)', border: '1px solid rgba(231,76,60,0.6)',
+                color: 'var(--accent-crimson)', transition: 'all 0.15s',
+              }}>
+              <FaCheck size={8} /> {item.name}
+              {item.cr !== undefined && <span style={{ opacity: 0.6, fontSize: '0.62rem' }}>GS {item.cr}</span>}
+              <FaTimes size={7} style={{ marginLeft: 2, opacity: 0.7 }} />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Search + filter row */}
+      <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+        <div style={{ flex: 1, position: 'relative' }}>
+          <FaSearch size={9} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+          <input
+            className="input"
+            placeholder="Cerca per nome o tipo…"
+            value={creatureSearch}
+            onChange={e => setCreatureSearch(e.target.value)}
+            style={{ fontSize: '0.78rem', paddingLeft: 24 }}
+          />
+        </div>
+        <select className="input" value={crFilter} onChange={e => setCrFilter(e.target.value as typeof crFilter)}
+          style={{ flex: '0 0 120px', fontSize: '0.75rem' }}>
+          <option value="all">Tutti i GS</option>
+          <option value="low">GS 1–3</option>
+          <option value="mid">GS 4–10</option>
+          <option value="high">GS 11+</option>
+        </select>
+      </div>
+
+      {/* Results list */}
+      {pickerItems.length === 0 ? (
+        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+          Nessuna creatura disponibile. Aggiungile dal Bestiario.
+        </div>
+      ) : filteredPickerItems.length === 0 ? (
+        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Nessun risultato.</div>
+      ) : (
+        <div style={{ maxHeight: 160, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {filteredPickerItems.map(item => {
+            const linked = linkedIds.includes(item.id);
+            return (
+              <button key={item.id} onClick={() => toggleCreature(item.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left',
+                  padding: '5px 8px', borderRadius: 6, fontSize: '0.75rem', cursor: 'pointer',
+                  background: linked ? 'rgba(231,76,60,0.15)' : 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${linked ? 'rgba(231,76,60,0.5)' : 'rgba(255,255,255,0.07)'}`,
+                  color: linked ? 'var(--accent-crimson)' : 'var(--text-primary)',
+                  transition: 'all 0.12s',
+                }}>
+                <span style={{ width: 12, flexShrink: 0, color: 'var(--accent-crimson)' }}>
+                  {linked && <FaCheck size={8} />}
+                </span>
+                <span style={{ flex: 1 }}>{item.name}</span>
+                {item.type && <span style={{ opacity: 0.45, fontSize: '0.65rem' }}>{item.type}</span>}
+                {item.cr !== undefined && <span style={{ opacity: 0.55, fontSize: '0.65rem', flexShrink: 0 }}>GS {item.cr}</span>}
+                <span style={{ opacity: 0.35, fontSize: '0.62rem', flexShrink: 0 }}>{item.source === 'catalogo' ? 'cat.' : 'pers.'}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
     <div className="sb-form-actions">
       <button onClick={cancelEdit} className="btn-secondary" style={{ fontSize: '0.8rem' }}>Annulla</button>
       <button onClick={saveSpell} className="btn-primary" style={{ fontSize: '0.8rem', justifyContent: 'center', opacity: form.name.trim() ? 1 : 0.5 }}>
@@ -182,7 +313,8 @@ const SpellEditForm: React.FC<SpellEditFormProps> = ({ form, setForm, saveSpell,
       </button>
     </div>
   </div>
-);
+  );
+};
 
 // ── Bookmark tab ─────────────────────────────────────────────────────────────
 const BookmarkTab: React.FC<{
@@ -291,7 +423,7 @@ const LevelPickerPopover: React.FC<{
 };
 
 // ── Spell card ─────────────────────────────────────────────────────────────────
-const SpellCard: React.FC<SpellRowProps> = ({ spell, editingId, prepCountFor, slots, prepareWizardSpell, unprepareSpellOne, startEdit, deleteSpell, formProps, isMobile }) => {
+const SpellCard: React.FC<SpellRowProps> = ({ spell, editingId, prepCountFor, slots, prepareWizardSpell, unprepareSpellOne, startEdit, deleteSpell, formProps, isMobile, creatureNameMap }) => {
   const prepCount = prepCountFor(spell.id);
   const isEdit = editingId === spell.id;
   const color = SCHOOL_COLOR[spell.school] ?? 'var(--text-muted)'; const { resolveSchoolSvg, sanitizeSvg } = useIconCatalog();
@@ -301,8 +433,9 @@ const SpellCard: React.FC<SpellRowProps> = ({ spell, editingId, prepCountFor, sl
   const slot = slots[String(spell.level)];
   const slotsLeft = slot ? slot.total - slot.used : 0;
   const canPrepare = spell.level === 0 || slotsLeft > 0 || prepCount < (slot?.total ?? 0);
-  // On mobile, the edit form is shown in a BottomDrawer — don't replace the card inline.
-  if (isEdit && !isMobile) return <SpellEditForm {...formProps} />;
+  const linkedNames = (spell.summonableCreatureIds ?? [])
+    .map(id => creatureNameMap[id])
+    .filter(Boolean) as string[];
 
   const stats: [React.ReactNode, string | undefined, string][] = [
     [<FaClock size={9} />, spell.castingTime, 'Tempo'],
@@ -397,6 +530,21 @@ const SpellCard: React.FC<SpellRowProps> = ({ spell, editingId, prepCountFor, sl
       )}
 
       {/* Footer: prep controls */}
+      {/* Linked creatures */}
+      {linkedNames.length > 0 && (
+        <div style={{ padding: '4px 10px 0', display: 'flex', flexWrap: 'wrap', gap: 4, borderTop: `1px solid rgba(231,76,60,0.15)`, marginTop: 4, paddingTop: 6 }}>
+          {linkedNames.map(name => (
+            <span key={name} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 3,
+              fontSize: '0.65rem', padding: '2px 6px', borderRadius: 12,
+              background: 'rgba(231,76,60,0.12)', border: '1px solid rgba(231,76,60,0.35)',
+              color: 'var(--accent-crimson)',
+            }}>
+              <FaDragon size={7} /> {name}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="sb-card-footer" style={{ background: `linear-gradient(180deg, transparent, ${color}0c)`, borderTopColor: `${color}18` }}>
         <div className={`sb-prep-counter${prepCount > 0 ? ' has-preps' : ''}`}
           style={prepCount > 0 ? { '--c-border': `${color}44`, '--c-bg': `${color}14`, '--c-color': color } as React.CSSProperties : {}}>
@@ -442,6 +590,9 @@ export const Spellbook: React.FC = () => {
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [catalogItems, setCatalogItems] = useState<CatalogSpell[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogCreatureCache, setCatalogCreatureCache] = useState<CatalogCreature[]>([]);
+  // Load catalog creatures once for name resolution in spell badges
+  useEffect(() => { creatureCatalog.list().then(setCatalogCreatureCache); }, []);
   const isMobile = useMediaQuery('(max-width: 900px)');
   const openCatalogPicker = async () => {
     setCatalogOpen(true);
@@ -541,7 +692,14 @@ export const Spellbook: React.FC = () => {
   const cancelEdit = () => { setEditingId(null); setIsAdding(false); setForm(EMPTY_SPELL()); };
 
   const formProps: SpellEditFormProps = { form, setForm, saveSpell, cancelEdit, editingId };
-  const cardProps = { editingId, prepCountFor, slots, prepareWizardSpell, unprepareSpellOne, startEdit, deleteSpell, formProps, isMobile };
+
+  // id → name map for all known creatures (personal bestiary + catalog)
+  const bestiary = character.bestiary ?? [];
+  const creatureNameMap: Record<string, string> = {};
+  bestiary.forEach(e => { creatureNameMap[e.id] = e.creature.name; });
+  catalogCreatureCache.forEach(c => { if (!creatureNameMap[c.id]) creatureNameMap[c.id] = c.name; });
+
+  const cardProps = { editingId, prepCountFor, slots, prepareWizardSpell, unprepareSpellOne, startEdit, deleteSpell, formProps, isMobile, creatureNameMap };
 
   // Spell lookup
   const spellById = new Map<string, Spell>();
@@ -822,6 +980,27 @@ export const Spellbook: React.FC = () => {
             );
           })}
         </div>
+      )}
+
+      {/* Desktop: spell edit modal */}
+      {editingId !== null && !isMobile && createPortal(
+        <>
+          <div onClick={cancelEdit} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 9990 }} />
+          <div style={{
+            position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+            zIndex: 9991, width: 'min(700px, 95vw)', maxHeight: '90vh', overflow: 'auto',
+            background: 'rgba(22,22,34,0.98)', border: '1px solid rgba(155,89,182,0.4)',
+            borderRadius: 12, padding: '1.25rem',
+            boxShadow: '0 16px 48px rgba(0,0,0,0.7)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <span style={{ fontFamily: 'var(--font-heading)', color: 'var(--accent-arcane)', fontSize: '1rem' }}>Modifica Incantesimo</span>
+              <button className="btn-ghost" onClick={cancelEdit} style={{ padding: '2px 6px' }}><FaTimes size={12} /></button>
+            </div>
+            <SpellEditForm {...formProps} autoFocus />
+          </div>
+        </>,
+        document.body
       )}
 
       {/* Mobile: spell add/edit bottom drawer */}

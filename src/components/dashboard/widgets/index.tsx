@@ -1,4 +1,4 @@
-import { FaHeart, FaStar, FaCoins, FaLanguage } from 'react-icons/fa';
+import { FaHeart, FaStar, FaCoins, FaLanguage, FaDragon } from 'react-icons/fa';
 import {
     GiSwordman, GiAxeSword, GiSpellBook, GiTreasureMap, GiWalk,
     GiHealthPotion, GiShield, GiBrain, GiAbstract024, GiMagicSwirl,
@@ -19,6 +19,8 @@ import { LanguagesWidget } from './LanguagesWidget';
 import { MovementWidget } from './MovementWidget';
 import { NotesWidget } from './NotesWidget';
 import { ModifiersWidget } from './ModifiersWidget';
+import { SummonsWidget } from './SummonsWidget';
+import { BestiaryWidget } from './BestiaryWidget';
 
 import './widgets.css';
 
@@ -37,6 +39,8 @@ export const WIDGET_CATALOG: WidgetDefinition[] = [
     { id: 'movement', title: 'Movimento', description: 'Velocità e modalità', icon: <GiWalk />, defaultW: 2, defaultH: 4, minW: 2, minH: 3, render: MovementWidget, accent: 'var(--accent-success)' },
     { id: 'notes', title: 'Note', description: 'Bloc-notes della sessione', icon: <GiSwordman />, defaultW: 4, defaultH: 6, minW: 2, minH: 3, render: NotesWidget, accent: 'var(--accent-arcane)' },
     { id: 'modifiers', title: 'Modificatori Attivi', description: 'Bonus e malus temporanei applicati a qualsiasi statistica', icon: <GiMagicSwirl />, defaultW: 4, defaultH: 6, minW: 2, minH: 3, render: ModifiersWidget, accent: 'var(--accent-arcane)' },
+    { id: 'summons', title: 'Evocazioni & Compagni', description: 'Gestisci PF e stato delle creature evocate e dei compagni', icon: <FaDragon />, defaultW: 4, defaultH: 7, minW: 2, minH: 3, render: SummonsWidget, accent: 'var(--accent-gold)' },
+    { id: 'bestiary', title: 'Bestiario', description: 'Riepilogo bestiario, evocazioni e compagni attivi', icon: <GiMagicSwirl />, defaultW: 3, defaultH: 6, minW: 2, minH: 3, render: BestiaryWidget, accent: 'var(--accent-gold)' },
 ];
 
 export const getWidgetDef = (id: string) => {

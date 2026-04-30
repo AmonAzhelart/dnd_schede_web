@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { FaPlus, FaTrash, FaEdit, FaCheck, FaTimes, FaChevronDown, FaChevronRight } from 'react-icons/fa';
 import type { ClassFeature, ClassFeatureSubcategory, Modifier, StatType } from '../types/dnd';
 import { ModifierEditor } from './ModifierEditor';
+import { CreatureModifierEditor } from './CreatureModifierEditor';
 import { ROLL_CHANNEL_LABELS } from '../services/modifiers';
 
 type SubcategoryMeta = {
@@ -29,13 +30,6 @@ const SUBCATEGORY_META: SubcategoryMeta[] = [
         color: 'var(--accent-success)',
         emptyMsg: 'Nessuna capacità passiva. Es: Stile di Combattimento, Sensi Acuti.',
     },
-    {
-        key: 'option',
-        label: 'Talenti & Opzioni',
-        headerLabel: 'TALENTI & OPZIONI DI PERSONALIZZAZIONE',
-        color: 'var(--accent-arcane)',
-        emptyMsg: 'Nessuna opzione. Es: Invocazioni Occulte, Manovre del Guerriero, Metamorfosi.',
-    },
 ];
 
 type FormState = Omit<ClassFeature, 'id'>;
@@ -49,6 +43,7 @@ const emptyForm = (sub: ClassFeatureSubcategory): FormState => ({
     resourceName: '',
     resourceMax: undefined,
     resourceUsed: 0,
+    creatureModifiers: [],
 });
 
 // ── Edit Form ──────────────────────────────────────────────────────────────────
@@ -128,6 +123,11 @@ const EditForm: React.FC<EditFormProps> = ({
             accentColor={color}
             title="MODIFICATORI AL PERSONAGGIO"
             compact
+        />
+        <CreatureModifierEditor
+            modifiers={form.creatureModifiers ?? []}
+            onChange={cms => setForm(f => ({ ...f, creatureModifiers: cms }))}
+            accentColor="var(--accent-gold)"
         />
 
         {/* Actions */}
@@ -505,7 +505,10 @@ export const ClassFeatures: React.FC<ClassFeaturesProps> = ({ restrictTo, hideTo
 
     if (!character) return null;
 
-    const features = character.classFeatures ?? [];
+    // Normalize legacy subcategories ('talent', 'option') to 'passive' for backward compatibility
+    const features = (character.classFeatures ?? []).map(f =>
+        f.subcategory === 'active' ? f : { ...f, subcategory: 'passive' as const }
+    );
 
     const activeColor = SUBCATEGORY_META.find(m => m.key === (form.subcategory ?? 'active'))?.color ?? 'var(--accent-gold)';
 

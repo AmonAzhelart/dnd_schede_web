@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CharacterBase, ClassLevel, HpLevelLogEntry, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell, ActiveModifier, DurationUnit } from '../types/dnd';
+import type { CharacterBase, ClassLevel, HpLevelLogEntry, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell, ActiveModifier, DurationUnit, BestiaryEntry, ActiveSummon, ActivePet, Creature, CreatureStatOverride, CreatureRuntimeModifier } from '../types/dnd';
 import { computeClassBab, computeClassSaveBase, getExpectedHpForClassLevel } from '../types/dnd';
 import { collectModifierCandidates, resolveStatOverride, type ModifierCandidate, type RollContext } from '../services/modifiers';
 
@@ -110,6 +110,32 @@ interface CharacterState {
   /** New: collect every applicable modifier (item / feat / class feature /
    *  active buff) for a roll context. Returns auto + optional candidates. */
   getApplicableModifiers: (ctx: RollContext) => ModifierCandidate[];
+
+  // ── Bestiary ────────────────────────────────────────────────────────
+  addBestiaryEntry: (entry: BestiaryEntry) => void;
+  updateBestiaryEntry: (entry: BestiaryEntry) => void;
+  removeBestiaryEntry: (id: string) => void;
+
+  // ── Active Summons ───────────────────────────────────────────────────
+  addSummon: (summon: ActiveSummon) => void;
+  updateSummon: (summon: ActiveSummon) => void;
+  removeSummon: (id: string) => void;
+  updateSummonHp: (id: string, delta: number) => void;
+  /** Compute stat overrides from active feats/features/items for a creature being summoned */
+  computeSummonOverrides: (creature: Creature) => CreatureStatOverride[];
+
+  // ── Active Pets ──────────────────────────────────────────────────────
+  addPet: (pet: ActivePet) => void;
+  updatePet: (pet: ActivePet) => void;
+  removePet: (id: string) => void;
+  updatePetHp: (id: string, delta: number) => void;
+  /** Compute stat overrides from active feats/features/items for a pet */
+  computePetOverrides: (creature: Creature) => CreatureStatOverride[];
+
+  // ── Creature runtime modifiers (summons & pets) ──────────────────────
+  addCreatureRuntimeModifier: (kind: 'summon' | 'pet', id: string, mod: CreatureRuntimeModifier) => void;
+  removeCreatureRuntimeModifier: (kind: 'summon' | 'pet', id: string, modId: string) => void;
+  tickCreatureRuntimeModifiers: (kind: 'summon' | 'pet', id: string, by?: number) => void;
 }
 
 // Helper to determine if a modifier type stacks
@@ -863,4 +889,200 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     if (!character) return [];
     return collectModifierCandidates(character, ctx);
   },
+
+  // ── Bestiary ──────────────────────────────────────────────────────────────
+  addBestiaryEntry: (entry) => set((state) => {
+    if (!state.character) return state;
+    const bestiary = [...(state.character.bestiary ?? []), entry];
+    return { character: { ...state.character, bestiary } };
+  }),
+
+  updateBestiaryEntry: (entry) => set((state) => {
+    if (!state.character) return state;
+    const bestiary = (state.character.bestiary ?? []).map(e => e.id === entry.id ? entry : e);
+    return { character: { ...state.character, bestiary } };
+  }),
+
+  removeBestiaryEntry: (id) => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, bestiary: (state.character.bestiary ?? []).filter(e => e.id !== id) } };
+  }),
+
+  // ── Active Summons ────────────────────────────────────────────────────────
+  computeSummonOverrides: (creature): CreatureStatOverride[] => {
+    const { character } = get();
+    if (!character) return [];
+    const overrides: CreatureStatOverride[] = [];
+    for (const feat of (character.feats ?? [])) {
+      if (!feat.active) continue;
+      for (const cm of (feat.creatureModifiers ?? [])) {
+        if (cm.appliesTo === 'allSummons' || cm.appliesTo === 'all') {
+          overrides.push({ source: feat.name, stat: cm.stat, value: cm.value, type: cm.type });
+        }
+      }
+    }
+    for (const feat of (character.classFeatures ?? [])) {
+      if (!feat.active) continue;
+      for (const cm of (feat.creatureModifiers ?? [])) {
+        if (cm.appliesTo === 'allSummons' || cm.appliesTo === 'all') {
+          overrides.push({ source: feat.name, stat: cm.stat, value: cm.value, type: cm.type });
+        }
+      }
+    }
+    for (const item of (character.inventory ?? [])) {
+      if (!item.equipped) continue;
+      for (const m of (item.modifiers ?? [])) {
+        if (m.target === 'summon.str' || m.target === 'summon.con' || m.target === 'summon.all') {
+          const stat = m.target.replace('summon.', '') as CreatureStatOverride['stat'];
+          overrides.push({ source: item.name, stat, value: m.value, type: m.type });
+        }
+      }
+    }
+    return overrides;
+  },
+
+  addSummon: (summon) => set((state) => {
+    if (!state.character) return state;
+    const activeSummons = [...(state.character.activeSummons ?? []), summon];
+    return { character: { ...state.character, activeSummons } };
+  }),
+
+  updateSummon: (summon) => set((state) => {
+    if (!state.character) return state;
+    const activeSummons = (state.character.activeSummons ?? []).map(s => s.id === summon.id ? summon : s);
+    return { character: { ...state.character, activeSummons } };
+  }),
+
+  removeSummon: (id) => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, activeSummons: (state.character.activeSummons ?? []).filter(s => s.id !== id) } };
+  }),
+
+  updateSummonHp: (id, delta) => set((state) => {
+    if (!state.character) return state;
+    const activeSummons = (state.character.activeSummons ?? []).map(s => {
+      if (s.id !== id) return s;
+      const hpFromRuntime = aggregateModifiers((s.runtimeModifiers ?? []).filter(m => m.stat === 'hp').map(m => ({ type: m.type, value: m.value })));
+      const hpFromStatic = s.appliedOverrides.filter(o => o.stat === 'hp').reduce((acc, o) => acc + o.value, 0);
+      const conBonus = aggregateModifiers([
+        ...s.appliedOverrides.filter(o => o.stat === 'con').map(o => ({ type: o.type, value: o.value })),
+        ...(s.runtimeModifiers ?? []).filter(m => m.stat === 'con').map(m => ({ type: m.type, value: m.value })),
+      ]);
+      const dConMod = Math.floor((s.creature.con + conBonus - 10) / 2) - Math.floor((s.creature.con - 10) / 2);
+      const hdMatch = s.creature.hpDice?.match(/^(\d+)d\d+/);
+      const hdCount = hdMatch ? parseInt(hdMatch[1], 10) : 0;
+      const effective = s.creature.hp + hpFromStatic + hpFromRuntime + dConMod * hdCount;
+      return { ...s, currentHp: Math.max(0, Math.min(effective, s.currentHp + delta)) };
+    });
+    return { character: { ...state.character, activeSummons } };
+  }),
+
+  // ── Active Pets ───────────────────────────────────────────────────────────
+  computePetOverrides: (creature): CreatureStatOverride[] => {
+    const { character } = get();
+    if (!character) return [];
+    const overrides: CreatureStatOverride[] = [];
+    for (const feat of (character.feats ?? [])) {
+      if (!feat.active) continue;
+      for (const cm of (feat.creatureModifiers ?? [])) {
+        if (cm.appliesTo === 'allPets' || cm.appliesTo === 'all') {
+          overrides.push({ source: feat.name, stat: cm.stat, value: cm.value, type: cm.type });
+        }
+      }
+    }
+    for (const feat of (character.classFeatures ?? [])) {
+      if (!feat.active) continue;
+      for (const cm of (feat.creatureModifiers ?? [])) {
+        if (cm.appliesTo === 'allPets' || cm.appliesTo === 'all') {
+          overrides.push({ source: feat.name, stat: cm.stat, value: cm.value, type: cm.type });
+        }
+      }
+    }
+    return overrides;
+  },
+
+  addPet: (pet) => set((state) => {
+    if (!state.character) return state;
+    const activePets = [...(state.character.activePets ?? []), pet];
+    return { character: { ...state.character, activePets } };
+  }),
+
+  updatePet: (pet) => set((state) => {
+    if (!state.character) return state;
+    const activePets = (state.character.activePets ?? []).map(p => p.id === pet.id ? pet : p);
+    return { character: { ...state.character, activePets } };
+  }),
+
+  removePet: (id) => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, activePets: (state.character.activePets ?? []).filter(p => p.id !== id) } };
+  }),
+
+  updatePetHp: (id, delta) => set((state) => {
+    if (!state.character) return state;
+    const activePets = (state.character.activePets ?? []).map(p => {
+      if (p.id !== id) return p;
+      const hpFromRuntime = aggregateModifiers((p.runtimeModifiers ?? []).filter(m => m.stat === 'hp').map(m => ({ type: m.type, value: m.value })));
+      const hpFromStatic = p.appliedOverrides.filter(o => o.stat === 'hp').reduce((acc, o) => acc + o.value, 0);
+      const conBonus = aggregateModifiers([
+        ...p.appliedOverrides.filter(o => o.stat === 'con').map(o => ({ type: o.type, value: o.value })),
+        ...(p.runtimeModifiers ?? []).filter(m => m.stat === 'con').map(m => ({ type: m.type, value: m.value })),
+      ]);
+      const dConMod = Math.floor((p.creature.con + conBonus - 10) / 2) - Math.floor((p.creature.con - 10) / 2);
+      const hdMatch = p.creature.hpDice?.match(/^(\d+)d\d+/);
+      const hdCount = hdMatch ? parseInt(hdMatch[1], 10) : 0;
+      const effective = p.creature.hp + hpFromStatic + hpFromRuntime + dConMod * hdCount;
+      return { ...p, currentHp: Math.max(0, Math.min(effective, p.currentHp + delta)) };
+    });
+    return { character: { ...state.character, activePets } };
+  }),
+
+  addCreatureRuntimeModifier: (kind, id, mod) => set((state) => {
+    if (!state.character) return state;
+    if (kind === 'summon') {
+      const activeSummons = (state.character.activeSummons ?? []).map(s =>
+        s.id !== id ? s : { ...s, runtimeModifiers: [...(s.runtimeModifiers ?? []), mod] }
+      );
+      return { character: { ...state.character, activeSummons } };
+    } else {
+      const activePets = (state.character.activePets ?? []).map(p =>
+        p.id !== id ? p : { ...p, runtimeModifiers: [...(p.runtimeModifiers ?? []), mod] }
+      );
+      return { character: { ...state.character, activePets } };
+    }
+  }),
+
+  removeCreatureRuntimeModifier: (kind, id, modId) => set((state) => {
+    if (!state.character) return state;
+    if (kind === 'summon') {
+      const activeSummons = (state.character.activeSummons ?? []).map(s =>
+        s.id !== id ? s : { ...s, runtimeModifiers: (s.runtimeModifiers ?? []).filter(m => m.id !== modId) }
+      );
+      return { character: { ...state.character, activeSummons } };
+    } else {
+      const activePets = (state.character.activePets ?? []).map(p =>
+        p.id !== id ? p : { ...p, runtimeModifiers: (p.runtimeModifiers ?? []).filter(m => m.id !== modId) }
+      );
+      return { character: { ...state.character, activePets } };
+    }
+  }),
+
+  tickCreatureRuntimeModifiers: (kind, id, by = 1) => set((state) => {
+    if (!state.character) return state;
+    const tick = (mods: CreatureRuntimeModifier[]): CreatureRuntimeModifier[] =>
+      mods
+        .map(m => m.roundsRemaining == null ? m : { ...m, roundsRemaining: Math.max(0, m.roundsRemaining - by) })
+        .filter(m => m.roundsRemaining == null || m.roundsRemaining > 0);
+    if (kind === 'summon') {
+      const activeSummons = (state.character.activeSummons ?? []).map(s =>
+        s.id !== id ? s : { ...s, runtimeModifiers: tick(s.runtimeModifiers ?? []) }
+      );
+      return { character: { ...state.character, activeSummons } };
+    } else {
+      const activePets = (state.character.activePets ?? []).map(p =>
+        p.id !== id ? p : { ...p, runtimeModifiers: tick(p.runtimeModifiers ?? []) }
+      );
+      return { character: { ...state.character, activePets } };
+    }
+  }),
 }));
