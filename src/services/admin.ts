@@ -107,7 +107,7 @@ export interface CatalogSkill {
     updatedAt?: any;
 }
 
-/** Shared feat / talent. */
+/** Shared feat / class feature catalog entry. */
 export interface CatalogFeat {
     id: string;
     name: string;
@@ -115,7 +115,13 @@ export interface CatalogFeat {
     modifiers: Modifier[];
     /** Modifiers applied to summoned/pet creatures when the feat is active. */
     creatureModifiers?: CreatureModifier[];
-    /** Mark as a defect (renders with crimson accent in pickers). */
+    /** Active = consumes resources or requires activation; Passive = always-on. */
+    subcategory?: 'active' | 'passive';
+    /** For active features: name of the resource pool (e.g. "Incanalare Divinità"). */
+    resourceName?: string;
+    /** For active features: max uses per rest. */
+    resourceMax?: number;
+    /** @deprecated Legacy flag, kept for backward compatibility. */
     isDefect?: boolean;
     tags?: string[];
     createdBy?: string;
@@ -272,7 +278,7 @@ export interface ClassLevelFeature {
     name: LocalizedField;
     description?: LocalizedField;
     /** Whether this is a passive trait, an active ability, a feat (talento) or a build option. */
-    subcategory: 'active' | 'passive' | 'talent' | 'option';
+    subcategory: 'active' | 'passive';
     /** Optional mechanical modifiers. */
     modifiers?: Modifier[];
     /** For active abilities: name of the daily/encounter resource. */

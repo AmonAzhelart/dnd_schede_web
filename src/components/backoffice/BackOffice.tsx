@@ -82,7 +82,7 @@ export function BackOffice({ currentUserEmail, allowedSections, onBack }: Props)
                 `classi ${report.classes.written}/${report.classes.skipped} • ` +
                 `lingue ${report.languages.written}/${report.languages.skipped} • ` +
                 `abilità ${report.skills.written}/${report.skills.skipped} • ` +
-                `talenti ${report.feats.written}/${report.feats.skipped}.`,
+                `privilegi di classe ${report.feats.written}/${report.feats.skipped}.`,
             );
         } catch (e) {
             console.error('[backoffice] seed failed', e);
@@ -152,8 +152,8 @@ export function BackOffice({ currentUserEmail, allowedSections, onBack }: Props)
                                     display: 'flex', alignItems: 'center', gap: 10,
                                     padding: '10px 20px',
                                     background: active ? 'rgba(201,168,76,0.12)' : 'transparent',
+                                    borderTop: 'none', borderRight: 'none', borderBottom: 'none',
                                     borderLeft: `3px solid ${active ? 'var(--accent-gold)' : 'transparent'}`,
-                                    border: 'none', borderLeft: `3px solid ${active ? 'var(--accent-gold)' : 'transparent'}`,
                                     color: active ? 'var(--accent-gold)' : 'var(--text-secondary)',
                                     cursor: 'pointer', textAlign: 'left', width: '100%',
                                     fontSize: '0.85rem', fontFamily: 'var(--font-body)',
@@ -934,7 +934,8 @@ function sanitizeSvg(svg: string): string {
 /* ────────────────────────────── FEATS ────────────────────────────── */
 
 const EMPTY_FEAT_CAT = (): CatalogFeat => ({
-    id: uuid(), name: '', description: '', modifiers: [], creatureModifiers: [], isDefect: false,
+    id: uuid(), name: '', description: '', modifiers: [], creatureModifiers: [],
+    subcategory: 'passive', resourceName: '', resourceMax: undefined,
 });
 
 function FeatsPanel({ currentUserEmail }: { currentUserEmail: string }) {
@@ -942,6 +943,7 @@ function FeatsPanel({ currentUserEmail }: { currentUserEmail: string }) {
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState<CatalogFeat | null>(null);
     const [search, setSearch] = useState('');
+    const [activeTab, setActiveTab] = useState<'active' | 'passive'>('active');
 
     const refresh = async () => {
         setLoading(true);
@@ -952,13 +954,14 @@ function FeatsPanel({ currentUserEmail }: { currentUserEmail: string }) {
 
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase();
-        if (!q) return items;
-        return items.filter(i =>
-            i.name.toLowerCase().includes(q) ||
-            (i.description ?? '').toLowerCase().includes(q) ||
-            (i.tags ?? []).some(t => t.toLowerCase().includes(q)),
-        );
-    }, [items, search]);
+        return items
+            .filter(i => (i.subcategory ?? 'passive') === activeTab)
+            .filter(i => !q ||
+                i.name.toLowerCase().includes(q) ||
+                (i.description ?? '').toLowerCase().includes(q) ||
+                (i.tags ?? []).some(t => t.toLowerCase().includes(q)),
+            );
+    }, [items, search, activeTab]);
 
     const save = async () => {
         if (!editing || !editing.name.trim()) return;
@@ -967,43 +970,84 @@ function FeatsPanel({ currentUserEmail }: { currentUserEmail: string }) {
         await refresh();
     };
     const remove = async (id: string) => {
-        if (!confirm('Eliminare questo talento?')) return;
+        if (!confirm('Eliminare questo privilegio di classe?')) return;
         await featCatalog.remove(id);
         await refresh();
     };
 
     if (editing) {
+        const isActive = (editing.subcategory ?? 'passive') === 'active';
+        const accent = isActive ? 'var(--accent-warning)' : 'var(--accent-success)';
         return (
             <div className="glass-panel flex-col gap-3">
                 <div className="section-header">
-                    <span className="section-title">{items.find(i => i.id === editing.id) ? 'Modifica' : 'Nuovo'} Talento</span>
+                    <span className="section-title">{items.find(i => i.id === editing.id) ? 'Modifica' : 'Nuovo'} Privilegio di Classe</span>
                     <div className="flex gap-2">
                         <button className="btn-secondary text-sm" onClick={() => setEditing(null)}><FaTimes /> Annulla</button>
                         <button className="btn-primary text-sm" onClick={save}><FaSave /> Salva</button>
                     </div>
                 </div>
                 <Field label="Nome"><input className="input w-full" value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} /></Field>
-                <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={!!editing.isDefect} onChange={e => setEditing({ ...editing, isDefect: e.target.checked })} />
-                    È un Difetto
-                </label>
-                <Field label="Descrizione">
-                    <textarea className="input w-full" rows={6} value={editing.description} onChange={e => setEditing({ ...editing, description: e.target.value })} />
+                <Field label="Tipo">
+                    <div className="flex gap-2">
+                        {(['active', 'passive'] as const).map(s => {
+                            const on = (editing.subcategory ?? 'passive') === s;
+                            const color = s === 'active' ? 'var(--accent-warning)' : 'var(--accent-success)';
+                            return (
+                                <button
+                                    key={s}
+                                    onClick={() => setEditing({ ...editing, subcategory: s })}
+                                    style={{
+                                        fontSize: '0.78rem', padding: '6px 14px', borderRadius: 6, cursor: 'pointer',
+                                        border: `1px solid ${on ? color : 'rgba(255,255,255,0.12)'}`,
+                                        background: on ? `${color}22` : 'transparent',
+                                        color: on ? color : 'var(--text-secondary)',
+                                        fontFamily: 'var(--font-heading)',
+                                    }}
+                                >
+                                    {s === 'active' ? 'Capacità Attiva' : 'Capacità Passiva'}
+                                </button>
+                            );
+                        })}
+                    </div>
                 </Field>
+                <Field label="Descrizione">
+                    <textarea className="input w-full" rows={4} value={editing.description} onChange={e => setEditing({ ...editing, description: e.target.value })} />
+                </Field>
+                {isActive && (
+                    <div className="flex gap-2">
+                        <input
+                            className="input"
+                            style={{ flex: 1 }}
+                            placeholder="Nome risorsa (es. Incanalare Divinità)"
+                            value={editing.resourceName ?? ''}
+                            onChange={e => setEditing({ ...editing, resourceName: e.target.value })}
+                        />
+                        <input
+                            type="number"
+                            className="input"
+                            style={{ width: 120 }}
+                            placeholder="Usi max"
+                            min={1}
+                            value={editing.resourceMax ?? ''}
+                            onChange={e => setEditing({ ...editing, resourceMax: e.target.value ? Number(e.target.value) : undefined })}
+                        />
+                    </div>
+                )}
                 <Field label="Tag (separati da virgola)">
                     <input className="input w-full" value={(editing.tags ?? []).join(', ')} onChange={e => setEditing({ ...editing, tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })} />
                 </Field>
                 <ModifierEditor
                     modifiers={editing.modifiers ?? []}
                     onChange={mods => setEditing({ ...editing, modifiers: mods as Modifier[] })}
-                    accentColor={editing.isDefect ? 'var(--accent-crimson)' : 'var(--accent-arcane)'}
+                    accentColor={accent}
                     title="MODIFICATORI AL PERSONAGGIO"
                     compact
                 />
                 <CreatureModifierEditor
                     modifiers={(editing.creatureModifiers ?? []) as CreatureModifier[]}
                     onChange={cms => setEditing({ ...editing, creatureModifiers: cms })}
-                    accentColor={editing.isDefect ? 'var(--accent-crimson)' : 'var(--accent-gold)'}
+                    accentColor="var(--accent-gold)"
                 />
             </div>
         );
@@ -1011,30 +1055,62 @@ function FeatsPanel({ currentUserEmail }: { currentUserEmail: string }) {
 
     return (
         <div className="flex-col gap-3">
+            {/* Internal tab bar */}
+            <div className="flex" style={{ gap: 4 }}>
+                {(['active', 'passive'] as const).map(s => {
+                    const on = activeTab === s;
+                    const color = s === 'active' ? 'var(--accent-warning)' : 'var(--accent-success)';
+                    const label = s === 'active' ? 'Capacità Attive' : 'Capacità Passive';
+                    const cnt = items.filter(i => (i.subcategory ?? 'passive') === s).length;
+                    return (
+                        <button
+                            key={s}
+                            onClick={() => setActiveTab(s)}
+                            style={{
+                                flex: 1, padding: '7px 12px', borderRadius: 6, cursor: 'pointer',
+                                fontFamily: 'var(--font-heading)', fontSize: '0.82rem',
+                                border: `1px solid ${on ? color + '66' : 'rgba(255,255,255,0.06)'}`,
+                                background: on ? `linear-gradient(180deg,${color}22,${color}11)` : 'rgba(255,255,255,0.02)',
+                                color: on ? color : 'var(--text-secondary)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                            }}
+                        >
+                            {label}
+                            <span style={{ fontSize: '0.65rem', padding: '0 6px', borderRadius: 8,
+                                background: on ? `${color}33` : 'rgba(255,255,255,0.05)',
+                                border: `1px solid ${on ? color + '44' : 'rgba(255,255,255,0.08)'}`,
+                                color: on ? color : 'var(--text-muted)' }}>{cnt}</span>
+                        </button>
+                    );
+                })}
+            </div>
             <div className="flex gap-2 items-center" style={{ flexWrap: 'wrap' }}>
                 <div className="flex items-center gap-2" style={{ flex: '1 1 240px', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', padding: '0.4rem 0.75rem' }}>
                     <FaSearch className="text-muted" />
                     <input className="w-full" style={{ background: 'transparent', border: 'none', color: 'inherit', outline: 'none' }} placeholder="Cerca…" value={search} onChange={e => setSearch(e.target.value)} />
                 </div>
-                <button className="btn-primary text-sm" onClick={() => setEditing(EMPTY_FEAT_CAT())}><FaPlus /> Nuovo Talento</button>
+                <button className="btn-primary text-sm" onClick={() => setEditing({ ...EMPTY_FEAT_CAT(), subcategory: activeTab })}><FaPlus /> Nuovo Privilegio</button>
             </div>
             <div className="glass-panel">
                 {loading && <div className="text-muted text-sm">Caricamento…</div>}
-                {!loading && filtered.length === 0 && <div className="text-muted text-sm">Nessun talento nel catalogo.</div>}
+                {!loading && filtered.length === 0 && <div className="text-muted text-sm">Nessun privilegio nel catalogo.</div>}
                 <div className="flex-col gap-1">
-                    {filtered.map(f => (
-                        <div key={f.id} className="flex items-center gap-2" style={{ padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)' }}>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontFamily: 'var(--font-heading)' }}>
-                                    {f.name}
-                                    {f.isDefect && <span className="text-xs" style={{ color: 'var(--accent-crimson)', marginLeft: 6 }}>[Difetto]</span>}
+                    {filtered.map(f => {
+                        const sub = f.subcategory ?? 'passive';
+                        const subColor = sub === 'active' ? 'var(--accent-warning)' : 'var(--accent-success)';
+                        return (
+                            <div key={f.id} className="flex items-center gap-2" style={{ padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)' }}>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontFamily: 'var(--font-heading)', color: subColor }}>
+                                        {f.name}
+                                    </div>
+                                    {f.description && <div className="text-xs text-muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.description}</div>}
                                 </div>
-                                {f.description && <div className="text-xs text-muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.description}</div>}
+                                <button className="btn-ghost text-xs" onClick={() => setEditing(f)}>Modifica</button>
+                                <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => remove(f.id)}><FaTrash /></button>
                             </div>
-                            <button className="btn-ghost text-xs" onClick={() => setEditing(f)}>Modifica</button>
-                            <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => remove(f.id)}><FaTrash /></button>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </div>

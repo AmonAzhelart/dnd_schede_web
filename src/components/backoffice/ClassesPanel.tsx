@@ -16,7 +16,7 @@ interface Props { currentUserEmail: string; }
 const HIT_DICE: CatalogClass['hitDie'][] = [4, 6, 8, 10, 12];
 const BAB_OPTIONS: CatalogClass['babProgression'][] = ['high', 'medium', 'low'];
 const SAVE_OPTIONS = ['good', 'poor'] as const;
-const SUBCATEGORIES: ClassLevelFeature['subcategory'][] = ['active', 'passive', 'talent', 'option'];
+const SUBCATEGORIES: ClassLevelFeature['subcategory'][] = ['active', 'passive'];
 
 const EMPTY = (): CatalogClass => ({
     id: uuid(),

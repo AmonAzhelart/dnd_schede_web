@@ -2,7 +2,6 @@
 import { useCharacterStore } from '../store/characterStore';
 import { v4 as uuidv4 } from 'uuid';
 import { FaPlus, FaTrash, FaEdit, FaCheck, FaTimes, FaBookOpen } from 'react-icons/fa';
-import { Virtuoso } from 'react-virtuoso';
 import type { Feat, Modifier, CreatureModifier } from '../types/dnd';
 import { featCatalog, type CatalogFeat } from '../services/admin';
 import { CatalogPicker } from './CatalogPicker';
@@ -218,22 +217,8 @@ export const Feats: React.FC = () => {
     const editFormProps: EditFormProps = { form, setForm, save, cancel, editingId, isDefectForm, setIsDefectForm };
     const featRowProps = { editingId, toggleFeat, startEdit, deleteFeat, editFormProps };
 
-    // Build flat rows for Virtuoso
-    type FlatRow =
-        | { kind: 'header'; label: string; color: string; count: number }
-        | { kind: 'feat'; feat: Feat };
-    const rows: FlatRow[] = [];
-    if (feats.length > 0) {
-        rows.push({ kind: 'header', label: 'TALENTI', color: 'var(--accent-arcane)', count: feats.length });
-        feats.forEach(f => rows.push({ kind: 'feat', feat: f }));
-    }
-    if (defects.length > 0) {
-        rows.push({ kind: 'header', label: 'DIFETTI', color: 'var(--accent-crimson)', count: defects.length });
-        defects.forEach(f => rows.push({ kind: 'feat', feat: f }));
-    }
-
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 14 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {/* Header */}
             <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -261,23 +246,27 @@ export const Feats: React.FC = () => {
 
             {isAdding && <div style={{ flexShrink: 0 }}><EditForm {...editFormProps} /></div>}
 
-            {/* Virtuoso list */}
-            <div className="glass-panel" style={{ flex: 1, overflow: 'hidden', padding: 0 }}>
-                {rows.length === 0 && !isAdding ? (
+            {/* Scrollable list */}
+            <div className="glass-panel" style={{ overflowY: 'auto', maxHeight: '60vh', padding: 0 }}>
+                {feats.length === 0 && defects.length === 0 && !isAdding ? (
                     <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                         Nessun talento o difetto. Clicca &quot;+ Nuovo&quot; per aggiungerne uno.
                     </div>
                 ) : (
-                    <Virtuoso
-                        style={{ height: '100%' }}
-                        data={rows}
-                        itemContent={(_index, row) => {
-                            if (row.kind === 'header') {
-                                return <SectionHeader label={row.label} color={row.color} count={row.count} />;
-                            }
-                            return <FeatRow feat={row.feat} {...featRowProps} />;
-                        }}
-                    />
+                    <>
+                        {feats.length > 0 && (
+                            <>
+                                <SectionHeader label="TALENTI" color="var(--accent-arcane)" count={feats.length} />
+                                {feats.map(f => <FeatRow key={f.id} feat={f} {...featRowProps} />)}
+                            </>
+                        )}
+                        {defects.length > 0 && (
+                            <>
+                                <SectionHeader label="DIFETTI" color="var(--accent-crimson)" count={defects.length} />
+                                {defects.map(f => <FeatRow key={f.id} feat={f} {...featRowProps} />)}
+                            </>
+                        )}
+                    </>
                 )}
             </div>
 

@@ -30,20 +30,6 @@ const SUBCATEGORY_META: SubcategoryMeta[] = [
         color: 'var(--accent-success)',
         emptyMsg: 'Nessuna capacità passiva. Es: Stile di Combattimento, Sensi Acuti.',
     },
-    {
-        key: 'talent',
-        label: 'Talenti',
-        headerLabel: 'TALENTI',
-        color: 'var(--accent-gold)',
-        emptyMsg: 'Nessun talento di classe. Es: Talento Bonus del Guerriero, Talento Metamagico.',
-    },
-    {
-        key: 'option',
-        label: 'Opzioni di Personalizzazione',
-        headerLabel: 'OPZIONI DI PERSONALIZZAZIONE',
-        color: 'var(--accent-arcane)',
-        emptyMsg: 'Nessuna opzione. Es: Invocazioni Occulte, Manovre del Guerriero, Metamorfosi.',
-    },
 ];
 
 type FormState = Omit<ClassFeature, 'id'>;
@@ -519,7 +505,10 @@ export const ClassFeatures: React.FC<ClassFeaturesProps> = ({ restrictTo, hideTo
 
     if (!character) return null;
 
-    const features = character.classFeatures ?? [];
+    // Normalize legacy subcategories ('talent', 'option') to 'passive' for backward compatibility
+    const features = (character.classFeatures ?? []).map(f =>
+        f.subcategory === 'active' ? f : { ...f, subcategory: 'passive' as const }
+    );
 
     const activeColor = SUBCATEGORY_META.find(m => m.key === (form.subcategory ?? 'active'))?.color ?? 'var(--accent-gold)';
 

@@ -1910,7 +1910,7 @@ export function CharacterWizard({ userId, onComplete, onCancel }: CharacterWizar
         id: uuidv4(),
         name: pickLocalized(f.name, lang),
         description: pickLocalized(f.description ?? '', lang) || '',
-        subcategory: f.subcategory,
+        subcategory: f.subcategory === 'active' ? 'active' : 'passive',
         modifiers: f.modifiers ?? [],
         active: true,
         ...(f.resourceName ? { resourceName: f.resourceName, resourceMax: f.resourceMax ?? 0, resourceUsed: 0 } : {}),

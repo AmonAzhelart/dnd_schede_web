@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useCharacterStore } from '../store/characterStore';
-import { Feats } from './Feats';
 import { ClassFeatures } from './ClassFeatures';
-import { GiSpinningSword, GiShield, GiAbstract024, GiCogLock } from 'react-icons/gi';
+import { GiSpinningSword, GiShield } from 'react-icons/gi';
 
-export type AbilitySubTab = 'active' | 'passive' | 'feats' | 'option';
+export type AbilitySubTab = 'active' | 'passive';
 
 const SUBTABS: {
     key: AbilitySubTab;
@@ -20,31 +19,15 @@ const SUBTABS: {
             short: 'Attive',
             icon: <GiSpinningSword />,
             color: 'var(--accent-warning, #f39c12)',
-            description: 'Capacità con risorse o azioni attivabili',
+            description: 'Privilegi di classe attivabili (con risorse o azioni)',
         },
         {
             key: 'passive',
-            label: 'Passive',
+            label: 'Capacità Passive',
             short: 'Passive',
             icon: <GiShield />,
             color: 'var(--accent-success, #27ae60)',
-            description: 'Capacità sempre attive che modificano il personaggio',
-        },
-        {
-            key: 'feats',
-            label: 'Talenti',
-            short: 'Talenti',
-            icon: <GiAbstract024 />,
-            color: 'var(--accent-arcane, #9b59b6)',
-            description: 'Talenti acquisiti per livello e difetti',
-        },
-        {
-            key: 'option',
-            label: 'Opzioni di personalizzazione',
-            short: 'Opzioni',
-            icon: <GiCogLock />,
-            color: 'var(--accent-gold, #c9a84c)',
-            description: 'Opzioni di build: invocazioni, manovre, metamorfosi…',
+            description: 'Privilegi di classe sempre attivi',
         },
     ];
 
@@ -66,9 +49,7 @@ export const AbilitiesPage: React.FC<Props> = ({ initialTab }) => {
     const cf = character.classFeatures ?? [];
     const counts: Record<AbilitySubTab, number> = {
         active: cf.filter(f => f.subcategory === 'active').length,
-        passive: cf.filter(f => f.subcategory === 'passive').length,
-        option: cf.filter(f => f.subcategory === 'option').length,
-        feats: (character.feats ?? []).length,
+        passive: cf.filter(f => f.subcategory !== 'active').length,
     };
 
     const activeMeta = SUBTABS.find(t => t.key === tab)!;
@@ -172,11 +153,7 @@ export const AbilitiesPage: React.FC<Props> = ({ initialTab }) => {
 
             {/* ─── Active sub-tab body ─── */}
             <div>
-                {tab === 'feats' ? (
-                    <Feats />
-                ) : (
-                    <ClassFeatures restrictTo={tab} hideToolbar />
-                )}
+                <ClassFeatures restrictTo={tab} hideToolbar />
             </div>
         </div>
     );

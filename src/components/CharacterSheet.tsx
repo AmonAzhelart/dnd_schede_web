@@ -469,7 +469,7 @@ export const CharacterSheet: React.FC = () => {
             {activeTab === 'overview' && (
               <OverviewDashboard goTo={(t) => {
                 // Legacy compatibility: map old tab names to the new merged 'abilities' tab.
-                if (t === 'feats') { setAbilitiesInitialTab('feats'); setActiveTab('abilities'); return; }
+                if (t === 'feats') { setAbilitiesInitialTab('active'); setActiveTab('abilities'); return; }
                 if (t === 'classfeatures') { setAbilitiesInitialTab('active'); setActiveTab('abilities'); return; }
                 if (t.startsWith('abilities:')) {
                   setAbilitiesInitialTab(t.slice('abilities:'.length) as AbilitySubTab);

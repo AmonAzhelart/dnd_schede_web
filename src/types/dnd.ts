@@ -461,7 +461,7 @@ export interface Feat {
   creatureModifiers?: CreatureModifier[];
 }
 
-export type ClassFeatureSubcategory = 'active' | 'passive' | 'talent' | 'option';
+export type ClassFeatureSubcategory = 'active' | 'passive';
 
 export interface ClassFeature {
   id: string;
