@@ -1985,7 +1985,7 @@ export function CharacterWizard({ userId, onComplete, onCancel }: CharacterWizar
   };
 
   return (
-    <div className="wizard-backdrop" onClick={e => { if (e.target === e.currentTarget) onCancel(); }}>
+    <div className="wizard-backdrop">
       <div className="wizard-container">
         <div className="wizard-header">
           <div className="wizard-title">
