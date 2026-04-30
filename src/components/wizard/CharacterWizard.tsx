@@ -1173,8 +1173,15 @@ function Step4Abilities({ data, setData }: StepProps) {
 
   const manualChange = (key: AbilityKey, val: string) => {
     const n = parseInt(val, 10);
-    if (isNaN(n) || n < 3 || n > 25) return;
+    if (isNaN(n)) return;
     setData(prev => ({ ...prev, abilities: { ...prev.abilities, [key]: n } }));
+  };
+
+  const manualBlur = (key: AbilityKey) => {
+    setData(prev => {
+      const clamped = Math.max(3, Math.min(25, prev.abilities[key]));
+      return { ...prev, abilities: { ...prev.abilities, [key]: clamped } };
+    });
   };
 
   return (
@@ -1232,7 +1239,8 @@ function Step4Abilities({ data, setData }: StepProps) {
                 </div>
               ) : (
                 <input className="ability-input" type="number" min={3} max={25}
-                  value={base} onChange={e => manualChange(key, e.target.value)} />
+                  value={base} onChange={e => manualChange(key, e.target.value)}
+                  onBlur={() => manualBlur(key)} />
               )}
               {racialBonus !== 0 && (
                 <div className="ability-racial-bonus">{racialBonus > 0 ? `+${racialBonus}` : racialBonus} razza</div>
