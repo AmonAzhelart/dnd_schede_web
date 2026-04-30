@@ -173,6 +173,9 @@ function App() {
           <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>⚔️</div>
           <h1 className="text-gradient" style={{ fontSize: '2.2rem', marginBottom: '0.5rem' }}>D&D Nexus</h1>
           <p className="text-muted" style={{ marginBottom: '2rem' }}>Gestisci le tue avventure.<br />Accesso solo su invito.</p>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+            <LanguageSwitcher />
+          </div>
           <button className="btn-primary w-full" style={{ justifyContent: 'center', fontSize: '1rem', padding: '0.75rem 1.5rem' }} onClick={handleLogin}>
             <FaGoogle /> Accedi con Google
           </button>
@@ -205,6 +208,9 @@ function App() {
           <div style={{ textAlign: 'center' }}>
             <h1 className="text-gradient" style={{ fontSize: '2rem' }}>D&D Nexus</h1>
             <p className="text-muted text-sm" style={{ marginTop: '0.25rem' }}>Benvenuto, {user.displayName}</p>
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.5rem' }}>
+              <LanguageSwitcher compact />
+            </div>
           </div>
 
           <div className="divider" />
