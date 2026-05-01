@@ -543,7 +543,7 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       if (!die) return sum;
       return sum + getExpectedHpForClassLevel(die, idx + 1);
     }, 0);
-    return hpFromDice + conMod * totalLevel;
+    return hpFromDice + conMod;
   },
 
   addHpLevelEntry: (entry: HpLevelLogEntry) => set((state) => {
@@ -800,6 +800,9 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     character.feats.forEach(feat => {
       if (feat.active) activeModifiers.push(...feat.modifiers.filter(m => isSkillTarget(m.target)));
     });
+    (character.classFeatures ?? []).forEach(cf => {
+      if (cf.active) activeModifiers.push(...(cf.modifiers ?? []).filter((m: import('../types/dnd').Modifier) => isSkillTarget(m.target)));
+    });
 
     // Apply modifiers with same stacking rules as getEffectiveStat
     const byType: Record<string, number[]> = {};
@@ -878,8 +881,9 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     });
 
     const total = ranks + statMod + classBonus + bonus;
-    // Usable iff at least one of: classSkill OR ranks≥1 OR canUseUntrained OR has external bonus source
-    const usable = skill.classSkill === true || ranks >= 1 || skill.canUseUntrained === true || sources.length > 0;
+    // Usable iff: ranks≥1 OR canUseUntrained OR has external modifier source (feat/item/class feature).
+    // Being a class skill alone does NOT grant usability — it only reduces cost per rank.
+    const usable = ranks >= 1 || skill.canUseUntrained === true || sources.length > 0;
 
     return { statMod, statName: effectiveStatName, ranks, classBonus, sources, total, usable };
   },

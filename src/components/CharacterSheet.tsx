@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { useCharacterStore } from '../store/characterStore';
@@ -21,8 +21,10 @@ import { resolveStatOverride } from '../services/modifiers';
 import { useMediaQuery } from './mobile/MobileShell';
 import { setMobileContextActions, setMobileAvatarTapOverride, setMobileEditExit } from './mobile/mobileShellSlots';
 import { BestiaryPage } from './BestiaryPage';
+import { SkillsTab } from './SkillsTab';
 import './CharacterSheetHeader.css';
 import './dashboard/widgets/styles/modifiers.css';
+import './SkillsTab.css';
 
 type SheetTab = 'overview' | 'combat' | 'levels' | 'skills' | 'inventory' | 'abilities' | 'spells' | 'bestiary';
 
@@ -92,7 +94,7 @@ export const CharacterSheet: React.FC = () => {
     }
   }, [isMobile, tabsSlot]);
 
-  // ── Push context actions into the mobile avatar popup ───────────────
+  // -- Push context actions into the mobile avatar popup ---------------
   // Desktop keeps them inline in the header; on small screens they live
   // under "Azioni rapide" inside the popup that opens on avatar tap.
   useEffect(() => {
@@ -122,7 +124,7 @@ export const CharacterSheet: React.FC = () => {
     return () => setMobileContextActions([]);
   }, [isMobile, headerEditing, dashEditMode, activeTab]);
 
-  // ── Mobile: while the header edit drawer is open, redirect avatar
+  // -- Mobile: while the header edit drawer is open, redirect avatar
   //    taps to the file picker so the user can change the photo. The
   //    new image is saved back to the character (and persisted by the
   //    autosave effect in App.tsx).
@@ -140,19 +142,19 @@ export const CharacterSheet: React.FC = () => {
     };
   }, [isMobile, headerEditing]);
 
-  // ─── Custom Attacks state ────────────────────────────────────────
+  // --- Custom Attacks state ----------------------------------------
   type CAForm = Omit<CustomAttack, 'id'>;
   const emptyCA = (): CAForm => ({
     name: '', attackStat: 'cha', useBab: false, attackBonusExtra: 0,
     damageDice: '1d10', damageStat: undefined, damageBonusExtra: 0,
-    damageType: 'forza', criticalRange: '20', criticalMultiplier: '×2',
+    damageType: 'forza', criticalRange: '20', criticalMultiplier: '�2',
     range: '18m', linkedFeatureIds: [], notes: '',
   });
   const [showCAForm, setShowCAForm] = useState(false);
   const [editingCAId, setEditingCAId] = useState<string | null>(null);
   const [caForm, setCAForm] = useState<CAForm>(emptyCA());
 
-  // ─── Active modifier auras for the hero header tiles ────────────────
+  // --- Active modifier auras for the hero header tiles ----------------
   const heroHpAura = useModifierAura('hp');
   const heroAcAura = useModifierAura('ac');
   const heroInitAura = useModifierAura('initiative');
@@ -179,9 +181,9 @@ export const CharacterSheet: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }} className="animate-fade-in">
-      {/* ─── STICKY HEADER + TABS ───────────────────────────── */}
+      {/* --- STICKY HEADER + TABS ----------------------------- */}
       <div style={{ flexShrink: 0, padding: '0.5rem 0.75rem 0', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        {/* ─── CHARACTER HEADER ─────────────────────────── */}
+        {/* --- CHARACTER HEADER --------------------------- */}
         {(() => {
           const totalClassLevel = (character.classLevels ?? []).reduce((s, cl) => s + cl.level, 0);
           const displayLevel = totalClassLevel > 0 ? totalClassLevel : character.level;
@@ -222,7 +224,7 @@ export const CharacterSheet: React.FC = () => {
                     const dataUrl = await downscaleImage(file, 320);
                     setCharacter({ ...character, avatarUrl: dataUrl });
                   } catch {
-                    /* ignore failures — user can retry or paste a URL in the drawer */
+                    /* ignore failures � user can retry or paste a URL in the drawer */
                   }
                 }}
               />
@@ -309,7 +311,7 @@ export const CharacterSheet: React.FC = () => {
           );
         })()}
 
-        {/* ─── INLINE HEADER EDIT DRAWER ─── */}
+        {/* --- INLINE HEADER EDIT DRAWER --- */}
         {headerEditing && (() => {
           const baseMaxHp = character.hpDetails?.max ?? getEffectiveStat('hp');
           const baseCurHp = character.hpDetails?.current ?? character.baseStats.hp;
@@ -349,13 +351,13 @@ export const CharacterSheet: React.FC = () => {
                     <input
                       className="input"
                       type="url"
-                      placeholder="URL immagine (https://… o data:…)"
+                      placeholder="URL immagine (https://� o data:�)"
                       value={character.avatarUrl ?? ''}
                       onChange={e => setCharacter({ ...character, avatarUrl: e.target.value || undefined })}
                     />
                     <button type="button" className="btn-secondary cs-drawer-avatar-btn"
                       onClick={() => avatarInputRef.current?.click()}>
-                      Carica…
+                      Carica�
                     </button>
                     {character.avatarUrl && (
                       <button type="button" className="btn-secondary cs-drawer-avatar-btn"
@@ -378,7 +380,7 @@ export const CharacterSheet: React.FC = () => {
                     onChange={e => setHp(parseInt(e.target.value) || 0, baseMaxHp)} />
                 </div>
                 <div className="cs-drawer-field">
-                  <span className="cs-drawer-label">Velocità (ft)</span>
+                  <span className="cs-drawer-label">Velocit� (ft)</span>
                   <input className="input" type="number" min={0} step={5}
                     value={character.baseStats.speed}
                     onChange={e => setCharacter({ ...character, baseStats: { ...character.baseStats, speed: Math.max(0, parseInt(e.target.value) || 0) } })} />
@@ -394,7 +396,7 @@ export const CharacterSheet: React.FC = () => {
               </div>
               <div className="cs-drawer-foot">
                 <span className="cs-drawer-foot-info">
-                  Classi &amp; BAB — totale: <strong>+{getTotalBab()}</strong>{' '}
+                  Classi &amp; BAB � totale: <strong>+{getTotalBab()}</strong>{' '}
                   {(character.classLevels ?? []).length > 0 && (
                     <span className="muted">
                       ({(character.classLevels ?? []).map(cl => `${cl.className || '?'} ${cl.level}`).join(' / ')})
@@ -406,14 +408,14 @@ export const CharacterSheet: React.FC = () => {
                   style={{ fontSize: '0.7rem', padding: '4px 10px' }}
                   onClick={() => { setActiveTab('levels'); setHeaderEditing(false); }}
                 >
-                  Gestisci livelli →
+                  Gestisci livelli ?
                 </button>
               </div>
             </div>
           );
         })()}
 
-        {/* ─── TABS ─────────────────────────────────────── */}
+        {/* --- TABS --------------------------------------- */}
         <div className="cs-tabs">
           {tabs.map(tab => (
             <button
@@ -443,7 +445,7 @@ export const CharacterSheet: React.FC = () => {
                     ref={isOverview ? (el => setWidgetJumpTrigger(el)) : undefined}
                     className={`cs-tab ${activeTab === tab.id ? 'active' : ''}${isOverview ? ' cs-tab-jump' : ''}`}
                     onClick={() => setActiveTab(tab.id)}
-                    title={isOverview ? `${tab.label} — tieni premuto per saltare a un widget` : tab.label}
+                    title={isOverview ? `${tab.label} � tieni premuto per saltare a un widget` : tab.label}
                     aria-label={tab.label}
                   >
                     {tab.icon}<span className="cs-tab-label">{tab.label}</span>
@@ -456,16 +458,16 @@ export const CharacterSheet: React.FC = () => {
         )}
       </div>{/* end sticky header+tabs */}
 
-      {/* ─── CONTENT AREA ───────────────────────────────── */}
+      {/* --- CONTENT AREA --------------------------------- */}
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '0 0.75rem' }}>
 
-        {/* ─── SIMPLE SCROLL TABS (overview / combat / skills / abilities) ─── */}
+        {/* --- SIMPLE SCROLL TABS (overview / combat / skills / abilities) --- */}
         {(activeTab === 'overview' || activeTab === 'combat' || activeTab === 'skills' || activeTab === 'levels' || activeTab === 'abilities') && (
-          <div style={{ flex: 1, overflowY: 'auto', paddingTop: '1rem', paddingBottom: '2rem' }}>
+          <div style={{ flex: 1, overflowY: activeTab === 'skills' ? 'hidden' : 'auto', display: activeTab === 'skills' ? 'flex' : undefined, flexDirection: activeTab === 'skills' ? 'column' : undefined, minHeight: 0, paddingTop: '1rem', paddingBottom: activeTab === 'skills' ? 0 : '2rem' }}>
 
             {activeTab === 'levels' && <LevelsTab />}
 
-            {/* ─── TAB: OVERVIEW (CUSTOM DASHBOARD) ────────── */}
+            {/* --- TAB: OVERVIEW (CUSTOM DASHBOARD) ---------- */}
             {activeTab === 'overview' && (
               <OverviewDashboard goTo={(t) => {
                 // Legacy compatibility: map old tab names to the new merged 'abilities' tab.
@@ -480,7 +482,7 @@ export const CharacterSheet: React.FC = () => {
               }} editMode={dashEditMode} setEditMode={setDashEditMode} />
             )}
 
-            {/* ─── TAB: COMBAT ──────────────────────────────── */}
+            {/* --- TAB: COMBAT -------------------------------- */}
             {activeTab === 'combat' && (
               <div className="animate-fade-in flex-col gap-4">
                 {/* Sub-tabs */}
@@ -511,7 +513,7 @@ export const CharacterSheet: React.FC = () => {
                 {combatSubTab === 'attacks' && (
                   <div className="flex-col gap-4">
 
-                    {/* ── BAB Breakdown card ─────────────────────── */}
+                    {/* -- BAB Breakdown card ----------------------- */}
                     {(() => {
                       const totalBab = getTotalBab();
                       const strMod = getStatModifier('str');
@@ -562,7 +564,7 @@ export const CharacterSheet: React.FC = () => {
                           </div>
                           {meleeAttacks.length > 1 && (
                             <div style={{ fontSize: '0.72rem', color: 'var(--accent-arcane)', alignSelf: 'center' }}>
-                              ⚡ {meleeAttacks.length} attacchi per round
+                              ? {meleeAttacks.length} attacchi per round
                             </div>
                           )}
                         </div>
@@ -604,13 +606,13 @@ export const CharacterSheet: React.FC = () => {
                                   <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-primary)', fontWeight: 500 }}>{w.name}</td>
                                   <td style={{ padding: '0.4rem 0.6rem', fontFamily: 'var(--font-heading)', color: 'var(--accent-crimson)' }}>{primaryBonus >= 0 ? '+' : ''}{primaryBonus}</td>
                                   <td style={{ padding: '0.4rem 0.6rem', fontFamily: 'var(--font-heading)', fontSize: '0.82rem', color: attacks.length > 1 ? 'var(--accent-arcane)' : 'var(--text-muted)' }}>{fmtA(attacks)}</td>
-                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-secondary)' }}>{w.weaponDetails?.damage ?? '—'}</td>
-                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{w.weaponDetails?.damageType ?? '—'}</td>
+                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-secondary)' }}>{w.weaponDetails?.damage ?? '�'}</td>
+                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{w.weaponDetails?.damageType ?? '�'}</td>
                                   <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                                    {w.weaponDetails ? `${w.weaponDetails.criticalRange ? w.weaponDetails.criticalRange + '/' : ''}×${w.weaponDetails.criticalMultiplier.replace('x', '').replace('×', '')}` : '—'}
+                                    {w.weaponDetails ? `${w.weaponDetails.criticalRange ? w.weaponDetails.criticalRange + '/' : ''}�${w.weaponDetails.criticalMultiplier.replace('x', '').replace('�', '')}` : '�'}
                                   </td>
                                   <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{w.weaponDetails?.rangeIncrement || 'Mischia'}</td>
-                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{w.weaponDetails?.notes || '—'}</td>
+                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{w.weaponDetails?.notes || '�'}</td>
                                 </tr>
                               );
                             })}
@@ -626,7 +628,7 @@ export const CharacterSheet: React.FC = () => {
                           <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-body)', fontSize: '0.9rem' }}>
                             <thead>
                               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                                {['Protezione', 'Bonus CA', 'Max Des', 'Penalità', 'Incant.%', 'Tipo'].map(h => (
+                                {['Protezione', 'Bonus CA', 'Max Des', 'Penalit�', 'Incant.%', 'Tipo'].map(h => (
                                   <th key={h} style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontFamily: 'var(--font-heading)', fontSize: '0.7rem', color: 'var(--accent-gold)', fontWeight: 'normal', letterSpacing: '0.08em' }}>{h}</th>
                                 ))}
                               </tr>
@@ -638,9 +640,9 @@ export const CharacterSheet: React.FC = () => {
                                   <tr key={a.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                     <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-primary)', fontWeight: 500 }}>{a.name}</td>
                                     <td style={{ padding: '0.4rem 0.6rem', fontFamily: 'var(--font-heading)', color: 'var(--accent-gold)' }}>+{a.armorDetails?.armorBonus ?? 0}</td>
-                                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)' }}>{a.armorDetails?.maxDex ?? '—'}</td>
+                                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)' }}>{a.armorDetails?.maxDex ?? '�'}</td>
                                     <td style={{ padding: '0.4rem 0.6rem', color: a.armorDetails?.checkPenalty ? 'var(--accent-crimson)' : 'var(--text-muted)' }}>{a.armorDetails?.checkPenalty ?? 0}</td>
-                                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)' }}>{a.armorDetails?.spellFailure ? `${a.armorDetails.spellFailure}%` : '—'}</td>
+                                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)' }}>{a.armorDetails?.spellFailure ? `${a.armorDetails.spellFailure}%` : '�'}</td>
                                     <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{a.armorDetails?.armorType ?? a.type}</td>
                                   </tr>
                                 ))}
@@ -650,7 +652,7 @@ export const CharacterSheet: React.FC = () => {
                       </>
                     )}
 
-                    {/* ─── CUSTOM ATTACKS ──────────────────────────────────────────── */}
+                    {/* --- CUSTOM ATTACKS -------------------------------------------- */}
                     <div className="section-header" style={{ marginTop: '1.25rem' }}>
                       <span className="section-title">Attacchi Personalizzati</span>
                       <button
@@ -661,7 +663,7 @@ export const CharacterSheet: React.FC = () => {
                       </button>
                     </div>
 
-                    {/* ─ FORM ─ */}
+                    {/* - FORM - */}
                     {showCAForm && (() => {
                       const allFeatures = [
                         ...(character.classFeatures ?? []).map(f => ({ id: f.id, name: f.name, kind: 'Privilegio' as const })),
@@ -730,7 +732,7 @@ export const CharacterSheet: React.FC = () => {
                             </div>
                             <div style={fld}>
                               <span style={lbl}>Critico (mult.)</span>
-                              <input className="input" value={caForm.criticalMultiplier ?? ''} onChange={e => setCAForm(f => ({ ...f, criticalMultiplier: e.target.value }))} placeholder="es. ×2" style={{ fontSize: '0.82rem' }} />
+                              <input className="input" value={caForm.criticalMultiplier ?? ''} onChange={e => setCAForm(f => ({ ...f, criticalMultiplier: e.target.value }))} placeholder="es. �2" style={{ fontSize: '0.82rem' }} />
                             </div>
                             <div style={fld}>
                               <span style={lbl}>Gittata</span>
@@ -764,7 +766,7 @@ export const CharacterSheet: React.FC = () => {
                                         color: linked ? 'var(--accent-arcane)' : 'var(--text-muted)',
                                       }}
                                     >
-                                      {f.kind === 'Privilegio' ? '⚡' : '★'} {f.name}
+                                      {f.kind === 'Privilegio' ? '?' : '?'} {f.name}
                                     </button>
                                   );
                                 })}
@@ -779,7 +781,7 @@ export const CharacterSheet: React.FC = () => {
                       );
                     })()}
 
-                    {/* ─ TABLE ─ */}
+                    {/* - TABLE - */}
                     {(character.customAttacks ?? []).length === 0 && !showCAForm ? (
                       <p className="text-muted text-sm" style={{ padding: '0.4rem 0' }}>Nessun attacco personalizzato. Premi "Nuovo" per aggiungerne uno.</p>
                     ) : (
@@ -812,7 +814,7 @@ export const CharacterSheet: React.FC = () => {
                                   <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-secondary)' }}>{dmgDisplay}</td>
                                   <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{atk.damageType}</td>
                                   <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                                    {atk.criticalRange && atk.criticalMultiplier ? `${atk.criticalRange}/${atk.criticalMultiplier}` : atk.criticalMultiplier ?? '—'}
+                                    {atk.criticalRange && atk.criticalMultiplier ? `${atk.criticalRange}/${atk.criticalMultiplier}` : atk.criticalMultiplier ?? '�'}
                                   </td>
                                   <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{atk.range || 'Mischia'}</td>
                                   <td style={{ padding: '0.4rem 0.6rem', maxWidth: 160 }}>
@@ -822,9 +824,9 @@ export const CharacterSheet: React.FC = () => {
                                           <span key={n} style={{ padding: '1px 6px', borderRadius: 10, fontSize: '0.65rem', background: 'rgba(155,89,182,0.2)', color: 'var(--accent-arcane)', border: '1px solid rgba(155,89,182,0.3)', whiteSpace: 'nowrap' }}>{n}</span>
                                         ))}
                                       </div>
-                                    ) : <span className="text-muted">—</span>}
+                                    ) : <span className="text-muted">�</span>}
                                   </td>
-                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{atk.notes || '—'}</td>
+                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{atk.notes || '�'}</td>
                                   <td style={{ padding: '0.4rem 0.6rem', whiteSpace: 'nowrap' }}>
                                     <button className="btn-ghost" style={{ marginRight: 4, color: 'var(--accent-gold)' }} onClick={() => {
                                       setCAForm({ ...atk });
@@ -853,287 +855,20 @@ export const CharacterSheet: React.FC = () => {
               </div>
             )}
 
-            {/* ─── TAB: SKILLS ──────────────────────────────── */}
-            {activeTab === 'skills' && (
-              <div className="animate-fade-in flex-col gap-3">
-                <div className="flex justify-between items-center">
-                  <span className="section-title">Abilità ({Object.values(character.skills).length})</span>
-                  <div className="flex gap-2">
-                    <button className="btn btn-secondary btn-sm" onClick={() => setShowImportWizard(true)}>Importa preset</button>
-                    <button className="btn btn-primary btn-sm" onClick={() => setIsSkillModalOpen(true)}><FaPlus size={10} /> Nuova</button>
-                  </div>
-                </div>
-
-                {/* Search + filters */}
-                <div className="flex gap-2 items-center flex-wrap">
-                  <div style={{ position: 'relative', flex: '1 1 200px', minWidth: 180 }}>
-                    <FaSearch size={11} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
-                    <input
-                      className="input"
-                      placeholder="Cerca abilità..."
-                      value={skillSearch}
-                      onChange={e => setSkillSearch(e.target.value)}
-                      style={{ width: '100%', padding: '4px 8px 4px 26px', fontSize: '0.82rem' }}
-                    />
-                  </div>
-                  <div className="flex gap-1" style={{ flexShrink: 0 }}>
-                    {([
-                      ['all', 'Tutte'],
-                      ['class', 'Di classe'],
-                      ['trained', 'Con gradi'],
-                      ['untrained', 'Senza gradi'],
-                    ] as const).map(([k, l]) => (
-                      <button key={k} onClick={() => setSkillFilter(k)}
-                        className={`btn btn-sm ${skillFilter === k ? 'btn-primary' : 'btn-secondary'}`}
-                        style={{ fontSize: '0.7rem', padding: '3px 8px' }}>
-                        {l}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {(() => {
-                  const filteredAll = Object.values(character.skills).filter(s => {
-                    if (skillSearch && !s.name.toLowerCase().includes(skillSearch.toLowerCase())) return false;
-                    if (skillFilter === 'class' && !s.classSkill) return false;
-                    if (skillFilter === 'trained' && s.ranks < 1) return false;
-                    if (skillFilter === 'untrained' && s.ranks > 0) return false;
-                    return true;
-                  }).sort((a, b) => a.name.localeCompare(b.name));
-                  const usableList = filteredAll.filter(s => getSkillBreakdown(s.id).usable);
-                  const unusableList = filteredAll.filter(s => !getSkillBreakdown(s.id).usable);
-
-                  const renderCard = (skill: import('../types/dnd').Skill) => {
-                    const bd = getSkillBreakdown(skill.id);
-                    const total = bd.total;
-                    const isEditing = editingSkillId === skill.id;
-                    const totalColor = !bd.usable ? 'var(--text-muted)' : total >= 5 ? 'var(--accent-gold)' : total >= 0 ? 'var(--text-primary)' : 'var(--accent-crimson)';
-                    const accent = skill.classSkill ? 'var(--accent-gold)' : 'rgba(155,89,182,0.5)';
-                    return (
-                      <div key={skill.id} className="card" style={{
-                        padding: 0,
-                        opacity: bd.usable ? 1 : 0.55,
-                        borderLeft: `3px solid ${accent}`,
-                        display: 'flex', flexDirection: 'column',
-                      }}>
-                        {/* Header: name + total */}
-                        <div style={{
-                          display: 'flex', alignItems: 'center', gap: 8,
-                          padding: '8px 10px',
-                          borderBottom: '1px solid rgba(255,255,255,0.05)',
-                          background: 'linear-gradient(180deg, rgba(255,255,255,0.02), transparent)',
-                        }}>
-                          {isEditing && skillEditForm ? (
-                            <input className="input" style={{ flex: 1, fontSize: '0.85rem', padding: '3px 6px' }}
-                              value={skillEditForm.name}
-                              onChange={e => setSkillEditForm({ ...skillEditForm, name: e.target.value })} />
-                          ) : (
-                            <>
-                              <span style={{ flex: 1, color: skill.classSkill ? 'var(--accent-gold)' : 'var(--text-primary)', fontFamily: 'var(--font-heading)', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <button
-                                  onClick={() => updateSkill({ ...skill, classSkill: !skill.classSkill })}
-                                  className="btn-ghost"
-                                  title={skill.classSkill ? 'Abilità di classe (clicca per disattivare)' : 'Segna come abilità di classe'}
-                                  style={{ padding: 2, color: skill.classSkill ? 'var(--accent-gold)' : 'var(--text-muted)' }}
-                                >
-                                  <FaStar size={10} />
-                                </button>
-                                {skill.name}
-                              </span>
-                              <span style={{
-                                fontFamily: 'var(--font-heading)', fontSize: '1.25rem',
-                                color: totalColor,
-                                minWidth: 40, textAlign: 'right',
-                              }} title={bd.usable ? '' : 'Abilità non utilizzabile'}>
-                                {total >= 0 ? '+' : ''}{total}
-                              </span>
-                            </>
-                          )}
-                          <div className="flex gap-1 items-center">
-                            {isEditing ? (
-                              <>
-                                <button className="btn btn-primary btn-sm" onClick={() => { if (skillEditForm) { updateSkill({ ...skillEditForm, id: skill.id }); } setEditingSkillId(null); setSkillEditForm(null); }}>✓</button>
-                                <button className="btn btn-secondary btn-sm" onClick={() => { setEditingSkillId(null); setSkillEditForm(null); }}>✕</button>
-                              </>
-                            ) : (
-                              <>
-                                <button className="btn-ghost" title="Modifica" onClick={() => { setEditingSkillId(skill.id); setSkillEditForm({ ...skill }); }}><FaEdit size={11} /></button>
-                                <button className="btn-ghost" title="Elimina" style={{ color: 'var(--accent-crimson)' }} onClick={() => deleteSkill(skill.id)}><FaTrash size={11} /></button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Breakdown */}
-                        <div style={{ padding: '6px 10px 8px', display: 'flex', flexDirection: 'column', gap: 5 }}>
-                          {/* Components row */}
-                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center', fontSize: '0.7rem' }}>
-                            {/* Stat */}
-                            {isEditing && skillEditForm ? (
-                              <select className="input" style={{ width: 70, fontSize: '0.72rem', padding: '1px 3px' }}
-                                value={skillEditForm.stat}
-                                onChange={e => setSkillEditForm({ ...skillEditForm, stat: e.target.value as import('../types/dnd').StatType })}>
-                                {(['str', 'dex', 'con', 'int', 'wis', 'cha'] as const).map(s => <option key={s} value={s}>{STAT_NAMES[s]?.slice(0, 3)}</option>)}
-                              </select>
-                            ) : (
-                              <span style={{ background: 'rgba(155,89,182,0.12)', border: '1px solid rgba(155,89,182,0.25)', color: 'var(--text-secondary)', padding: '1px 6px', borderRadius: 3, fontFamily: 'var(--font-heading)', fontSize: '0.65rem' }}>
-                                {STAT_NAMES[skill.stat]?.slice(0, 3) ?? skill.stat} {bd.statMod >= 0 ? '+' : ''}{bd.statMod}
-                              </span>
-                            )}
-                            {/* Ranks */}
-                            {isEditing && skillEditForm ? (
-                              <input type="number" className="input" style={{ width: 48, textAlign: 'center', fontSize: '0.72rem', padding: '1px 3px' }}
-                                value={skillEditForm.ranks}
-                                onChange={e => setSkillEditForm({ ...skillEditForm, ranks: parseInt(e.target.value) || 0 })} />
-                            ) : (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', color: 'var(--text-secondary)', borderRadius: 3, fontFamily: 'var(--font-heading)', fontSize: '0.65rem', overflow: 'hidden' }} title="Gradi spesi">
-                                <button
-                                  className="btn-ghost"
-                                  style={{ padding: '0 4px', height: '100%', color: 'var(--text-muted)', fontSize: '0.7rem', borderRight: '1px solid rgba(255,255,255,0.06)' }}
-                                  onClick={() => updateSkill({ ...skill, ranks: Math.max(0, skill.ranks - 1) })}
-                                  disabled={skill.ranks <= 0}
-                                  title="Riduci gradi"
-                                ><FaMinus size={7} /></button>
-                                <span style={{ padding: '1px 6px' }}>Gr. {skill.ranks}</span>
-                                <button
-                                  className="btn-ghost"
-                                  style={{ padding: '0 4px', height: '100%', color: 'var(--text-muted)', fontSize: '0.7rem', borderLeft: '1px solid rgba(255,255,255,0.06)' }}
-                                  onClick={() => updateSkill({ ...skill, ranks: skill.ranks + 1 })}
-                                  title="Aumenta gradi"
-                                ><FaPlus size={7} /></button>
-                              </span>
-                            )}
-                            {/* Class skill bonus */}
-                            {bd.classBonus > 0 && (
-                              <span style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: 'var(--accent-gold)', padding: '1px 6px', borderRadius: 3, fontFamily: 'var(--font-heading)', fontSize: '0.65rem' }} title="Bonus abilità di classe">
-                                Classe +{bd.classBonus}
-                              </span>
-                            )}
-                            {/* canUseUntrained toggle */}
-                            <button
-                              onClick={() => updateSkill({ ...skill, canUseUntrained: !skill.canUseUntrained })}
-                              className="btn-ghost"
-                              style={{
-                                padding: '1px 6px', borderRadius: 3, fontSize: '0.6rem', letterSpacing: '0.04em',
-                                background: skill.canUseUntrained ? 'rgba(46,204,113,0.1)' : 'rgba(255,255,255,0.03)',
-                                border: `1px solid ${skill.canUseUntrained ? 'rgba(46,204,113,0.35)' : 'rgba(255,255,255,0.08)'}`,
-                                color: skill.canUseUntrained ? '#2ecc71' : 'var(--text-muted)',
-                              }}
-                              title={skill.canUseUntrained ? 'Utilizzabile senza gradi (clicca per disattivare)' : 'Richiede gradi (clicca per consentire utilizzo senza gradi)'}
-                            >
-                              Senza gradi
-                            </button>
-                          </div>
-                          {/* External modifier sources */}
-                          {bd.sources.length > 0 && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 4, borderTop: '1px dashed rgba(255,255,255,0.06)' }}>
-                              {bd.sources.map((src, idx) => {
-                                const kindColor = src.kind === 'item' ? '#3498db' : src.kind === 'feat' ? '#e67e22' : '#9b59b6';
-                                const kindLbl = src.kind === 'item' ? 'Equip.' : src.kind === 'feat' ? 'Talento' : 'Privilegio';
-                                return (
-                                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.66rem' }}>
-                                    <span style={{
-                                      background: `${kindColor}22`, color: kindColor,
-                                      border: `1px solid ${kindColor}55`,
-                                      padding: '0 4px', borderRadius: 2,
-                                      fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.05em',
-                                      flexShrink: 0,
-                                    }}>{kindLbl}</span>
-                                    <span style={{ color: 'var(--text-secondary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={src.source}>
-                                      {src.source}
-                                    </span>
-                                    <span style={{ color: src.value >= 0 ? 'var(--accent-gold)' : 'var(--accent-crimson)', fontFamily: 'var(--font-heading)' }}>
-                                      {src.value >= 0 ? '+' : ''}{src.value}
-                                    </span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  };
-
-                  const gridStyle: React.CSSProperties = {
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-                    gap: 8,
-                  };
-                  const sectionHeader = (label: string, count: number, color: string, extra?: React.ReactNode) => (
-                    <div style={{
-                      display: 'flex', alignItems: 'center', gap: 8,
-                      marginTop: 4, marginBottom: 2,
-                      paddingBottom: 4,
-                      borderBottom: `1px solid ${color}33`,
-                    }}>
-                      <span style={{
-                        fontFamily: 'var(--font-heading)',
-                        fontSize: '0.78rem',
-                        color,
-                        letterSpacing: '0.06em',
-                        textTransform: 'uppercase',
-                      }}>{label}</span>
-                      <span style={{
-                        background: `${color}22`,
-                        color,
-                        border: `1px solid ${color}55`,
-                        padding: '0 6px',
-                        borderRadius: 99,
-                        fontSize: '0.68rem',
-                        fontFamily: 'var(--font-heading)',
-                      }}>{count}</span>
-                      {extra && <div style={{ marginLeft: 'auto' }}>{extra}</div>}
-                    </div>
-                  );
-
-                  return (
-                    <>
-                      {sectionHeader('Utilizzabili', usableList.length, 'var(--accent-gold)')}
-                      {usableList.length === 0 ? (
-                        <p className="text-muted text-sm" style={{ padding: '4px 0' }}>
-                          Nessuna abilità utilizzabile con i filtri correnti.
-                        </p>
-                      ) : (
-                        <div style={gridStyle}>{usableList.map(renderCard)}</div>
-                      )}
-
-                      {unusableList.length > 0 && (
-                        <>
-                          {sectionHeader(
-                            'Non utilizzabili',
-                            unusableList.length,
-                            'var(--text-muted)',
-                            <button
-                              className="btn btn-secondary btn-sm"
-                              style={{ fontSize: '0.68rem', padding: '2px 8px' }}
-                              onClick={() => setShowUnusable(v => !v)}
-                            >
-                              {showUnusable ? 'Nascondi' : 'Mostra'}
-                            </button>
-                          )}
-                          {showUnusable && (
-                            <div style={gridStyle}>{unusableList.map(renderCard)}</div>
-                          )}
-                        </>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-            )}
+            {/* --- TAB: SKILLS -------------------------------- */}
+            {activeTab === 'skills' && <SkillsTab />}
 
             {activeTab === 'abilities' && <AbilitiesPage initialTab={abilitiesInitialTab} />}
           </div>
         )}
 
-        {/* ─── COMPONENT TABS ─────────────────────────────────── */}
+        {/* --- COMPONENT TABS ----------------------------------- */}
         {activeTab === 'inventory' && <Inventory />}
         {activeTab === 'spells' && <Spellbook />}
         {activeTab === 'bestiary' && <BestiaryPage />}
       </div>
 
-      {/* ─── MODALS ──────────────────────────────────────────── */}
+      {/* --- MODALS -------------------------------------------- */}
       {isSkillModalOpen && (
         <SkillModal onClose={() => setIsSkillModalOpen(false)} />
       )}

@@ -13,6 +13,7 @@ import { CatalogPicker } from './CatalogPicker';
 import { ModifierEditor } from './ModifierEditor';
 import { useMediaQuery } from './mobile/MobileShell';
 import { BottomDrawer } from './ui/BottomDrawer';
+import { DndIcon } from './DndIcon';
 
 /** Render an inline SVG with safe HTML insertion. */
 const SvgIcon: React.FC<{ svg: string; size?: number; className?: string }> = ({ svg, size, className }) => (
@@ -30,21 +31,34 @@ const SvgIcon: React.FC<{ svg: string; size?: number; className?: string }> = ({
 );
 
 // ─── Types ────────────────────────────────────────────
-type MainTab = 'items' | 'currency';
+type MainTab = 'items' | 'currency' | 'trash';
 type ItemTabKey = 'all' | Item['type'];
 
 // ─── Constants ────────────────────────────────────────
-const ITEM_TABS: { key: ItemTabKey; label: string; icon: string; color: string }[] = [
-  { key: 'all', label: 'Tutti', icon: '📦', color: 'var(--text-secondary)' },
-  { key: 'weapon', label: 'Armi', icon: '⚔', color: 'var(--accent-crimson)' },
-  { key: 'ammo', label: 'Munizioni', icon: '🏹', color: 'var(--accent-crimson)' },
-  { key: 'armor', label: 'Armature', icon: '🛡', color: 'var(--accent-gold)' },
-  { key: 'shield', label: 'Scudi', icon: '🪬', color: 'var(--accent-gold)' },
-  { key: 'protectiveItem', label: 'Prot.', icon: '🔮', color: 'var(--accent-gold)' },
-  { key: 'gear', label: 'Equip.', icon: '🎒', color: 'var(--text-muted)' },
-  { key: 'consumable', label: 'Consumabili', icon: '🧪', color: 'var(--accent-success)' },
-  { key: 'component', label: 'Componenti', icon: '✨', color: 'var(--accent-arcane)' },
-  { key: 'misc', label: 'Misc.', icon: '📜', color: 'var(--text-muted)' },
+/** Bundled SVG icon reference per item type. Pulled from src/assets/icons. */
+const TYPE_ICON_REF: Record<Item['type'], { category: string; name: string }> = {
+  weapon: { category: 'entity', name: 'weapon' },
+  ammo: { category: 'weapon', name: 'arrow' },
+  armor: { category: 'entity', name: 'armor' },
+  shield: { category: 'proficiency', name: 'proficient' },
+  protectiveItem: { category: 'entity', name: 'magic-item' },
+  gear: { category: 'entity', name: 'pack' },
+  consumable: { category: 'entity', name: 'potion' },
+  component: { category: 'spell', name: 'material' },
+  misc: { category: 'entity', name: 'object' },
+};
+
+const ITEM_TABS: { key: ItemTabKey; label: string; iconRef: { category: string; name: string }; color: string }[] = [
+  { key: 'all', label: 'Tutti', iconRef: { category: 'util', name: 'star' }, color: 'var(--text-secondary)' },
+  { key: 'weapon', label: 'Armi', iconRef: { category: 'entity', name: 'weapon' }, color: 'var(--accent-crimson)' },
+  { key: 'ammo', label: 'Munizioni', iconRef: { category: 'weapon', name: 'arrow' }, color: 'var(--accent-crimson)' },
+  { key: 'armor', label: 'Armature', iconRef: { category: 'entity', name: 'armor' }, color: 'var(--accent-gold)' },
+  { key: 'shield', label: 'Scudi', iconRef: { category: 'proficiency', name: 'proficient' }, color: 'var(--accent-gold)' },
+  { key: 'protectiveItem', label: 'Protezioni', iconRef: { category: 'entity', name: 'magic-item' }, color: 'var(--accent-gold)' },
+  { key: 'gear', label: 'Equipag.', iconRef: { category: 'entity', name: 'pack' }, color: 'var(--text-muted)' },
+  { key: 'consumable', label: 'Consumabili', iconRef: { category: 'entity', name: 'potion' }, color: 'var(--accent-success)' },
+  { key: 'component', label: 'Componenti', iconRef: { category: 'spell', name: 'material' }, color: 'var(--accent-arcane)' },
+  { key: 'misc', label: 'Varie', iconRef: { category: 'entity', name: 'object' }, color: 'var(--text-muted)' },
 ];
 const TYPE_COLOR: Record<Item['type'], string> = {
   weapon: 'var(--accent-crimson)', armor: 'var(--accent-gold)', shield: 'var(--accent-gold)',
@@ -56,9 +70,10 @@ const TYPE_LABEL: Record<Item['type'], string> = {
   gear: 'Equipaggiamento', consumable: 'Consumabile', component: 'Componente', misc: 'Miscellanea',
   ammo: 'Munizioni',
 };
-const TYPE_ICON: Record<Item['type'], string> = {
-  weapon: '⚔', armor: '🛡', shield: '🛡', protectiveItem: '🔮',
-  gear: '🎒', consumable: '🧪', component: '✨', misc: '📜', ammo: '🏹',
+/** Render the bundled SVG icon for a given item type. */
+const TypeIcon: React.FC<{ type: Item['type']; size?: number; className?: string }> = ({ type, size = 24, className }) => {
+  const r = TYPE_ICON_REF[type];
+  return <DndIcon category={r.category} name={r.name} size={size} className={className} />;
 };
 const DAMAGE_TYPES = [
   { value: 'p', label: 'Perforante (p)' }, { value: 't', label: 'Tagliente (t)' },
@@ -337,7 +352,7 @@ const EditItemForm: React.FC<EditItemFormProps> = ({ itemForm, setItemForm, edit
       <div style={{ width: 40, height: 40, borderRadius: 4, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {previewSvg
           ? <SvgIcon svg={previewSvg} size={28} className="inv-svg-tinted" />
-          : <span style={{ fontSize: '1.2rem' }}>{TYPE_ICON[itemForm.type]}</span>}
+          : <TypeIcon type={itemForm.type} size={26} />}
       </div>
       <button type="button" onClick={onPickIcon} className="btn-secondary" style={{ fontSize: '0.78rem' }}>
         <FaImage size={11} /> Scegli dal Catalogo
@@ -401,7 +416,7 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, selected, onClick, onEquip, o
         {(item.quantity ?? 1) > 1 && <div className="inv-card-qty">×{item.quantity}</div>}
       </div>
       <div className="inv-card-icon">
-        {iconSvg ? <SvgIcon svg={iconSvg} /> : TYPE_ICON[item.type]}
+        {iconSvg ? <SvgIcon svg={iconSvg} /> : <TypeIcon type={item.type} size={32} />}
       </div>
       <div className="inv-card-name">{item.name}</div>
       {statText && <div className="inv-card-stat" style={{ color: statColor }}>{statText}</div>}
@@ -436,8 +451,10 @@ interface DetailPanelProps {
   iconSvg?: string;
   ammoItems?: Item[];
   onSetAmmo?: (ammoId: string | null) => void;
+  /** When true, hides the internal close button and bottom action bar (used inside the sidebar where the header already has them). */
+  compact?: boolean;
 }
-const ItemDetailPanel: React.FC<DetailPanelProps> = ({ item, onClose, onEquip, onEdit, onDelete, iconSvg, ammoItems, onSetAmmo }) => {
+const ItemDetailPanel: React.FC<DetailPanelProps> = ({ item, onClose, onEquip, onEdit, onDelete, iconSvg, ammoItems, onSetAmmo, compact }) => {
   const color = TYPE_COLOR[item.type];
   const wd = item.weaponDetails;
   const ad = item.armorDetails;
@@ -448,13 +465,15 @@ const ItemDetailPanel: React.FC<DetailPanelProps> = ({ item, onClose, onEquip, o
     : undefined;
   return (
     <div className="inv-detail-panel">
-      <button onClick={onClose} style={{ position: 'absolute', top: 10, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4, zIndex: 1 }}>
-        <FaTimes size={12} />
-      </button>
+      {!compact && (
+        <button onClick={onClose} style={{ position: 'absolute', top: 10, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4, zIndex: 1 }}>
+          <FaTimes size={12} />
+        </button>
+      )}
       {/* Header */}
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', paddingRight: 20 }}>
-        <div style={{ fontSize: '2.2rem', lineHeight: 1, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.6))', flexShrink: 0 }}>
-          {iconSvg ? <SvgIcon svg={iconSvg} size={44} className="inv-svg-tinted" /> : TYPE_ICON[item.type]}
+        <div className="inv-detail-icon-frame">
+          {iconSvg ? <SvgIcon svg={iconSvg} size={44} className="inv-svg-tinted" /> : <TypeIcon type={item.type} size={44} />}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.92rem', lineHeight: 1.25, marginBottom: 6, color: item.equipped ? color : 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -603,18 +622,19 @@ const ItemDetailPanel: React.FC<DetailPanelProps> = ({ item, onClose, onEquip, o
           <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.55 }}>{item.description}</p>
         </div>
       )}
-      {/* Actions */}
-      <div style={{ marginTop: 'auto', paddingTop: 8, display: 'flex', gap: 7 }}>
-        <button onClick={onEquip} style={{ flex: 1, padding: '8px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.74rem', fontFamily: 'var(--font-heading)', letterSpacing: '0.05em', background: item.equipped ? 'rgba(192,57,43,0.12)' : 'rgba(39,174,96,0.12)', border: `1px solid ${item.equipped ? 'rgba(192,57,43,0.4)' : 'rgba(39,174,96,0.4)'}`, color: item.equipped ? 'var(--accent-crimson)' : 'var(--accent-success)', minWidth: 0 }}>
-          {item.equipped ? 'Rimuovi' : 'Equipaggia'}
-        </button>
-        <button onClick={onEdit} style={{ padding: '8px 11px', borderRadius: 6, cursor: 'pointer', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-secondary)' }}>
-          <FaEdit size={12} />
-        </button>
-        <button onClick={onDelete} style={{ padding: '8px 11px', borderRadius: 6, cursor: 'pointer', background: 'rgba(192,57,43,0.08)', border: '1px solid rgba(192,57,43,0.25)', color: 'var(--accent-crimson)' }}>
-          <FaTrash size={11} />
-        </button>
-      </div>
+      {!compact && (
+        <div style={{ marginTop: 'auto', paddingTop: 8, display: 'flex', gap: 7 }}>
+          <button onClick={onEquip} style={{ flex: 1, padding: '8px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.74rem', fontFamily: 'var(--font-heading)', letterSpacing: '0.05em', background: item.equipped ? 'rgba(192,57,43,0.12)' : 'rgba(39,174,96,0.12)', border: `1px solid ${item.equipped ? 'rgba(192,57,43,0.4)' : 'rgba(39,174,96,0.4)'}`, color: item.equipped ? 'var(--accent-crimson)' : 'var(--accent-success)', minWidth: 0 }}>
+            {item.equipped ? 'Rimuovi' : 'Equipaggia'}
+          </button>
+          <button onClick={onEdit} style={{ padding: '8px 11px', borderRadius: 6, cursor: 'pointer', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-secondary)' }}>
+            <FaEdit size={12} />
+          </button>
+          <button onClick={onDelete} style={{ padding: '8px 11px', borderRadius: 6, cursor: 'pointer', background: 'rgba(192,57,43,0.08)', border: '1px solid rgba(192,57,43,0.25)', color: 'var(--accent-crimson)' }}>
+            <FaTrash size={11} />
+          </button>
+        </div>
+      )}
     </div>
   );
 };
@@ -637,6 +657,9 @@ export const Inventory: React.FC = () => {
   // Icon catalog (shared cache, loaded once per session)
   const { icons: iconCatalogItems, resolveItemSvg, loading: iconCatalogLoading } = useIconCatalog();
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [permDeleteConfirmId, setPermDeleteConfirmId] = useState<string | null>(null);
+  const [trashSearch, setTrashSearch] = useState('');
   const openIconPicker = () => setIconPickerOpen(true);
   const pickIcon = (ic: CatalogIcon) => {
     setItemForm(f => ({ ...f, iconId: ic.id }));
@@ -662,6 +685,7 @@ export const Inventory: React.FC = () => {
   if (!character) return null;
 
   const allItems = character.inventory;
+  const trashItems = character.inventoryTrash ?? [];
   const itemCounts: Record<string, number> = { all: allItems.length };
   (['weapon', 'armor', 'shield', 'protectiveItem', 'gear', 'consumable', 'component', 'ammo'] as Item['type'][]).forEach(t => {
     itemCounts[t] = allItems.filter(i => i.type === t).length;
@@ -670,7 +694,6 @@ export const Inventory: React.FC = () => {
   const filtered = (itemTab === 'all' ? allItems : allItems.filter(i => i.type === itemTab))
     .filter(i => !searchQ || i.name.toLowerCase().includes(searchQ) || (i.description ?? '').toLowerCase().includes(searchQ));
   const equipped = filtered.filter(i => i.equipped);
-  const backpack = filtered.filter(i => !i.equipped);
   const totalWeight = allItems.reduce((s, i) => s + (i.weight ?? 0), 0);
   const currency = character.currency ?? { platinum: 0, gold: 0, silver: 0, copper: 0 };
   const txLog = character.currencyLog ?? [];
@@ -706,10 +729,42 @@ export const Inventory: React.FC = () => {
     setEditingItemId(item.id); setIsAddingItem(false);
   };
   const cancelEditItem = () => { setEditingItemId(null); setIsAddingItem(false); setItemForm(EMPTY_ITEM()); };
-  const deleteItemFn = (id: string) => {
-    setCharacter({ ...character, inventory: allItems.filter(i => i.id !== id) });
+  // Move to trash (soft delete)
+  const deleteItemFn = (id: string) => { setDeleteConfirmId(id); };
+  const confirmDeleteFn = () => {
+    const id = deleteConfirmId;
+    if (!id) return;
+    const item = allItems.find(i => i.id === id);
+    setDeleteConfirmId(null);
+    if (!item) return;
+    setCharacter({
+      ...character,
+      inventory: allItems.filter(i => i.id !== id),
+      inventoryTrash: [{ ...item, equipped: false }, ...(character.inventoryTrash ?? [])],
+    });
     if (editingItemId === id) cancelEditItem();
     if (selectedId === id) setSelectedId(null);
+  };
+  // Restore from trash
+  const restoreItemFn = (id: string) => {
+    const item = trashItems.find(i => i.id === id);
+    if (!item) return;
+    setCharacter({
+      ...character,
+      inventory: [...allItems, item],
+      inventoryTrash: trashItems.filter(i => i.id !== id),
+    });
+  };
+  // Permanently delete from trash
+  const permDeleteFn = (id: string) => { setPermDeleteConfirmId(id); };
+  const confirmPermDeleteFn = () => {
+    const id = permDeleteConfirmId;
+    if (!id) return;
+    setPermDeleteConfirmId(null);
+    setCharacter({
+      ...character,
+      inventoryTrash: trashItems.filter(i => i.id !== id),
+    });
   };
   // ── Currency helper ──
   const submitTx = () => {
@@ -724,257 +779,529 @@ export const Inventory: React.FC = () => {
   };
 
   // ─────────────────────────────── RENDER ───────────────────────────────────
-  const selectedItem = allItems.find(i => i.id === selectedId) ?? null;
+  const selectedItem = allItems.find(i => i.id === selectedId) ?? trashItems.find(i => i.id === selectedId) ?? null;
+  const isTrashItem = !!selectedId && !allItems.some(i => i.id === selectedId) && trashItems.some(i => i.id === selectedId);
   const ammoItems = allItems.filter(i => i.type === 'ammo');
+  const closeSidebar = () => { cancelEditItem(); setSelectedId(null); };
   const commonCardProps = (item: Item) => ({
     item,
     selected: selectedId === item.id,
-    onClick: () => setSelectedId(selectedId === item.id ? null : item.id),
+    onClick: () => {
+      if (!isMobileSheet) {
+        // Click = open view mode; click again = close
+        if (selectedId === item.id && editingItemId === null) { closeSidebar(); }
+        else { setSelectedId(item.id); cancelEditItem(); }
+      } else {
+        // Mobile: if a sheet is already open (different item), close it first
+        if (selectedId !== null && selectedId !== item.id) { setSelectedId(null); }
+        else { setSelectedId(selectedId === item.id ? null : item.id); }
+      }
+    },
     onEquip: () => toggleEquipItem(item.id),
-    onEdit: () => startEditItem(item),
+    onEdit: () => {
+      if (!isMobileSheet) { setSelectedId(item.id); startEditItem(item); }
+      else { startEditItem(item); }
+    },
     onDelete: () => deleteItemFn(item.id),
     iconSvg: resolveItemSvg(item),
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 0 }}>
+    <div className="inv-pack-root">
+      <div className="inv-pack-main">
 
-      {/* ── MAIN TABS ── */}
-      <div className="inv-main-tabs" style={{ borderBottom: '1px solid rgba(201,168,76,0.12)', marginBottom: 10 }}>
-        <button className={`inv-main-tab-btn${mainTab === 'items' ? ' active' : ''}`} onClick={() => setMainTab('items')}>
-          Oggetti ({allItems.length})
-        </button>
-        <button className={`inv-main-tab-btn${mainTab === 'currency' ? ' active' : ''}`} onClick={() => setMainTab('currency')}>
-          Monete
-        </button>
-      </div>
-
-      {/* ═══════════ TAB: ITEMS ═══════════ */}
-      {mainTab === 'items' && (
-        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 8 }}>
-
-          {/* Header */}
-          <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.8rem', color: 'var(--accent-gold)' }}>{totalWeight.toFixed(1)} kg</span>
-              <span style={{ color: 'rgba(255,255,255,0.1)', fontSize: '0.7rem' }}>·</span>
-              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>{allItems.length} oggetti</span>
+        {/* ════ HERO HEADER ════ */}
+        {mainTab === 'items' ? (
+          <div className="inv-hero">
+            <div className="inv-hero-emblem">
+              <DndIcon category="entity" name="pack" size={34} />
             </div>
-            <button className="btn-primary" style={{ fontSize: '0.78rem', padding: '5px 12px' }}
-              onClick={() => { setIsAddingItem(true); setEditingItemId(null); setItemForm(EMPTY_ITEM()); }}>
-              <FaPlus size={10} /> Nuovo
+            <div className="inv-hero-info">
+              <div className="inv-hero-title">
+                <span className="inv-hero-title-text">ZAINO</span>
+                <span className="inv-hero-title-sub">{allItems.length} oggetti</span>
+              </div>
+              <div className="inv-hero-meter" title={`Peso totale: ${totalWeight.toFixed(2)} kg`}>
+                <div className="inv-hero-meter-track">
+                  <div className="inv-hero-meter-fill" style={{ width: `${Math.min(100, (totalWeight / 50) * 100)}%` }} />
+                  <div className="inv-hero-meter-ticks">
+                    {[0, 25, 50, 75, 100].map(t => <span key={t} style={{ left: `${t}%` }} />)}
+                  </div>
+                </div>
+                <div className="inv-hero-meter-readout">
+                  <span className="inv-hero-meter-value">{totalWeight.toFixed(1)}</span>
+                  <span className="inv-hero-meter-unit">kg</span>
+                </div>
+              </div>
+            </div>
+            <button className="inv-hero-add"
+              onClick={() => { setIsAddingItem(true); setEditingItemId(null); setItemForm(EMPTY_ITEM()); setSelectedId(null); }}
+              title="Aggiungi oggetto">
+              <FaPlus size={11} />
+              <span>NUOVO</span>
             </button>
           </div>
+        ) : (
+          <div className="inv-hero">
+            <div className="inv-hero-emblem">
+              <DndIcon category="entity" name="loot" size={34} />
+            </div>
+            <div className="inv-hero-info">
+              <div className="inv-hero-title">
+                <span className="inv-hero-title-text">TESORO</span>
+                <span className="inv-hero-title-sub">{(currency.platinum ?? 0) + (currency.gold ?? 0) + (currency.silver ?? 0) + (currency.copper ?? 0)} monete</span>
+              </div>
+            </div>
+          </div>
+        )}
 
-          {/* Search */}
-          <div className="inv-search-wrap">
-            <FaSearch className="inv-search-icon" size={12} />
-            <input
-              className="inv-search-input"
-              placeholder="Cerca oggetti…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-            {search && (
-              <button className="inv-search-clear" onClick={() => setSearch('')} title="Cancella">
-                <FaTimes size={10} />
-              </button>
+        {/* ════ TAB STRIP ════ */}
+        <div className="inv-tab-strip">
+          <button className={`inv-tab-strip-btn${mainTab === 'items' ? ' active' : ''}`} onClick={() => setMainTab('items')}>
+            <DndIcon category="entity" name="pack" size={14} />
+            <span>Contenuto</span>
+          </button>
+          <button className={`inv-tab-strip-btn${mainTab === 'currency' ? ' active' : ''}`} onClick={() => setMainTab('currency')}>
+            <DndIcon category="entity" name="loot" size={14} />
+            <span>Monete</span>
+          </button>
+          <button
+            className={`inv-tab-strip-btn inv-tab-strip-trash${mainTab === 'trash' ? ' active' : ''}`}
+            onClick={() => setMainTab('trash' as MainTab)}
+          >
+            <FaTrash size={11} />
+            <span>Cestino</span>
+            {trashItems.length > 0 && <span className="inv-trash-badge">{trashItems.length}</span>}
+          </button>
+        </div>
+
+        {/* ═══════════ TAB: ITEMS ═══════════ */}
+        {mainTab === 'items' && (
+          <div className="inv-pack-body">
+
+            {/* Loadout strip — always-visible equipped quickbar */}
+            {equipped.length > 0 && (
+              <div className="inv-loadout">
+                <div className="inv-loadout-label">
+                  <span className="inv-loadout-label-bullet" />
+                  EQUIPAGGIATO
+                </div>
+                <div className="inv-loadout-strip">
+                  {equipped.map(item => {
+                    const color = TYPE_COLOR[item.type];
+                    const iconSvg = resolveItemSvg(item);
+                    return (
+                      <button
+                        key={item.id}
+                        className={`inv-loadout-slot${selectedId === item.id ? ' selected' : ''}`}
+                        style={{ '--slot-color': color, '--slot-glow': `${color}55` } as React.CSSProperties}
+                        onClick={() => setSelectedId(selectedId === item.id ? null : item.id)}
+                        title={item.name}
+                      >
+                        <div className="inv-loadout-slot-icon">
+                          {iconSvg ? <SvgIcon svg={iconSvg} /> : <TypeIcon type={item.type} size={26} />}
+                        </div>
+                        {(item.quantity ?? 1) > 1 && <div className="inv-loadout-slot-qty">×{item.quantity}</div>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             )}
-          </div>
 
-          {/* Category pills */}
-          <div className="inv-cat-pills">
-            {ITEM_TABS.filter(t => t.key === 'all' || (itemCounts[t.key] ?? 0) > 0).map(t => (
-              <button key={t.key}
-                className={`inv-cat-pill${itemTab === t.key ? ' active' : ''}`}
-                style={itemTab === t.key ? { '--pill-border': `${t.color}66`, '--pill-color': t.color, '--pill-bg': `${t.color}14` } as React.CSSProperties : {}}
-                onClick={() => setItemTab(t.key)}>
-                {t.icon} {t.label}
-                <span className="inv-cat-count">{t.key === 'all' ? allItems.length : (itemCounts[t.key] ?? 0)}</span>
-              </button>
-            ))}
-          </div>
+            {/* Search + filters dock */}
+            <div className="inv-controls">
+              <div className="inv-search-wrap">
+                <FaSearch className="inv-search-icon" size={12} />
+                <input
+                  className="inv-search-input"
+                  placeholder="Cerca nello zaino…"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
+                {search && (
+                  <button className="inv-search-clear" onClick={() => setSearch('')} title="Cancella">
+                    <FaTimes size={10} />
+                  </button>
+                )}
+              </div>
 
-          {/* Content: grid + optional detail panel */}
-          <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
-
-            {/* Scrollable items area */}
-            <div className="inv-scroll" style={{ flex: 1, minWidth: 0 }}>
-
-              {equipped.length > 0 && (
-                <div style={{ marginBottom: 18 }}>
-                  <div className="inv-section-hdr">
-                    <span className="inv-section-hdr-text">EQUIPAGGIATO</span>
-                    <div className="inv-section-hdr-line" />
-                    <span className="inv-section-hdr-count">{equipped.length}</span>
-                  </div>
-                  <div className="inv-item-grid">
-                    {equipped.map(item => <ItemCard key={item.id} {...commonCardProps(item)} />)}
-                  </div>
-                </div>
-              )}
-
-              {backpack.length > 0 && (
-                <div>
-                  {equipped.length > 0 && (
-                    <div className="inv-section-hdr">
-                      <span className="inv-section-hdr-text">ZAINO</span>
-                      <div className="inv-section-hdr-line" />
-                      <span className="inv-section-hdr-count">{backpack.length}</span>
-                    </div>
-                  )}
-                  <div className="inv-item-grid">
-                    {backpack.map(item => <ItemCard key={item.id} {...commonCardProps(item)} />)}
-                  </div>
-                </div>
-              )}
-
-              {filtered.length === 0 && (
-                <div style={{ padding: '3rem 1rem', textAlign: 'center' }}>
-                  <div style={{ fontSize: '2.5rem', marginBottom: 10, opacity: 0.25 }}>🎒</div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-                    {searchQ ? `Nessun risultato per "${search}".` : itemTab === 'all' ? 'Inventario vuoto.' : 'Nessun oggetto in questa categoria.'}
-                  </div>
-                </div>
-              )}
+              <div className="inv-filter-dock" role="tablist">
+                {ITEM_TABS.filter(t => t.key === 'all' || (itemCounts[t.key] ?? 0) > 0).map(t => {
+                  const isActive = itemTab === t.key;
+                  const count = t.key === 'all' ? allItems.length : (itemCounts[t.key] ?? 0);
+                  return (
+                    <button key={t.key}
+                      role="tab"
+                      aria-selected={isActive}
+                      className={`inv-filter-btn${isActive ? ' active' : ''}`}
+                      style={isActive ? { '--f-color': t.color, '--f-bg': `${t.color}1a`, '--f-border': `${t.color}55` } as React.CSSProperties : { '--f-color': t.color } as React.CSSProperties}
+                      onClick={() => setItemTab(t.key)}
+                      title={t.label}>
+                      <DndIcon category={t.iconRef.category} name={t.iconRef.name} size={16} />
+                      <span className="inv-filter-label">{t.label}</span>
+                      <span className="inv-filter-count">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Detail panel — inline side panel on desktop, BottomDrawer on mobile. */}
-            {isMobileSheet ? (
-              <BottomDrawer
-                open={!!selectedItem}
-                onClose={() => setSelectedId(null)}
-                title={selectedItem?.name}
-                accentColor="var(--accent-gold)"
-              >
-                {selectedItem && (
-                  <ItemDetailPanel
-                    item={selectedItem}
-                    onClose={() => setSelectedId(null)}
-                    onEquip={() => toggleEquipItem(selectedItem.id)}
-                    onEdit={() => { startEditItem(selectedItem); setSelectedId(null); }}
-                    onDelete={() => deleteItemFn(selectedItem.id)}
-                    iconSvg={resolveItemSvg(selectedItem)}
-                    ammoItems={ammoItems}
-                    onSetAmmo={(ammoId) => handleSetAmmo(selectedItem.id, ammoId)}
-                  />
+            {/* Items grid */}
+            <div className="inv-content">
+              <div className="inv-scroll" style={{ flex: 1, minWidth: 0 }}>
+
+                {filtered.length > 0 && (
+                  <div className="inv-pack-zone">
+                    <div className="inv-item-grid">
+                      {filtered.map(item => <ItemCard key={item.id} {...commonCardProps(item)} />)}
+                    </div>
+                  </div>
                 )}
-              </BottomDrawer>
-            ) : selectedItem && (
-              <div style={{ width: 'min(230px, 42%)', flexShrink: 0 }}>
+
+                {filtered.length === 0 && (
+                  <div className="inv-empty-state">
+                    <div className="inv-empty-icon">
+                      <DndIcon category="entity" name="pack" size={64} />
+                    </div>
+                    <div className="inv-empty-text">
+                      {searchQ ? `Nessun risultato per "${search}"` : itemTab === 'all' ? 'Lo zaino è vuoto' : 'Nessun oggetto in questa categoria'}
+                    </div>
+                    {!searchQ && itemTab === 'all' && (
+                      <div className="inv-empty-hint">Aggiungi il primo oggetto con il pulsante NUOVO</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════ TAB: TRASH ═══════════ */}
+        {(mainTab as string) === 'trash' && (() => {
+          const trashQ = trashSearch.trim().toLowerCase();
+          const filteredTrash = trashItems.filter(i =>
+            !trashQ || i.name.toLowerCase().includes(trashQ) || (i.description ?? '').toLowerCase().includes(trashQ)
+          );
+          return (
+            <div className="inv-pack-body">
+              {/* Trash search */}
+              <div className="inv-controls" style={{ paddingBottom: 0 }}>
+                <div className="inv-search-wrap">
+                  <FaSearch className="inv-search-icon" size={12} />
+                  <input
+                    className="inv-search-input"
+                    placeholder="Cerca nel cestino…"
+                    value={trashSearch}
+                    onChange={e => setTrashSearch(e.target.value)}
+                  />
+                  {trashSearch && (
+                    <button className="inv-search-clear" onClick={() => setTrashSearch('')} title="Cancella">
+                      <FaTimes size={10} />
+                    </button>
+                  )}
+                </div>
+                {trashItems.length > 0 && (
+                  <button
+                    className="inv-trash-empty-btn"
+                    onClick={() => setCharacter({ ...character, inventoryTrash: [] })}
+                    title="Svuota cestino"
+                  >
+                    <FaTrash size={11} />
+                    <span>Svuota</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="inv-content">
+                <div className="inv-scroll" style={{ flex: 1, minWidth: 0 }}>
+                  {filteredTrash.length > 0 ? (
+                    <div className="inv-trash-list">
+                      {filteredTrash.map(item => {
+                        const iconSvg = resolveItemSvg(item);
+                        const color = TYPE_COLOR[item.type];
+                        return (
+                          <div key={item.id}
+                            className={`inv-trash-row${selectedId === item.id ? ' selected' : ''}`}
+                            onClick={() => {
+                              cancelEditItem();
+                              setSelectedId(selectedId === item.id ? null : item.id);
+                            }}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <div className="inv-trash-row-icon" style={{ '--tc': color } as React.CSSProperties}>
+                              {iconSvg
+                                ? <SvgIcon svg={iconSvg} size={26} className="inv-svg-tinted" />
+                                : <TypeIcon type={item.type} size={26} />}
+                            </div>
+                            <div className="inv-trash-row-info">
+                              <div className="inv-trash-row-name">{item.name}</div>
+                              <div className="inv-trash-row-meta">
+                                <span style={{ color }}>{TYPE_LABEL[item.type]}</span>
+                                {(item.quantity ?? 1) > 1 && <span> · ×{item.quantity}</span>}
+                                {item.weight > 0 && <span> · {item.weight} kg</span>}
+                              </div>
+                            </div>
+                            <div className="inv-trash-row-actions" onClick={e => e.stopPropagation()}>
+                              <button
+                                className="inv-trash-restore-btn"
+                                onClick={() => restoreItemFn(item.id)}
+                                title="Ripristina"
+                              >
+                                <FaArrowUp size={11} />
+                                <span>Ripristina</span>
+                              </button>
+                              <button
+                                className="inv-trash-perm-btn"
+                                onClick={() => permDeleteFn(item.id)}
+                                title="Elimina definitivamente"
+                              >
+                                <FaTrash size={11} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="inv-empty-state">
+                      <div className="inv-empty-icon"><FaTrash size={48} style={{ opacity: 0.18 }} /></div>
+                      <div className="inv-empty-text">{trashQ ? `Nessun risultato per "${trashSearch}"` : 'Il cestino è vuoto'}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ═══════════ TAB: CURRENCY ═══════════ */}
+        {mainTab === 'currency' && (
+          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 16 }}>
+
+            {/* Coin balance */}
+            <div className="glass-panel" style={{ padding: 16 }}>
+              <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: 'var(--font-heading)', letterSpacing: '0.13em', marginBottom: 14 }}>TESORO</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {COIN_LABELS.map(({ key, label, abbr, color }) => (
+                  <div key={key} className="inv-coin-tile" style={{ borderColor: `${color}22` }}>
+                    <div className="inv-coin-orb" style={{ color, background: `${color}18`, borderColor: `${color}40` }}>{abbr}</div>
+                    <div className="inv-coin-amount" style={{ color }}>{currency[key] ?? 0}</div>
+                    <div className="inv-coin-label">{label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* New transaction */}
+            <div className="glass-panel" style={{ padding: 16 }}>
+              <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: 'var(--font-heading)', letterSpacing: '0.13em', marginBottom: 12 }}>NUOVA TRANSAZIONE</div>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                {(['in', 'out'] as const).map(dir => (
+                  <button key={dir} onClick={() => setTxForm(f => ({ ...f, dir }))} style={{
+                    padding: '5px 16px', borderRadius: 4, cursor: 'pointer', fontSize: '0.78rem',
+                    background: txForm.dir === dir ? (dir === 'in' ? 'rgba(39,174,96,0.15)' : 'rgba(192,57,43,0.15)') : 'transparent',
+                    border: txForm.dir === dir ? `1px solid ${dir === 'in' ? 'rgba(39,174,96,0.5)' : 'rgba(192,57,43,0.5)'}` : '1px solid rgba(255,255,255,0.1)',
+                    color: txForm.dir === dir ? (dir === 'in' ? 'var(--accent-success)' : 'var(--accent-crimson)') : 'var(--text-muted)',
+                    display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'var(--font-heading)',
+                  }}>
+                    {dir === 'in' ? <FaArrowDown size={10} /> : <FaArrowUp size={10} />}
+                    {dir === 'in' ? 'Entrata' : 'Uscita'}
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                {COIN_LABELS.map(({ key, label, color }) => (
+                  <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: '0.7rem', color }}>
+                    {label}
+                    <input className="input" type="number" min={0} value={txForm[key] || ''}
+                      onChange={e => setTxForm(f => ({ ...f, [key]: parseInt(e.target.value) || 0 }))}
+                      placeholder="0" style={{ width: 68, textAlign: 'center', fontSize: '0.88rem', fontFamily: 'var(--font-heading)', color }} />
+                  </label>
+                ))}
+              </div>
+              <input className="input" placeholder="Descrizione transazione..." value={txForm.description}
+                onChange={e => setTxForm(f => ({ ...f, description: e.target.value }))}
+                onKeyDown={e => { if (e.key === 'Enter') submitTx(); }}
+                style={{ width: '100%', marginBottom: 8, fontSize: '0.85rem' }} />
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button onClick={submitTx} className="btn-primary" style={{ fontSize: '0.82rem' }}>
+                  <FaCheck size={10} /> Registra
+                </button>
+              </div>
+            </div>
+
+            {/* Transaction log */}
+            {txLog.length > 0 && (
+              <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
+                <div style={{ padding: '8px 14px 7px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: 'var(--font-heading)', letterSpacing: '0.12em' }}>STORICO TRANSAZIONI</span>
+                </div>
+                {txLog.map(tx => {
+                  const isPositive = (tx.gold + tx.platinum + tx.silver + tx.copper) >= 0;
+                  const parts = COIN_LABELS.map(({ key, abbr, color }) => tx[key] !== 0 ? { label: abbr, value: tx[key], color } : null).filter(Boolean) as { label: string; value: number; color: string }[];
+                  return (
+                    <div key={tx.id} className="inv-tx-row">
+                      <div style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, flexShrink: 0, background: isPositive ? 'var(--accent-success)' : 'var(--accent-crimson)' }} />
+                      {isPositive ? <FaArrowDown size={9} color="var(--accent-success)" /> : <FaArrowUp size={9} color="var(--accent-crimson)" />}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '0.82rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.description || '—'}</div>
+                        <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>{new Date(tx.date).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end', flexShrink: 0 }}>
+                        {parts.map(p => (
+                          <span key={p.label} style={{ fontFamily: 'var(--font-heading)', fontSize: '0.82rem', color: p.color }}>
+                            {p.value > 0 ? '+' : ''}{p.value} {p.label}
+                          </span>
+                        ))}
+                      </div>
+                      <button onClick={() => setCharacter({ ...character, currencyLog: txLog.filter(t => t.id !== tx.id) })}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-crimson)', padding: '3px 5px', opacity: 0.4, flexShrink: 0 }}>
+                        <FaTrash size={10} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {txLog.length === 0 && (
+              <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '0.5rem 0' }}>Nessuna transazione registrata.</div>
+            )}
+          </div>
+        )}
+
+      </div>{/* /inv-pack-main */}
+
+      {/* ════ FULL-HEIGHT SIDEBAR (desktop only, pushes pack) ════
+            VIEW mode  → selectedId set, editingItemId null  → ItemDetailPanel
+            EDIT mode  → editingItemId set OR isAddingItem    → EditItemForm       */}
+      {!isMobileSheet && (selectedId !== null || isAddingItem) && (() => {
+        const isEditMode = isAddingItem || editingItemId !== null;
+        // Display meta for the header bar
+        const displayType = isEditMode ? itemForm.type : (selectedItem?.type ?? 'misc');
+        const displayName = isEditMode
+          ? (itemForm.name || (isAddingItem ? 'Nuovo Oggetto' : '—'))
+          : (selectedItem?.name ?? '—');
+        const formPreviewSvg = isEditMode
+          ? resolveItemSvg({ type: itemForm.type, iconId: itemForm.iconId, weaponDetails: itemForm.weaponDetails })
+          : null;
+        const displaySvg = isEditMode ? formPreviewSvg : (selectedItem ? resolveItemSvg(selectedItem) : null);
+
+        return (
+          <aside className="inv-detail-col">
+            {/* ── Persistent header bar ── */}
+            <div className="inv-sidebar-hdr">
+              <div className="inv-sidebar-hdr-identity">
+                <div className="inv-sidebar-hdr-icon">
+                  {displaySvg
+                    ? <SvgIcon svg={displaySvg} size={38} className="inv-svg-tinted" />
+                    : <TypeIcon type={displayType} size={38} />}
+                </div>
+                <div>
+                  <div className="inv-sidebar-hdr-name">{displayName}</div>
+                  <div className="inv-sidebar-hdr-type">{TYPE_LABEL[displayType]}</div>
+                </div>
+              </div>
+              <div className="inv-sidebar-hdr-actions">
+                {isTrashItem && selectedItem && (
+                  <button
+                    className="inv-trash-restore-btn"
+                    onClick={() => { restoreItemFn(selectedItem.id); setSelectedId(null); }}
+                    title="Ripristina"
+                  >
+                    <FaArrowUp size={11} />
+                    <span>Ripristina</span>
+                  </button>
+                )}
+                {selectedItem && !isAddingItem && !isTrashItem && (
+                  <>
+                    {/* Equip toggle always visible for existing items */}
+                    <button
+                      className={`inv-card-btn ${selectedItem.equipped ? 'unequip' : 'equip'}`}
+                      onClick={() => toggleEquipItem(selectedItem.id)}
+                      title={selectedItem.equipped ? 'Rimuovi equipaggiamento' : 'Equipaggia'}
+                    >
+                      {selectedItem.equipped ? <FaTimes size={11} /> : <FaCheck size={11} />}
+                    </button>
+                    {/* Edit pencil only in VIEW mode */}
+                    {!isEditMode && (
+                      <button className="inv-card-btn edit" onClick={() => startEditItem(selectedItem)} title="Modifica">
+                        <FaEdit size={11} />
+                      </button>
+                    )}
+                    <button className="inv-card-btn danger" onClick={() => deleteItemFn(selectedItem.id)} title="Elimina">
+                      <FaTrash size={11} />
+                    </button>
+                  </>
+                )}
+                <button className="inv-sidebar-close" onClick={closeSidebar} title="Chiudi">
+                  <FaTimes size={13} />
+                </button>
+              </div>
+            </div>
+            {/* ── Scrollable body ── */}
+            <div className="inv-sidebar-body">
+              {isEditMode ? (
+                <EditItemForm
+                  itemForm={itemForm}
+                  setItemForm={setItemForm}
+                  editingItemId={editingItemId}
+                  onSave={() => {
+                    const adding = isAddingItem;
+                    saveItem();
+                    if (adding) setSelectedId(null); // new item → close
+                    // editing existing → saveItem clears editingItemId → view mode
+                  }}
+                  onCancel={() => {
+                    if (isAddingItem) { closeSidebar(); } else { cancelEditItem(); }
+                  }}
+                  onPickIcon={openIconPicker}
+                  previewSvg={formPreviewSvg ?? undefined}
+                  autoFocus
+                />
+              ) : selectedItem && (
                 <ItemDetailPanel
                   item={selectedItem}
-                  onClose={() => setSelectedId(null)}
+                  onClose={closeSidebar}
                   onEquip={() => toggleEquipItem(selectedItem.id)}
                   onEdit={() => startEditItem(selectedItem)}
                   onDelete={() => deleteItemFn(selectedItem.id)}
                   iconSvg={resolveItemSvg(selectedItem)}
-                  ammoItems={ammoItems}
-                  onSetAmmo={(ammoId) => handleSetAmmo(selectedItem.id, ammoId)}
+                  ammoItems={isTrashItem ? [] : ammoItems}
+                  onSetAmmo={isTrashItem ? undefined : (ammoId) => handleSetAmmo(selectedItem.id, ammoId)}
+                  compact
                 />
-              </div>
-            )}
-          </div>
-        </div>
+              )}
+            </div>
+          </aside>
+        );
+      })()}
+
+      {/* Mobile detail = bottom drawer */}
+      {isMobileSheet && (
+        <BottomDrawer
+          open={!!selectedItem}
+          onClose={() => setSelectedId(null)}
+          title={selectedItem?.name}
+          accentColor="var(--accent-gold)"
+        >
+          {selectedItem && (
+            <ItemDetailPanel
+              item={selectedItem}
+              onClose={() => setSelectedId(null)}
+              onEquip={() => toggleEquipItem(selectedItem.id)}
+              onEdit={() => { startEditItem(selectedItem); setSelectedId(null); }}
+              onDelete={() => deleteItemFn(selectedItem.id)}
+              iconSvg={resolveItemSvg(selectedItem)}
+              ammoItems={ammoItems}
+              onSetAmmo={(ammoId) => handleSetAmmo(selectedItem.id, ammoId)}
+            />
+          )}
+        </BottomDrawer>
       )}
 
-      {/* ═══════════ TAB: CURRENCY ═══════════ */}
-      {mainTab === 'currency' && (
-        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 16 }}>
-
-          {/* Coin balance */}
-          <div className="glass-panel" style={{ padding: 16 }}>
-            <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: 'var(--font-heading)', letterSpacing: '0.13em', marginBottom: 14 }}>TESORO</div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {COIN_LABELS.map(({ key, label, abbr, color }) => (
-                <div key={key} className="inv-coin-tile" style={{ borderColor: `${color}22` }}>
-                  <div className="inv-coin-orb" style={{ color, background: `${color}18`, borderColor: `${color}40` }}>{abbr}</div>
-                  <div className="inv-coin-amount" style={{ color }}>{currency[key] ?? 0}</div>
-                  <div className="inv-coin-label">{label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* New transaction */}
-          <div className="glass-panel" style={{ padding: 16 }}>
-            <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: 'var(--font-heading)', letterSpacing: '0.13em', marginBottom: 12 }}>NUOVA TRANSAZIONE</div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-              {(['in', 'out'] as const).map(dir => (
-                <button key={dir} onClick={() => setTxForm(f => ({ ...f, dir }))} style={{
-                  padding: '5px 16px', borderRadius: 4, cursor: 'pointer', fontSize: '0.78rem',
-                  background: txForm.dir === dir ? (dir === 'in' ? 'rgba(39,174,96,0.15)' : 'rgba(192,57,43,0.15)') : 'transparent',
-                  border: txForm.dir === dir ? `1px solid ${dir === 'in' ? 'rgba(39,174,96,0.5)' : 'rgba(192,57,43,0.5)'}` : '1px solid rgba(255,255,255,0.1)',
-                  color: txForm.dir === dir ? (dir === 'in' ? 'var(--accent-success)' : 'var(--accent-crimson)') : 'var(--text-muted)',
-                  display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'var(--font-heading)',
-                }}>
-                  {dir === 'in' ? <FaArrowDown size={10} /> : <FaArrowUp size={10} />}
-                  {dir === 'in' ? 'Entrata' : 'Uscita'}
-                </button>
-              ))}
-            </div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-              {COIN_LABELS.map(({ key, label, color }) => (
-                <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: '0.7rem', color }}>
-                  {label}
-                  <input className="input" type="number" min={0} value={txForm[key] || ''}
-                    onChange={e => setTxForm(f => ({ ...f, [key]: parseInt(e.target.value) || 0 }))}
-                    placeholder="0" style={{ width: 68, textAlign: 'center', fontSize: '0.88rem', fontFamily: 'var(--font-heading)', color }} />
-                </label>
-              ))}
-            </div>
-            <input className="input" placeholder="Descrizione transazione..." value={txForm.description}
-              onChange={e => setTxForm(f => ({ ...f, description: e.target.value }))}
-              onKeyDown={e => { if (e.key === 'Enter') submitTx(); }}
-              style={{ width: '100%', marginBottom: 8, fontSize: '0.85rem' }} />
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={submitTx} className="btn-primary" style={{ fontSize: '0.82rem' }}>
-                <FaCheck size={10} /> Registra
-              </button>
-            </div>
-          </div>
-
-          {/* Transaction log */}
-          {txLog.length > 0 && (
-            <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
-              <div style={{ padding: '8px 14px 7px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: 'var(--font-heading)', letterSpacing: '0.12em' }}>STORICO TRANSAZIONI</span>
-              </div>
-              {txLog.map(tx => {
-                const isPositive = (tx.gold + tx.platinum + tx.silver + tx.copper) >= 0;
-                const parts = COIN_LABELS.map(({ key, abbr, color }) => tx[key] !== 0 ? { label: abbr, value: tx[key], color } : null).filter(Boolean) as { label: string; value: number; color: string }[];
-                return (
-                  <div key={tx.id} className="inv-tx-row">
-                    <div style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, flexShrink: 0, background: isPositive ? 'var(--accent-success)' : 'var(--accent-crimson)' }} />
-                    {isPositive ? <FaArrowDown size={9} color="var(--accent-success)" /> : <FaArrowUp size={9} color="var(--accent-crimson)" />}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '0.82rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.description || '—'}</div>
-                      <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>{new Date(tx.date).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
-                    </div>
-                    <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end', flexShrink: 0 }}>
-                      {parts.map(p => (
-                        <span key={p.label} style={{ fontFamily: 'var(--font-heading)', fontSize: '0.82rem', color: p.color }}>
-                          {p.value > 0 ? '+' : ''}{p.value} {p.label}
-                        </span>
-                      ))}
-                    </div>
-                    <button onClick={() => setCharacter({ ...character, currencyLog: txLog.filter(t => t.id !== tx.id) })}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-crimson)', padding: '3px 5px', opacity: 0.4, flexShrink: 0 }}>
-                      <FaTrash size={10} />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          {txLog.length === 0 && (
-            <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '0.5rem 0' }}>Nessuna transazione registrata.</div>
-          )}
-        </div>
-      )}
-
-      {/* ─── Edit / Add ─ BottomDrawer on mobile, centered modal on desktop ─── */}
-      {isMobileSheet ? (
+      {/* ─── Edit / Add ─ mobile/tablet only: BottomDrawer for add, BottomDrawer for detail ─── */}
+      {isMobileSheet && (
         <BottomDrawer
           open={isAddingItem || editingItemId !== null}
           onClose={cancelEditItem}
@@ -983,21 +1310,67 @@ export const Inventory: React.FC = () => {
         >
           <EditItemForm itemForm={itemForm} setItemForm={setItemForm} editingItemId={editingItemId} onSave={saveItem} onCancel={cancelEditItem} onPickIcon={openIconPicker} previewSvg={resolveItemSvg({ type: itemForm.type, iconId: itemForm.iconId, weaponDetails: itemForm.weaponDetails })} autoFocus />
         </BottomDrawer>
-      ) : (isAddingItem || editingItemId !== null) && (
-        <div className="inv-modal-backdrop" onClick={e => { if (e.target === e.currentTarget) cancelEditItem(); }}>
-          <div className="inv-modal-box">
-            <div className="inv-modal-header">
-              <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.88rem', color: 'var(--accent-gold)', letterSpacing: '0.08em' }}>
-                {editingItemId ? '⚙ MODIFICA OGGETTO' : '＋ NUOVO OGGETTO'}
-              </div>
-              <button onClick={cancelEditItem} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}>
-                <FaTimes size={13} />
-              </button>
-            </div>
-            <EditItemForm itemForm={itemForm} setItemForm={setItemForm} editingItemId={editingItemId} onSave={saveItem} onCancel={cancelEditItem} onPickIcon={openIconPicker} previewSvg={resolveItemSvg({ type: itemForm.type, iconId: itemForm.iconId, weaponDetails: itemForm.weaponDetails })} autoFocus />
-          </div>
-        </div>
       )}
+
+      {/* ─── Soft-delete confirmation (moves to trash) ─── */}
+      {deleteConfirmId && (() => {
+        const target = allItems.find(i => i.id === deleteConfirmId);
+        const iconSvg = target ? resolveItemSvg(target) : null;
+        return (
+          <div className="inv-confirm-backdrop" onClick={() => setDeleteConfirmId(null)}>
+            <div className="inv-confirm-box" onClick={e => e.stopPropagation()}>
+              <div className="inv-confirm-icon">
+                {iconSvg
+                  ? <SvgIcon svg={iconSvg} size={36} className="inv-svg-tinted" />
+                  : target && <TypeIcon type={target.type} size={36} />}
+              </div>
+              <div className="inv-confirm-body">
+                <div className="inv-confirm-title">Sposta nel cestino</div>
+                <div className="inv-confirm-msg">
+                  Vuoi spostare <strong>{target?.name ?? 'questo oggetto'}</strong> nel cestino?<br />
+                  <span className="inv-confirm-sub">Potrai ripristinarlo in seguito.</span>
+                </div>
+              </div>
+              <div className="inv-confirm-actions">
+                <button className="inv-confirm-cancel" onClick={() => setDeleteConfirmId(null)}>Annulla</button>
+                <button className="inv-confirm-delete" onClick={confirmDeleteFn}>
+                  <FaTrash size={11} style={{ marginRight: 6 }} /> Cestino
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ─── Permanent delete confirmation (from trash) ─── */}
+      {permDeleteConfirmId && (() => {
+        const target = trashItems.find(i => i.id === permDeleteConfirmId);
+        const iconSvg = target ? resolveItemSvg(target) : null;
+        return (
+          <div className="inv-confirm-backdrop" onClick={() => setPermDeleteConfirmId(null)}>
+            <div className="inv-confirm-box" onClick={e => e.stopPropagation()}>
+              <div className="inv-confirm-icon inv-confirm-icon--perm">
+                {iconSvg
+                  ? <SvgIcon svg={iconSvg} size={36} className="inv-svg-tinted" />
+                  : target && <TypeIcon type={target.type} size={36} />}
+              </div>
+              <div className="inv-confirm-body">
+                <div className="inv-confirm-title">Elimina definitivamente</div>
+                <div className="inv-confirm-msg">
+                  Vuoi eliminare <strong>{target?.name ?? 'questo oggetto'}</strong> per sempre?<br />
+                  <span className="inv-confirm-sub">Questa azione non è reversibile.</span>
+                </div>
+              </div>
+              <div className="inv-confirm-actions">
+                <button className="inv-confirm-cancel" onClick={() => setPermDeleteConfirmId(null)}>Annulla</button>
+                <button className="inv-confirm-delete" onClick={confirmPermDeleteFn}>
+                  <FaTrash size={11} style={{ marginRight: 6 }} /> Elimina
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {iconPickerOpen && (
         <CatalogPicker<CatalogIcon>
