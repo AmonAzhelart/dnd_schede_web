@@ -212,11 +212,11 @@ const SpellEditForm: React.FC<SpellEditFormProps> = ({ form, setForm, saveSpell,
         <div className="sb-ef-grid">
           {([
             ['castingTime', 'Tempo di lancio', <FaClock size={9} />],
-            ['range',       'Gittata',         <FaArrowsAltH size={9} />],
-            ['duration',    'Durata',          <FaHourglass size={9} />],
-            ['savingThrow', 'Tiro Salvezza',   <FaShieldAlt size={9} />],
-            ['components',  'Componenti',      <FaFeather size={9} />],
-          ] as [keyof Omit<Spell,'id'>, string, React.ReactNode][]).map(([field, label]) => (
+            ['range', 'Gittata', <FaArrowsAltH size={9} />],
+            ['duration', 'Durata', <FaHourglass size={9} />],
+            ['savingThrow', 'Tiro Salvezza', <FaShieldAlt size={9} />],
+            ['components', 'Componenti', <FaFeather size={9} />],
+          ] as [keyof Omit<Spell, 'id'>, string, React.ReactNode][]).map(([field, label]) => (
             <div key={field} className="sb-ef-field">
               <label className="sb-ef-label">{label}</label>
               <input className="input"
@@ -265,8 +265,8 @@ const SpellEditForm: React.FC<SpellEditFormProps> = ({ form, setForm, saveSpell,
               <select className="input" value={form.saveStat ?? 'int'}
                 onChange={e => setForm(f => ({ ...f, saveStat: e.target.value as Spell['saveStat'] }))}
                 style={{ fontSize: '0.8rem' }}>
-                {(['str','dex','con','int','wis','cha'] as const).map(s => (
-                  <option key={s} value={s}>{({ str:'Forza', dex:'Destrezza', con:'Costituzione', int:'Intelligenza', wis:'Saggezza', cha:'Carisma' }[s])}</option>
+                {(['str', 'dex', 'con', 'int', 'wis', 'cha'] as const).map(s => (
+                  <option key={s} value={s}>{({ str: 'Forza', dex: 'Destrezza', con: 'Costituzione', int: 'Intelligenza', wis: 'Saggezza', cha: 'Carisma' }[s])}</option>
                 ))}
               </select>
             </div>
@@ -527,10 +527,10 @@ const LevelPickerPopover: React.FC<{
 // ── Spell detail panel (sidebar view mode) ──────────────────────────────────────
 const STAT_ICONS: Record<string, React.ReactNode> = {
   'Tempo di lancio': <FaClock size={10} />,
-  'Gittata':         <FaArrowsAltH size={10} />,
-  'Durata':          <FaHourglass size={10} />,
-  'Tiro Salvezza':   <FaShieldAlt size={10} />,
-  'Componenti':      <FaFeather size={10} />,
+  'Gittata': <FaArrowsAltH size={10} />,
+  'Durata': <FaHourglass size={10} />,
+  'Tiro Salvezza': <FaShieldAlt size={10} />,
+  'Componenti': <FaFeather size={10} />,
 };
 
 const SpellDetailPanel: React.FC<{
@@ -548,10 +548,10 @@ const SpellDetailPanel: React.FC<{
   const linkedNames = (spell.summonableCreatureIds ?? []).map(id => creatureNameMap[id]).filter(Boolean) as string[];
   const stats: [string, string | undefined][] = [
     ['Tempo di lancio', spell.castingTime],
-    ['Gittata',         spell.range],
-    ['Durata',          spell.duration],
-    ['Tiro Salvezza',   spell.savingThrow],
-    ['Componenti',      spell.components],
+    ['Gittata', spell.range],
+    ['Durata', spell.duration],
+    ['Tiro Salvezza', spell.savingThrow],
+    ['Componenti', spell.components],
   ];
   const visibleStats = stats.filter(([, v]) => v?.trim());
   const hasDamage = spell.attackMode !== 'none' && spell.baseDice;

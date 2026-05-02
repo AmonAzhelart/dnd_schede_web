@@ -41,17 +41,17 @@ const MOD_TYPES: { value: ModifierType; label: string }[] = [
 ];
 
 const COND_KIND_LABELS: { value: ModifierCondition['kind']; label: string; icon: { category: string; name: string } }[] = [
-    { value: 'weaponType',      label: 'Tipo arma',          icon: { category: 'combat',  name: 'melee' } },
-    { value: 'weaponCategory',  label: 'Categoria arma',     icon: { category: 'weapon',  name: 'sword' } },
-    { value: 'weaponName',      label: 'Nome arma',          icon: { category: 'weapon',  name: 'dagger' } },
-    { value: 'damageType',      label: 'Tipo danno',         icon: { category: 'damage',  name: 'fire' } },
-    { value: 'skillId',         label: 'Abilità specifica',  icon: { category: 'skill',   name: 'arcana' } },
-    { value: 'saveType',        label: 'Tiro salvezza',      icon: { category: 'd20test', name: 'saving-throw' } },
-    { value: 'abilityStat',     label: 'Caratteristica',     icon: { category: 'ability', name: 'strength' } },
-    { value: 'spellSchool',     label: 'Scuola magia',       icon: { category: 'spell',   name: 'evocation' } },
-    { value: 'spellName',       label: 'Incantesimo',        icon: { category: 'spell',   name: 'octagon' } },
-    { value: 'spellDamageType', label: 'Tipo magia',         icon: { category: 'damage',  name: 'lightning' } },
-    { value: 'spellMinLevel',   label: 'Livello min. magia', icon: { category: 'spell',   name: 'upcast' } },
+    { value: 'weaponType', label: 'Tipo arma', icon: { category: 'combat', name: 'melee' } },
+    { value: 'weaponCategory', label: 'Categoria arma', icon: { category: 'weapon', name: 'sword' } },
+    { value: 'weaponName', label: 'Nome arma', icon: { category: 'weapon', name: 'dagger' } },
+    { value: 'damageType', label: 'Tipo danno', icon: { category: 'damage', name: 'fire' } },
+    { value: 'skillId', label: 'Abilità specifica', icon: { category: 'skill', name: 'arcana' } },
+    { value: 'saveType', label: 'Tiro salvezza', icon: { category: 'd20test', name: 'saving-throw' } },
+    { value: 'abilityStat', label: 'Caratteristica', icon: { category: 'ability', name: 'strength' } },
+    { value: 'spellSchool', label: 'Scuola magia', icon: { category: 'spell', name: 'evocation' } },
+    { value: 'spellName', label: 'Incantesimo', icon: { category: 'spell', name: 'octagon' } },
+    { value: 'spellDamageType', label: 'Tipo magia', icon: { category: 'damage', name: 'lightning' } },
+    { value: 'spellMinLevel', label: 'Livello min. magia', icon: { category: 'spell', name: 'upcast' } },
 ];
 
 function ensureAppliesTo(mod: Modifier): Modifier {
@@ -126,11 +126,11 @@ export const ModifierEditor: React.FC<ModifierEditorProps> = ({
     const addCondition = (i: number, kind: ModifierCondition['kind']) => update(i, m => {
         const initial: ModifierCondition = (() => {
             switch (kind) {
-                case 'weaponType':   return { kind, value: 'melee' };
-                case 'saveType':     return { kind, value: 'fort' };
-                case 'abilityStat':  return { kind, value: 'str' };
+                case 'weaponType': return { kind, value: 'melee' };
+                case 'saveType': return { kind, value: 'fort' };
+                case 'abilityStat': return { kind, value: 'str' };
                 case 'spellMinLevel': return { kind, value: 1 };
-                default:             return { kind, value: '' };
+                default: return { kind, value: '' };
             }
         })();
         return { ...m, conditions: [...(m.conditions ?? []), initial] };
@@ -623,10 +623,10 @@ const ConditionRow: React.FC<{
                     <input className="input" value={String(cond.value)} onChange={e => onChange(e.target.value)}
                         placeholder={
                             cond.kind === 'weaponCategory' ? 'es. arco, spada lunga…' :
-                            cond.kind === 'weaponName' ? 'es. Lama Solare' :
-                            cond.kind === 'spellSchool' ? 'es. Evocazione…' :
-                            cond.kind === 'spellName' ? 'es. Palla di Fuoco' :
-                            cond.kind === 'spellDamageType' ? 'es. fuoco, freddo…' : '…'
+                                cond.kind === 'weaponName' ? 'es. Lama Solare' :
+                                    cond.kind === 'spellSchool' ? 'es. Evocazione…' :
+                                        cond.kind === 'spellName' ? 'es. Palla di Fuoco' :
+                                            cond.kind === 'spellDamageType' ? 'es. fuoco, freddo…' : '…'
                         }
                         style={{ flex: 1, fontSize: '0.76rem' }}
                     />
