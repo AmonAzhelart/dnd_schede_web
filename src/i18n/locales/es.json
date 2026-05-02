@@ -118,5 +118,41 @@
         "closeEdit": "Cerrar editor",
         "customizeDashboard": "Personalizar panel",
         "endCustomize": "Finalizar personalización"
+    },
+    "spellbook": {
+        "grimoire": "Grimorio",
+        "dailySpells": "Conjuros del Día",
+        "longRest": "Descanso Largo",
+        "addSpell": "Añadir Conjuro",
+        "fromCatalog": "Del Catálogo",
+        "groupByLevel": "Por Nivel",
+        "groupBySchool": "Por Escuela",
+        "all": "Todos",
+        "cantrips": "Trucos",
+        "cantripShort": "Truc.",
+        "level": "Nivel",
+        "levelShort": "Nv",
+        "spellCount_one": "{{count}} conjuro",
+        "spellCount_other": "{{count}} conjuros",
+        "schools": {
+            "Abiurazione": "Abjuración",
+            "Ammaliamento": "Encantamiento",
+            "Divinazione": "Adivinación",
+            "Evocazione": "Invocación",
+            "Illusione": "Ilusión",
+            "Invocazione": "Evocación",
+            "Necromanzia": "Nigromancia",
+            "Trasmutazione": "Transmutación"
+        },
+        "schoolDesc": {
+            "Abiurazione": "Protección, barreras y negación mágica",
+            "Ammaliamento": "Encanto, control mental y persuasión",
+            "Divinazione": "Revelación, presciencia y profecía",
+            "Evocazione": "Invocación de criaturas, objetos y portales",
+            "Illusione": "Engaño, sombras y magia de ilusión",
+            "Invocazione": "Fuerzas elementales, energía y destrucción",
+            "Necromanzia": "Muerte, no muertos, oscuridad y vitalidad",
+            "Trasmutazione": "Transformación de materia, cuerpo y energía"
+        }
     }
 }

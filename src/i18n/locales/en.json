@@ -118,5 +118,41 @@
         "closeEdit": "Close editor",
         "customizeDashboard": "Customize dashboard",
         "endCustomize": "Done customizing"
+    },
+    "spellbook": {
+        "grimoire": "Spellbook",
+        "dailySpells": "Daily Spells",
+        "longRest": "Long Rest",
+        "addSpell": "Add Spell",
+        "fromCatalog": "From Catalog",
+        "groupByLevel": "By Level",
+        "groupBySchool": "By School",
+        "all": "All",
+        "cantrips": "Cantrips",
+        "cantripShort": "Cntrp.",
+        "level": "Level",
+        "levelShort": "Lv",
+        "spellCount_one": "{{count}} spell",
+        "spellCount_other": "{{count}} spells",
+        "schools": {
+            "Abiurazione": "Abjuration",
+            "Ammaliamento": "Enchantment",
+            "Divinazione": "Divination",
+            "Evocazione": "Conjuration",
+            "Illusione": "Illusion",
+            "Invocazione": "Evocation",
+            "Necromanzia": "Necromancy",
+            "Trasmutazione": "Transmutation"
+        },
+        "schoolDesc": {
+            "Abiurazione": "Protection, barriers and magical negation",
+            "Ammaliamento": "Charm, mind control and persuasion",
+            "Divinazione": "Revelation, foresight and prophecy",
+            "Evocazione": "Summoning creatures, objects and portals",
+            "Illusione": "Deception, shadows and illusion magic",
+            "Invocazione": "Elemental forces, energy and destruction",
+            "Necromanzia": "Death, undead, darkness and vitality",
+            "Trasmutazione": "Transformation of matter, body and energy"
+        }
     }
 }

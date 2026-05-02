@@ -324,9 +324,20 @@ export function collectModifierCandidates(
 
 const STACKS = new Set<ModifierType>(['dodge', 'circumstance', 'untyped', 'synergy']);
 
-/** Apply 3.5 stacking rules to a list of (type, value) pairs and return the
- *  net bonus. Stacking types sum; for non-stacking types the largest positive
- *  bonus wins, but penalties of the same type all add up. */
+/**
+ * Apply D&D 3.5 RAW stacking rules to a list of modifiers.
+ *
+ * Per SRD: "modifiers do not stack if they have the same type or come from
+ * the same source. If they do not stack, only the best bonus and worst
+ * penalty applies."
+ *
+ * - dodge / circumstance / untyped / synergy: ALWAYS stack (sum all).
+ * - All other typed bonuses (enhancement, armor, shield, deflection,
+ *   naturalArmor, competence, insight, luck, morale, resistance, sacred,
+ *   profane, racial, size …): only the HIGHEST positive applies and only
+ *   the LOWEST (most negative) single penalty applies — regardless of
+ *   whether the source is an item, a feat, a class feature, or a buff.
+ */
 export function aggregateBonuses(mods: { type: ModifierType; value: number }[]): number {
     const byType: Record<string, number[]> = {};
     mods.forEach(m => { (byType[m.type] ||= []).push(m.value); });
@@ -336,10 +347,12 @@ export function aggregateBonuses(mods: { type: ModifierType; value: number }[]):
         if (STACKS.has(t)) {
             total += values.reduce((s, v) => s + v, 0);
         } else {
+            // Non-stacking: best bonus + worst single penalty (SRD: "only the
+            // best bonus and worst penalty applies").
             const positives = values.filter(v => v > 0);
             const negatives = values.filter(v => v < 0);
             if (positives.length) total += Math.max(...positives);
-            if (negatives.length) total += negatives.reduce((s, v) => s + v, 0);
+            if (negatives.length) total += Math.min(...negatives);
         }
     });
     return total;

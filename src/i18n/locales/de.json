@@ -118,5 +118,41 @@
         "closeEdit": "Editor schließen",
         "customizeDashboard": "Dashboard anpassen",
         "endCustomize": "Fertig"
+    },
+    "spellbook": {
+        "grimoire": "Zauberbuch",
+        "dailySpells": "Tageszauber",
+        "longRest": "Lange Rast",
+        "addSpell": "Zauber hinzufügen",
+        "fromCatalog": "Aus Katalog",
+        "groupByLevel": "Nach Grad",
+        "groupBySchool": "Nach Schule",
+        "all": "Alle",
+        "cantrips": "Zaubertricks",
+        "cantripShort": "Zaub.",
+        "level": "Grad",
+        "levelShort": "Gr",
+        "spellCount_one": "{{count}} Zauber",
+        "spellCount_other": "{{count}} Zauber",
+        "schools": {
+            "Abiurazione": "Bannmagie",
+            "Ammaliamento": "Verzauberung",
+            "Divinazione": "Weissagung",
+            "Evocazione": "Beschwörung",
+            "Illusione": "Illusion",
+            "Invocazione": "Evokation",
+            "Necromanzia": "Nekromantie",
+            "Trasmutazione": "Verwandlung"
+        },
+        "schoolDesc": {
+            "Abiurazione": "Schutz, Barrieren und magische Negation",
+            "Ammaliamento": "Bezauberung, Gedankenkontrolle und Überzeugung",
+            "Divinazione": "Wahrsagerei, Vorauswissen und Prophetie",
+            "Evocazione": "Beschwörung von Wesen, Gegenständen und Portalen",
+            "Illusione": "Täuschung, Schatten und Illusionsmagie",
+            "Invocazione": "Elementarkräfte, Energie und Vernichtung",
+            "Necromanzia": "Tod, Untote, Dunkelheit und Lebenskraft",
+            "Trasmutazione": "Verwandlung von Materie, Körper und Energie"
+        }
     }
 }

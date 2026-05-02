@@ -143,10 +143,12 @@ const doesModifierStack = (type: ModifierType): boolean => {
   return ['dodge', 'circumstance', 'untyped', 'synergy'].includes(type);
 };
 
-/** Apply 3.5 stacking rules to a list of (type, value) pairs and return the
- *  net bonus. Stacking types sum; non-stacking types contribute the maximum
- *  bonus AND the minimum (most negative) penalty separately, since penalties
- *  always stack with bonuses of the same type. */
+/**
+ * Apply D&D 3.5 RAW stacking rules.
+ * Stacking types (dodge/circumstance/untyped/synergy): sum all values.
+ * All other typed bonuses: best bonus + worst single penalty (SRD: "only the
+ * best bonus and worst penalty applies").
+ */
 const aggregateModifiers = (mods: { type: ModifierType; value: number }[]): number => {
   const byType: Record<string, number[]> = {};
   mods.forEach(m => { (byType[m.type] ||= []).push(m.value); });
@@ -159,8 +161,7 @@ const aggregateModifiers = (mods: { type: ModifierType; value: number }[]): numb
       const positives = values.filter(v => v > 0);
       const negatives = values.filter(v => v < 0);
       if (positives.length) total += Math.max(...positives);
-      // penalties of the same type DO stack with each other (3.5e rule of thumb)
-      if (negatives.length) total += negatives.reduce((s, v) => s + v, 0);
+      if (negatives.length) total += Math.min(...negatives);
     }
   });
   return total;
@@ -744,15 +745,17 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
 
     let totalBonus = 0;
 
-    // Apply modifiers
+    // Apply D&D 3.5 stacking rules.
     Object.entries(modifiersByType).forEach(([type, values]) => {
       const modType = type as ModifierType;
       if (doesModifierStack(modType)) {
-        // Sum all
         totalBonus += values.reduce((sum, val) => sum + val, 0);
       } else {
-        // Take maximum (bonuses don't stack, but penalties do! Assuming positive values are bonuses for now)
-        totalBonus += Math.max(...values);
+        // Non-stacking: best bonus + worst single penalty.
+        const positives = values.filter(v => v > 0);
+        const negatives = values.filter(v => v < 0);
+        if (positives.length) totalBonus += Math.max(...positives);
+        if (negatives.length) totalBonus += Math.min(...negatives);
       }
     });
 
@@ -793,28 +796,29 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       return tl === `skill.${skillId}` || tl === `skill.${nameLower}`;
     };
 
-    const activeModifiers: import('../types/dnd').Modifier[] = [];
+    // Collect all skill modifiers from all sources.
+    const allSkillMods: { type: ModifierType; value: number }[] = [];
     character.inventory.forEach(item => {
-      if (item.equipped) activeModifiers.push(...item.modifiers.filter(m => isSkillTarget(m.target)));
+      if (item.equipped) item.modifiers.filter(m => isSkillTarget(m.target)).forEach(m => allSkillMods.push(m));
     });
     character.feats.forEach(feat => {
-      if (feat.active) activeModifiers.push(...feat.modifiers.filter(m => isSkillTarget(m.target)));
+      if (feat.active) feat.modifiers.filter(m => isSkillTarget(m.target)).forEach(m => allSkillMods.push(m));
     });
     (character.classFeatures ?? []).forEach(cf => {
-      if (cf.active) activeModifiers.push(...(cf.modifiers ?? []).filter((m: import('../types/dnd').Modifier) => isSkillTarget(m.target)));
+      if (cf.active) (cf.modifiers ?? []).filter((m: import('../types/dnd').Modifier) => isSkillTarget(m.target)).forEach((m: import('../types/dnd').Modifier) => allSkillMods.push(m));
     });
 
-    // Apply modifiers with same stacking rules as getEffectiveStat
+    // D&D 3.5 stacking rules: type-based, regardless of source.
     const byType: Record<string, number[]> = {};
-    activeModifiers.forEach(mod => {
-      if (!byType[mod.type]) byType[mod.type] = [];
-      byType[mod.type].push(mod.value);
-    });
+    allSkillMods.forEach(mod => { (byType[mod.type] ||= []).push(mod.value); });
     Object.entries(byType).forEach(([type, values]) => {
       if (doesModifierStack(type as ModifierType)) {
         total += values.reduce((s, v) => s + v, 0);
       } else {
-        total += Math.max(...values);
+        const positives = values.filter(v => v > 0);
+        const negatives = values.filter(v => v < 0);
+        if (positives.length) total += Math.max(...positives);
+        if (negatives.length) total += Math.min(...negatives);
       }
     });
 
@@ -871,13 +875,18 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       );
     });
 
-    // Apply stacking rules to compute total bonus from sources
+    // Apply D&D 3.5 stacking rules: type-based, regardless of source.
     const byType: Record<string, number[]> = {};
     sources.forEach(s => { (byType[s.type] ||= []).push(s.value); });
     let bonus = 0;
     Object.entries(byType).forEach(([type, values]) => {
       if (doesModifierStack(type as ModifierType)) bonus += values.reduce((a, b) => a + b, 0);
-      else bonus += Math.max(...values);
+      else {
+        const positives = values.filter(v => v > 0);
+        const negatives = values.filter(v => v < 0);
+        if (positives.length) bonus += Math.max(...positives);
+        if (negatives.length) bonus += Math.min(...negatives);
+      }
     });
 
     const total = ranks + statMod + classBonus + bonus;

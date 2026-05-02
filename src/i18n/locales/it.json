@@ -118,5 +118,41 @@
         "closeEdit": "Chiudi modifica",
         "customizeDashboard": "Personalizza dashboard",
         "endCustomize": "Termina personalizzazione"
+    },
+    "spellbook": {
+        "grimoire": "Grimorio",
+        "dailySpells": "Incantesimi del Giorno",
+        "longRest": "Riposo Lungo",
+        "addSpell": "Aggiungi Incantesimo",
+        "fromCatalog": "Dal Catalogo",
+        "groupByLevel": "Per Livello",
+        "groupBySchool": "Per Scuola",
+        "all": "Tutti",
+        "cantrips": "Trucchetti",
+        "cantripShort": "Trucch.",
+        "level": "Livello",
+        "levelShort": "Lv",
+        "spellCount_one": "{{count}} incantesimo",
+        "spellCount_other": "{{count}} incantesimi",
+        "schools": {
+            "Abiurazione": "Abiurazione",
+            "Ammaliamento": "Ammaliamento",
+            "Divinazione": "Divinazione",
+            "Evocazione": "Evocazione",
+            "Illusione": "Illusione",
+            "Invocazione": "Invocazione",
+            "Necromanzia": "Necromanzia",
+            "Trasmutazione": "Trasmutazione"
+        },
+        "schoolDesc": {
+            "Abiurazione": "Protezione, barriere e annullamento magico",
+            "Ammaliamento": "Fascino, controllo mentale e persuasione",
+            "Divinazione": "Rivelazione, visione e presagio del futuro",
+            "Evocazione": "Evocazione di creature, oggetti e portali",
+            "Illusione": "Inganno, ombre e magie dell'illusione",
+            "Invocazione": "Forze elementali, energia e distruzione",
+            "Necromanzia": "Morte, non-morti, oscurità e vitalità",
+            "Trasmutazione": "Trasformazione di materia, corpo ed energia"
+        }
     }
 }

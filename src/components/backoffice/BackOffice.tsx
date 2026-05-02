@@ -967,145 +967,420 @@ function FeatsPanel({ currentUserEmail }: { currentUserEmail: string }) {
         await refresh();
     };
 
+    /* ── EDIT FORM ── */
     if (editing) {
         const isActive = (editing.subcategory ?? 'passive') === 'active';
         const accent = isActive ? 'var(--accent-warning)' : 'var(--accent-success)';
+        const isNew = !items.find(i => i.id === editing.id);
         return (
-            <div className="glass-panel flex-col gap-3">
-                <div className="section-header">
-                    <span className="section-title">{items.find(i => i.id === editing.id) ? 'Modifica' : 'Nuovo'} Privilegio di Classe</span>
-                    <div className="flex gap-2">
-                        <button className="btn-secondary text-sm" onClick={() => setEditing(null)}><FaTimes /> Annulla</button>
-                        <button className="btn-primary text-sm" onClick={save}><FaSave /> Salva</button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                {/* ── Sticky header ── */}
+                <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '10px 14px',
+                    background: `linear-gradient(90deg, ${accent}18 0%, transparent 100%)`,
+                    border: `1px solid ${accent}30`,
+                    borderRadius: 'var(--radius-md)',
+                    marginBottom: 16,
+                    gap: 10,
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{
+                            width: 32, height: 32, borderRadius: 8,
+                            background: `${accent}20`, border: `1px solid ${accent}44`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: accent,
+                        }}>
+                            {isActive ? <FaBolt size={14} /> : <FaStar size={14} />}
+                        </div>
+                        <div>
+                            <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', color: accent }}>
+                                {isNew ? 'Nuovo Privilegio di Classe' : editing.name || 'Modifica Privilegio'}
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                {isActive ? 'Capacità Attiva' : 'Capacità Passiva'}
+                            </div>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn-secondary text-sm" onClick={() => setEditing(null)}>
+                            <FaTimes /> Annulla
+                        </button>
+                        <button
+                            className="btn-primary text-sm"
+                            onClick={save}
+                            disabled={!editing.name.trim()}
+                            style={{ opacity: editing.name.trim() ? 1 : 0.5 }}
+                        >
+                            <FaSave /> Salva
+                        </button>
                     </div>
                 </div>
-                <Field label="Nome"><input className="input w-full" value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} /></Field>
-                <Field label="Tipo">
-                    <div className="flex gap-2">
-                        {(['active', 'passive'] as const).map(s => {
-                            const on = (editing.subcategory ?? 'passive') === s;
-                            const color = s === 'active' ? 'var(--accent-warning)' : 'var(--accent-success)';
-                            return (
-                                <button
-                                    key={s}
-                                    onClick={() => setEditing({ ...editing, subcategory: s })}
-                                    style={{
-                                        fontSize: '0.78rem', padding: '6px 14px', borderRadius: 6, cursor: 'pointer',
-                                        border: `1px solid ${on ? color : 'rgba(255,255,255,0.12)'}`,
-                                        background: on ? `${color}22` : 'transparent',
-                                        color: on ? color : 'var(--text-secondary)',
-                                        fontFamily: 'var(--font-heading)',
-                                    }}
-                                >
-                                    {s === 'active' ? 'Capacità Attiva' : 'Capacità Passiva'}
-                                </button>
-                            );
-                        })}
+
+                {/* ── Identity section ── */}
+                <div className="glass-panel" style={{ marginBottom: 12 }}>
+                    <div style={{
+                        fontSize: '0.62rem', color: 'var(--text-muted)', letterSpacing: '0.1em',
+                        textTransform: 'uppercase', marginBottom: 12,
+                        paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.06)',
+                        fontFamily: 'var(--font-heading)',
+                    }}>
+                        Identità
                     </div>
-                </Field>
-                <Field label="Descrizione">
-                    <textarea className="input w-full" rows={4} value={editing.description} onChange={e => setEditing({ ...editing, description: e.target.value })} />
-                </Field>
-                {isActive && (
-                    <div className="flex gap-2">
+
+                    {/* Name */}
+                    <Field label="Nome *">
                         <input
-                            className="input"
-                            style={{ flex: 1 }}
-                            placeholder="Nome risorsa (es. Incanalare Divinità)"
-                            value={editing.resourceName ?? ''}
-                            onChange={e => setEditing({ ...editing, resourceName: e.target.value })}
+                            className="input w-full"
+                            value={editing.name}
+                            onChange={e => setEditing({ ...editing, name: e.target.value })}
+                            placeholder="Es. Cura Bonus, Furia, Attacco Furtivo…"
+                            style={{ fontSize: '1rem', fontFamily: 'var(--font-heading)' }}
+                            autoFocus
                         />
-                        <input
-                            type="number"
-                            className="input"
-                            style={{ width: 120 }}
-                            placeholder="Usi max"
-                            min={1}
-                            value={editing.resourceMax ?? ''}
-                            onChange={e => setEditing({ ...editing, resourceMax: e.target.value ? Number(e.target.value) : undefined })}
-                        />
+                    </Field>
+
+                    {/* Type toggle */}
+                    <div style={{ marginTop: 12 }}>
+                        <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+                            Tipo
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            {(['passive', 'active'] as const).map(s => {
+                                const on = (editing.subcategory ?? 'passive') === s;
+                                const color = s === 'active' ? 'var(--accent-warning)' : 'var(--accent-success)';
+                                const Icon = s === 'active' ? FaBolt : FaStar;
+                                return (
+                                    <button
+                                        key={s}
+                                        type="button"
+                                        onClick={() => setEditing({ ...editing, subcategory: s })}
+                                        style={{
+                                            flex: 1, padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                                            border: `1px solid ${on ? color + '66' : 'rgba(255,255,255,0.1)'}`,
+                                            background: on ? `linear-gradient(135deg,${color}22,${color}10)` : 'rgba(255,255,255,0.03)',
+                                            color: on ? color : 'var(--text-muted)',
+                                            fontFamily: 'var(--font-heading)', fontSize: '0.82rem',
+                                            transition: 'all 150ms',
+                                        }}
+                                    >
+                                        <Icon size={11} />
+                                        {s === 'active' ? 'Capacità Attiva' : 'Capacità Passiva'}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
-                )}
-                <Field label="Tag (separati da virgola)">
-                    <input className="input w-full" value={(editing.tags ?? []).join(', ')} onChange={e => setEditing({ ...editing, tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })} />
-                </Field>
-                <ModifierEditor
-                    modifiers={editing.modifiers ?? []}
-                    onChange={mods => setEditing({ ...editing, modifiers: mods as Modifier[] })}
-                    accentColor={accent}
-                    title="MODIFICATORI AL PERSONAGGIO"
-                    compact
-                />
-                <CreatureModifierEditor
-                    modifiers={(editing.creatureModifiers ?? []) as CreatureModifier[]}
-                    onChange={cms => setEditing({ ...editing, creatureModifiers: cms })}
-                    accentColor="var(--accent-gold)"
-                />
+
+                    {/* Description */}
+                    <div style={{ marginTop: 12 }}>
+                        <Field label="Descrizione">
+                            <textarea
+                                className="input w-full"
+                                rows={4}
+                                value={editing.description}
+                                onChange={e => setEditing({ ...editing, description: e.target.value })}
+                                placeholder="Descrivi l'effetto narrativo e meccanico di questo privilegio…"
+                                style={{ resize: 'vertical', lineHeight: 1.6 }}
+                            />
+                        </Field>
+                    </div>
+
+                    {/* Active resource (only for active feats) */}
+                    {isActive && (
+                        <div style={{ marginTop: 12 }}>
+                            <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+                                Risorsa (opzionale)
+                            </div>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <input
+                                    className="input"
+                                    style={{ flex: 1 }}
+                                    placeholder="Nome risorsa (es. Incanalare Divinità, Furia)"
+                                    value={editing.resourceName ?? ''}
+                                    onChange={e => setEditing({ ...editing, resourceName: e.target.value })}
+                                />
+                                <input
+                                    type="number"
+                                    className="input"
+                                    style={{ width: 100 }}
+                                    placeholder="Usi max"
+                                    min={1}
+                                    value={editing.resourceMax ?? ''}
+                                    onChange={e => setEditing({ ...editing, resourceMax: e.target.value ? Number(e.target.value) : undefined })}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Tags */}
+                    <div style={{ marginTop: 12 }}>
+                        <Field label="Tag (separati da virgola)">
+                            <input
+                                className="input w-full"
+                                value={(editing.tags ?? []).join(', ')}
+                                onChange={e => setEditing({ ...editing, tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                                placeholder="es. combattimento, magia, guarigione…"
+                            />
+                        </Field>
+                        {(editing.tags ?? []).length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                                {(editing.tags ?? []).map(tag => (
+                                    <span key={tag} style={{
+                                        fontSize: '0.7rem', padding: '2px 8px', borderRadius: 10,
+                                        background: `${accent}18`, border: `1px solid ${accent}33`,
+                                        color: accent,
+                                    }}>{tag}</span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* ── Modifiers section ── */}
+                <div className="glass-panel" style={{ marginBottom: 12 }}>
+                    <ModifierEditor
+                        modifiers={editing.modifiers ?? []}
+                        onChange={mods => setEditing({ ...editing, modifiers: mods as Modifier[] })}
+                        accentColor={accent}
+                        title="Modificatori al Personaggio"
+                    />
+                </div>
+
+                {/* ── Creature modifiers section ── */}
+                <div className="glass-panel">
+                    <CreatureModifierEditor
+                        modifiers={(editing.creatureModifiers ?? []) as CreatureModifier[]}
+                        onChange={cms => setEditing({ ...editing, creatureModifiers: cms })}
+                        accentColor="var(--accent-gold)"
+                    />
+                </div>
             </div>
         );
     }
 
+    /* ── LIST VIEW ── */
     return (
-        <div className="flex-col gap-3">
-            {/* Internal tab bar */}
-            <div className="flex" style={{ gap: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* ── Tab bar ── */}
+            <div style={{ display: 'flex', gap: 6 }}>
                 {(['active', 'passive'] as const).map(s => {
                     const on = activeTab === s;
                     const color = s === 'active' ? 'var(--accent-warning)' : 'var(--accent-success)';
                     const label = s === 'active' ? 'Capacità Attive' : 'Capacità Passive';
+                    const Icon = s === 'active' ? FaBolt : FaStar;
                     const cnt = items.filter(i => (i.subcategory ?? 'passive') === s).length;
                     return (
                         <button
                             key={s}
                             onClick={() => setActiveTab(s)}
                             style={{
-                                flex: 1, padding: '7px 12px', borderRadius: 6, cursor: 'pointer',
+                                flex: 1, padding: '9px 14px', borderRadius: 8, cursor: 'pointer',
                                 fontFamily: 'var(--font-heading)', fontSize: '0.82rem',
-                                border: `1px solid ${on ? color + '66' : 'rgba(255,255,255,0.06)'}`,
-                                background: on ? `linear-gradient(180deg,${color}22,${color}11)` : 'rgba(255,255,255,0.02)',
+                                border: `1px solid ${on ? color + '55' : 'rgba(255,255,255,0.07)'}`,
+                                background: on
+                                    ? `linear-gradient(135deg,${color}22 0%,${color}0e 100%)`
+                                    : 'rgba(255,255,255,0.02)',
                                 color: on ? color : 'var(--text-secondary)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                                transition: 'all 150ms',
                             }}
                         >
+                            <Icon size={11} />
                             {label}
                             <span style={{
-                                fontSize: '0.65rem', padding: '0 6px', borderRadius: 8,
-                                background: on ? `${color}33` : 'rgba(255,255,255,0.05)',
-                                border: `1px solid ${on ? color + '44' : 'rgba(255,255,255,0.08)'}`,
-                                color: on ? color : 'var(--text-muted)'
+                                fontSize: '0.65rem', padding: '1px 7px', borderRadius: 10,
+                                background: on ? `${color}33` : 'rgba(255,255,255,0.06)',
+                                border: `1px solid ${on ? color + '44' : 'rgba(255,255,255,0.09)'}`,
+                                color: on ? color : 'var(--text-muted)',
                             }}>{cnt}</span>
                         </button>
                     );
                 })}
             </div>
-            <div className="flex gap-2 items-center" style={{ flexWrap: 'wrap' }}>
-                <div className="flex items-center gap-2" style={{ flex: '1 1 240px', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', padding: '0.4rem 0.75rem' }}>
-                    <FaSearch className="text-muted" />
-                    <input className="w-full" style={{ background: 'transparent', border: 'none', color: 'inherit', outline: 'none' }} placeholder="Cerca…" value={search} onChange={e => setSearch(e.target.value)} />
+
+            {/* ── Toolbar ── */}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{
+                    flex: '1 1 240px', display: 'flex', alignItems: 'center', gap: 8,
+                    background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)',
+                    padding: '0.4rem 0.75rem', border: '1px solid rgba(255,255,255,0.07)',
+                }}>
+                    <FaSearch style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                    <input
+                        className="w-full"
+                        style={{ background: 'transparent', border: 'none', color: 'inherit', outline: 'none', fontSize: '0.88rem' }}
+                        placeholder={`Cerca ${activeTab === 'active' ? 'capacità attive' : 'capacità passive'}…`}
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                    />
+                    {search && (
+                        <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }} onClick={() => setSearch('')}>
+                            <FaTimes size={11} />
+                        </button>
+                    )}
                 </div>
-                <button className="btn-primary text-sm" onClick={() => setEditing({ ...EMPTY_FEAT_CAT(), subcategory: activeTab })}><FaPlus /> Nuovo Privilegio</button>
+                <button
+                    className="btn-primary text-sm"
+                    onClick={() => setEditing({ ...EMPTY_FEAT_CAT(), subcategory: activeTab })}
+                    style={{ flexShrink: 0 }}
+                >
+                    <FaPlus /> Nuovo Privilegio
+                </button>
             </div>
-            <div className="glass-panel">
-                {loading && <div className="text-muted text-sm">Caricamento…</div>}
-                {!loading && filtered.length === 0 && <div className="text-muted text-sm">Nessun privilegio nel catalogo.</div>}
-                <div className="flex-col gap-1">
-                    {filtered.map(f => {
-                        const sub = f.subcategory ?? 'passive';
-                        const subColor = sub === 'active' ? 'var(--accent-warning)' : 'var(--accent-success)';
-                        return (
-                            <div key={f.id} className="flex items-center gap-2" style={{ padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)' }}>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontFamily: 'var(--font-heading)', color: subColor }}>
-                                        {f.name}
-                                    </div>
-                                    {f.description && <div className="text-xs text-muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.description}</div>}
-                                </div>
-                                <button className="btn-ghost text-xs" onClick={() => setEditing(f)}>Modifica</button>
-                                <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => remove(f.id)}><FaTrash /></button>
-                            </div>
-                        );
-                    })}
+
+            {/* ── Card grid ── */}
+            {loading && <div className="text-muted text-sm">Caricamento…</div>}
+            {!loading && filtered.length === 0 && (
+                <div style={{
+                    textAlign: 'center', padding: '3rem 1rem',
+                    border: '2px dashed rgba(255,255,255,0.07)', borderRadius: 10,
+                    color: 'var(--text-muted)',
+                }}>
+                    <div style={{ fontSize: '2.5rem', marginBottom: 12, opacity: 0.3 }}>
+                        {activeTab === 'active' ? '⚡' : '✦'}
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9rem', marginBottom: 6 }}>
+                        {search ? `Nessun risultato per "${search}"` : `Nessuna ${activeTab === 'active' ? 'capacità attiva' : 'capacità passiva'}`}
+                    </div>
+                    {!search && (
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                            Crea il primo privilegio con il pulsante qui sopra.
+                        </div>
+                    )}
                 </div>
+            )}
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                gap: 10,
+            }}>
+                {filtered.map(f => {
+                    const sub = f.subcategory ?? 'passive';
+                    const color = sub === 'active' ? 'var(--accent-warning)' : 'var(--accent-success)';
+                    const Icon = sub === 'active' ? FaBolt : FaStar;
+                    const modCount = (f.modifiers ?? []).length;
+                    const creatureModCount = (f.creatureModifiers ?? []).length;
+                    const hasResource = sub === 'active' && f.resourceName;
+                    return (
+                        <div
+                            key={f.id}
+                            style={{
+                                borderRadius: 10, overflow: 'hidden',
+                                border: `1px solid ${color}22`,
+                                background: 'var(--bg-surface-elevated)',
+                                display: 'flex', flexDirection: 'column',
+                                transition: 'border-color 120ms, box-shadow 120ms',
+                                cursor: 'default',
+                            }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = `${color}55`; (e.currentTarget as HTMLDivElement).style.boxShadow = `0 4px 20px ${color}18`; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = `${color}22`; (e.currentTarget as HTMLDivElement).style.boxShadow = 'none'; }}
+                        >
+                            {/* Card color strip */}
+                            <div style={{
+                                height: 4,
+                                background: `linear-gradient(90deg, ${color}, transparent)`,
+                            }} />
+
+                            {/* Card content */}
+                            <div style={{ padding: '12px 14px', flex: 1 }}>
+                                {/* Name + type badge */}
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                                    <div style={{
+                                        width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+                                        background: `${color}18`, border: `1px solid ${color}33`,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', color,
+                                    }}>
+                                        <Icon size={12} />
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{
+                                            fontFamily: 'var(--font-heading)', fontSize: '0.92rem',
+                                            color: 'var(--text-primary)',
+                                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                        }}>
+                                            {f.name}
+                                        </div>
+                                        <div style={{ fontSize: '0.68rem', color, fontFamily: 'var(--font-heading)', marginTop: 1 }}>
+                                            {sub === 'active' ? 'Capacità Attiva' : 'Capacità Passiva'}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Description */}
+                                {f.description && (
+                                    <div style={{
+                                        fontSize: '0.76rem', color: 'var(--text-secondary)', lineHeight: 1.5,
+                                        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                                        overflow: 'hidden', marginBottom: 8,
+                                    }}>
+                                        {f.description}
+                                    </div>
+                                )}
+
+                                {/* Meta badges */}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                                    {modCount > 0 && (
+                                        <span style={{
+                                            fontSize: '0.66rem', padding: '2px 7px', borderRadius: 8,
+                                            background: `${color}15`, border: `1px solid ${color}30`, color,
+                                        }}>
+                                            {modCount} mod.
+                                        </span>
+                                    )}
+                                    {creatureModCount > 0 && (
+                                        <span style={{
+                                            fontSize: '0.66rem', padding: '2px 7px', borderRadius: 8,
+                                            background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)',
+                                            color: 'var(--accent-gold)',
+                                        }}>
+                                            {creatureModCount} evoc.
+                                        </span>
+                                    )}
+                                    {hasResource && (
+                                        <span style={{
+                                            fontSize: '0.66rem', padding: '2px 7px', borderRadius: 8,
+                                            background: 'rgba(91,173,226,0.12)', border: '1px solid rgba(91,173,226,0.25)',
+                                            color: 'var(--accent-ice)',
+                                        }}>
+                                            {f.resourceMax ? `${f.resourceName} ×${f.resourceMax}` : f.resourceName}
+                                        </span>
+                                    )}
+                                    {(f.tags ?? []).map(tag => (
+                                        <span key={tag} style={{
+                                            fontSize: '0.64rem', padding: '1px 6px', borderRadius: 8,
+                                            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                                            color: 'var(--text-muted)',
+                                        }}>{tag}</span>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Card actions */}
+                            <div style={{
+                                display: 'flex', gap: 6, padding: '8px 14px',
+                                borderTop: `1px solid ${color}15`,
+                                background: `${color}06`,
+                            }}>
+                                <button
+                                    className="btn-ghost text-xs"
+                                    onClick={() => setEditing(f)}
+                                    style={{ flex: 1, justifyContent: 'center', display: 'flex', alignItems: 'center', gap: 5 }}
+                                >
+                                    <FaEdit size={10} /> Modifica
+                                </button>
+                                <button
+                                    className="btn-ghost text-xs"
+                                    style={{ color: 'var(--accent-crimson)', display: 'flex', alignItems: 'center', gap: 4 }}
+                                    onClick={() => remove(f.id)}
+                                >
+                                    <FaTrash size={10} />
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
