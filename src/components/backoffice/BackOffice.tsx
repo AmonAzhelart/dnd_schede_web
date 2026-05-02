@@ -22,20 +22,21 @@ import { CreatureModifierEditor } from '../CreatureModifierEditor';
 import { RacesPanel } from './RacesPanel';
 import { ClassesPanel } from './ClassesPanel';
 import { LanguagesPanel } from './LanguagesPanel';
+import './BackOffice.css';
 
 export type Section = 'invites' | 'spells' | 'skills' | 'feats' | 'icons' | 'bestiary' | 'races' | 'classes' | 'languages';
 
 /** All sections that can be assigned to an invited user. SuperAdmin sees invites too. */
 export const ALL_SECTIONS: { id: Section; labelKey: string; icon: React.ReactNode; superAdminOnly?: boolean }[] = [
-    { id: 'invites',   labelKey: 'backoffice.tabs.invites',   icon: <FaEnvelope />,   superAdminOnly: true },
-    { id: 'races',     labelKey: 'backoffice.tabs.races',     icon: <FaUsers /> },
-    { id: 'classes',   labelKey: 'backoffice.tabs.classes',   icon: <FaShieldAlt /> },
+    { id: 'invites', labelKey: 'backoffice.tabs.invites', icon: <FaEnvelope />, superAdminOnly: true },
+    { id: 'races', labelKey: 'backoffice.tabs.races', icon: <FaUsers /> },
+    { id: 'classes', labelKey: 'backoffice.tabs.classes', icon: <FaShieldAlt /> },
     { id: 'languages', labelKey: 'backoffice.tabs.languages', icon: <FaLanguage /> },
-    { id: 'spells',    labelKey: 'backoffice.tabs.spells',    icon: <FaScroll /> },
-    { id: 'skills',    labelKey: 'backoffice.tabs.skills',    icon: <FaStar /> },
-    { id: 'feats',     labelKey: 'backoffice.tabs.feats',     icon: <FaBolt /> },
-    { id: 'icons',     labelKey: 'backoffice.tabs.icons',     icon: <FaImage /> },
-    { id: 'bestiary',  labelKey: 'backoffice.tabs.bestiary',  icon: <FaDragon /> },
+    { id: 'spells', labelKey: 'backoffice.tabs.spells', icon: <FaScroll /> },
+    { id: 'skills', labelKey: 'backoffice.tabs.skills', icon: <FaStar /> },
+    { id: 'feats', labelKey: 'backoffice.tabs.feats', icon: <FaBolt /> },
+    { id: 'icons', labelKey: 'backoffice.tabs.icons', icon: <FaImage /> },
+    { id: 'bestiary', labelKey: 'backoffice.tabs.bestiary', icon: <FaDragon /> },
 ];
 
 interface Props {
@@ -65,7 +66,7 @@ export function BackOffice({ currentUserEmail, allowedSections, onBack }: Props)
         if (!visibleSections.find(s => s.id === section)) {
             setSection(visibleSections[0]?.id ?? 'races');
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [allowedSections]);
 
     async function runSeed(overwrite: boolean) {
@@ -95,90 +96,81 @@ export function BackOffice({ currentUserEmail, allowedSections, onBack }: Props)
     const sectionLabel = t(visibleSections.find(s => s.id === section)?.labelKey ?? '');
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+        <div className="bo-root">
             {/* ── Top bar ── */}
-            <div style={{
-                display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0,
-                padding: '0 24px', height: 56,
-                borderBottom: '1px solid rgba(255,255,255,0.06)',
-                background: 'rgba(0,0,0,0.25)',
-            }}>
+            <div className="bo-topbar">
                 {onBack && (
-                    <button className="btn-ghost text-sm" onClick={onBack} style={{ marginRight: 4 }}>
+                    <button className="btn-ghost text-sm" onClick={onBack} style={{ marginRight: 4, flexShrink: 0 }}>
                         <FaChevronLeft />
                     </button>
                 )}
-                <span className="text-gradient" style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700, letterSpacing: '0.04em' }}>
-                    D&amp;D Nexus
-                </span>
-                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 18 }}>|</span>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Back-Office</span>
-                <div style={{ flex: 1 }} />
-                {sa && (
-                    <>
-                        <button className="btn-secondary text-xs" disabled={seeding} onClick={() => runSeed(false)} title="Aggiunge i preset mancanti">
-                            <FaSeedling /> {seeding ? 'Seeding…' : 'Popola catalogo'}
-                        </button>
-                        <button className="btn-secondary text-xs" disabled={seeding} onClick={() => runSeed(true)} style={{ borderColor: 'var(--accent-crimson)' }} title="Sovrascrive preset (distruttivo)">
-                            <FaSeedling /> Reseed
-                        </button>
-                    </>
-                )}
-                <span className="text-xs text-muted" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200 }}>{currentUserEmail}</span>
+                <div className="bo-topbar-title">
+                    <span className="text-gradient bo-brand">D&amp;D Nexus</span>
+                    <span className="bo-sep">|</span>
+                    <span className="bo-label">Back-Office</span>
+                </div>
+                <div className="bo-topbar-spacer" />
+                <div className="bo-topbar-actions">
+                    {sa && (
+                        <>
+                            <button className="btn-secondary text-xs bo-seed-btn" disabled={seeding} onClick={() => runSeed(false)} title="Aggiunge i preset mancanti">
+                                <FaSeedling /> {seeding ? 'Seeding…' : 'Popola catalogo'}
+                            </button>
+                            <button className="btn-secondary text-xs bo-seed-btn" disabled={seeding} onClick={() => runSeed(true)} style={{ borderColor: 'var(--accent-crimson)' }} title="Sovrascrive preset (distruttivo)">
+                                <FaSeedling /> Reseed
+                            </button>
+                        </>
+                    )}
+                    <span className="bo-topbar-email">{currentUserEmail}</span>
+                </div>
             </div>
 
             {seedMsg && (
-                <div className="text-xs" style={{ padding: '6px 24px', background: 'rgba(201,168,76,0.1)', borderBottom: '1px solid rgba(201,168,76,0.2)', color: 'var(--accent-gold)' }}>
-                    {seedMsg}
-                </div>
+                <div className="bo-seed-msg">{seedMsg}</div>
             )}
 
+            {/* ── Mobile horizontal tab rail ── */}
+            <nav className="bo-tab-rail" aria-label="Sezioni back-office">
+                {visibleSections.map(s => (
+                    <button
+                        key={s.id}
+                        className={'bo-tab-rail-btn' + (section === s.id ? ' is-active' : '')}
+                        onClick={() => setSection(s.id)}
+                    >
+                        {s.icon}
+                        <span>{t(s.labelKey)}</span>
+                    </button>
+                ))}
+            </nav>
+
             {/* ── Master-detail body ── */}
-            <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-                {/* ── Sidebar ── */}
-                <nav style={{
-                    width: 220, flexShrink: 0, display: 'flex', flexDirection: 'column',
-                    borderRight: '1px solid rgba(255,255,255,0.06)',
-                    background: 'rgba(0,0,0,0.18)',
-                    overflowY: 'auto', padding: '16px 0',
-                }}>
-                    {visibleSections.map(s => {
-                        const active = section === s.id;
-                        return (
-                            <button
-                                key={s.id}
-                                onClick={() => setSection(s.id)}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: 10,
-                                    padding: '10px 20px',
-                                    background: active ? 'rgba(201,168,76,0.12)' : 'transparent',
-                                    borderTop: 'none', borderRight: 'none', borderBottom: 'none',
-                                    borderLeft: `3px solid ${active ? 'var(--accent-gold)' : 'transparent'}`,
-                                    color: active ? 'var(--accent-gold)' : 'var(--text-secondary)',
-                                    cursor: 'pointer', textAlign: 'left', width: '100%',
-                                    fontSize: '0.85rem', fontFamily: 'var(--font-body)',
-                                    transition: 'background 0.15s, color 0.15s',
-                                }}
-                            >
-                                <span style={{ opacity: active ? 1 : 0.6, fontSize: 14 }}>{s.icon}</span>
-                                {t(s.labelKey)}
-                            </button>
-                        );
-                    })}
+            <div className="bo-body">
+                {/* ── Sidebar (desktop only) ── */}
+                <nav className="bo-sidebar" aria-label="Sezioni back-office">
+                    {visibleSections.map(s => (
+                        <button
+                            key={s.id}
+                            className={'bo-sidebar-btn' + (section === s.id ? ' is-active' : '')}
+                            onClick={() => setSection(s.id)}
+                        >
+                            <span className="bo-sidebar-ico">{s.icon}</span>
+                            {t(s.labelKey)}
+                        </button>
+                    ))}
                 </nav>
 
                 {/* ── Content ── */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div className="bo-content">
                     <h2 style={{ margin: 0, fontSize: '1.25rem', fontFamily: 'var(--font-heading)' }}>{sectionLabel}</h2>
-                    {section === 'invites'   && <InvitesPanel currentUserEmail={currentUserEmail} />}
-                    {section === 'races'     && <RacesPanel currentUserEmail={currentUserEmail} />}
-                    {section === 'classes'   && <ClassesPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'invites' && <InvitesPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'races' && <RacesPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'classes' && <ClassesPanel currentUserEmail={currentUserEmail} />}
                     {section === 'languages' && <LanguagesPanel currentUserEmail={currentUserEmail} />}
-                    {section === 'spells'    && <SpellsPanel currentUserEmail={currentUserEmail} />}
-                    {section === 'skills'    && <SkillsPanel currentUserEmail={currentUserEmail} />}
-                    {section === 'feats'     && <FeatsPanel currentUserEmail={currentUserEmail} />}
-                    {section === 'icons'     && <IconsPanel currentUserEmail={currentUserEmail} />}
-                    {section === 'bestiary'  && <BestiaryPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'spells' && <SpellsPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'skills' && <SkillsPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'feats' && <FeatsPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'icons' && <IconsPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'bestiary' && <BestiaryPanel currentUserEmail={currentUserEmail} />}
                 </div>
             </div>
         </div>
@@ -1076,10 +1068,12 @@ function FeatsPanel({ currentUserEmail }: { currentUserEmail: string }) {
                             }}
                         >
                             {label}
-                            <span style={{ fontSize: '0.65rem', padding: '0 6px', borderRadius: 8,
+                            <span style={{
+                                fontSize: '0.65rem', padding: '0 6px', borderRadius: 8,
                                 background: on ? `${color}33` : 'rgba(255,255,255,0.05)',
                                 border: `1px solid ${on ? color + '44' : 'rgba(255,255,255,0.08)'}`,
-                                color: on ? color : 'var(--text-muted)' }}>{cnt}</span>
+                                color: on ? color : 'var(--text-muted)'
+                            }}>{cnt}</span>
                         </button>
                     );
                 })}

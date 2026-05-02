@@ -1,0 +1,272 @@
+/* ============================================================================
+ * BackOffice – responsive layout
+ *
+ *  Desktop (> 900px) : top-bar + sidebar (220px) + content panel (unchanged)
+ *  Mobile  (≤ 900px) : top-bar + horizontal tab rail + full-width content
+ *                      + safe-area padding at the bottom for the mobile shell
+ * ========================================================================== */
+
+/* ── Root container ─────────────────────────────────────────────── */
+.bo-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* ── Top bar ────────────────────────────────────────────────────── */
+.bo-topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+    padding: 0 24px;
+    height: 56px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(0, 0, 0, 0.25);
+    min-width: 0;
+}
+
+.bo-topbar-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.bo-topbar-title .bo-brand {
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.bo-topbar-title .bo-sep {
+    color: rgba(255, 255, 255, 0.2);
+    font-size: 18px;
+}
+
+.bo-topbar-title .bo-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.bo-topbar-spacer {
+    flex: 1;
+}
+
+.bo-topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.bo-topbar-email {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+/* ── Body (sidebar + content) ───────────────────────────────────── */
+.bo-body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+/* ── Sidebar ────────────────────────────────────────────────────── */
+.bo-sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(0, 0, 0, 0.18);
+    overflow-y: auto;
+    padding: 16px 0;
+}
+
+.bo-sidebar-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    background: transparent;
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    border-left: 3px solid transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    font-size: 0.85rem;
+    font-family: var(--font-body);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.bo-sidebar-btn .bo-sidebar-ico {
+    opacity: 0.6;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.bo-sidebar-btn:hover {
+    background: rgba(201, 168, 76, 0.07);
+    color: var(--text-primary);
+}
+
+.bo-sidebar-btn.is-active {
+    background: rgba(201, 168, 76, 0.12);
+    border-left-color: var(--accent-gold);
+    color: var(--accent-gold);
+}
+
+.bo-sidebar-btn.is-active .bo-sidebar-ico {
+    opacity: 1;
+}
+
+/* ── Content panel ──────────────────────────────────────────────── */
+.bo-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* ── Mobile tab rail (hidden on desktop) ────────────────────────── */
+.bo-tab-rail {
+    display: none;
+}
+
+/* ── Seed message ───────────────────────────────────────────────── */
+.bo-seed-msg {
+    padding: 6px 24px;
+    background: rgba(201, 168, 76, 0.1);
+    border-bottom: 1px solid rgba(201, 168, 76, 0.2);
+    color: var(--accent-gold);
+    font-size: 0.72rem;
+    flex-shrink: 0;
+}
+
+
+/* ============================================================================
+ * Mobile overrides  ≤ 900px
+ * ========================================================================== */
+@media (max-width: 900px) {
+
+    /* Top bar: compact + no email */
+    .bo-topbar {
+        padding: 0 12px;
+        height: 48px;
+        gap: 8px;
+    }
+
+    .bo-topbar-title .bo-brand {
+        font-size: 0.95rem;
+    }
+
+    .bo-topbar-title .bo-sep,
+    .bo-topbar-title .bo-label {
+        display: none;
+    }
+
+    /* Move seed buttons into a hidden overflow area – show only if space allows */
+    .bo-topbar-actions .bo-seed-btn {
+        display: none;
+    }
+
+    .bo-topbar-email {
+        display: none;
+    }
+
+    /* Hide desktop sidebar */
+    .bo-sidebar {
+        display: none;
+    }
+
+    /* Show the horizontal tab rail below the topbar */
+    .bo-tab-rail {
+        display: flex;
+        gap: 4px;
+        padding: 8px 12px 6px;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        scrollbar-width: none;
+        flex-shrink: 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        background: rgba(0, 0, 0, 0.18);
+        -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+        mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+    }
+
+    .bo-tab-rail::-webkit-scrollbar {
+        display: none;
+    }
+
+    .bo-tab-rail-btn {
+        flex: 0 0 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 7px 14px;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--text-muted);
+        font-family: var(--font-heading);
+        font-size: 0.6rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        cursor: pointer;
+        white-space: nowrap;
+        scroll-snap-align: start;
+        transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .bo-tab-rail-btn svg {
+        font-size: 1.05rem;
+        opacity: 0.7;
+    }
+
+    .bo-tab-rail-btn:hover {
+        background: rgba(201, 168, 76, 0.07);
+        color: var(--text-secondary);
+    }
+
+    .bo-tab-rail-btn.is-active {
+        background: linear-gradient(180deg, rgba(201, 168, 76, 0.2), rgba(201, 168, 76, 0.06));
+        border-color: rgba(201, 168, 76, 0.45);
+        color: var(--accent-gold);
+    }
+
+    .bo-tab-rail-btn.is-active svg {
+        opacity: 1;
+    }
+
+    /* Content: full width, reduced padding, safe area at bottom for mobile shell */
+    .bo-body {
+        flex-direction: column;
+    }
+
+    .bo-content {
+        padding: 16px 14px;
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+    }
+}
+
+/* Very narrow phones */
+@media (max-width: 380px) {
+    .bo-tab-rail-btn {
+        padding: 7px 10px;
+        font-size: 0.55rem;
+    }
+}
