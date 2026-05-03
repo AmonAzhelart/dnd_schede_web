@@ -20,7 +20,7 @@ export const CONDITIONS: ConditionDef[] = [
         hint: '-4 attacco, -2 CA (schivata)',
         modifiers: [
             { target: 'attack', value: -4, type: 'untyped' },
-            { target: 'ac',     value: -2, type: 'dodge'   },
+            { target: 'ac', value: -2, type: 'dodge' },
         ],
     },
     {
@@ -47,10 +47,10 @@ export const CONDITIONS: ConditionDef[] = [
         id: 'frightened', label: 'Spaventato', severity: 'moderate',
         hint: '-2 attacchi e TS (morale)',
         modifiers: [
-            { target: 'attack',    value: -2, type: 'morale' },
+            { target: 'attack', value: -2, type: 'morale' },
             { target: 'fortitude', value: -2, type: 'morale' },
-            { target: 'reflex',    value: -2, type: 'morale' },
-            { target: 'will',      value: -2, type: 'morale' },
+            { target: 'reflex', value: -2, type: 'morale' },
+            { target: 'will', value: -2, type: 'morale' },
         ],
     },
     {
@@ -78,7 +78,7 @@ export const CONDITIONS: ConditionDef[] = [
         modifiers: [
             { target: 'str', value: -10, type: 'untyped' },
             { target: 'dex', value: -10, type: 'untyped' },
-            { target: 'ac',  value: -4,  type: 'dodge'   },
+            { target: 'ac', value: -4, type: 'dodge' },
         ],
     },
     {
@@ -107,7 +107,7 @@ export const CONDITIONS: ConditionDef[] = [
         hint: '-2 attacco e CA, velocità 0',
         modifiers: [
             { target: 'attack', value: -2, type: 'untyped' },
-            { target: 'ac',     value: -2, type: 'dodge'   },
+            { target: 'ac', value: -2, type: 'dodge' },
         ],
     },
     {
