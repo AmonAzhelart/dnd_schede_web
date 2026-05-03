@@ -22,9 +22,9 @@ import InputLabel from '@mui/material/InputLabel';
 export const dndMuiTheme = createTheme({
     palette: {
         mode: 'dark',
-        primary:    { main: '#9b59b6' },
+        primary: { main: '#9b59b6' },
         background: { paper: '#1c1c27', default: '#0d0d0f' },
-        text:       { primary: '#e8e4d8', secondary: '#9a9ab0' },
+        text: { primary: '#e8e4d8', secondary: '#9a9ab0' },
     },
     typography: { fontFamily: '"Inter", sans-serif', fontSize: 13 },
     shape: { borderRadius: 6 },
@@ -86,7 +86,7 @@ export const dndMuiTheme = createTheme({
         MuiSelect: {
             styleOverrides: {
                 select: { fontSize: '0.82rem', padding: '6px 10px' },
-                icon:   { color: '#9a9ab0' },
+                icon: { color: '#9a9ab0' },
             },
         },
         MuiMenuItem: {
@@ -116,40 +116,40 @@ export const dndMuiTheme = createTheme({
 
 // ── Tipi bonus ────────────────────────────────────────────────────────────────
 const MOD_TYPES: { value: ModifierType; label: string }[] = [
-    { value: 'untyped',      label: 'Senza tipo' },
-    { value: 'enhancement',  label: 'Potenziamento' },
-    { value: 'armor',        label: 'Armatura' },
-    { value: 'shield',       label: 'Scudo' },
+    { value: 'untyped', label: 'Senza tipo' },
+    { value: 'enhancement', label: 'Potenziamento' },
+    { value: 'armor', label: 'Armatura' },
+    { value: 'shield', label: 'Scudo' },
     { value: 'naturalArmor', label: 'Arm. Naturale' },
-    { value: 'deflection',   label: 'Deviazione' },
-    { value: 'dodge',        label: 'Schivata' },
+    { value: 'deflection', label: 'Deviazione' },
+    { value: 'dodge', label: 'Schivata' },
     { value: 'circumstance', label: 'Circostanza' },
-    { value: 'morale',       label: 'Morale' },
-    { value: 'luck',         label: 'Fortuna' },
-    { value: 'competence',   label: 'Competenza' },
-    { value: 'insight',      label: 'Intuizione' },
-    { value: 'resistance',   label: 'Resistenza' },
-    { value: 'sacred',       label: 'Sacro' },
-    { value: 'profane',      label: 'Profano' },
-    { value: 'racial',       label: 'Razziale' },
-    { value: 'size',         label: 'Taglia' },
-    { value: 'synergy',      label: 'Sinergia' },
-    { value: 'alchemical',   label: 'Alchemico' },
+    { value: 'morale', label: 'Morale' },
+    { value: 'luck', label: 'Fortuna' },
+    { value: 'competence', label: 'Competenza' },
+    { value: 'insight', label: 'Intuizione' },
+    { value: 'resistance', label: 'Resistenza' },
+    { value: 'sacred', label: 'Sacro' },
+    { value: 'profane', label: 'Profano' },
+    { value: 'racial', label: 'Razziale' },
+    { value: 'size', label: 'Taglia' },
+    { value: 'synergy', label: 'Sinergia' },
+    { value: 'alchemical', label: 'Alchemico' },
 ];
 
 // ── Condizioni disponibili ────────────────────────────────────────────────────
 const COND_KINDS: { value: ModifierCondition['kind']; label: string; icon: { category: string; name: string } }[] = [
-    { value: 'weaponType',       label: 'Tipo arma',           icon: { category: 'combat',  name: 'melee' } },
-    { value: 'weaponCategory',   label: 'Categoria arma',      icon: { category: 'weapon',  name: 'sword' } },
-    { value: 'weaponName',       label: 'Nome arma',           icon: { category: 'weapon',  name: 'dagger' } },
-    { value: 'damageType',       label: 'Tipo danno',          icon: { category: 'damage',  name: 'fire' } },
-    { value: 'skillId',          label: 'Abilità specifica',   icon: { category: 'skill',   name: 'arcana' } },
-    { value: 'saveType',         label: 'Tiro salvezza',       icon: { category: 'd20test', name: 'saving-throw' } },
-    { value: 'abilityStat',      label: 'Caratteristica',      icon: { category: 'ability', name: 'strength' } },
-    { value: 'spellSchool',      label: 'Scuola magia',        icon: { category: 'spell',   name: 'evocation' } },
-    { value: 'spellName',        label: 'Incantesimo',         icon: { category: 'spell',   name: 'octagon' } },
-    { value: 'spellDamageType',  label: 'Tipo magia',          icon: { category: 'damage',  name: 'lightning' } },
-    { value: 'spellMinLevel',    label: 'Livello min. magia',  icon: { category: 'spell',   name: 'upcast' } },
+    { value: 'weaponType', label: 'Tipo arma', icon: { category: 'combat', name: 'melee' } },
+    { value: 'weaponCategory', label: 'Categoria arma', icon: { category: 'weapon', name: 'sword' } },
+    { value: 'weaponName', label: 'Nome arma', icon: { category: 'weapon', name: 'dagger' } },
+    { value: 'damageType', label: 'Tipo danno', icon: { category: 'damage', name: 'fire' } },
+    { value: 'skillId', label: 'Abilità specifica', icon: { category: 'skill', name: 'arcana' } },
+    { value: 'saveType', label: 'Tiro salvezza', icon: { category: 'd20test', name: 'saving-throw' } },
+    { value: 'abilityStat', label: 'Caratteristica', icon: { category: 'ability', name: 'strength' } },
+    { value: 'spellSchool', label: 'Scuola magia', icon: { category: 'spell', name: 'evocation' } },
+    { value: 'spellName', label: 'Incantesimo', icon: { category: 'spell', name: 'octagon' } },
+    { value: 'spellDamageType', label: 'Tipo magia', icon: { category: 'damage', name: 'lightning' } },
+    { value: 'spellMinLevel', label: 'Livello min. magia', icon: { category: 'spell', name: 'upcast' } },
 ];
 
 // ── Migrazione legacy ─────────────────────────────────────────────────────────
@@ -159,8 +159,8 @@ function ensureAppliesTo(mod: Modifier): Modifier {
     let channel: string | null = null;
     if (!t) channel = null;
     else if (t === 'fortitude') channel = 'save.fort';
-    else if (t === 'reflex')    channel = 'save.ref';
-    else if (t === 'will')      channel = 'save.will';
+    else if (t === 'reflex') channel = 'save.ref';
+    else if (t === 'will') channel = 'save.will';
     else if (
         t.startsWith('skill.') || t.startsWith('check.') || t.startsWith('save.') ||
         ['attack', 'damage', 'ac', 'initiative', 'cmb', 'cmd'].includes(t)
@@ -193,11 +193,11 @@ export const ModifierEditor: React.FC<ModifierEditorProps> = ({
 
     const skillOptions = useMemo(() =>
         character ? Object.values(character.skills).map(s => ({ id: s.id, name: s.name })) : [],
-    [character]);
+        [character]);
 
     const weaponOptions = useMemo(() =>
         character ? character.inventory.filter(i => i.type === 'weapon').map(i => i.name) : [],
-    [character]);
+        [character]);
 
     const channelOptions: ChannelOption[] = useMemo(() => {
         const skills = skillOptions.map(s => ({
@@ -215,17 +215,17 @@ export const ModifierEditor: React.FC<ModifierEditorProps> = ({
         target: 'attack', value: 1, type: 'untyped', source: '', appliesTo: ['attack'],
     }]);
 
-    const removeMod      = (i: number)                                     => onChange(modifiers.filter((_, idx) => idx !== i));
-    const setChannel     = (i: number, ch: string)                        => update(i, m => ({ ...m, target: ch, appliesTo: [ch as RollChannel] }));
+    const removeMod = (i: number) => onChange(modifiers.filter((_, idx) => idx !== i));
+    const setChannel = (i: number, ch: string) => update(i, m => ({ ...m, target: ch, appliesTo: [ch as RollChannel] }));
 
     const addCondition = (i: number, kind: ModifierCondition['kind']) => update(i, m => {
         const init: ModifierCondition = (() => {
             switch (kind) {
-                case 'weaponType':    return { kind, value: 'melee' };
-                case 'saveType':      return { kind, value: 'fort' };
-                case 'abilityStat':   return { kind, value: 'str' };
+                case 'weaponType': return { kind, value: 'melee' };
+                case 'saveType': return { kind, value: 'fort' };
+                case 'abilityStat': return { kind, value: 'str' };
                 case 'spellMinLevel': return { kind, value: 1 };
-                default:              return { kind, value: '' };
+                default: return { kind, value: '' };
             }
         })();
         return { ...m, conditions: [...(m.conditions ?? []), init] };
@@ -341,10 +341,10 @@ const ModifierCard: React.FC<ModifierCardProps> = ({
     onUpdate, onRemove, onSetChannel, onAddCondition, onUpdateCondition, onRemoveCondition,
 }) => {
     const [showAdvanced, setShowAdvanced] = useState(false);
-    const isManual   = !!mod.manualPrompt || mod.scope === 'conditional';
+    const isManual = !!mod.manualPrompt || mod.scope === 'conditional';
     const conditions = mod.conditions ?? [];
     const hasAdvanced = !!mod.extraDice || mod.statOverride !== undefined;
-    const positive   = mod.value >= 0;
+    const positive = mod.value >= 0;
 
     const channelMeta = channelOptions.find(o => o.value === channel) ?? null;
 
@@ -712,10 +712,10 @@ const ConditionRow: React.FC<{
                 return (
                     <input className="input" value={String(cond.value)} onChange={e => onChange(e.target.value)}
                         placeholder={
-                            cond.kind === 'weaponCategory'   ? 'es. arco, spada lunga…' :
-                            cond.kind === 'spellSchool'      ? 'es. Evocazione…' :
-                            cond.kind === 'spellName'        ? 'es. Palla di Fuoco' :
-                            cond.kind === 'spellDamageType'  ? 'es. fuoco, freddo…' : '…'
+                            cond.kind === 'weaponCategory' ? 'es. arco, spada lunga…' :
+                                cond.kind === 'spellSchool' ? 'es. Evocazione…' :
+                                    cond.kind === 'spellName' ? 'es. Palla di Fuoco' :
+                                        cond.kind === 'spellDamageType' ? 'es. fuoco, freddo…' : '…'
                         }
                         style={{ flex: 1, fontSize: '0.8rem' }}
                     />
