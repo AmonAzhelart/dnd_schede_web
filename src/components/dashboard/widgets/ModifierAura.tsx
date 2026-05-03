@@ -6,6 +6,8 @@ import type { StatType } from '../../../types/dnd';
  * Returns the active modifier delta and the matching aura class for a given target.
  * Targets follow the same ids used by ModifiersWidget (e.g. 'str', 'ac', 'hp',
  * 'fortitude', 'speed', 'bab', 'skill.<id>').
+ * Condition effects are already injected as real ActiveModifier entries by
+ * setActiveConditions, so getActiveModifierDelta covers them automatically.
  */
 export function useModifierAura(target: StatType | string) {
     const delta = useCharacterStore(s => s.getActiveModifierDelta(target));

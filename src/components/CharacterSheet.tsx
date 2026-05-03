@@ -191,7 +191,7 @@ export const CharacterSheet: React.FC = () => {
             ? (character.classLevels ?? []).map(cl => cl.className || '?').filter(Boolean).join(' / ') || character.characterClass
             : character.characterClass;
           const totalBab = getTotalBab();
-          const initMod = getStatModifier('dex');
+          const initMod = getEffectiveStat('initiative');
           const hpClass = hpPercent < 25 ? 'crit' : hpPercent < 50 ? 'low' : '';
           return (
             <div className="cs-header">

@@ -9,6 +9,8 @@ const SAVE_TO_PROG_FIELD: Record<SaveKey, 'fortSave' | 'refSave' | 'willSave'> =
   fortitude: 'fortSave', reflex: 'refSave', will: 'willSave',
 };
 
+import { CONDITION_MODIFIERS } from '../data/conditions';
+
 interface CharacterState {
   character: CharacterBase | null;
   setCharacter: (char: CharacterBase) => void;
@@ -107,6 +109,8 @@ interface CharacterState {
   getActiveModifierDelta: (target: StatType | string) => number;
   /** All non-paused active modifiers targeting `target`. */
   getActiveModifiersFor: (target: StatType | string) => ActiveModifier[];
+  /** Set the full list of active condition ids (e.g. ['blinded', 'prone']). */
+  setActiveConditions: (ids: string[]) => void;
   /** New: collect every applicable modifier (item / feat / class feature /
    *  active buff) for a roll context. Returns auto + optional candidates. */
   getApplicableModifiers: (ctx: RollContext) => ModifierCandidate[];
@@ -661,6 +665,38 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     return { character: { ...state.character, modifiersHistory: [] } };
   }),
 
+  setActiveConditions: (ids) => set((state) => {
+    if (!state.character) return state;
+    const prev = state.character.activeConditions ?? [];
+    // Remove modifiers from conditions that were removed
+    const removed = prev.filter(id => !ids.includes(id));
+    // Add modifiers for conditions that were added
+    const added = ids.filter(id => !prev.includes(id));
+    let mods = (state.character.activeModifiers ?? []).filter(
+      m => !m.source?.startsWith('condition:') || !removed.some(id => m.source === `condition:${id}`)
+    );
+    const now = new Date().toISOString();
+    for (const condId of added) {
+      const defs = CONDITION_MODIFIERS[condId];
+      if (!defs) continue;
+      for (const def of defs) {
+        mods = [...mods, {
+          id: `cond_${condId}_${def.target}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 5)}`,
+          name: def.label,
+          target: def.target,
+          value: def.value,
+          type: def.type,
+          unit: 'permanent' as DurationUnit,
+          remaining: null,
+          initial: null,
+          createdAt: now,
+          source: `condition:${condId}`,
+        } satisfies ActiveModifier];
+      }
+    }
+    return { character: { ...state.character, activeConditions: ids, activeModifiers: mods } };
+  }),
+
   getActiveModifiersFor: (target) => {
     const list = get().character?.activeModifiers ?? [];
     return list.filter(m => !m.paused && m.target === target);
@@ -680,6 +716,11 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     // else fall back to the stored manual breakdown.
     if (target === 'fortitude' || target === 'reflex' || target === 'will') {
       return get().getSaveBreakdown(target).total + get().getActiveModifierDelta(target);
+    }
+
+    // Initiative = DEX modifier + any active initiative modifiers.
+    if (target === 'initiative') {
+      return get().getStatModifier('dex') + get().getActiveModifierDelta('initiative');
     }
 
     // Base value calculation

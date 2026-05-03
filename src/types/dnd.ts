@@ -714,6 +714,8 @@ export interface CharacterBase {
   skillExtraPool?: number;
   /** Soft-deleted inventory items (trash / recycle bin) */
   inventoryTrash?: Item[];
+  /** Active condition ids (e.g. 'blinded', 'prone') tracked in the Conditions widget. */
+  activeConditions?: string[];
 }
 
 // ─────────────────────────── BESTIARY ────────────────────────────

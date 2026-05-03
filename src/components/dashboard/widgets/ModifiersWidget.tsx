@@ -86,7 +86,7 @@ const ModRow: React.FC<RowProps> = ({ mod, micro, onPause, onEdit, onArchive }) 
             {!micro && (
                 <div className={'w-mod-dur' + (expiring ? ' is-expiring' : '')}>
                     {isPermanent
-                        ? <span className="w-mod-dur-perm">\u221e</span>
+                        ? <span className="w-mod-dur-perm">{'∞'}</span>
                         : <><span className="w-mod-dur-num">{mod.remaining}</span><span className="w-mod-dur-unit">{unitShort}</span></>}
                 </div>
             )}
