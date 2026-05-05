@@ -68,7 +68,8 @@
             "bestiary": "Bestiary",
             "races": "Races",
             "classes": "Classes",
-            "languages": "Languages"
+            "languages": "Languages",
+            "feedback": "Feedback"
         },
         "races": {
             "title": "Race Catalog",
@@ -203,5 +204,16 @@
             "userope_climb": "with ropes",
             "userope_escapartist": "rope bindings"
         }
+    },
+    "feedback": {
+        "title": "Feedback",
+        "placeholder": "Write a message...",
+        "send": "Send",
+        "empty": "No messages yet. Write to us!",
+        "adminLabel": "Admin",
+        "noThreads": "No feedback received yet.",
+        "selectThread": "Select a user to read their feedback.",
+        "replyPlaceholder": "Reply to the user...",
+        "confirmDelete": "Delete this message?"
     }
 }

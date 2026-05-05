@@ -270,3 +270,314 @@
         font-size: 0.55rem;
     }
 }
+
+/* ============================================================================
+ * FeedbackPanel – admin chat view
+ * ========================================================================== */
+
+.fb-admin-root {
+    display: flex;
+    gap: 0;
+    height: 100%;
+    min-height: 0;
+    flex: 1;
+    overflow: hidden;
+    margin: -24px -28px; /* bleed to bo-content edges */
+    border-radius: 0;
+}
+
+/* Thread list (left column) */
+.fb-admin-list {
+    width: 280px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    border-right: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.fb-admin-empty {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    text-align: center;
+    padding: 48px 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: auto;
+}
+
+.fb-admin-thread-btn {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 14px 14px 12px;
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    transition: background 0.15s;
+    position: relative;
+}
+
+.fb-admin-thread-btn:hover {
+    background: rgba(201, 168, 76, 0.06);
+}
+
+.fb-admin-thread-btn.is-active {
+    background: rgba(201, 168, 76, 0.12);
+    border-left: 3px solid var(--accent-gold);
+}
+
+.fb-admin-thread-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    font-size: 0.85rem;
+}
+
+.fb-admin-thread-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.fb-admin-thread-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fb-admin-badge {
+    background: var(--accent-crimson, #c0392b);
+    color: #fff;
+    border-radius: 10px;
+    font-size: 0.65rem;
+    padding: 1px 6px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.fb-admin-thread-email {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fb-admin-thread-last {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fb-admin-unread-dot {
+    position: absolute;
+    top: 14px;
+    right: 12px;
+    color: var(--accent-crimson, #c0392b);
+    font-size: 0.5rem;
+}
+
+/* Chat area (right column) */
+.fb-admin-chat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.fb-admin-chat-placeholder {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    gap: 8px;
+}
+
+/* Chat header */
+.fb-admin-chat-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(0, 0, 0, 0.2);
+    flex-shrink: 0;
+}
+
+.fb-admin-chat-header svg {
+    font-size: 1.1rem;
+    color: var(--accent-gold);
+}
+
+.fb-admin-chat-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.fb-admin-chat-email {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+/* Messages */
+.fb-admin-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.fb-admin-bubble {
+    display: flex;
+    flex-direction: column;
+    max-width: 72%;
+    gap: 2px;
+}
+
+.fb-admin-bubble.is-user {
+    align-self: flex-start;
+}
+
+.fb-admin-bubble.is-admin {
+    align-self: flex-end;
+    align-items: flex-end;
+}
+
+.fb-admin-from-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    padding: 0 4px;
+    font-weight: 600;
+}
+
+.fb-admin-from-label.admin {
+    color: var(--accent-gold);
+}
+
+.fb-admin-bubble-text {
+    padding: 8px 13px;
+    border-radius: 14px;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.fb-admin-bubble.is-user .fb-admin-bubble-text {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+    border-bottom-left-radius: 4px;
+}
+
+.fb-admin-bubble.is-admin .fb-admin-bubble-text {
+    background: var(--accent-gold, #c9a84c);
+    color: #1a1a2e;
+    border-bottom-right-radius: 4px;
+}
+
+.fb-admin-ts {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    padding: 0 4px;
+}
+
+/* Reply input */
+.fb-admin-input-row {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(0, 0, 0, 0.18);
+    flex-shrink: 0;
+    align-items: flex-end;
+}
+
+.fb-admin-textarea {
+    flex: 1;
+    resize: none;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    padding: 9px 12px;
+    font-family: inherit;
+    line-height: 1.4;
+    transition: border-color 0.15s;
+}
+
+.fb-admin-textarea:focus {
+    outline: none;
+    border-color: var(--accent-gold);
+}
+
+.fb-admin-send-btn {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: var(--accent-gold, #c9a84c);
+    color: #1a1a2e;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.15s, transform 0.15s;
+}
+
+.fb-admin-send-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.fb-admin-send-btn:not(:disabled):hover {
+    transform: scale(1.08);
+}
+
+/* Mobile: stack vertically */
+@media (max-width: 700px) {
+    .fb-admin-root {
+        flex-direction: column;
+        margin: -16px -14px;
+    }
+
+    .fb-admin-list {
+        width: 100%;
+        max-height: 220px;
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    }
+}

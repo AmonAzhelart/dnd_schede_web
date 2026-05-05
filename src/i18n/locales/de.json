@@ -68,7 +68,8 @@
             "bestiary": "Bestiarium",
             "races": "Rassen",
             "classes": "Klassen",
-            "languages": "Sprachen"
+            "languages": "Sprachen",
+            "feedback": "Feedback"
         },
         "races": {
             "title": "Rassenkatalog",
@@ -203,5 +204,16 @@
             "userope_climb": "mit Seilen",
             "userope_escapartist": "Seilbindungen"
         }
+    },
+    "feedback": {
+        "title": "Feedback",
+        "placeholder": "Nachricht schreiben...",
+        "send": "Senden",
+        "empty": "Noch keine Nachrichten. Schreib uns!",
+        "adminLabel": "Admin",
+        "noThreads": "Noch kein Feedback erhalten.",
+        "selectThread": "Benutzer auswaehlen, um sein Feedback zu lesen.",
+        "replyPlaceholder": "Dem Benutzer antworten...",
+        "confirmDelete": "Diese Nachricht löschen?"
     }
 }

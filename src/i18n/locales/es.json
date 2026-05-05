@@ -68,7 +68,8 @@
             "bestiary": "Bestiario",
             "races": "Razas",
             "classes": "Clases",
-            "languages": "Idiomas"
+            "languages": "Idiomas",
+            "feedback": "Feedback"
         },
         "races": {
             "title": "Catálogo de Razas",
@@ -203,5 +204,16 @@
             "userope_climb": "con cuerdas",
             "userope_escapartist": "ataduras con cuerda"
         }
+    },
+    "feedback": {
+        "title": "Feedback",
+        "placeholder": "Escribe un mensaje...",
+        "send": "Enviar",
+        "empty": "Sin mensajes aun. Escribenos!",
+        "adminLabel": "Admin",
+        "noThreads": "No se ha recibido ningun feedback.",
+        "selectThread": "Selecciona un usuario para leer su feedback.",
+        "replyPlaceholder": "Responder al usuario...",
+        "confirmDelete": "¿Eliminar este mensaje?"
     }
 }

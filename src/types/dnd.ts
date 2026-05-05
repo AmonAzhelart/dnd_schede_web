@@ -522,7 +522,7 @@ export interface Spell {
   components?: string;
   // ── Combat / damage details (D&D 3.5) ──
   /** How the spell delivers its effect, used to drive the attack roll segment. */
-  attackMode?: 'none' | 'rangedTouch' | 'meleeTouch' | 'ray' | 'normal';
+  attackMode?: 'none' | 'rangedTouch' | 'meleeTouch' | 'ray' | 'normal' | 'save';
   /** Fixed base dice expression (e.g. `'2d6'`, `'1d4+1'`). Always added to the
    *  final roll regardless of caster level or upcast. */
   baseDice?: string;

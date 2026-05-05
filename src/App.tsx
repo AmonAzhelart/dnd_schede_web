@@ -11,14 +11,15 @@ import { getUserCharacters, createCharacterWithDataDb, saveCharacterToDb, delete
 import type { CharacterBase } from './types/dnd';
 import { CharacterWizard } from './components/wizard/CharacterWizard';
 import { GiSwordman, GiTreasureMap } from 'react-icons/gi';
-import { FaBookOpen, FaGoogle, FaSignOutAlt, FaPlus, FaChevronLeft, FaCog, FaTrash } from 'react-icons/fa';
+import { FaBookOpen, FaGoogle, FaSignOutAlt, FaPlus, FaChevronLeft, FaCog, FaTrash, FaCommentDots } from 'react-icons/fa';
 import { isEmailAllowed, isSuperAdmin, getInvite } from './services/admin';
 import { BackOffice, type Section } from './components/backoffice/BackOffice';
 import { MobileShell } from './components/mobile/MobileShell';
 import { LanguageSwitcher } from './components/ui/LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
+import { FeedbackChat } from './components/FeedbackChat';
 
-type Tab = 'scheda' | 'diario' | 'mappe' | 'backoffice';
+type Tab = 'scheda' | 'diario' | 'mappe' | 'feedback' | 'backoffice';
 
 function App() {
   const { t } = useTranslation();
@@ -339,6 +340,7 @@ function App() {
     { id: 'scheda', label: 'Scheda', icon: <GiSwordman size={18} /> },
     { id: 'diario', label: 'Diario & NPC', icon: <FaBookOpen size={16} /> },
     { id: 'mappe', label: 'Mappe', icon: <GiTreasureMap size={18} /> },
+    ...(!superAdmin ? [{ id: 'feedback' as Tab, label: 'Feedback', icon: <FaCommentDots size={15} /> }] : []),
     ...(hasBackofficeAccess ? [{ id: 'backoffice' as Tab, label: 'Back-Office', icon: <FaCog size={16} /> }] : []),
   ];
 
@@ -407,6 +409,13 @@ function App() {
         )}
         {activeTab === 'backoffice' && hasBackofficeAccess && (
           <BackOffice currentUserEmail={user.email ?? ''} allowedSections={userSections} onBack={() => setActiveTab('scheda')} />
+        )}
+        {activeTab === 'feedback' && !superAdmin && user && (
+          <FeedbackChat
+            userId={user.uid}
+            userEmail={user.email ?? ''}
+            userDisplayName={user.displayName ?? user.email ?? ''}
+          />
         )}
       </main>
 

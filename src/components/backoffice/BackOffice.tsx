@@ -5,7 +5,7 @@ import {
     FaScroll, FaStar, FaImage, FaEnvelope, FaCheck, FaBolt,
     FaFolder, FaFolderPlus, FaArrowLeft, FaUpload, FaDragon, FaEdit,
     FaUsers, FaShieldAlt, FaLanguage, FaSeedling, FaChevronLeft,
-    FaLock, FaUnlock,
+    FaLock, FaUnlock, FaCommentDots,
 } from 'react-icons/fa';
 import {
     SUPERADMIN_EMAIL, isSuperAdmin,
@@ -26,9 +26,11 @@ import { getSrdSynergiesInvolvingSkill } from '../../data/skillSynergies';
 import { LocalizedFieldEditor } from './LocalizedFieldEditor';
 import { pickLocalized } from '../../i18n';
 import type { LocalizedField } from '../../services/admin';
+import { FeedbackPanel } from './FeedbackPanel';
+import { DndIcon, getDndIconSvg } from '../DndIcon';
 import './BackOffice.css';
 
-export type Section = 'invites' | 'spells' | 'skills' | 'feats' | 'icons' | 'bestiary' | 'races' | 'classes' | 'languages';
+export type Section = 'invites' | 'spells' | 'skills' | 'feats' | 'icons' | 'bestiary' | 'races' | 'classes' | 'languages' | 'feedback';
 
 /** All sections that can be assigned to an invited user. SuperAdmin sees invites too. */
 export const ALL_SECTIONS: { id: Section; labelKey: string; icon: React.ReactNode; superAdminOnly?: boolean }[] = [
@@ -41,6 +43,7 @@ export const ALL_SECTIONS: { id: Section; labelKey: string; icon: React.ReactNod
     { id: 'feats', labelKey: 'backoffice.tabs.feats', icon: <FaBolt /> },
     { id: 'icons', labelKey: 'backoffice.tabs.icons', icon: <FaImage /> },
     { id: 'bestiary', labelKey: 'backoffice.tabs.bestiary', icon: <FaDragon /> },
+    { id: 'feedback', labelKey: 'backoffice.tabs.feedback', icon: <FaCommentDots />, superAdminOnly: true },
 ];
 
 interface Props {
@@ -175,6 +178,7 @@ export function BackOffice({ currentUserEmail, allowedSections, onBack }: Props)
                     {section === 'feats' && <FeatsPanel currentUserEmail={currentUserEmail} />}
                     {section === 'icons' && <IconsPanel currentUserEmail={currentUserEmail} />}
                     {section === 'bestiary' && <BestiaryPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'feedback' && <FeedbackPanel />}
                 </div>
             </div>
         </div>
@@ -380,8 +384,43 @@ function InvitesPanel({ currentUserEmail }: { currentUserEmail: string }) {
 
 /* ────────────────────────────── SPELLS ────────────────────────────── */
 
+const SPELL_SCHOOLS = [
+    'Abiurazione', 'Ammaliamento', 'Divinazione', 'Evocazione',
+    'Illusione', 'Invocazione', 'Necromanzia', 'Trasmutazione',
+] as const;
+
+const SP_SCHOOL_COLOR: Record<string, string> = {
+    'Evocazione':    'var(--accent-crimson)',
+    'Invocazione':   'var(--accent-gold)',
+    'Abiurazione':   'var(--accent-ice)',
+    'Ammaliamento':  'var(--accent-arcane)',
+    'Divinazione':   'var(--accent-success)',
+    'Illusione':     '#a29bfe',
+    'Necromanzia':   '#636e72',
+    'Trasmutazione': '#fdcb6e',
+};
+
+const SP_SCHOOL_SLUG: Record<string, string> = {
+    'Abiurazione':   'abjuration',
+    'Ammaliamento':  'enchantment',
+    'Divinazione':   'divination',
+    'Evocazione':    'conjuration',
+    'Illusione':     'illusion',
+    'Invocazione':   'evocation',
+    'Necromanzia':   'necromancy',
+    'Trasmutazione': 'transmutation',
+};
+
+function SpellSchoolIcon({ school, color, size = 14 }: { school: string; color: string; size?: number }) {
+    const slug = SP_SCHOOL_SLUG[school];
+    if (slug && getDndIconSvg('spell', slug)) {
+        return <DndIcon category="spell" name={slug} size={size} style={{ color, flexShrink: 0 }} />;
+    }
+    return null;
+}
+
 const EMPTY_SPELL = (): CatalogSpell => ({
-    id: uuid(), name: '', level: 0, school: '', description: '',
+    id: uuid(), name: '', level: 0, school: 'Invocazione', description: '',
     castingTime: '', range: '', duration: '', savingThrow: '', components: '',
     attackMode: 'none', baseDice: '', damageType: '', saveStat: 'int',
     upcastDice: '', upcastEveryLevels: 1, upcastMaxSteps: undefined,
@@ -392,6 +431,8 @@ function SpellsPanel({ currentUserEmail }: { currentUserEmail: string }) {
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState<CatalogSpell | null>(null);
     const [search, setSearch] = useState('');
+    const [activeSchool, setActiveSchool] = useState<string>('all');
+    const [activeLevel, setActiveLevel] = useState<number | 'all'>('all');
 
     const refresh = async () => {
         setLoading(true);
@@ -400,11 +441,33 @@ function SpellsPanel({ currentUserEmail }: { currentUserEmail: string }) {
     };
     useEffect(() => { refresh(); }, []);
 
+    // Schools present in the catalog, in canonical order
+    const presentSchools = useMemo(() =>
+        SPELL_SCHOOLS.filter(s => items.some(i => i.school === s)),
+    [items]);
+
+    // Levels present in the active school
+    const levelsInSchool = useMemo(() => {
+        const source = activeSchool === 'all' ? items : items.filter(i => i.school === activeSchool);
+        return [...new Set(source.map(i => i.level))].sort((a, b) => a - b);
+    }, [items, activeSchool]);
+
+    // Switch school → reset level tab
+    const handleSchoolTab = (school: string) => {
+        setActiveSchool(school);
+        setActiveLevel('all');
+        setSearch('');
+    };
+
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase();
-        if (!q) return items;
-        return items.filter(i => i.name.toLowerCase().includes(q) || (i.school || '').toLowerCase().includes(q));
-    }, [items, search]);
+        return items.filter(i => {
+            const matchSchool = activeSchool === 'all' || i.school === activeSchool;
+            const matchLevel = activeLevel === 'all' || i.level === activeLevel;
+            const matchSearch = !q || i.name.toLowerCase().includes(q);
+            return matchSchool && matchLevel && matchSearch;
+        }).sort((a, b) => a.name.localeCompare(b.name));
+    }, [items, activeSchool, activeLevel, search]);
 
     const save = async () => {
         if (!editing || !editing.name.trim()) return;
@@ -419,26 +482,52 @@ function SpellsPanel({ currentUserEmail }: { currentUserEmail: string }) {
         await refresh();
     };
 
+    /* ── EDIT VIEW ── */
     if (editing) {
+        const schoolColor = SP_SCHOOL_COLOR[editing.school] ?? 'var(--accent-gold)';
         return (
             <div className="glass-panel flex-col gap-3">
                 <div className="section-header">
-                    <span className="section-title">{items.find(i => i.id === editing.id) ? 'Modifica' : 'Nuova'} Magia</span>
+                    <div className="flex items-center gap-2">
+                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: schoolColor, display: 'inline-block', flexShrink: 0 }} />
+                        <span className="section-title">{items.find(i => i.id === editing.id) ? 'Modifica' : 'Nuova'} Magia</span>
+                    </div>
                     <div className="flex gap-2">
                         <button className="btn-secondary text-sm" onClick={() => setEditing(null)}><FaTimes /> Annulla</button>
                         <button className="btn-primary text-sm" onClick={save}><FaSave /> Salva</button>
                     </div>
                 </div>
-                <div className="grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))', gap: 'var(--space-2)' }}>
-                    <Field label="Nome"><input className="input w-full" value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} /></Field>
-                    <Field label="Scuola"><input className="input w-full" value={editing.school} onChange={e => setEditing({ ...editing, school: e.target.value })} /></Field>
-                    <Field label="Livello"><input className="input w-full" type="number" min={0} max={9} value={editing.level} onChange={e => setEditing({ ...editing, level: Number(e.target.value) })} /></Field>
+
+                {/* Identity */}
+                <div className="grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px,1fr))', gap: 'var(--space-2)' }}>
+                    <Field label="Nome">
+                        <input className="input w-full" value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} />
+                    </Field>
+                    <Field label="Scuola">
+                        <select className="input w-full" value={editing.school}
+                            style={{ borderColor: SP_SCHOOL_COLOR[editing.school] ?? undefined }}
+                            onChange={e => setEditing({ ...editing, school: e.target.value })}>
+                            {SPELL_SCHOOLS.map(s => (
+                                <option key={s} value={s}>{s}</option>
+                            ))}
+                        </select>
+                    </Field>
+                    <Field label="Livello">
+                        <select className="input w-full" value={editing.level}
+                            onChange={e => setEditing({ ...editing, level: Number(e.target.value) })}>
+                            <option value={0}>0 — Trucchetto</option>
+                            {[1,2,3,4,5,6,7,8,9].map(l => (
+                                <option key={l} value={l}>{l}° livello</option>
+                            ))}
+                        </select>
+                    </Field>
                     <Field label="Tempo Lancio"><input className="input w-full" value={editing.castingTime ?? ''} onChange={e => setEditing({ ...editing, castingTime: e.target.value })} /></Field>
                     <Field label="Gittata"><input className="input w-full" value={editing.range ?? ''} onChange={e => setEditing({ ...editing, range: e.target.value })} /></Field>
                     <Field label="Durata"><input className="input w-full" value={editing.duration ?? ''} onChange={e => setEditing({ ...editing, duration: e.target.value })} /></Field>
                     <Field label="TS"><input className="input w-full" value={editing.savingThrow ?? ''} onChange={e => setEditing({ ...editing, savingThrow: e.target.value })} /></Field>
                     <Field label="Componenti"><input className="input w-full" value={editing.components ?? ''} onChange={e => setEditing({ ...editing, components: e.target.value })} /></Field>
                 </div>
+
                 <Field label="Descrizione">
                     <textarea className="input w-full" rows={6} value={editing.description} onChange={e => setEditing({ ...editing, description: e.target.value })} />
                 </Field>
@@ -486,7 +575,7 @@ function SpellsPanel({ currentUserEmail }: { currentUserEmail: string }) {
                     <Field label="Liv. slot/step">
                         <input className="input w-full" type="number" min={1} value={editing.upcastEveryLevels ?? 1}
                             onChange={e => setEditing({ ...editing, upcastEveryLevels: Math.max(1, Number(e.target.value) || 1) })}
-                            title="Livelli di slot sopra il livello base per +1 step (es. 2 → +1 dado ogni 2 livelli sopra)" />
+                            title="Livelli di slot sopra il livello base per +1 step" />
                     </Field>
                     <Field label="Max step">
                         <input className="input w-full" type="number" min={1} value={editing.upcastMaxSteps ?? ''}
@@ -502,30 +591,179 @@ function SpellsPanel({ currentUserEmail }: { currentUserEmail: string }) {
         );
     }
 
+    /* ── LIST VIEW ── */
+    const activeColor = activeSchool === 'all' ? 'var(--accent-gold)' : (SP_SCHOOL_COLOR[activeSchool] ?? 'var(--accent-gold)');
+
     return (
-        <div className="flex-col gap-3">
-            <div className="flex gap-2 items-center" style={{ flexWrap: 'wrap' }}>
-                <div className="flex items-center gap-2" style={{ flex: '1 1 240px', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', padding: '0.4rem 0.75rem' }}>
-                    <FaSearch className="text-muted" />
-                    <input className="w-full" style={{ background: 'transparent', border: 'none', color: 'inherit', outline: 'none' }} placeholder="Cerca magia…" value={search} onChange={e => setSearch(e.target.value)} />
-                </div>
-                <button className="btn-primary text-sm" onClick={() => setEditing(EMPTY_SPELL())}><FaPlus /> Nuova Magia</button>
+        <div className="flex-col gap-0" style={{ height: '100%' }}>
+
+            {/* ── School tab rail ── */}
+            <div style={{
+                display: 'flex', flexWrap: 'wrap', gap: 4,
+                padding: '0 0 12px 0',
+                borderBottom: '1px solid rgba(255,255,255,0.07)',
+            }}>
+                {/* "Tutti" tab */}
+                <button
+                    onClick={() => handleSchoolTab('all')}
+                    style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        padding: '7px 14px', borderRadius: 10, cursor: 'pointer',
+                        border: `1px solid ${activeSchool === 'all' ? 'var(--accent-gold)' : 'rgba(255,255,255,0.1)'}`,
+                        background: activeSchool === 'all' ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.03)',
+                        color: activeSchool === 'all' ? 'var(--accent-gold)' : 'var(--text-secondary)',
+                        fontWeight: activeSchool === 'all' ? 700 : 400,
+                        fontSize: '0.8rem', transition: 'all 0.15s',
+                    }}>
+                    ✦
+                    <span>Tutti</span>
+                    <span style={{
+                        fontSize: '0.68rem', fontWeight: 700,
+                        background: activeSchool === 'all' ? 'rgba(201,168,76,0.25)' : 'rgba(255,255,255,0.08)',
+                        padding: '1px 6px', borderRadius: 20,
+                    }}>{items.length}</span>
+                </button>
+
+                {/* One tab per school */}
+                {presentSchools.map(school => {
+                    const color = SP_SCHOOL_COLOR[school] ?? 'var(--accent-gold)';
+                    const isActive = activeSchool === school;
+                    const count = items.filter(i => i.school === school).length;
+                    return (
+                        <button key={school}
+                            onClick={() => handleSchoolTab(school)}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: 6,
+                                padding: '7px 14px', borderRadius: 10, cursor: 'pointer',
+                                border: `1px solid ${isActive ? color : 'rgba(255,255,255,0.1)'}`,
+                                background: isActive ? `${color}20` : 'rgba(255,255,255,0.03)',
+                                color: isActive ? color : 'var(--text-secondary)',
+                                fontWeight: isActive ? 700 : 400,
+                                fontSize: '0.8rem', transition: 'all 0.15s',
+                            }}>
+                            <SpellSchoolIcon school={school} color={isActive ? color : 'var(--text-secondary)'} size={13} />
+                            <span>{school}</span>
+                            <span style={{
+                                fontSize: '0.68rem', fontWeight: 700,
+                                background: isActive ? `${color}28` : 'rgba(255,255,255,0.08)',
+                                padding: '1px 6px', borderRadius: 20,
+                            }}>{count}</span>
+                        </button>
+                    );
+                })}
             </div>
-            <div className="glass-panel">
-                {loading && <div className="text-muted text-sm">Caricamento…</div>}
-                {!loading && filtered.length === 0 && <div className="text-muted text-sm">Nessuna magia nel catalogo.</div>}
-                <div className="flex-col gap-1">
-                    {filtered.map(s => (
-                        <div key={s.id} className="flex items-center gap-2" style={{ padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)' }}>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontFamily: 'var(--font-heading)' }}>{s.name} <span className="text-xs text-muted">— Liv. {s.level} {s.school}</span></div>
-                                {s.description && <div className="text-xs text-muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.description}</div>}
-                            </div>
-                            <button className="btn-ghost text-xs" onClick={() => setEditing(s)}>Modifica</button>
-                            <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => remove(s.id)}><FaTrash /></button>
-                        </div>
-                    ))}
+
+            {/* ── Level sub-tabs (only when a school is selected) ── */}
+            {activeSchool !== 'all' && levelsInSchool.length > 0 && (
+                <div style={{
+                    display: 'flex', flexWrap: 'wrap', gap: 4,
+                    padding: '10px 0 10px 0',
+                    borderBottom: `1px solid ${activeColor}20`,
+                }}>
+                    <button
+                        onClick={() => setActiveLevel('all')}
+                        style={{
+                            padding: '4px 12px', borderRadius: 20, fontSize: '0.75rem', cursor: 'pointer',
+                            border: `1px solid ${activeLevel === 'all' ? activeColor : 'rgba(255,255,255,0.1)'}`,
+                            background: activeLevel === 'all' ? `${activeColor}20` : 'transparent',
+                            color: activeLevel === 'all' ? activeColor : 'var(--text-secondary)',
+                            fontWeight: activeLevel === 'all' ? 700 : 400,
+                            transition: 'all 0.15s',
+                        }}>
+                        Tutti i livelli
+                    </button>
+                    {levelsInSchool.map(level => {
+                        const isActive = activeLevel === level;
+                        const count = items.filter(i => i.school === activeSchool && i.level === level).length;
+                        return (
+                            <button key={level}
+                                onClick={() => setActiveLevel(isActive ? 'all' : level)}
+                                style={{
+                                    padding: '4px 12px', borderRadius: 20, fontSize: '0.75rem', cursor: 'pointer',
+                                    border: `1px solid ${isActive ? activeColor : 'rgba(255,255,255,0.1)'}`,
+                                    background: isActive ? `${activeColor}20` : 'transparent',
+                                    color: isActive ? activeColor : 'var(--text-secondary)',
+                                    fontWeight: isActive ? 700 : 400,
+                                    transition: 'all 0.15s',
+                                    display: 'flex', alignItems: 'center', gap: 5,
+                                }}>
+                                {level === 0 ? 'Trucchetto' : `Lv ${level}`}
+                                <span style={{
+                                    fontSize: '0.65rem',
+                                    background: isActive ? `${activeColor}28` : 'rgba(255,255,255,0.08)',
+                                    padding: '0 5px', borderRadius: 20, fontWeight: 700,
+                                }}>{count}</span>
+                            </button>
+                        );
+                    })}
                 </div>
+            )}
+
+            {/* ── Toolbar ── */}
+            <div className="flex gap-2 items-center" style={{ flexWrap: 'wrap', padding: '12px 0 8px 0' }}>
+                <div className="flex items-center gap-2" style={{ flex: '1 1 200px', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', padding: '0.4rem 0.75rem' }}>
+                    <FaSearch className="text-muted" style={{ flexShrink: 0 }} />
+                    <input className="w-full" style={{ background: 'transparent', border: 'none', color: 'inherit', outline: 'none' }}
+                        placeholder="Cerca magia…" value={search} onChange={e => setSearch(e.target.value)} />
+                </div>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    {filtered.length} / {items.length}
+                </span>
+                <button className="btn-primary text-sm" style={{ marginLeft: 'auto' }} onClick={() => setEditing(EMPTY_SPELL())}><FaPlus /> Nuova Magia</button>
+            </div>
+
+            {/* ── Spell list ── */}
+            {loading && <div className="text-muted text-sm">Caricamento…</div>}
+            {!loading && filtered.length === 0 && <div className="text-muted text-sm">Nessuna magia trovata.</div>}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto' }}>
+                {filtered.map(s => {
+                    const color = SP_SCHOOL_COLOR[s.school] ?? 'var(--accent-gold)';
+                    return (
+                        <div key={s.id} style={{
+                            display: 'flex', alignItems: 'center', gap: 10,
+                            padding: '9px 12px', borderRadius: 10,
+                            background: 'rgba(255,255,255,0.03)',
+                            border: `1px solid ${color}20`,
+                            transition: 'background 0.12s',
+                        }}>
+                            <SpellSchoolIcon school={s.school} color={color} size={15} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 7 }}>
+                                    {s.name}
+                                    <span style={{
+                                        fontSize: '0.65rem', color, background: `${color}18`,
+                                        border: `1px solid ${color}30`,
+                                        padding: '1px 7px', borderRadius: 20, fontWeight: 600, whiteSpace: 'nowrap',
+                                    }}>
+                                        {s.level === 0 ? 'Trucchetto' : `Lv ${s.level}`}
+                                    </span>
+                                    {activeSchool === 'all' && (
+                                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                                            {s.school}
+                                        </span>
+                                    )}
+                                </div>
+                                {s.description && (
+                                    <div className="text-xs text-muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
+                                        {s.description}
+                                    </div>
+                                )}
+                            </div>
+                            {s.castingTime && (
+                                <span style={{ fontSize: '0.67rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                    ⏱ {s.castingTime}
+                                </span>
+                            )}
+                            <button className="btn-ghost text-xs" style={{ flexShrink: 0 }} onClick={() => setEditing(s)}>
+                                <FaEdit />
+                            </button>
+                            <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)', flexShrink: 0 }} onClick={() => remove(s.id)}>
+                                <FaTrash />
+                            </button>
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );

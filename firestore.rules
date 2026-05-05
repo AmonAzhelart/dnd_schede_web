@@ -66,5 +66,24 @@ service cloud.firestore {
     match /catalog_races/{id}     { allow read: if isAllowed(); allow write: if isSuperAdmin(); }
     match /catalog_classes/{id}   { allow read: if isAllowed(); allow write: if isSuperAdmin(); }
     match /catalog_languages/{id} { allow read: if isAllowed(); allow write: if isSuperAdmin(); }
+
+    // ── Feedback threads: users own their thread; SuperAdmin reads/writes all.
+    match /feedback/{userId} {
+      allow read, write: if isSuperAdmin();
+      allow read, write: if isAllowed() && request.auth.uid == userId;
+    }
+
+    match /feedback/{userId}/messages/{msgId} {
+      allow read, write: if isSuperAdmin();
+      allow read: if isAllowed() && request.auth.uid == userId;
+      // Users can only create messages from themselves
+      allow create: if isAllowed()
+        && request.auth.uid == userId
+        && request.resource.data.from == 'user';
+      // Users can delete only their own messages
+      allow delete: if isAllowed()
+        && request.auth.uid == userId
+        && resource.data.from == 'user';
+    }
   }
 }

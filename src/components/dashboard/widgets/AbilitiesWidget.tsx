@@ -15,9 +15,7 @@ const TABS: {
     color: string;
 }[] = [
         { key: 'active', label: 'Attive', short: 'Att.', icon: <GiSpinningSword />, color: 'var(--accent-warning, #f39c12)' },
-        { key: 'passive', label: 'Passive', short: 'Pas.', icon: <GiShield />, color: 'var(--accent-success, #27ae60)' },
-        { key: 'feats', label: 'Talenti', short: 'Tal.', icon: <GiAbstract024 />, color: 'var(--accent-arcane, #9b59b6)' },
-        { key: 'option', label: 'Opzioni', short: 'Opz.', icon: <GiCogLock />, color: 'var(--accent-gold, #c9a84c)' },
+        { key: 'passive', label: 'Passive', short: 'Pas.', icon: <GiShield />, color: 'var(--accent-success, #27ae60)' }
     ];
 
 const colsFor = (size: WidgetSize, widthPerCol = 220, max = 3) =>
@@ -41,7 +39,6 @@ export const AbilitiesWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => 
     const counts: Record<SubTab, number> = {
         active: cf.filter(f => f.subcategory === 'active').length,
         passive: cf.filter(f => f.subcategory === 'passive').length,
-        option: cf.filter(f => f.subcategory === 'option').length,
         feats: feats.length,
     };
 

@@ -1,14 +1,14 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useCharacterStore } from '../store/characterStore';
 import { v4 as uuidv4 } from 'uuid';
-import { FaPlus, FaTrash, FaEdit, FaCheck, FaMoon, FaBookOpen, FaCalendarDay, FaMinus, FaSearch, FaClock, FaArrowsAltH, FaHourglass, FaShieldAlt, FaFeather, FaBolt, FaEye, FaEyeSlash, FaDragon, FaTimes, FaLayerGroup, FaGraduationCap } from 'react-icons/fa';
-import { GiSpellBook, GiCrystalBall, GiBookmarklet, GiMagicGate } from 'react-icons/gi';
+import { FaPlus, FaTrash, FaEdit, FaCheck, FaMoon, FaBookOpen, FaCalendarDay, FaMinus, FaSearch, FaClock, FaArrowsAltH, FaHourglass, FaShieldAlt, FaFeather, FaBolt, FaDragon, FaTimes, FaGraduationCap } from 'react-icons/fa';
+import { GiSpellBook, GiCrystalBall, GiBookmarklet } from 'react-icons/gi';
 import type { Spell } from '../types/dnd';
 import { spellCatalog, creatureCatalog, type CatalogSpell, type CatalogCreature } from '../services/admin';
 import { useIconCatalog } from '../services/iconCache';
-import { CatalogPicker } from './CatalogPicker';
+
 import { DndIcon, getDndIconSvg } from './DndIcon';
 import { useMediaQuery } from './mobile/MobileShell';
 import { BottomDrawer } from './ui/BottomDrawer';
@@ -27,7 +27,6 @@ const SCHOOL_ICON_SLUG: Record<string, string> = {
 import './Spellbook.css';
 
 type SpellTab = 'grimoire' | 'daily';
-type GrimGroupBy = 'level' | 'school';
 
 const SCHOOLS = ['Abiurazione', 'Ammaliamento', 'Divinazione', 'Evocazione', 'Illusione', 'Invocazione', 'Necromanzia', 'Trasmutazione'];
 
@@ -93,6 +92,7 @@ interface SpellRowProps {
   onSelect: (id: string) => void;
   /** id → name for all known creatures (personal bestiary + catalog) */
   creatureNameMap: Record<string, string>;
+  requestDel: (id: string) => void;
 }
 
 // ── Sub-components at module level (prevents remount on parent re-render) ─────
@@ -160,8 +160,8 @@ const SpellEditForm: React.FC<SpellEditFormProps> = ({ form, setForm, saveSpell,
   const toggleCreature = (id: string) =>
     setForm(f => ({ ...f, summonableCreatureIds: (f.summonableCreatureIds ?? []).includes(id) ? (f.summonableCreatureIds ?? []).filter(i => i !== id) : [...(f.summonableCreatureIds ?? []), id] }));
 
-  const schoolColor = SCHOOL_COLOR[form.school] ?? 'var(--accent-gold)';
-  const schoolIcon = SCHOOL_ICON[form.school] ?? '✦';
+  const _schoolColor = SCHOOL_COLOR[form.school] ?? 'var(--accent-gold)'; void _schoolColor;
+  const _schoolIcon = SCHOOL_ICON[form.school] ?? '✦'; void _schoolIcon;
 
   return (
     <div className="sb-edit-form">
@@ -370,64 +370,6 @@ const SpellEditForm: React.FC<SpellEditFormProps> = ({ form, setForm, saveSpell,
           disabled={!form.name.trim()}>
           <FaCheck size={10} /> {editingId ? 'Salva Modifiche' : 'Aggiungi al Grimorio'}
         </button>
-      </div>
-    </div>
-  );
-};
-
-// ── Bookmark tab ─────────────────────────────────────────────────────────────
-const BookmarkTab: React.FC<{
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  count: number;
-  icon?: React.ReactNode;
-  color?: string;
-}> = ({ active, onClick, label, count, icon, color }) => (
-  <button onClick={onClick} className={`sb-bookmark${active ? ' active' : ''}`}
-    style={active && color ? { borderColor: `${color}55`, color, background: `linear-gradient(180deg, ${color}22, ${color}08)`, borderBottomColor: 'var(--bg-base,#0d0d0f)' } : {}}>
-    {icon}
-    {label}
-    <span className="sb-bookmark-count">{count}</span>
-  </button>
-);
-
-// ── School section header ─────────────────────────────────────────────────────
-const SchoolSectionHeader: React.FC<{
-  school: string;
-  count: number;
-  color: string;
-}> = ({ school, count, color }) => {
-  const { t } = useTranslation();
-  const { resolveSchoolSvg, sanitizeSvg } = useIconCatalog();
-  const schoolSvg = resolveSchoolSvg(school);
-  const schoolName = t(`spellbook.schools.${school}`, school);
-  const schoolDesc = t(`spellbook.schoolDesc.${school}`, '');
-
-  const iconNode = schoolSvg ? (
-    <span
-      className="sb-school-hdr-svg inv-svg-tinted"
-      style={{ color }}
-      dangerouslySetInnerHTML={{ __html: sanitizeSvg(schoolSvg) }}
-    />
-  ) : SCHOOL_ICON_SLUG[school] && getDndIconSvg('spell', SCHOOL_ICON_SLUG[school]) ? (
-    <DndIcon category="spell" name={SCHOOL_ICON_SLUG[school]} size={32} style={{ color }} />
-  ) : (
-    <span style={{ fontSize: '1.6rem' }}>{SCHOOL_ICON[school] ?? '✦'}</span>
-  );
-
-  return (
-    <div className="sb-school-hdr" style={{ '--sc': color, borderColor: `${color}28` } as React.CSSProperties}>
-      <div className="sb-school-hdr-icon-wrap" style={{ background: `${color}18`, border: `1px solid ${color}40`, boxShadow: `0 0 18px ${color}25` }}>
-        {iconNode}
-      </div>
-      <div className="sb-school-hdr-info">
-        <div className="sb-school-hdr-name" style={{ color }}>{schoolName}</div>
-        {schoolDesc && <div className="sb-school-hdr-desc">{schoolDesc}</div>}
-      </div>
-      <div className="sb-school-hdr-right">
-        <div className="sb-school-hdr-count" style={{ color }}>{count}</div>
-        <div className="sb-school-hdr-count-label">{t('spellbook.spellCount_other', { count, defaultValue: 'incant.' })}</div>
       </div>
     </div>
   );
@@ -691,15 +633,14 @@ const KanbanCard: React.FC<{
 };
 
 // ── Spell card ─────────────────────────────────────────────────────────────────
-const SpellCard: React.FC<SpellRowProps> = ({ spell, editingId, prepCountFor, slots, prepareWizardSpell, unprepareSpellOne, startEdit, deleteSpell, formProps, isMobile, creatureNameMap, selectedSpellId, onSelect }) => {
+const SpellCard: React.FC<SpellRowProps> = ({ spell, prepCountFor, slots, prepareWizardSpell, unprepareSpellOne, startEdit, creatureNameMap, selectedSpellId, onSelect, requestDel }) => {
   const { t } = useTranslation();
   const prepCount = prepCountFor(spell.id);
-  const isEdit = editingId === spell.id;
   const isSelected = selectedSpellId === spell.id;
-  const color = SCHOOL_COLOR[spell.school] ?? 'var(--text-muted)'; const { resolveSchoolSvg, sanitizeSvg } = useIconCatalog();
-  const schoolSvg = resolveSchoolSvg(spell.school); const [descExpanded, setDescExpanded] = useState(false);
-  const MAX_DESC = 120;
-  const needsTruncation = (spell.description?.length ?? 0) > MAX_DESC;
+  const color = SCHOOL_COLOR[spell.school] ?? 'var(--text-muted)';
+  const { resolveSchoolSvg, sanitizeSvg } = useIconCatalog();
+  const schoolSvg = resolveSchoolSvg(spell.school);
+  const MAX_DESC = 100;
   const slot = slots[String(spell.level)];
   const slotsLeft = slot ? slot.total - slot.used : 0;
   const canPrepare = spell.level === 0 || slotsLeft > 0 || prepCount < (slot?.total ?? 0);
@@ -715,52 +656,55 @@ const SpellCard: React.FC<SpellRowProps> = ({ spell, editingId, prepCountFor, sl
     [<FaFeather size={9} />, spell.components, 'Comp.'],
   ];
   const visibleStats = stats.filter(([, v]) => v && v.trim());
+  const schoolClass = spell.school ? `sb-card--${spell.school.toLowerCase()}` : '';
 
   return (
     <div
-      className={`sb-card${isSelected ? ' selected' : ''}`}
+      className={`sb-card ${schoolClass}${isSelected ? ' selected' : ''}`}
       onClick={() => onSelect(spell.id)}
       style={{
         '--c': color,
         cursor: 'pointer',
-        borderColor: isSelected ? `${color}70` : `rgba(180,140,60,0.22)`,
-        background: `linear-gradient(160deg, ${color}16 0%, transparent 48%), linear-gradient(180deg, #1e1a12 0%, #141009 100%)`,
+        borderColor: isSelected ? `${color}70` : undefined,
+        borderLeftColor: color,
+        borderLeftWidth: '3px',
         boxShadow: isSelected
-          ? `0 0 0 2px ${color}50, 0 4px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(201,168,76,0.10)`
+          ? `0 0 0 2px ${color}40, 0 4px 18px rgba(0,0,0,0.55), inset 0 1px 0 rgba(201,168,76,0.10)`
           : `0 2px 12px rgba(0,0,0,0.55), inset 0 1px 0 rgba(201,168,76,0.05)`,
       } as React.CSSProperties}
       onMouseEnter={e => {
         const el = e.currentTarget as HTMLDivElement;
         el.style.boxShadow = `0 6px 22px rgba(0,0,0,0.5), 0 0 14px ${color}28, inset 0 1px 0 rgba(201,168,76,0.10)`;
-        el.style.borderColor = isSelected ? `${color}80` : `${color}55`;
+        el.style.borderColor = isSelected ? `${color}80` : `${color}50`;
+        el.style.borderLeftColor = color;
       }}
       onMouseLeave={e => {
         const el = e.currentTarget as HTMLDivElement;
         el.style.boxShadow = isSelected
-          ? `0 0 0 2px ${color}50, 0 4px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(201,168,76,0.10)`
+          ? `0 0 0 2px ${color}40, 0 4px 18px rgba(0,0,0,0.55), inset 0 1px 0 rgba(201,168,76,0.10)`
           : `0 2px 12px rgba(0,0,0,0.55), inset 0 1px 0 rgba(201,168,76,0.05)`;
-        el.style.borderColor = isSelected ? `${color}70` : `rgba(180,140,60,0.22)`;
+        el.style.borderColor = isSelected ? `${color}70` : `rgba(180,140,60,0.18)`;
+        el.style.borderLeftColor = color;
       }}
     >
-
       {/* Top accent bar */}
-      <div className="sb-card-accent" style={{ background: `linear-gradient(90deg, ${color}, ${color}44, transparent)` }} />
+      <div className="sb-card-accent" style={{ background: `linear-gradient(90deg, ${color}cc, ${color}44, transparent)` }} />
 
       {/* Edit / delete buttons */}
       <div className="sb-card-btns">
         <button className="sb-icon-btn edit" onClick={e => { e.stopPropagation(); startEdit(spell); }} title="Modifica"><FaEdit size={10} /></button>
-        <button className="sb-icon-btn del" onClick={e => { e.stopPropagation(); deleteSpell(spell.id); }} title="Elimina"><FaTrash size={10} /></button>
+        <button className="sb-icon-btn del" onClick={e => { e.stopPropagation(); requestDel(spell.id); }} title="Elimina"><FaTrash size={10} /></button>
       </div>
 
       {/* Header */}
-      <div className="sb-card-header" style={{ background: `linear-gradient(180deg, ${color}12, transparent)`, borderBottomColor: `rgba(180,140,60,0.12)` }}>
+      <div className="sb-card-header" style={{ background: `linear-gradient(180deg, ${color}18, ${color}06)`, borderBottomColor: `${color}25` }}>
         <div className="sb-card-level" style={{ background: `linear-gradient(135deg, ${color}, ${color}77)`, boxShadow: `0 2px 6px ${color}44`, fontSize: spell.level === 0 ? undefined : '1rem' }}
           {...(spell.level === 0 ? { className: 'sb-card-level trucchetto' } : {})}>
           {spell.level === 0 ? 'TR' : spell.level}
         </div>
         <div className="sb-card-info">
           <span className="sb-card-name">{spell.name}</span>
-          <span className="sb-card-school" style={{ color }}>
+          <span className="sb-card-school" style={{ color, background: `${color}18`, border: `1px solid ${color}35`, borderRadius: 4, padding: '2px 7px', lineHeight: 1.5 }}>
             {schoolSvg ? (
               <span
                 className="sb-card-school-svg inv-svg-tinted"
@@ -768,12 +712,7 @@ const SpellCard: React.FC<SpellRowProps> = ({ spell, editingId, prepCountFor, sl
                 dangerouslySetInnerHTML={{ __html: sanitizeSvg(schoolSvg) }}
               />
             ) : SCHOOL_ICON_SLUG[spell.school] && getDndIconSvg('spell', SCHOOL_ICON_SLUG[spell.school]) ? (
-              <DndIcon
-                category="spell"
-                name={SCHOOL_ICON_SLUG[spell.school]}
-                size={14}
-                style={{ color }}
-              />
+              <DndIcon category="spell" name={SCHOOL_ICON_SLUG[spell.school]} size={11} style={{ color }} />
             ) : (
               SCHOOL_ICON[spell.school] ?? ''
             )} {t(`spellbook.schools.${spell.school}`, spell.school)}
@@ -781,50 +720,44 @@ const SpellCard: React.FC<SpellRowProps> = ({ spell, editingId, prepCountFor, sl
         </div>
       </div>
 
-      {/* Description */}
-      {spell.description && (
-        <div className="sb-card-desc-wrap">
-          <p className="sb-card-desc">
-            {needsTruncation && !descExpanded ? spell.description.slice(0, MAX_DESC) + '…' : spell.description}
-          </p>
-          {needsTruncation && (
-            <button className="sb-desc-toggle" style={{ color }} onClick={e => { e.stopPropagation(); setDescExpanded(v => !v); }}>
-              {descExpanded ? <><FaEyeSlash size={9} /> Meno</> : <><FaEye size={9} /> Mostra di più</>}
-            </button>
-          )}
-        </div>
-      )}
+      {/* Body — grows to push footer to bottom */}
+      <div className="sb-card-body">
+        {/* Description — truncated, full view in sidebar */}
+        {spell.description && (
+          <div className="sb-card-desc-wrap">
+            <p className="sb-card-desc">
+              {spell.description.length > MAX_DESC ? spell.description.slice(0, MAX_DESC) + '…' : spell.description}
+            </p>
+          </div>
+        )}
 
-      {/* Stats */}
-      {visibleStats.length > 0 && (
-        <div className="sb-card-stats">
-          {visibleStats.map(([icon, val, label]) => (
-            <div key={label} className="sb-stat">
-              <span className="sb-stat-icon">{icon}</span>
-              <span className="sb-stat-label">{label}</span>
-              <span className="sb-stat-value">{val}</span>
-            </div>
-          ))}
-        </div>
-      )}
+        {/* Stats */}
+        {visibleStats.length > 0 && (
+          <div className="sb-card-stats">
+            {visibleStats.map(([icon, val, label]) => (
+              <div key={label} className="sb-stat" style={{ borderColor: `${color}28`, background: `${color}08` }}>
+                <span className="sb-stat-icon" style={{ color: `${color}99` }}>{icon}</span>
+                <span className="sb-stat-label">{label}</span>
+                <span className="sb-stat-value">{val}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
-      {/* Footer: prep controls */}
-      {/* Linked creatures */}
-      {linkedNames.length > 0 && (
-        <div style={{ padding: '4px 10px 0', display: 'flex', flexWrap: 'wrap', gap: 4, borderTop: `1px solid rgba(231,76,60,0.15)`, marginTop: 4, paddingTop: 6 }}>
-          {linkedNames.map(name => (
-            <span key={name} style={{
-              display: 'inline-flex', alignItems: 'center', gap: 3,
-              fontSize: '0.65rem', padding: '2px 6px', borderRadius: 12,
-              background: 'rgba(231,76,60,0.12)', border: '1px solid rgba(231,76,60,0.35)',
-              color: 'var(--accent-crimson)',
-            }}>
-              <FaDragon size={7} /> {name}
-            </span>
-          ))}
-        </div>
-      )}
-      <div className="sb-card-footer" style={{ background: `linear-gradient(180deg, transparent, rgba(0,0,0,0.2))`, borderTopColor: `rgba(180,140,60,0.10)` }}>
+        {/* Linked creatures */}
+        {linkedNames.length > 0 && (
+          <div className="sb-card-linked">
+            {linkedNames.map(name => (
+              <span key={name} className="sb-linked-chip">
+                <FaDragon size={7} /> {name}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Footer — always pinned to bottom */}
+      <div className="sb-card-footer" style={{ background: `linear-gradient(180deg, ${color}05, ${color}12)`, borderTopColor: `${color}28` }}>
         <div className={`sb-prep-counter${prepCount > 0 ? ' has-preps' : ''}`}
           style={prepCount > 0 ? { '--c-border': `${color}44`, '--c-bg': `${color}14`, '--c-color': color } as React.CSSProperties : {}}>
           <button className="sb-prep-minus" onClick={e => { e.stopPropagation(); unprepareSpellOne(spell.id); }} disabled={prepCount === 0} title="Rimuovi una preparazione">
@@ -837,14 +770,236 @@ const SpellCard: React.FC<SpellRowProps> = ({ spell, editingId, prepCountFor, sl
           onClick={e => { e.stopPropagation(); if (canPrepare) prepareWizardSpell(spell.level, spell.id); }}
           disabled={!canPrepare}
           title={canPrepare ? 'Prepara una copia di questo incantesimo' : 'Nessuno slot disponibile'}
-          style={canPrepare ? {
-            '--c-btn-bg': `${color}22`,
-            '--c-btn-border': `${color}66`,
-          } as React.CSSProperties : {}}>
+          style={canPrepare ? { '--c-btn-bg': `${color}22`, '--c-btn-border': `${color}70` } as React.CSSProperties : {}}>
           <FaPlus size={10} /> Prepara
         </button>
       </div>
     </div>
+  );
+};
+
+// ── Spell catalog picker modal (school tabs + level sub-tabs) ─────────────────
+const SpellCatalogPicker: React.FC<{
+  items: CatalogSpell[];
+  loading: boolean;
+  onPick: (cs: CatalogSpell) => void;
+  onClose: () => void;
+}> = ({ items, loading, onPick, onClose }) => {
+  const [activeSchool, setActiveSchool] = useState<string>('all');
+  const [activeLevel, setActiveLevel] = useState<number | 'all'>('all');
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const presentSchools = useMemo(() =>
+    SCHOOLS.filter(s => items.some(i => i.school === s)), [items]);
+
+  const levelsInSchool = useMemo(() => {
+    const src = activeSchool === 'all' ? items : items.filter(i => i.school === activeSchool);
+    return [...new Set(src.map(i => i.level))].sort((a, b) => a - b);
+  }, [items, activeSchool]);
+
+  const handleSchoolTab = (school: string) => {
+    setActiveSchool(school);
+    setActiveLevel('all');
+  };
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return items.filter(i => {
+      if (activeSchool !== 'all' && i.school !== activeSchool) return false;
+      if (activeLevel !== 'all' && i.level !== activeLevel) return false;
+      if (q && !i.name.toLowerCase().includes(q) && !(i.description ?? '').toLowerCase().includes(q)) return false;
+      return true;
+    }).sort((a, b) => {
+      if (a.level !== b.level) return a.level - b.level;
+      return a.name.localeCompare(b.name);
+    });
+  }, [items, activeSchool, activeLevel, search]);
+
+  const activeColor = activeSchool === 'all' ? 'rgba(180,140,60,0.7)' : (SCHOOL_COLOR[activeSchool] ?? 'rgba(180,140,60,0.7)');
+
+  return createPortal(
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: 'min(780px, 100%)', maxHeight: '88vh',
+          background: 'linear-gradient(160deg, #1e1a12 0%, #14100a 100%)',
+          border: '1px solid rgba(180,140,60,0.28)',
+          borderRadius: 12, display: 'flex', flexDirection: 'column',
+          boxShadow: '0 24px 60px rgba(0,0,0,0.85)',
+          overflow: 'hidden',
+        }}
+      >
+        {/* ── Header ── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px', borderBottom: '1px solid rgba(180,140,60,0.16)', background: 'rgba(0,0,0,0.25)', flexShrink: 0 }}>
+          <GiBookmarklet size={18} style={{ color: 'var(--accent-gold)', flexShrink: 0 }} />
+          <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', color: '#d4c090', letterSpacing: '0.07em', flex: 1 }}>
+            Catalogo Magie — Importa
+          </span>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#7a6840', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}>
+            <FaTimes size={16} />
+          </button>
+        </div>
+
+        {/* ── School tab rail ── */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '10px 14px', borderBottom: '1px solid rgba(180,140,60,0.1)', flexShrink: 0, background: 'rgba(0,0,0,0.12)' }}>
+          <button
+            onClick={() => handleSchoolTab('all')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '5px 11px', borderRadius: 8, cursor: 'pointer',
+              border: `1px solid ${activeSchool === 'all' ? 'rgba(180,140,60,0.5)' : 'rgba(180,140,60,0.13)'}`,
+              background: activeSchool === 'all' ? 'rgba(180,140,60,0.12)' : 'transparent',
+              color: activeSchool === 'all' ? '#d4c090' : '#5a4e35',
+              fontFamily: 'var(--font-heading)', fontSize: '0.73rem', letterSpacing: '0.04em',
+              transition: 'all 0.15s', fontWeight: activeSchool === 'all' ? 700 : 400,
+            }}>
+            ✦ Tutti
+            <span style={{ fontSize: '0.62rem', padding: '1px 6px', borderRadius: 20, background: activeSchool === 'all' ? 'rgba(180,140,60,0.18)' : 'rgba(255,255,255,0.06)', fontFamily: 'var(--font-body)' }}>{items.length}</span>
+          </button>
+          {presentSchools.map(school => {
+            const color = SCHOOL_COLOR[school] ?? 'var(--accent-gold)';
+            const isActive = activeSchool === school;
+            const count = items.filter(i => i.school === school).length;
+            return (
+              <button key={school} onClick={() => handleSchoolTab(school)} style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '5px 11px', borderRadius: 8, cursor: 'pointer',
+                border: `1px solid ${isActive ? `${color}50` : 'rgba(180,140,60,0.13)'}`,
+                background: isActive ? `${color}16` : 'transparent',
+                color: isActive ? color : '#5a4e35',
+                fontFamily: 'var(--font-heading)', fontSize: '0.73rem', letterSpacing: '0.04em',
+                transition: 'all 0.15s', fontWeight: isActive ? 700 : 400,
+              }}>
+                {SCHOOL_ICON_SLUG[school] && getDndIconSvg('spell', SCHOOL_ICON_SLUG[school])
+                  ? <DndIcon category="spell" name={SCHOOL_ICON_SLUG[school]} size={12} style={{ color: isActive ? color : '#5a4e35', flexShrink: 0 }} />
+                  : <span style={{ fontSize: '0.75rem', lineHeight: 1 }}>{SCHOOL_ICON[school] ?? '✦'}</span>}
+                {school}
+                <span style={{ fontSize: '0.62rem', padding: '1px 5px', borderRadius: 20, background: isActive ? `${color}1e` : 'rgba(255,255,255,0.06)', fontFamily: 'var(--font-body)' }}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── Level sub-tabs ── */}
+        {activeSchool !== 'all' && levelsInSchool.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '7px 14px', borderBottom: `1px solid ${activeColor}1a`, flexShrink: 0 }}>
+            <button
+              onClick={() => setActiveLevel('all')}
+              style={{
+                padding: '3px 10px', borderRadius: 20, fontSize: '0.69rem', cursor: 'pointer',
+                border: `1px solid ${activeLevel === 'all' ? activeColor : 'rgba(180,140,60,0.18)'}`,
+                background: activeLevel === 'all' ? `${activeColor}16` : 'transparent',
+                color: activeLevel === 'all' ? activeColor : '#5a4e35',
+                transition: 'all 0.15s', fontFamily: 'var(--font-heading)',
+              }}>
+              Tutti i livelli
+            </button>
+            {levelsInSchool.map(level => {
+              const isActive = activeLevel === level;
+              const count = items.filter(i => i.school === activeSchool && i.level === level).length;
+              return (
+                <button key={level} onClick={() => setActiveLevel(isActive ? 'all' : level)} style={{
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  padding: '3px 10px', borderRadius: 20, fontSize: '0.69rem', cursor: 'pointer',
+                  border: `1px solid ${isActive ? activeColor : 'rgba(180,140,60,0.18)'}`,
+                  background: isActive ? `${activeColor}16` : 'transparent',
+                  color: isActive ? activeColor : '#5a4e35',
+                  transition: 'all 0.15s', fontFamily: 'var(--font-heading)',
+                }}>
+                  {level === 0 ? 'Trucchetto' : `Lv ${level}`}
+                  <span style={{ fontSize: '0.6rem', padding: '0 4px', borderRadius: 20, background: isActive ? `${activeColor}1e` : 'rgba(255,255,255,0.06)', fontFamily: 'var(--font-body)' }}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Search ── */}
+        <div style={{ padding: '8px 14px 0', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(26,22,15,0.9)', border: '1px solid rgba(180,140,60,0.18)', borderRadius: 6, padding: '7px 12px' }}>
+            <FaSearch size={11} style={{ color: '#5a4e35', flexShrink: 0 }} />
+            <input
+              autoFocus
+              style={{ background: 'transparent', border: 'none', color: '#c8b888', outline: 'none', flex: 1, fontSize: '0.82rem' }}
+              placeholder={activeSchool === 'all' ? 'Cerca per nome o descrizione…' : `Cerca in ${activeSchool}…`}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {search && (
+              <button onClick={() => setSearch('')} style={{ background: 'transparent', border: 'none', color: '#5a4e35', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                <FaTimes size={10} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── Results ── */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 14px 8px', scrollbarWidth: 'thin', scrollbarColor: 'rgba(180,140,60,0.2) transparent' }}>
+          {loading && <div style={{ color: '#7a6840', fontSize: '0.8rem', padding: '2.5rem 0', textAlign: 'center' }}>Caricamento catalogo…</div>}
+          {!loading && filtered.length === 0 && (
+            <div style={{ color: '#5a4e35', fontSize: '0.8rem', padding: '2.5rem 0', textAlign: 'center', fontStyle: 'italic' }}>Nessuna magia trovata.</div>
+          )}
+          {!loading && filtered.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {filtered.map(cs => {
+                const color = SCHOOL_COLOR[cs.school] ?? 'var(--accent-gold)';
+                return (
+                  <button key={cs.id} onClick={() => onPick(cs)} style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '9px 12px', borderRadius: 8, textAlign: 'left',
+                    background: 'rgba(255,255,255,0.018)',
+                    border: `1px solid ${color}16`,
+                    cursor: 'pointer', color: 'inherit', transition: 'all 0.12s', width: '100%',
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.background = `${color}10`; e.currentTarget.style.borderColor = `${color}38`; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.018)'; e.currentTarget.style.borderColor = `${color}16`; }}>
+                    {SCHOOL_ICON_SLUG[cs.school] && getDndIconSvg('spell', SCHOOL_ICON_SLUG[cs.school])
+                      ? <DndIcon category="spell" name={SCHOOL_ICON_SLUG[cs.school]} size={16} style={{ color, flexShrink: 0 }} />
+                      : <span style={{ fontSize: '1rem', flexShrink: 0, lineHeight: 1 }}>{SCHOOL_ICON[cs.school] ?? '✦'}</span>}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-heading)', fontSize: '0.88rem', color: '#d4c090', flexWrap: 'wrap' }}>
+                        {cs.name}
+                        <span style={{ fontSize: '0.63rem', color, background: `${color}16`, border: `1px solid ${color}28`, padding: '1px 6px', borderRadius: 20, fontWeight: 600, whiteSpace: 'nowrap', fontFamily: 'var(--font-body)' }}>
+                          {cs.level === 0 ? 'Trucchetto' : `Lv ${cs.level}`}
+                        </span>
+                        {activeSchool === 'all' && <span style={{ fontSize: '0.63rem', color: '#7a6840', whiteSpace: 'nowrap', fontFamily: 'var(--font-body)' }}>{cs.school}</span>}
+                      </div>
+                      {cs.description && (
+                        <div style={{ fontSize: '0.7rem', color: '#5a4e35', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
+                          {cs.description}
+                        </div>
+                      )}
+                    </div>
+                    {cs.castingTime && <span style={{ fontSize: '0.65rem', color: '#5a4e35', whiteSpace: 'nowrap', flexShrink: 0 }}>⏱ {cs.castingTime}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ── Footer ── */}
+        <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(180,140,60,0.14)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.18)', flexShrink: 0 }}>
+          <span style={{ fontSize: '0.7rem', color: '#5a4e35' }}>{filtered.length} / {items.length} magie</span>
+          <button
+            onClick={onClose}
+            style={{ background: 'rgba(180,140,60,0.08)', border: '1px solid rgba(180,140,60,0.22)', color: '#b09a70', borderRadius: 4, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'var(--font-heading)', letterSpacing: '0.05em' }}>
+            Chiudi
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 };
 
@@ -858,15 +1013,13 @@ export const Spellbook: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [selectedSpellId, setSelectedSpellId] = useState<string | null>(null);
+  const [confirmDelId, setConfirmDelId] = useState<string | null>(null);
   const [pickerLvl, setPickerLvl] = useState<number | null>(null);
   const [form, setForm] = useState<Omit<Spell, 'id'>>(EMPTY_SPELL());
-  const [grimGroupBy, setGrimGroupBy] = useState<GrimGroupBy>('level');
-  const [grimSelected, setGrimSelected] = useState<number | 'all'>('all');
-  const [grimSchoolSelected, setGrimSchoolSelected] = useState<string | 'all'>('all');
+  const [grimActiveSchool, setGrimActiveSchool] = useState<string>('all');
+  const [grimActiveLevel, setGrimActiveLevel] = useState<number | 'all'>('all');
   const [grimSearch, setGrimSearch] = useState('');
-  const [grimLvlPickerOpen, setGrimLvlPickerOpen] = useState(false);
   const [dailyLvlPickerOpen, setDailyLvlPickerOpen] = useState(false);
-  const grimLvlBtnRef = useRef<HTMLButtonElement>(null);
   const dailyLvlBtnRef = useRef<HTMLButtonElement>(null);
 
   // Catalog picker
@@ -914,8 +1067,7 @@ export const Spellbook: React.FC = () => {
   const slots = character.spellSlots ?? {};
   const prepByLevel = character.preparedSpellsByLevel ?? {};
 
-  // Levels that exist in grimoire
-  const levels = [...new Set(spells.map(s => s.level))].sort((a, b) => a - b);
+  // Levels that exist in grimoire (for slot levels only)
   // Levels in slot config or with preparations
   const slotLevels = Array.from(new Set([
     ...Object.keys(slots).filter(k => slots[k].total > 0).map(Number),
@@ -987,39 +1139,26 @@ export const Spellbook: React.FC = () => {
   bestiary.forEach(e => { creatureNameMap[e.id] = e.creature.name; });
   catalogCreatureCache.forEach(c => { if (!creatureNameMap[c.id]) creatureNameMap[c.id] = c.name; });
 
-  const cardProps = { editingId, prepCountFor, slots, prepareWizardSpell, unprepareSpellOne, startEdit, deleteSpell, formProps, isMobile, creatureNameMap, selectedSpellId, onSelect: (id: string) => { setSelectedSpellId(id); setEditingId(null); setIsAdding(false); setForm(EMPTY_SPELL()); } };
+  const requestDel = (id: string) => setConfirmDelId(id);
+  const cardProps = { editingId, prepCountFor, slots, prepareWizardSpell, unprepareSpellOne, startEdit, deleteSpell, formProps, isMobile, creatureNameMap, selectedSpellId, requestDel, onSelect: (id: string) => { setSelectedSpellId(id); setEditingId(null); setIsAdding(false); setForm(EMPTY_SPELL()); } };
 
   // Spell lookup
   const spellById = new Map<string, Spell>();
   spells.forEach(s => spellById.set(s.id, s));
 
-  // Grimorie filtered list
+  // Grimoire filter
   const grimSearchLower = grimSearch.trim().toLowerCase();
+  const grimPresentSchools = SCHOOLS.filter(sc => spells.some(s => s.school === sc));
+  const grimLevelsInSchool = [...new Set(
+    (grimActiveSchool === 'all' ? spells : spells.filter(s => s.school === grimActiveSchool)).map(s => s.level)
+  )].sort((a, b) => a - b);
   const filteredGrimSpells = spells.filter(s => {
-    if (grimGroupBy === 'level' && grimSelected !== 'all' && s.level !== grimSelected) return false;
-    if (grimGroupBy === 'school' && grimSchoolSelected !== 'all' && s.school !== grimSchoolSelected) return false;
+    if (grimActiveSchool !== 'all' && s.school !== grimActiveSchool) return false;
+    if (grimActiveLevel !== 'all' && s.level !== grimActiveLevel) return false;
     if (grimSearchLower && !s.name.toLowerCase().includes(grimSearchLower) && !s.school.toLowerCase().includes(grimSearchLower) && !t(`spellbook.schools.${s.school}`, s.school).toLowerCase().includes(grimSearchLower)) return false;
     return true;
   });
-  // Group filtered by level for "all level" view
-  const filteredByLevel = new Map<number, Spell[]>();
-  filteredGrimSpells.forEach(s => {
-    if (!filteredByLevel.has(s.level)) filteredByLevel.set(s.level, []);
-    filteredByLevel.get(s.level)!.push(s);
-  });
-  const filteredLevelKeys = [...filteredByLevel.keys()].sort((a, b) => a - b);
-
-  // Group filtered by school for "school" view
-  const filteredBySchool = new Map<string, Spell[]>();
-  filteredGrimSpells.forEach(s => {
-    if (!filteredBySchool.has(s.school)) filteredBySchool.set(s.school, []);
-    filteredBySchool.get(s.school)!.push(s);
-  });
-  // Keep canonical school order
-  const filteredSchoolKeys = SCHOOLS.filter(sc => filteredBySchool.has(sc));
-
-  // Schools present in the grimoire (for school bookmark tabs)
-  const schoolsInGrimoire = SCHOOLS.filter(sc => spells.some(s => s.school === sc));
+  const grimActiveColor = grimActiveSchool === 'all' ? 'rgba(180,140,60,0.6)' : (SCHOOL_COLOR[grimActiveSchool] ?? 'rgba(180,140,60,0.6)');
 
   return (
     <div className="sb-root" style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 0 }}>
@@ -1055,32 +1194,94 @@ export const Spellbook: React.FC = () => {
       {spellTab === 'grimoire' && (
         <div className="sb-grimoire-row">
           <div className="sb-grimoire-main">
-            {/* Barra strumenti: cerca + toggle visualizzazione + aggiungi */}
+            {/* ── School tab rail ── */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '8px 14px 0', flexShrink: 0 }}>
+              <button
+                onClick={() => { setGrimActiveSchool('all'); setGrimActiveLevel('all'); setGrimSearch(''); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '5px 11px', borderRadius: 8, cursor: 'pointer',
+                  border: `1px solid ${grimActiveSchool === 'all' ? 'rgba(180,140,60,0.55)' : 'rgba(180,140,60,0.14)'}`,
+                  background: grimActiveSchool === 'all' ? 'rgba(180,140,60,0.1)' : 'transparent',
+                  color: grimActiveSchool === 'all' ? '#d4c090' : '#5a4e35',
+                  fontFamily: 'var(--font-heading)', fontSize: '0.72rem', letterSpacing: '0.04em',
+                  transition: 'all 0.15s', fontWeight: grimActiveSchool === 'all' ? 700 : 400,
+                }}>
+                ✦ {t('spellbook.all')}
+                <span style={{ fontSize: '0.62rem', padding: '1px 6px', borderRadius: 20, background: grimActiveSchool === 'all' ? 'rgba(180,140,60,0.2)' : 'rgba(255,255,255,0.06)', fontFamily: 'var(--font-body)' }}>{spells.length}</span>
+              </button>
+              {grimPresentSchools.map(sc => {
+                const c = SCHOOL_COLOR[sc] ?? 'var(--accent-arcane)';
+                const isActive = grimActiveSchool === sc;
+                const count = spells.filter(s => s.school === sc).length;
+                return (
+                  <button key={sc} onClick={() => { setGrimActiveSchool(isActive ? 'all' : sc); setGrimActiveLevel('all'); setGrimSearch(''); }} style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    padding: '5px 11px', borderRadius: 8, cursor: 'pointer',
+                    border: `1px solid ${isActive ? `${c}50` : 'rgba(180,140,60,0.14)'}`,
+                    background: isActive ? `${c}14` : 'transparent',
+                    color: isActive ? c : '#5a4e35',
+                    fontFamily: 'var(--font-heading)', fontSize: '0.72rem', letterSpacing: '0.04em',
+                    transition: 'all 0.15s', fontWeight: isActive ? 700 : 400,
+                  }}>
+                    {SCHOOL_ICON_SLUG[sc] && getDndIconSvg('spell', SCHOOL_ICON_SLUG[sc])
+                      ? <DndIcon category="spell" name={SCHOOL_ICON_SLUG[sc]} size={12} style={{ color: isActive ? c : '#5a4e35' }} />
+                      : <span style={{ fontSize: '0.75rem' }}>{SCHOOL_ICON[sc] ?? '✦'}</span>}
+                    {t(`spellbook.schools.${sc}`, sc)}
+                    <span style={{ fontSize: '0.62rem', padding: '1px 5px', borderRadius: 20, background: isActive ? `${c}1e` : 'rgba(255,255,255,0.06)', fontFamily: 'var(--font-body)' }}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* ── Level sub-tabs (always shown when there are levels) ── */}
+            {grimLevelsInSchool.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '6px 14px 0', flexShrink: 0 }}>
+                <button
+                  onClick={() => setGrimActiveLevel('all')}
+                  style={{
+                    padding: '3px 10px', borderRadius: 20, fontSize: '0.68rem', cursor: 'pointer',
+                    border: `1px solid ${grimActiveLevel === 'all' ? grimActiveColor : 'rgba(180,140,60,0.18)'}`,
+                    background: grimActiveLevel === 'all' ? `${grimActiveColor}14` : 'transparent',
+                    color: grimActiveLevel === 'all' ? grimActiveColor : '#5a4e35',
+                    transition: 'all 0.15s', fontFamily: 'var(--font-heading)',
+                  }}>
+                  {t('spellbook.all')} livelli
+                </button>
+                {grimLevelsInSchool.map(lv => {
+                  const isActive = grimActiveLevel === lv;
+                  const lvTabColor = grimActiveSchool === 'all' ? (LEVEL_COLOR[lv] ?? grimActiveColor) : grimActiveColor;
+                  const count = spells.filter(s => (grimActiveSchool === 'all' || s.school === grimActiveSchool) && s.level === lv).length;
+                  return (
+                    <button key={lv}
+                      onClick={() => setGrimActiveLevel(isActive ? 'all' : lv)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 4,
+                        padding: '3px 10px', borderRadius: 20, fontSize: '0.68rem', cursor: 'pointer',
+                        border: `1px solid ${isActive ? lvTabColor : 'rgba(180,140,60,0.18)'}`,
+                        background: isActive ? `${lvTabColor}18` : 'transparent',
+                        color: isActive ? lvTabColor : '#5a4e35',
+                        transition: 'all 0.15s', fontFamily: 'var(--font-heading)',
+                      }}>
+                      {lv === 0 ? t('spellbook.cantripShort') : `${t('spellbook.levelShort')} ${lv}`}
+                      <span style={{ fontSize: '0.6rem', padding: '0 4px', borderRadius: 20, background: isActive ? `${lvTabColor}1e` : 'rgba(255,255,255,0.06)', fontFamily: 'var(--font-body)' }}>{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ── Toolbar ── */}
             <div className="sb-toolbar">
               <div className="sb-search-wrap">
                 <FaSearch size={11} className="sb-search-icon" />
                 <input className="sb-search-input" value={grimSearch} onChange={e => setGrimSearch(e.target.value)}
-                  placeholder={`Cerca nel grimorio…`} />
-              </div>
-              {/* Toggle visualizzazione */}
-              <div className="sb-view-toggle">
-                <button
-                  className={`sb-view-btn${grimGroupBy === 'level' ? ' active' : ''}`}
-                  onClick={() => { setGrimGroupBy('level'); setGrimSearch(''); }}
-                  title={t('spellbook.groupByLevel')}>
-                  <FaLayerGroup size={10} /> {t('spellbook.groupByLevel')}
-                </button>
-                <button
-                  className={`sb-view-btn${grimGroupBy === 'school' ? ' active' : ''}`}
-                  onClick={() => { setGrimGroupBy('school'); setGrimSearch(''); }}
-                  title={t('spellbook.groupBySchool')}>
-                  <GiMagicGate size={12} /> {t('spellbook.groupBySchool')}
-                </button>
+                  placeholder="Cerca nel grimorio…" />
               </div>
               <button className="btn-primary" style={{ fontSize: '0.8rem' }}
                 onClick={() => {
                   setIsAdding(true); setEditingId(null); setSelectedSpellId(null);
-                  setForm({ ...EMPTY_SPELL(), level: grimSelected === 'all' ? 1 : grimSelected });
+                  setForm({ ...EMPTY_SPELL(), level: grimActiveLevel === 'all' ? 1 : grimActiveLevel });
                 }}
                 disabled={isAdding}>
                 <FaPlus size={10} /> {t('spellbook.addSpell')}
@@ -1090,54 +1291,6 @@ export const Spellbook: React.FC = () => {
                 <GiBookmarklet size={11} /> {t('spellbook.fromCatalog')}
               </button>
             </div>
-
-            {/* ── Bookmark strip: LEVEL mode ── */}
-            {grimGroupBy === 'level' && (
-              <div className="sb-bookmarks">
-                <BookmarkTab active={grimSelected === 'all'} onClick={() => setGrimSelected('all')} label={t('spellbook.all')} count={spells.length} icon={<GiBookmarklet size={11} />} />
-                {levels.map(lv => (
-                  <BookmarkTab key={lv} active={grimSelected === lv} onClick={() => setGrimSelected(lv)}
-                    label={lv === 0 ? t('spellbook.cantripShort') : `${t('spellbook.levelShort')} ${lv}`}
-                    count={spells.filter(s => s.level === lv).length} />
-                ))}
-                {typeof grimSelected === 'number' && !levels.includes(grimSelected) && (
-                  <BookmarkTab active={true} onClick={() => setGrimSelected(grimSelected)}
-                    label={grimSelected === 0 ? t('spellbook.cantripShort') : `${t('spellbook.levelShort')} ${grimSelected}`} count={0} />
-                )}
-                <button ref={grimLvlBtnRef} className="sb-bookmark-add" onClick={() => setGrimLvlPickerOpen(o => !o)} title="Aggiungi livello">
-                  <FaPlus size={9} /> {t('spellbook.level')}
-                </button>
-                {grimLvlPickerOpen && (
-                  <LevelPickerPopover anchorRef={grimLvlBtnRef} taken={levels}
-                    onPick={(lvl) => { setGrimSelected(lvl); setIsAdding(true); setEditingId(null); setForm({ ...EMPTY_SPELL(), level: lvl }); }}
-                    onClose={() => setGrimLvlPickerOpen(false)} align="left" title="Aggiungi un livello al grimorio" />
-                )}
-              </div>
-            )}
-
-            {/* ── Bookmark strip: SCHOOL mode ── */}
-            {grimGroupBy === 'school' && (
-              <div className="sb-bookmarks">
-                <BookmarkTab active={grimSchoolSelected === 'all'} onClick={() => setGrimSchoolSelected('all')}
-                  label={t('spellbook.all')} count={spells.length} icon={<GiBookmarklet size={11} />} />
-                {schoolsInGrimoire.map(sc => {
-                  const c = SCHOOL_COLOR[sc] ?? 'var(--accent-arcane)';
-                  return (
-                    <BookmarkTab key={sc} active={grimSchoolSelected === sc}
-                      onClick={() => setGrimSchoolSelected(sc)}
-                      label={t(`spellbook.schools.${sc}`, sc)}
-                      count={spells.filter(s => s.school === sc).length}
-                      color={c}
-                      icon={
-                        SCHOOL_ICON_SLUG[sc] && getDndIconSvg('spell', SCHOOL_ICON_SLUG[sc])
-                          ? <DndIcon category="spell" name={SCHOOL_ICON_SLUG[sc]} size={12} style={{ color: c, flexShrink: 0 }} />
-                          : <span style={{ fontSize: '0.8rem' }}>{SCHOOL_ICON[sc] ?? ''}</span>
-                      }
-                    />
-                  );
-                })}
-              </div>
-            )}
 
             {/* Cards area */}
             {spells.length === 0 && !isAdding ? (
@@ -1153,67 +1306,37 @@ export const Spellbook: React.FC = () => {
                 <p className="sb-empty-text">
                   {grimSearchLower
                     ? <>Nessun incantesimo corrisponde a <strong>"{grimSearch}"</strong>.</>
-                    : <>Nessun incantesimo{grimGroupBy === 'school' && grimSchoolSelected !== 'all' ? ` di ${t(`spellbook.schools.${grimSchoolSelected}`, grimSchoolSelected)}` : grimSelected !== 'all' ? (grimSelected === 0 ? ' di trucchetto' : ` di livello ${grimSelected}`) : ''}.</>}
+                    : <>Nessun incantesimo{grimActiveSchool !== 'all' ? ` di ${t(`spellbook.schools.${grimActiveSchool}`, grimActiveSchool)}` : ''}{grimActiveLevel !== 'all' ? (grimActiveLevel === 0 ? ' trucchetto' : ` di livello ${grimActiveLevel}`) : ''}.</>}
                 </p>
               </div>
             ) : (
               <div className="sb-scroll-area" style={{ flex: 1, overflowY: 'auto', paddingRight: 4, paddingBottom: 8 }}>
-
-                {/* ── LEVEL grouping view ── */}
-                {grimGroupBy === 'level' && (
-                  grimSelected === 'all' ? (
-                    filteredLevelKeys.map(lv => (
-                      <div key={lv} style={{ marginBottom: 20 }}>
-                        <div className="sb-level-hdr" style={{ '--lc': LEVEL_COLOR[lv] ?? 'var(--accent-arcane)' } as React.CSSProperties}>
-                          <div className="sb-level-badge" style={{ background: `linear-gradient(135deg, ${LEVEL_COLOR[lv] ?? 'var(--accent-arcane)'}, ${LEVEL_COLOR[lv] ?? 'var(--accent-arcane)'}88)`, boxShadow: `0 2px 10px ${LEVEL_COLOR[lv] ?? 'var(--accent-arcane)'}44` }}>
-                            {lv === 0 ? 'TR' : lv}
-                          </div>
-                          <span className="sb-level-label" style={{ color: LEVEL_COLOR[lv] ?? 'var(--accent-arcane)' }}>
-                            {lv === 0 ? t('spellbook.cantrips') : `${t('spellbook.level')} ${lv}`}
-                          </span>
-                          <div className="sb-level-line" />
-                          <span className="sb-level-count">{filteredByLevel.get(lv)!.length} {filteredByLevel.get(lv)!.length === 1 ? 'incantesimo' : 'incantesimi'}</span>
-                        </div>
-                        <div className="sb-cards-grid">
-                          {filteredByLevel.get(lv)!.map(s => <SpellCard key={s.id} spell={s} {...cardProps} />)}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="sb-cards-grid">
-                      {filteredGrimSpells.map(s => <SpellCard key={s.id} spell={s} {...cardProps} />)}
-                    </div>
-                  )
-                )}
-
-                {/* ── SCHOOL grouping view ── */}
-                {grimGroupBy === 'school' && (
-                  grimSchoolSelected === 'all' ? (
-                    filteredSchoolKeys.map(sc => {
-                      const spellsForSchool = filteredBySchool.get(sc) ?? [];
-                      const c = SCHOOL_COLOR[sc] ?? 'var(--accent-arcane)';
+                {grimActiveSchool === 'all' && grimActiveLevel === 'all' ? (
+                  // Group by level when showing all schools/all levels
+                  (() => {
+                    const levelKeys = [...new Set(filteredGrimSpells.map(s => s.level))].sort((a, b) => a - b);
+                    return levelKeys.map(lv => {
+                      const lvColor = LEVEL_COLOR[lv] ?? 'var(--accent-gold)';
+                      const lvSpells = filteredGrimSpells.filter(s => s.level === lv);
                       return (
-                        <div key={sc}>
-                          <SchoolSectionHeader school={sc} count={spellsForSchool.length} color={c} />
-                          <div className="sb-cards-grid">
-                            {spellsForSchool.map(s => <SpellCard key={s.id} spell={s} {...cardProps} />)}
+                        <div key={lv} style={{ marginBottom: '1.2rem' }}>
+                          <div className="sb-level-hdr">
+                            <span className="sb-level-badge" style={{ background: `${lvColor}22`, border: `1px solid ${lvColor}55`, color: lvColor, width: 'auto', minWidth: 28, height: 'auto', padding: '2px 10px', borderRadius: 12, fontSize: '0.82rem' }}>
+                              {lv === 0 ? 'Trucchetti' : `Livello ${lv}`}
+                            </span>
+                            <span style={{ fontSize: '0.68rem', color: '#5a4e35', fontFamily: 'var(--font-body)' }}>{lvSpells.length}</span>
                           </div>
-                          <div className="sb-ornament-divider" aria-hidden="true"><span>✦</span></div>
+                          <div className="sb-cards-grid">
+                            {lvSpells.map(s => <SpellCard key={s.id} spell={s} {...cardProps} />)}
+                          </div>
                         </div>
                       );
-                    })
-                  ) : (
-                    <>
-                      <SchoolSectionHeader
-                        school={grimSchoolSelected}
-                        count={filteredGrimSpells.length}
-                        color={SCHOOL_COLOR[grimSchoolSelected] ?? 'var(--accent-arcane)'}
-                      />
-                      <div className="sb-cards-grid">
-                        {filteredGrimSpells.map(s => <SpellCard key={s.id} spell={s} {...cardProps} />)}
-                      </div>
-                    </>
-                  )
+                    });
+                  })()
+                ) : (
+                  <div className="sb-cards-grid">
+                    {filteredGrimSpells.map(s => <SpellCard key={s.id} spell={s} {...cardProps} />)}
+                  </div>
                 )}
               </div>
             )}
@@ -1252,7 +1375,7 @@ export const Spellbook: React.FC = () => {
                         <button className="sb-sidebar-action-btn" onClick={() => startEdit(sel)} title="Modifica" style={{ color: displayColor, borderColor: `${displayColor}40`, background: `${displayColor}12` }}>
                           <FaEdit size={12} />
                         </button>
-                        <button className="sb-sidebar-action-btn danger" onClick={() => { deleteSpell(sel.id); closeSidebar(); }} title="Elimina">
+                        <button className="sb-sidebar-action-btn danger" onClick={() => setConfirmDelId(sel.id)} title="Elimina">
                           <FaTrash size={11} />
                         </button>
                       </>
@@ -1440,22 +1563,34 @@ export const Spellbook: React.FC = () => {
       })()}
 
       {catalogOpen && (
-        <CatalogPicker<CatalogSpell>
-          title="Importa dal Catalogo Magie"
+        <SpellCatalogPicker
           items={catalogItems}
           loading={catalogLoading}
           onClose={() => setCatalogOpen(false)}
           onPick={importFromCatalog}
-          map={cs => ({
-            id: cs.id,
-            name: cs.name,
-            subtitle: `Liv. ${cs.level}${cs.school ? ' — ' + cs.school : ''}`,
-            description: cs.description,
-            tags: cs.tags,
-            raw: cs,
-          })}
         />
       )}
+
+      {/* ── Modale conferma eliminazione ── */}
+      {confirmDelId && (() => {
+        const target = spells.find(s => s.id === confirmDelId);
+        return (
+          <div className="sb-del-overlay" onClick={() => setConfirmDelId(null)}>
+            <div className="sb-del-modal" onClick={e => e.stopPropagation()}>
+              <div className="sb-del-modal-icon"><FaTrash size={18} /></div>
+              <p className="sb-del-modal-title">Eliminare l'incantesimo?</p>
+              {target && <p className="sb-del-modal-name">«{target.name}»</p>}
+              <p className="sb-del-modal-warn">L'azione non può essere annullata.</p>
+              <div className="sb-del-modal-btns">
+                <button className="sb-del-cancel" onClick={() => setConfirmDelId(null)}>Annulla</button>
+                <button className="sb-del-confirm" onClick={() => { deleteSpell(confirmDelId); if (selectedSpellId === confirmDelId) closeSidebar(); setConfirmDelId(null); }}>
+                  Elimina
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
