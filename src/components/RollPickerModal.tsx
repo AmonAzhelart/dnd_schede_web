@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { FaTimes, FaDiceD20, FaCheck } from 'react-icons/fa';
+import { FaTimes, FaDiceD20, FaCheck, FaExclamationTriangle } from 'react-icons/fa';
 import { useCharacterStore } from '../store/characterStore';
 import {
     aggregateBonuses,
@@ -46,6 +46,33 @@ export interface RollPickerProps {
      *  slot or marking an item as used. */
     onConfirm?: () => void;
     onClose: () => void;
+}
+
+/** Bonus types that always stack per D&D 3.5 SRD. */
+const STACKING_MOD_TYPES = new Set<ModifierType>(['dodge', 'circumstance', 'untyped', 'synergy']);
+
+/**
+ * Returns the IDs of candidates that do NOT count due to D&D 3.5 non-stacking rules.
+ * For each non-stacking type: only the highest positive and the single worst penalty apply.
+ */
+function computeSuperseded(candidates: ModifierCandidate[]): Set<string> {
+    const out = new Set<string>();
+    const byType: Record<string, ModifierCandidate[]> = {};
+    candidates.forEach(c => { (byType[c.type] ||= []).push(c); });
+    Object.entries(byType).forEach(([type, group]) => {
+        if (STACKING_MOD_TYPES.has(type as ModifierType)) return;
+        const positives = group.filter(c => c.value > 0);
+        if (positives.length > 1) {
+            const maxVal = Math.max(...positives.map(c => c.value));
+            positives.filter(c => c.value < maxVal).forEach(c => out.add(c.id));
+        }
+        const negatives = group.filter(c => c.value < 0);
+        if (negatives.length > 1) {
+            const minVal = Math.min(...negatives.map(c => c.value));
+            negatives.filter(c => c.value > minVal).forEach(c => out.add(c.id));
+        }
+    });
+    return out;
 }
 
 const TYPE_LABEL: Record<ModifierType, string> = {
@@ -294,72 +321,118 @@ export const RollPickerModal: React.FC<RollPickerProps> = ({
                 </div>
 
                 {/* Auto */}
-                {seg.auto.length > 0 && (
-                    <div>
-                        <div style={{ fontSize: '0.62rem', letterSpacing: '0.12em', color: 'var(--text-muted)', marginBottom: 4 }}>
-                            BONUS AUTOMATICI
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                            {seg.auto.map(c => (
-                                <div key={c.id} style={{
-                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                    padding: '5px 9px', borderRadius: 5,
-                                    background: 'rgba(39,174,96,0.07)',
-                                    border: '1px solid rgba(39,174,96,0.18)',
-                                    fontSize: '0.8rem',
-                                }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <span>{c.sourceName}</span>
-                                        {c.label && <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{c.label}</span>}
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>{TYPE_LABEL[c.type] ?? c.type}</span>
-                                        {valueCell(c, 'var(--accent-success)')}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Optional */}
-                {seg.optional.length > 0 && (
-                    <div>
-                        <div style={{ fontSize: '0.62rem', letterSpacing: '0.12em', color: 'var(--text-muted)', marginBottom: 4 }}>
-                            BONUS OPZIONALI · scegli quali applicare
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                            {seg.optional.map(c => {
-                                const on = isSelected(i, c.id);
-                                return (
-                                    <label key={c.id} style={{
-                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                        padding: '5px 9px', borderRadius: 5,
-                                        background: on ? `${accent}15` : 'rgba(255,255,255,0.02)',
-                                        border: `1px solid ${on ? `${accent}55` : 'rgba(255,255,255,0.07)'}`,
-                                        cursor: 'pointer', fontSize: '0.8rem',
-                                    }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
-                                            <input
-                                                type="checkbox"
-                                                checked={on}
-                                                onChange={e => toggleSelected(i, c.id, e.target.checked)}
-                                            />
-                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                <span>{c.sourceName}</span>
-                                                {c.label && <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{c.label}</span>}
+                {seg.auto.length > 0 && (() => {
+                    const superseded = computeSuperseded(t.allApplied);
+                    return (
+                        <div>
+                            <div style={{ fontSize: '0.62rem', letterSpacing: '0.12em', color: 'var(--text-muted)', marginBottom: 4 }}>
+                                BONUS AUTOMATICI
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                {seg.auto.map(c => {
+                                    const blocked = superseded.has(c.id);
+                                    return (
+                                        <div key={c.id} style={{
+                                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                            padding: '5px 9px', borderRadius: 5,
+                                            background: blocked ? 'rgba(230,126,34,0.07)' : 'rgba(39,174,96,0.07)',
+                                            border: `1px solid ${blocked ? 'rgba(230,126,34,0.3)' : 'rgba(39,174,96,0.18)'}`,
+                                            fontSize: '0.8rem',
+                                        }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                                <span style={{
+                                                    textDecoration: blocked ? 'line-through' : 'none',
+                                                    color: blocked ? 'var(--text-muted)' : 'inherit',
+                                                }}>{c.sourceName}</span>
+                                                {blocked ? (
+                                                    <span style={{ fontSize: '0.66rem', color: '#e67e22', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                                        <FaExclamationTriangle size={8} />
+                                                        Non si cumula · solo il {TYPE_LABEL[c.type] ?? c.type} più alto conta
+                                                    </span>
+                                                ) : (
+                                                    c.label && <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{c.label}</span>
+                                                )}
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>{TYPE_LABEL[c.type] ?? c.type}</span>
+                                                {blocked ? (
+                                                    <span style={{
+                                                        fontFamily: 'var(--font-mono, monospace)',
+                                                        color: 'var(--text-muted)',
+                                                        textDecoration: 'line-through',
+                                                    }}>
+                                                        {c.value >= 0 ? '+' : ''}{c.value}
+                                                    </span>
+                                                ) : valueCell(c, 'var(--accent-success)')}
                                             </div>
                                         </div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                            <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>{TYPE_LABEL[c.type] ?? c.type}</span>
-                                            {valueCell(c, accent)}
-                                        </div>
-                                    </label>
-                                );
-                            })}
+                                    );
+                                })}
+                            </div>
                         </div>
-                    </div>
-                )}
+                    );
+                })()}
+
+                {/* Optional */}
+                {seg.optional.length > 0 && (() => {
+                    const superseded = computeSuperseded(t.allApplied);
+                    return (
+                        <div>
+                            <div style={{ fontSize: '0.62rem', letterSpacing: '0.12em', color: 'var(--text-muted)', marginBottom: 4 }}>
+                                BONUS OPZIONALI · scegli quali applicare
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                {seg.optional.map(c => {
+                                    const on = isSelected(i, c.id);
+                                    const blocked = on && superseded.has(c.id);
+                                    return (
+                                        <label key={c.id} style={{
+                                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                            padding: '5px 9px', borderRadius: 5,
+                                            background: blocked ? 'rgba(230,126,34,0.08)' : on ? `${accent}15` : 'rgba(255,255,255,0.02)',
+                                            border: `1px solid ${blocked ? 'rgba(230,126,34,0.3)' : on ? `${accent}55` : 'rgba(255,255,255,0.07)'}`,
+                                            cursor: 'pointer', fontSize: '0.8rem',
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={on}
+                                                    onChange={e => toggleSelected(i, c.id, e.target.checked)}
+                                                />
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                                    <span style={{
+                                                        textDecoration: blocked ? 'line-through' : 'none',
+                                                        color: blocked ? 'var(--text-muted)' : 'inherit',
+                                                    }}>{c.sourceName}</span>
+                                                    {blocked ? (
+                                                        <span style={{ fontSize: '0.66rem', color: '#e67e22', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                                            <FaExclamationTriangle size={8} />
+                                                            Non si cumula · solo il {TYPE_LABEL[c.type] ?? c.type} più alto conta
+                                                        </span>
+                                                    ) : (
+                                                        c.label && <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{c.label}</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>{TYPE_LABEL[c.type] ?? c.type}</span>
+                                                {blocked ? (
+                                                    <span style={{
+                                                        fontFamily: 'var(--font-mono, monospace)',
+                                                        color: 'var(--text-muted)',
+                                                        textDecoration: 'line-through',
+                                                    }}>
+                                                        {c.value >= 0 ? '+' : ''}{c.value}
+                                                    </span>
+                                                ) : valueCell(c, accent)}
+                                            </div>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                })()}
 
                 {/* Blocked */}
                 {seg.blocked.length > 0 && (

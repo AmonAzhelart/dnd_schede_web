@@ -190,11 +190,18 @@ function App() {
   // ── BACKOFFICE-ONLY VIEW (no character required) ──────
   if (hasBackofficeAccess && activeTab === 'backoffice' && !character) {
     return (
-      <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-base)' }} className="animate-fade-in">
+      <div className="app-container animate-fade-in" style={{ flexDirection: 'column', background: 'var(--bg-base)' }}>
         <BackOffice
           currentUserEmail={user.email ?? ''}
           allowedSections={userSections}
           onBack={() => setActiveTab('scheda')}
+        />
+        <MobileShell
+          appTab={activeTab}
+          setAppTab={(id) => setActiveTab(id as Tab)}
+          navItems={[{ id: 'backoffice' as Tab, label: 'Back-Office', icon: <FaCog size={16} /> }]}
+          onSwitchCharacter={() => setActiveTab('scheda')}
+          onLogout={handleLogout}
         />
       </div>
     );
@@ -205,125 +212,125 @@ function App() {
       <>
         <div className="app-container centered">
           <div className="glass-panel animate-fade-in flex-col gap-4" style={{ width: 520 }}>
-          <div style={{ textAlign: 'center' }}>
-            <h1 className="text-gradient" style={{ fontSize: '2rem' }}>D&D Nexus</h1>
-            <p className="text-muted text-sm" style={{ marginTop: '0.25rem' }}>Benvenuto, {user.displayName}</p>
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.5rem' }}>
-              <LanguageSwitcher compact />
-            </div>
-          </div>
-
-          <div className="divider" />
-
-          <div>
-            <div className="section-header">
-              <span className="section-title">I Tuoi Avventurieri</span>
-              <button className="btn-primary text-xs" onClick={handleCreateCharacter}><FaPlus /> Nuovo</button>
+            <div style={{ textAlign: 'center' }}>
+              <h1 className="text-gradient" style={{ fontSize: '2rem' }}>D&D Nexus</h1>
+              <p className="text-muted text-sm" style={{ marginTop: '0.25rem' }}>Benvenuto, {user.displayName}</p>
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.5rem' }}>
+                <LanguageSwitcher compact />
+              </div>
             </div>
 
-            {loadingChars && (
+            <div className="divider" />
+
+            <div>
+              <div className="section-header">
+                <span className="section-title">I Tuoi Avventurieri</span>
+                <button className="btn-primary text-xs" onClick={handleCreateCharacter}><FaPlus /> Nuovo</button>
+              </div>
+
+              {loadingChars && (
+                <div className="flex-col gap-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <SkeletonCharacterCard key={i} />
+                  ))}
+                </div>
+              )}
+
+              {!loadingChars && userCharacters.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '2rem' }}>
+                  <p className="text-muted" style={{ marginBottom: '1rem' }}>Nessun personaggio trovato.</p>
+                  <button className="btn-primary" onClick={handleCreateCharacter}><FaPlus /> Crea il tuo primo eroe</button>
+                </div>
+              )}
+
               <div className="flex-col gap-2">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <SkeletonCharacterCard key={i} />
+                {userCharacters.map(c => (
+                  <div key={c.id} style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
+                    <button className="btn-secondary w-full" style={{ justifyContent: 'space-between', padding: '0.9rem 1.2rem', borderRadius: 'var(--radius-sm)', flex: 1 }} onClick={() => selectCharacter(c)}>
+                      <div className="flex items-center gap-3">
+                        <div style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: '50%',
+                          background: c.avatarUrl ? `center/cover no-repeat url(${c.avatarUrl})` : 'rgba(201,168,76,0.15)',
+                          border: '1px solid rgba(201,168,76,0.3)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontFamily: 'var(--font-heading)',
+                          color: 'var(--accent-gold)',
+                          overflow: 'hidden',
+                          flexShrink: 0,
+                        }}>
+                          {!c.avatarUrl && c.name.charAt(0)}
+                        </div>
+                        <div style={{ textAlign: 'left' }}>
+                          <div style={{ fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>{c.name}</div>
+                          <div className="text-xs text-muted">{c.race} {c.characterClass} — Lv. {c.level}</div>
+                        </div>
+                      </div>
+                      <span className="text-muted" style={{ fontSize: '1.2rem' }}>›</span>
+                    </button>
+                    <button
+                      className="btn-ghost"
+                      style={{ color: 'var(--accent-crimson)', padding: '0 0.7rem', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(192,57,43,0.25)', flexShrink: 0 }}
+                      title={`Elimina ${c.name}`}
+                      onClick={() => setConfirmDelete(c)}>
+                      <FaTrash size={13} />
+                    </button>
+                  </div>
                 ))}
               </div>
-            )}
+            </div>
 
-            {!loadingChars && userCharacters.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '2rem' }}>
-                <p className="text-muted" style={{ marginBottom: '1rem' }}>Nessun personaggio trovato.</p>
-                <button className="btn-primary" onClick={handleCreateCharacter}><FaPlus /> Crea il tuo primo eroe</button>
-              </div>
+            <div className="divider" />
+            {superAdmin && (
+              <button className="btn-secondary w-full" style={{ justifyContent: 'center' }} onClick={() => setActiveTab('backoffice')}>
+                <FaCog /> Back-Office
+              </button>
             )}
+            <button className="btn-ghost text-sm" style={{ justifyContent: 'center', color: 'var(--accent-crimson)' }} onClick={handleLogout}>
+              <FaSignOutAlt /> Logout
+            </button>
+          </div>
+        </div>
 
-            <div className="flex-col gap-2">
-              {userCharacters.map(c => (
-                <div key={c.id} style={{ display:'flex', gap:'0.5rem', alignItems:'stretch' }}>
-                <button className="btn-secondary w-full" style={{ justifyContent: 'space-between', padding: '0.9rem 1.2rem', borderRadius: 'var(--radius-sm)', flex:1 }} onClick={() => selectCharacter(c)}>
-                  <div className="flex items-center gap-3">
-                    <div style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: '50%',
-                      background: c.avatarUrl ? `center/cover no-repeat url(${c.avatarUrl})` : 'rgba(201,168,76,0.15)',
-                      border: '1px solid rgba(201,168,76,0.3)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontFamily: 'var(--font-heading)',
-                      color: 'var(--accent-gold)',
-                      overflow: 'hidden',
-                      flexShrink: 0,
-                    }}>
-                      {!c.avatarUrl && c.name.charAt(0)}
-                    </div>
-                    <div style={{ textAlign: 'left' }}>
-                      <div style={{ fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>{c.name}</div>
-                      <div className="text-xs text-muted">{c.race} {c.characterClass} — Lv. {c.level}</div>
-                    </div>
-                  </div>
-                  <span className="text-muted" style={{ fontSize: '1.2rem' }}>›</span>
+        {/* ── CHARACTER CREATION WIZARD ── */}
+        {showWizard && user && (
+          <CharacterWizard
+            userId={user.uid}
+            onComplete={handleWizardComplete}
+            onCancel={() => setShowWizard(false)}
+          />
+        )}
+
+        {/* ── CONFIRM DELETE DIALOG ── */}
+        {confirmDelete && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.82)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+            <div className="glass-panel animate-fade-in" style={{ width: 380, textAlign: 'center' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>⚠️</div>
+              <h3 style={{ fontFamily: 'var(--font-heading)', color: 'var(--accent-crimson)', marginBottom: '0.5rem', fontSize: '1.2rem' }}>Elimina Personaggio</h3>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+                Sei sicuro di voler eliminare <strong style={{ color: 'var(--text-primary)' }}>{confirmDelete.name}</strong>?
+              </p>
+              <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '0.78rem' }}>
+                Tutti i dati del personaggio (scheda, diario, talenti, abilità) verranno rimossi in modo definitivo e irreversibile.
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button className="btn-secondary w-full" style={{ justifyContent: 'center' }} onClick={() => setConfirmDelete(null)}>
+                  Annulla
                 </button>
                 <button
-                  className="btn-ghost"
-                  style={{ color:'var(--accent-crimson)', padding:'0 0.7rem', borderRadius:'var(--radius-sm)', border:'1px solid rgba(192,57,43,0.25)', flexShrink:0 }}
-                  title={`Elimina ${c.name}`}
-                  onClick={() => setConfirmDelete(c)}>
-                  <FaTrash size={13} />
+                  className="btn-primary w-full"
+                  style={{ justifyContent: 'center', background: 'var(--accent-crimson)', borderColor: 'var(--accent-crimson)' }}
+                  onClick={() => handleDeleteCharacter(confirmDelete)}>
+                  <FaTrash size={11} /> Elimina
                 </button>
-                </div>
-              ))}
+              </div>
             </div>
           </div>
-
-          <div className="divider" />
-          {superAdmin && (
-            <button className="btn-secondary w-full" style={{ justifyContent: 'center' }} onClick={() => setActiveTab('backoffice')}>
-              <FaCog /> Back-Office
-            </button>
-          )}
-          <button className="btn-ghost text-sm" style={{ justifyContent: 'center', color: 'var(--accent-crimson)' }} onClick={handleLogout}>
-            <FaSignOutAlt /> Logout
-          </button>
-        </div>
-      </div>
-
-      {/* ── CHARACTER CREATION WIZARD ── */}
-      {showWizard && user && (
-        <CharacterWizard
-          userId={user.uid}
-          onComplete={handleWizardComplete}
-          onCancel={() => setShowWizard(false)}
-        />
-      )}
-
-      {/* ── CONFIRM DELETE DIALOG ── */}
-      {confirmDelete && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.82)', zIndex:2000, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}>
-          <div className="glass-panel animate-fade-in" style={{ width:380, textAlign:'center' }}>
-            <div style={{ fontSize:'2.5rem', marginBottom:'0.5rem' }}>⚠️</div>
-            <h3 style={{ fontFamily:'var(--font-heading)', color:'var(--accent-crimson)', marginBottom:'0.5rem', fontSize:'1.2rem' }}>Elimina Personaggio</h3>
-            <p style={{ color:'var(--text-secondary)', marginBottom:'0.5rem', fontSize:'0.9rem' }}>
-              Sei sicuro di voler eliminare <strong style={{ color:'var(--text-primary)' }}>{confirmDelete.name}</strong>?
-            </p>
-            <p style={{ color:'var(--text-muted)', marginBottom:'1.5rem', fontSize:'0.78rem' }}>
-              Tutti i dati del personaggio (scheda, diario, talenti, abilità) verranno rimossi in modo definitivo e irreversibile.
-            </p>
-            <div style={{ display:'flex', gap:'0.75rem' }}>
-              <button className="btn-secondary w-full" style={{ justifyContent:'center' }} onClick={() => setConfirmDelete(null)}>
-                Annulla
-              </button>
-              <button
-                className="btn-primary w-full"
-                style={{ justifyContent:'center', background:'var(--accent-crimson)', borderColor:'var(--accent-crimson)' }}
-                onClick={() => handleDeleteCharacter(confirmDelete)}>
-                <FaTrash size={11} /> Elimina
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+        )}
+      </>
     );
   }
 

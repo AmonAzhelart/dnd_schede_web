@@ -32,10 +32,10 @@
 .mob-shell-tabs {
     display: flex;
     gap: 4px;
-    padding: 6px 6px 4px;
+    padding: 6px 8px 4px;
     margin: 0 auto 6px;
     overflow-x: auto;
-    scroll-snap-type: x proximity;
+    scroll-snap-type: x mandatory;
     scrollbar-width: none;
     background: linear-gradient(180deg, rgba(20, 18, 12, 0.9), rgba(12, 10, 6, 0.92));
     border: 1px solid rgba(201, 168, 76, 0.22);
@@ -57,8 +57,9 @@
    We reuse the existing `.cs-tab` class names — only override layout here. */
 .mob-shell-tabs .cs-tab {
     flex: 1 1 0;
-    min-width: 44px;
-    scroll-snap-align: center;
+    min-width: 38px;
+    /* floor: prevents content overflow before scroll kicks in */
+    scroll-snap-align: start;
     padding: 0.45rem 0;
     gap: 0;
     border-radius: 9px;
@@ -114,6 +115,7 @@
     align-items: center;
     gap: 8px;
     min-width: 0;
+    overflow: hidden;
 }
 
 .mob-shell-side-l {
@@ -134,6 +136,7 @@
     border-radius: 10px;
     padding: 6px 9px 5px;
     min-width: 52px;
+    flex-shrink: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -604,6 +607,14 @@ button.mob-shell-stat {
     }
 }
 
+@media (max-width: 360px) {
+
+    /* Narrower shell on tiny screens = less dead space needed at bottom */
+    .app-container {
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 118px) !important;
+    }
+}
+
 /* Slightly more compact on phones in portrait */
 @media (max-width: 480px) {
     .mob-shell-row {
@@ -633,6 +644,79 @@ button.mob-shell-stat {
     .mob-shell-center {
         margin-top: -18px;
         min-width: 72px;
+    }
+}
+
+/* ── Very narrow screens: Z Fold 6 external (~328px) and similar ── */
+@media (max-width: 360px) {
+    .mob-shell {
+        padding: 0 4px calc(env(safe-area-inset-bottom, 0px) + 6px);
+    }
+
+    .mob-shell-tabs {
+        padding: 5px 6px 4px;
+        gap: 3px;
+        border-radius: 10px;
+        margin-bottom: 4px;
+        /* hint the right-side scroll on tiny screens */
+        -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+        mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+    }
+
+    .mob-shell-tabs .cs-tab {
+        flex: 0 0 40px;
+        min-width: 40px;
+    }
+
+    .mob-shell-tabs .cs-tab svg {
+        font-size: 1rem;
+    }
+
+    .mob-shell-row {
+        padding: 10px 6px 8px;
+        gap: 4px;
+        border-radius: 11px;
+    }
+
+    .mob-shell-side {
+        gap: 4px;
+    }
+
+    .mob-shell-stat {
+        min-width: 40px;
+        padding: 4px 5px 3px;
+        border-radius: 8px;
+    }
+
+    .mob-shell-stat-lbl {
+        font-size: 0.45rem;
+        letter-spacing: 0.1em;
+    }
+
+    .mob-shell-stat-val {
+        font-size: 0.82rem;
+    }
+
+    .mob-shell-stat-val .sep {
+        font-size: 0.65rem;
+        margin: 0;
+    }
+
+    .mob-shell-center {
+        margin-top: -14px;
+        min-width: 60px;
+    }
+
+    .mob-shell-avatar {
+        width: 50px;
+        height: 50px;
+        font-size: 1.2rem;
+    }
+
+    .mob-shell-name {
+        font-size: 0.55rem;
+        max-width: 68px;
+        margin-top: 2px;
     }
 }
 

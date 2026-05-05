@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useCharacterStore } from '../store/characterStore';
 import { v4 as uuidv4 } from 'uuid';
-import { FaPlus, FaTrash, FaEdit, FaCheck, FaTimes, FaChevronDown, FaChevronRight } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaEdit, FaCheck, FaTimes, FaChevronDown, FaChevronRight, FaBolt, FaStar } from 'react-icons/fa';
 import type { ClassFeature, ClassFeatureSubcategory, Modifier, StatType } from '../types/dnd';
 import { ModifierEditor } from './ModifierEditor';
 import { CreatureModifierEditor } from './CreatureModifierEditor';
@@ -12,6 +12,7 @@ type SubcategoryMeta = {
     label: string;
     headerLabel: string;
     color: string;
+    Icon: React.ComponentType<{ size?: number }>;
     emptyMsg: string;
 };
 
@@ -21,6 +22,7 @@ const SUBCATEGORY_META: SubcategoryMeta[] = [
         label: 'Capacità Attive',
         headerLabel: 'CAPACITÀ ATTIVE',
         color: 'var(--accent-warning)',
+        Icon: FaBolt,
         emptyMsg: 'Nessuna capacità attiva. Es: Incanalare Divinità, Azione Impetuosa.',
     },
     {
@@ -28,6 +30,7 @@ const SUBCATEGORY_META: SubcategoryMeta[] = [
         label: 'Capacità Passive',
         headerLabel: 'CAPACITÀ PASSIVE',
         color: 'var(--accent-success)',
+        Icon: FaStar,
         emptyMsg: 'Nessuna capacità passiva. Es: Stile di Combattimento, Sensi Acuti.',
     },
 ];
@@ -56,93 +59,136 @@ interface EditFormProps {
     color: string;
 }
 
-const EditForm: React.FC<EditFormProps> = ({
-    form, setForm, save, cancel, editingId, color
-}) => (
+const EditForm: React.FC<EditFormProps> = ({ form, setForm, save, cancel, editingId, color }) => (
     <div style={{
-        padding: '12px',
-        background: `${color}0d`,
-        border: `1px solid ${color}33`,
-        borderRadius: 6,
-        margin: '4px 0',
+        borderRadius: 8,
+        border: `1px solid ${color}30`,
+        background: `${color}07`,
+        overflow: 'hidden',
     }}>
-        {/* Name + active toggle */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <input
-                className="input"
-                autoFocus
-                placeholder="Nome capacità *"
-                value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                onKeyDown={e => { if (e.key === 'Escape') cancel(); }}
-                style={{ flex: '1 1 200px', fontSize: '0.85rem' }}
-            />
-            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.78rem', color: 'var(--text-muted)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                <input type="checkbox" checked={form.active} onChange={e => setForm(f => ({ ...f, active: e.target.checked }))} />
-                Attiva
-            </label>
+        {/* Form header */}
+        <div style={{
+            padding: '8px 14px',
+            background: `${color}12`,
+            borderBottom: `1px solid ${color}22`,
+            display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+            <span style={{
+                fontFamily: 'var(--font-heading)', fontSize: '0.66rem',
+                letterSpacing: '0.1em', color,
+            }}>
+                {editingId ? 'MODIFICA CAPACITÀ' : 'NUOVA CAPACITÀ'}
+            </span>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                <button onClick={cancel} type="button" className="btn-secondary" style={{ fontSize: '0.76rem', padding: '3px 10px' }}>
+                    <FaTimes size={9} /> Annulla
+                </button>
+                <button
+                    onClick={save}
+                    type="button"
+                    style={{
+                        display: 'flex', alignItems: 'center', gap: 5,
+                        padding: '3px 10px', borderRadius: 5, cursor: 'pointer', fontSize: '0.76rem',
+                        background: form.name.trim() ? `${color}20` : 'rgba(255,255,255,0.04)',
+                        border: `1px solid ${form.name.trim() ? color + '55' : 'rgba(255,255,255,0.1)'}`,
+                        color: form.name.trim() ? color : 'var(--text-muted)',
+                        opacity: form.name.trim() ? 1 : 0.6,
+                        fontFamily: 'var(--font-heading)',
+                    }}
+                >
+                    <FaCheck size={9} /> {editingId ? 'Aggiorna' : 'Salva'}
+                </button>
+            </div>
         </div>
 
-        {/* Description */}
-        <textarea
-            className="input"
-            placeholder="Descrizione..."
-            value={form.description}
-            onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-            style={{ width: '100%', minHeight: 52, fontSize: '0.82rem', resize: 'vertical', marginBottom: 8 }}
-        />
-
-        {/* Resource fields — only for 'active' */}
-        {form.subcategory === 'active' && (
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                <input
-                    className="input"
-                    placeholder="Nome risorsa (es. Incanalare Divinità)"
-                    value={form.resourceName ?? ''}
-                    onChange={e => setForm(f => ({ ...f, resourceName: e.target.value }))}
-                    style={{ flex: '1 1 160px', fontSize: '0.82rem' }}
-                />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Usi max:</span>
+        {/* Identity section */}
+        <div style={{ padding: '12px 14px', borderBottom: `1px solid ${color}15`, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                <div style={{ flex: '1 1 200px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <label style={fsLabel}>Nome capacità *</label>
                     <input
                         className="input"
-                        type="number"
-                        min={0}
+                        autoFocus
+                        placeholder="es. Incanalare Divinità"
+                        value={form.name}
+                        onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Escape') cancel(); if (e.key === 'Enter') save(); }}
+                        style={{ fontSize: '0.85rem' }}
+                    />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: '0 0 auto' }}>
+                    <label style={fsLabel}>Stato iniziale</label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-secondary)', paddingTop: 4 }}>
+                        <input type="checkbox" checked={form.active}
+                            onChange={e => setForm(f => ({ ...f, active: e.target.checked }))} />
+                        Attiva
+                    </label>
+                </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <label style={fsLabel}>Descrizione</label>
+                <textarea
+                    className="input"
+                    placeholder="Descrivi l'effetto della capacità..."
+                    value={form.description}
+                    onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                    style={{ minHeight: 60, fontSize: '0.82rem', resize: 'vertical' }}
+                />
+            </div>
+        </div>
+
+        {/* Resource (active only) */}
+        {form.subcategory === 'active' && (
+            <div style={{ padding: '10px 14px', borderBottom: `1px solid ${color}15`, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                <div style={{ flex: '1 1 160px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <label style={fsLabel}>Nome risorsa</label>
+                    <input
+                        className="input"
+                        placeholder="es. Incanalare Divinità"
+                        value={form.resourceName ?? ''}
+                        onChange={e => setForm(f => ({ ...f, resourceName: e.target.value }))}
+                        style={{ fontSize: '0.82rem' }}
+                    />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: '0 0 80px' }}>
+                    <label style={fsLabel}>Usi max</label>
+                    <input
+                        className="input"
+                        type="number" min={0}
                         value={form.resourceMax ?? ''}
                         onChange={e => setForm(f => ({ ...f, resourceMax: e.target.value === '' ? undefined : +e.target.value }))}
-                        style={{ width: 56, fontSize: '0.82rem', textAlign: 'center' }}
+                        style={{ fontSize: '0.82rem', textAlign: 'center' }}
                     />
                 </div>
             </div>
         )}
 
         {/* Modifiers */}
-        <ModifierEditor
-            modifiers={form.modifiers}
-            onChange={mods => setForm(f => ({ ...f, modifiers: mods }))}
-            accentColor={color}
-            title="MODIFICATORI AL PERSONAGGIO"
-            compact
-        />
-        <CreatureModifierEditor
-            modifiers={form.creatureModifiers ?? []}
-            onChange={cms => setForm(f => ({ ...f, creatureModifiers: cms }))}
-            accentColor="var(--accent-gold)"
-        />
+        <div style={{ padding: '10px 14px', borderBottom: `1px solid ${color}15` }}>
+            <ModifierEditor
+                modifiers={form.modifiers}
+                onChange={mods => setForm(f => ({ ...f, modifiers: mods }))}
+                accentColor={color}
+                title="MODIFICATORI AL PERSONAGGIO"
+                compact
+            />
+        </div>
 
-        {/* Actions */}
-        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-            <button onClick={cancel} className="btn-secondary" style={{ fontSize: '0.8rem' }}>Annulla</button>
-            <button
-                onClick={save}
-                className="btn-primary"
-                style={{ fontSize: '0.8rem', opacity: form.name.trim() ? 1 : 0.5 }}
-            >
-                <FaCheck size={10} /> {editingId ? 'Aggiorna' : 'Salva'}
-            </button>
+        {/* Creature modifiers */}
+        <div style={{ padding: '10px 14px' }}>
+            <CreatureModifierEditor
+                modifiers={form.creatureModifiers ?? []}
+                onChange={cms => setForm(f => ({ ...f, creatureModifiers: cms }))}
+                accentColor="var(--accent-gold)"
+            />
         </div>
     </div>
 );
+
+const fsLabel: React.CSSProperties = {
+    fontSize: '0.6rem', color: 'var(--text-muted)',
+    letterSpacing: '0.07em', textTransform: 'uppercase',
+};
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const STAT_SHORT: Record<StatType, string> = {
@@ -161,7 +207,7 @@ function channelLabel(ch: string): string {
     return ch.toUpperCase();
 }
 
-function modifierSummary(m: Modifier): { channel: string; typeLabel: string; valueStr: string; conditions: string; statOverride?: string } {
+function modifierSummary(m: Modifier) {
     const ch = m.appliesTo?.[0] ?? m.target;
     const typeLabels: Record<string, string> = {
         enhancement: 'Potenziamento', armor: 'Armatura', deflection: 'Deviazione',
@@ -200,8 +246,8 @@ function modifierSummary(m: Modifier): { channel: string; typeLabel: string; val
     };
 }
 
-// ── Feature Row ────────────────────────────────────────────────────────────────
-interface FeatureRowProps {
+// ── Feature Card ───────────────────────────────────────────────────────────────
+interface FeatureCardProps {
     feature: ClassFeature;
     editingId: string | null;
     onEdit: (f: ClassFeature) => void;
@@ -210,18 +256,18 @@ interface FeatureRowProps {
     onRecover: (id: string) => void;
     editFormElement: React.ReactNode;
     color: string;
+    meta: SubcategoryMeta;
 }
 
-const FeatureRow: React.FC<FeatureRowProps> = ({
-    feature, editingId, onEdit, onDelete, onSpend, onRecover, editFormElement, color
+const FeatureCard: React.FC<FeatureCardProps> = ({
+    feature, editingId, onEdit, onDelete, onSpend, onRecover, editFormElement, color,
 }) => {
     const [expanded, setExpanded] = useState(false);
 
-    if (editingId === feature.id) return <>{editFormElement}</>;
+    if (editingId === feature.id) return <div style={{ margin: '0 0 6px' }}>{editFormElement}</div>;
 
     const hasResource = feature.subcategory === 'active'
-        && feature.resourceMax != null
-        && feature.resourceMax > 0;
+        && feature.resourceMax != null && feature.resourceMax > 0;
     const usedCount = feature.resourceUsed ?? 0;
     const maxCount = feature.resourceMax ?? 0;
     const exhausted = hasResource && usedCount >= maxCount;
@@ -233,154 +279,142 @@ const FeatureRow: React.FC<FeatureRowProps> = ({
 
     return (
         <div style={{
-            borderBottom: '1px solid rgba(255,255,255,0.05)',
-            background: expanded ? `${color}06` : 'transparent',
-            transition: 'background 0.15s',
+            borderRadius: 8,
+            border: `1px solid ${color}25`,
+            background: feature.active ? `${color}07` : 'rgba(255,255,255,0.02)',
+            overflow: 'hidden',
+            opacity: feature.active ? 1 : 0.65,
+            transition: 'opacity 0.15s',
         }}>
-            {/* ── Main row ── */}
+            {/* Colored top stripe */}
+            <div style={{ height: 2, background: feature.active ? color : 'rgba(255,255,255,0.1)' }} />
+
+            {/* Card header */}
             <div
                 style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '10px 14px',
+                    display: 'flex', alignItems: 'flex-start', gap: 8,
+                    padding: '10px 12px 8px',
                     cursor: isExpandable ? 'pointer' : 'default',
                 }}
                 onClick={() => isExpandable && setExpanded(v => !v)}
-                onMouseEnter={e => { if (!expanded) e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
-                onMouseLeave={e => { if (!expanded) e.currentTarget.style.background = 'transparent'; }}
             >
-                {/* Accent bar */}
-                <div style={{
-                    width: 3, alignSelf: 'stretch', borderRadius: 2, flexShrink: 0,
-                    background: feature.active ? color : 'var(--text-muted)',
-                }} />
-
                 {/* Expand chevron */}
-                {isExpandable ? (
-                    <span style={{ color: color, opacity: 0.6, fontSize: '0.65rem', flexShrink: 0, width: 10 }}>
-                        {expanded ? <FaChevronDown /> : <FaChevronRight />}
-                    </span>
-                ) : (
-                    <div style={{ width: 10, flexShrink: 0 }} />
-                )}
+                <div style={{ paddingTop: 2, color, opacity: 0.6, flexShrink: 0, width: 12 }}>
+                    {isExpandable
+                        ? (expanded ? <FaChevronDown size={9} /> : <FaChevronRight size={9} />)
+                        : null
+                    }
+                </div>
 
                 {/* Name + badges */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: hasResource ? 6 : 0 }}>
                         <span style={{
-                            fontFamily: 'var(--font-heading)', fontSize: '0.9rem',
+                            fontFamily: 'var(--font-heading)', fontSize: '0.92rem',
                             color: feature.active ? color : 'var(--text-muted)',
+                            letterSpacing: '0.02em',
                         }}>
                             {feature.name}
                         </span>
                         {!feature.active && (
-                            <span style={{
-                                fontSize: '0.6rem', padding: '1px 6px', borderRadius: 3,
-                                background: 'rgba(100,100,100,0.15)', border: '1px solid rgba(100,100,100,0.3)',
-                                color: 'var(--text-muted)',
-                            }}>INATTIVA</span>
+                            <span style={inactiveBadge}>INATTIVA</span>
                         )}
                         {exhausted && (
-                            <span style={{
-                                fontSize: '0.6rem', padding: '1px 6px', borderRadius: 3,
-                                background: 'rgba(192,57,43,0.15)', border: '1px solid rgba(192,57,43,0.35)',
-                                color: 'var(--accent-crimson)',
-                            }}>ESAURITA</span>
+                            <span style={exhaustedBadge}>ESAURITA</span>
                         )}
-                        {/* Compact modifier summary badges (when collapsed) */}
+                        {/* Modifier badges (collapsed) */}
                         {!expanded && hasMods && feature.modifiers.map((m, i) => {
                             const s = modifierSummary(m);
-                            const valueParts: string[] = [];
-                            if (m.value !== 0) valueParts.push(`${m.value >= 0 ? '+' : ''}${m.value}`);
-                            if (m.extraDice) valueParts.push(`+${m.extraDice.replace(/^\+\s*/, '')}`);
                             return (
                                 <span key={i} style={{
                                     fontSize: '0.62rem', padding: '1px 6px', borderRadius: 3,
-                                    background: `${color}18`, border: `1px solid ${color}44`, color,
+                                    background: `${color}15`, border: `1px solid ${color}35`, color,
                                     fontFamily: 'var(--font-mono, monospace)',
                                 }}>
-                                    {valueParts.join(' ') || '—'} {s.channel}
+                                    {s.valueStr} {s.channel}
                                 </span>
                             );
                         })}
                     </div>
 
-                    {/* Resource pips row */}
+                    {/* Resource pips */}
                     {hasResource && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5, flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', flexShrink: 0 }}>
                                 {feature.resourceName || 'Usi'}:
                             </span>
                             <div style={{ display: 'flex', gap: 3 }}>
                                 {Array.from({ length: maxCount }).map((_, i) => (
                                     <div key={i} style={{
-                                        width: 11, height: 11, borderRadius: '50%', flexShrink: 0,
+                                        width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
                                         background: i < usedCount ? 'rgba(192,57,43,0.3)' : color,
-                                        opacity: i < usedCount ? 0.35 : 0.85,
+                                        opacity: i < usedCount ? 0.3 : 0.85,
                                         border: `1px solid ${i < usedCount ? 'var(--accent-crimson)' : color}`,
                                     }} />
                                 ))}
                             </div>
-                            <span style={{ fontSize: '0.65rem', color: remaining === 0 ? 'var(--accent-crimson)' : 'var(--text-muted)' }}>
+                            <span style={{ fontSize: '0.63rem', color: remaining === 0 ? 'var(--accent-crimson)' : 'var(--text-muted)' }}>
                                 {remaining}/{maxCount}
                             </span>
                         </div>
                     )}
                 </div>
 
-                {/* Resource buttons */}
-                {hasResource && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flexShrink: 0 }}>
-                        <button
-                            onClick={e => { e.stopPropagation(); onSpend(feature.id); }}
-                            disabled={exhausted}
-                            style={{
-                                padding: '2px 8px', borderRadius: 4, fontSize: '0.68rem',
-                                cursor: exhausted ? 'not-allowed' : 'pointer',
-                                background: exhausted ? 'rgba(192,57,43,0.08)' : `${color}18`,
-                                border: `1px solid ${exhausted ? 'rgba(192,57,43,0.25)' : `${color}44`}`,
-                                color: exhausted ? 'var(--accent-crimson)' : color,
-                                opacity: exhausted ? 0.5 : 1,
-                            }}
-                        >Usa</button>
-                        <button
-                            onClick={e => { e.stopPropagation(); onRecover(feature.id); }}
-                            disabled={usedCount === 0}
-                            style={{
-                                padding: '2px 8px', borderRadius: 4, fontSize: '0.68rem',
-                                cursor: usedCount === 0 ? 'not-allowed' : 'pointer',
-                                background: 'rgba(39,174,96,0.08)',
-                                border: '1px solid rgba(39,174,96,0.25)',
-                                color: 'var(--accent-success)',
-                                opacity: usedCount === 0 ? 0.4 : 1,
-                            }}
-                        >Rec.</button>
-                    </div>
-                )}
-
-                {/* Edit / Delete */}
-                <button
-                    onClick={e => { e.stopPropagation(); onEdit(feature); }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px 5px', flexShrink: 0 }}
-                    title="Modifica"
-                ><FaEdit size={11} /></button>
-                <button
-                    onClick={e => { e.stopPropagation(); onDelete(feature.id); }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-crimson)', padding: '4px 5px', opacity: 0.5, flexShrink: 0 }}
-                    title="Elimina"
-                ><FaTrash size={11} /></button>
+                {/* Actions */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0, paddingTop: 1 }}>
+                    {hasResource && (
+                        <>
+                            <button
+                                onClick={e => { e.stopPropagation(); onSpend(feature.id); }}
+                                disabled={exhausted}
+                                style={{
+                                    padding: '2px 7px', borderRadius: 4, fontSize: '0.66rem',
+                                    cursor: exhausted ? 'not-allowed' : 'pointer',
+                                    background: exhausted ? 'rgba(192,57,43,0.08)' : `${color}15`,
+                                    border: `1px solid ${exhausted ? 'rgba(192,57,43,0.25)' : `${color}40`}`,
+                                    color: exhausted ? 'var(--accent-crimson)' : color,
+                                    opacity: exhausted ? 0.5 : 1,
+                                }}
+                            >Usa</button>
+                            <button
+                                onClick={e => { e.stopPropagation(); onRecover(feature.id); }}
+                                disabled={usedCount === 0}
+                                style={{
+                                    padding: '2px 7px', borderRadius: 4, fontSize: '0.66rem',
+                                    cursor: usedCount === 0 ? 'not-allowed' : 'pointer',
+                                    background: 'rgba(39,174,96,0.07)',
+                                    border: '1px solid rgba(39,174,96,0.22)',
+                                    color: 'var(--accent-success)',
+                                    opacity: usedCount === 0 ? 0.4 : 1,
+                                }}
+                            >Rec.</button>
+                        </>
+                    )}
+                    <button
+                        onClick={e => { e.stopPropagation(); onEdit(feature); }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px 5px' }}
+                        title="Modifica"
+                    ><FaEdit size={11} /></button>
+                    <button
+                        onClick={e => { e.stopPropagation(); onDelete(feature.id); }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-crimson)', padding: '4px 5px', opacity: 0.5 }}
+                        title="Elimina"
+                    ><FaTrash size={11} /></button>
+                </div>
             </div>
 
-            {/* ── Expanded detail panel ── */}
+            {/* Expanded panel */}
             {expanded && (
                 <div style={{
-                    padding: '0 14px 14px 29px',
+                    padding: '0 12px 12px 24px',
+                    borderTop: `1px solid ${color}15`,
+                    paddingTop: 10,
                     display: 'flex', flexDirection: 'column', gap: 10,
                 }}>
-                    {/* Description */}
                     {hasDesc && (
                         <div style={{
                             fontSize: '0.81rem', color: 'var(--text-secondary)',
-                            lineHeight: 1.55, fontStyle: 'italic',
+                            lineHeight: 1.6, fontStyle: 'italic',
                             padding: '8px 10px',
                             background: 'rgba(255,255,255,0.03)',
                             borderRadius: 5,
@@ -389,13 +423,11 @@ const FeatureRow: React.FC<FeatureRowProps> = ({
                             {feature.description}
                         </div>
                     )}
-
-                    {/* Modifiers detail table */}
                     {hasMods && (
                         <div>
                             <div style={{
                                 fontSize: '0.6rem', letterSpacing: '0.1em',
-                                color: 'var(--text-muted)', marginBottom: 5,
+                                color: 'var(--text-muted)', marginBottom: 6,
                             }}>
                                 MODIFICATORI ({feature.modifiers.length})
                             </div>
@@ -406,64 +438,44 @@ const FeatureRow: React.FC<FeatureRowProps> = ({
                                         <div key={i} style={{
                                             display: 'flex', alignItems: 'center', gap: 6,
                                             padding: '5px 8px', borderRadius: 5,
-                                            background: `${color}0d`,
-                                            border: `1px solid ${color}2a`,
+                                            background: `${color}0c`,
+                                            border: `1px solid ${color}22`,
                                             flexWrap: 'wrap',
                                         }}>
-                                            {/* Value */}
                                             <span style={{
                                                 fontFamily: 'var(--font-mono, monospace)',
-                                                fontSize: '0.88rem', fontWeight: 700,
+                                                fontSize: '0.9rem', fontWeight: 700,
                                                 color, minWidth: 36,
-                                            }}>
-                                                {s.valueStr}
-                                            </span>
-                                            {/* Channel */}
-                                            <span style={{
-                                                fontSize: '0.78rem', color: 'var(--text-primary)', flex: 1,
-                                            }}>
-                                                {s.channel}
-                                            </span>
-                                            {/* Stat override badge */}
+                                            }}>{s.valueStr}</span>
+                                            <span style={{ fontSize: '0.78rem', color: 'var(--text-primary)', flex: 1 }}>{s.channel}</span>
                                             {s.statOverride && (
                                                 <span style={{
-                                                    fontSize: '0.63rem', padding: '1px 6px', borderRadius: 3,
-                                                    background: 'rgba(155,89,182,0.15)',
-                                                    border: '1px solid rgba(155,89,182,0.35)',
+                                                    fontSize: '0.62rem', padding: '1px 5px', borderRadius: 3,
+                                                    background: 'rgba(155,89,182,0.14)',
+                                                    border: '1px solid rgba(155,89,182,0.3)',
                                                     color: 'var(--accent-arcane)',
-                                                }}>
-                                                    usa {s.statOverride}
-                                                </span>
+                                                }}>usa {s.statOverride}</span>
                                             )}
-                                            {/* Type badge */}
                                             <span style={{
-                                                fontSize: '0.63rem', padding: '1px 6px', borderRadius: 3,
-                                                background: `${color}15`, border: `1px solid ${color}33`,
+                                                fontSize: '0.62rem', padding: '1px 5px', borderRadius: 3,
+                                                background: `${color}12`, border: `1px solid ${color}2a`,
                                                 color: 'var(--text-muted)',
-                                            }}>
-                                                {s.typeLabel}
-                                            </span>
-                                            {/* Conditions */}
+                                            }}>{s.typeLabel}</span>
                                             {s.conditions && (
                                                 <span style={{
-                                                    fontSize: '0.63rem', padding: '1px 6px', borderRadius: 3,
+                                                    fontSize: '0.62rem', padding: '1px 5px', borderRadius: 3,
                                                     background: 'rgba(241,196,15,0.1)',
-                                                    border: '1px solid rgba(241,196,15,0.25)',
+                                                    border: '1px solid rgba(241,196,15,0.22)',
                                                     color: 'var(--accent-gold)',
-                                                }}>
-                                                    {s.conditions}
-                                                </span>
+                                                }}>{s.conditions}</span>
                                             )}
-                                            {/* Scope badge */}
                                             {m.scope === 'conditional' && (
                                                 <span style={{
                                                     fontSize: '0.6rem', padding: '1px 5px', borderRadius: 3,
-                                                    background: 'rgba(52,152,219,0.12)',
-                                                    border: '1px solid rgba(52,152,219,0.3)',
+                                                    background: 'rgba(52,152,219,0.1)',
+                                                    border: '1px solid rgba(52,152,219,0.25)',
                                                     color: 'var(--accent-ice)',
-                                                }}>
-                                                    toggle
-                                                </span>
+                                                }}>toggle</span>
                                             )}
                                         </div>
                                     );
@@ -471,11 +483,10 @@ const FeatureRow: React.FC<FeatureRowProps> = ({
                             </div>
                         </div>
                     )}
-
                     {!hasDesc && !hasMods && (
-                        <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                        <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', fontStyle: 'italic', margin: 0 }}>
                             Nessuna descrizione o modificatore configurato.
-                        </div>
+                        </p>
                     )}
                 </div>
             )}
@@ -483,11 +494,20 @@ const FeatureRow: React.FC<FeatureRowProps> = ({
     );
 };
 
+const inactiveBadge: React.CSSProperties = {
+    fontSize: '0.6rem', padding: '1px 5px', borderRadius: 3,
+    background: 'rgba(100,100,100,0.12)', border: '1px solid rgba(100,100,100,0.25)',
+    color: 'var(--text-muted)',
+};
+const exhaustedBadge: React.CSSProperties = {
+    fontSize: '0.6rem', padding: '1px 5px', borderRadius: 3,
+    background: 'rgba(192,57,43,0.12)', border: '1px solid rgba(192,57,43,0.3)',
+    color: 'var(--accent-crimson)',
+};
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 interface ClassFeaturesProps {
-    /** When set, render only that subcategory's section without the wrapping header/chevron. */
     restrictTo?: ClassFeatureSubcategory;
-    /** Hide the outer toolbar (counts + Reset). Useful when embedding inside a tabbed page. */
     hideToolbar?: boolean;
 }
 
@@ -505,7 +525,6 @@ export const ClassFeatures: React.FC<ClassFeaturesProps> = ({ restrictTo, hideTo
 
     if (!character) return null;
 
-    // Normalize legacy subcategories ('talent', 'option') to 'passive' for backward compatibility
     const features = (character.classFeatures ?? []).map(f =>
         f.subcategory === 'active' ? f : { ...f, subcategory: 'passive' as const }
     );
@@ -532,44 +551,27 @@ export const ClassFeatures: React.FC<ClassFeaturesProps> = ({ restrictTo, hideTo
         setForm({ ...f });
         setEditingId(f.id);
         setAddingTo(null);
-        // Auto-expand the section containing this feature
-        setCollapsed(prev => {
-            const next = new Set(prev);
-            next.delete(f.subcategory);
-            return next;
-        });
+        setCollapsed(prev => { const n = new Set(prev); n.delete(f.subcategory); return n; });
     };
 
     const startAdd = (sub: ClassFeatureSubcategory) => {
         setForm(emptyForm(sub));
         setAddingTo(sub);
         setEditingId(null);
-        // Auto-expand the target section
-        setCollapsed(prev => {
-            const next = new Set(prev);
-            next.delete(sub);
-            return next;
-        });
+        setCollapsed(prev => { const n = new Set(prev); n.delete(sub); return n; });
     };
 
     const toggleCollapsed = (key: ClassFeatureSubcategory) => {
         setCollapsed(prev => {
-            const next = new Set(prev);
-            if (next.has(key)) next.delete(key);
-            else next.add(key);
-            return next;
+            const n = new Set(prev);
+            if (n.has(key)) n.delete(key); else n.add(key);
+            return n;
         });
     };
 
-    const editFormProps: EditFormProps = {
-        form, setForm, save, cancel, editingId, color: activeColor,
-    };
+    const editFormProps: EditFormProps = { form, setForm, save, cancel, editingId, color: activeColor };
 
-    const hasSpentResources = features.some(
-        f => f.subcategory === 'active' && (f.resourceUsed ?? 0) > 0
-    );
-
-    const totalCount = features.length;
+    const hasSpentResources = features.some(f => f.subcategory === 'active' && (f.resourceUsed ?? 0) > 0);
     const visibleMeta = restrictTo
         ? SUBCATEGORY_META.filter(m => m.key === restrictTo)
         : SUBCATEGORY_META;
@@ -579,48 +581,42 @@ export const ClassFeatures: React.FC<ClassFeaturesProps> = ({ restrictTo, hideTo
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-            {/* ── Header ─────────────────────────────── */}
-            {!hideToolbar && <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                    {totalCount === 0 ? (
-                        <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                            Privilegi di Classe
-                        </span>
-                    ) : (
-                        SUBCATEGORY_META.map(meta => {
-                            const count = features.filter(f => f.subcategory === meta.key).length;
-                            if (count === 0) return null;
-                            return (
-                                <span key={meta.key} style={{ fontFamily: 'var(--font-heading)', fontSize: '0.85rem', color: meta.color }}>
-                                    {count} {meta.label}
-                                </span>
-                            );
-                        })
+            {/* ── Toolbar ── */}
+            {!hideToolbar && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                        {features.length === 0 ? (
+                            <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                                Privilegi di Classe
+                            </span>
+                        ) : (
+                            SUBCATEGORY_META.map(meta => {
+                                const count = features.filter(f => f.subcategory === meta.key).length;
+                                if (count === 0) return null;
+                                return (
+                                    <span key={meta.key} style={{ fontFamily: 'var(--font-heading)', fontSize: '0.85rem', color: meta.color, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                        <meta.Icon size={11} /> {count} {meta.label}
+                                    </span>
+                                );
+                            })
+                        )}
+                    </div>
+                    {hasSpentResources && (
+                        <button className="btn-secondary" style={{ fontSize: '0.78rem' }} onClick={() => resetClassFeatureResources()}>
+                            Reset Risorse
+                        </button>
                     )}
                 </div>
-                {hasSpentResources && (
-                    <button
-                        className="btn-secondary"
-                        style={{ fontSize: '0.78rem' }}
-                        onClick={() => resetClassFeatureResources()}
-                    >
-                        Reset Risorse
-                    </button>
-                )}
-            </div>}
+            )}
 
-            {/* When restricted: show a clean inline action bar instead of section headers */}
+            {/* Restricted header */}
             {isRestricted && restrictMeta && (
-                <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.95rem', color: restrictMeta.color }}>
-                        {features.filter(f => f.subcategory === restrictTo).length} {restrictMeta.label}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.95rem', color: restrictMeta.color, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <restrictMeta.Icon size={13} /> {features.filter(f => f.subcategory === restrictTo).length} {restrictMeta.label}
                     </span>
                     {restrictTo === 'active' && hasSpentResources && (
-                        <button
-                            className="btn-secondary"
-                            style={{ fontSize: '0.78rem' }}
-                            onClick={() => resetClassFeatureResources()}
-                        >
+                        <button className="btn-secondary" style={{ fontSize: '0.78rem' }} onClick={() => resetClassFeatureResources()}>
                             Reset Risorse
                         </button>
                     )}
@@ -628,17 +624,14 @@ export const ClassFeatures: React.FC<ClassFeaturesProps> = ({ restrictTo, hideTo
                         onClick={() => startAdd(restrictTo!)}
                         disabled={addingTo !== null || editingId !== null}
                         className="btn-primary"
-                        style={{
-                            marginLeft: 'auto', fontSize: '0.82rem',
-                            opacity: (addingTo !== null || editingId !== null) ? 0.5 : 1,
-                        }}
+                        style={{ marginLeft: 'auto', fontSize: '0.82rem', opacity: (addingTo !== null || editingId !== null) ? 0.5 : 1 }}
                     >
                         <FaPlus size={11} /> Nuovo
                     </button>
                 </div>
             )}
 
-            {/* ── Sections ───────────────────────────── */}
+            {/* ── Sections ── */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: '1rem' }}>
                 {visibleMeta.map(meta => {
                     const sectionFeatures = features.filter(f => f.subcategory === meta.key);
@@ -649,60 +642,61 @@ export const ClassFeatures: React.FC<ClassFeaturesProps> = ({ restrictTo, hideTo
                     return (
                         <div key={meta.key} className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
 
-                            {/* Section header (hidden when restricted) */}
-                            {!isRestricted && <div
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: 8,
-                                    padding: '8px 14px',
-                                    background: 'rgba(255,255,255,0.025)',
-                                    borderBottom: bodyVisible ? '1px solid rgba(255,255,255,0.05)' : 'none',
-                                    cursor: 'pointer', userSelect: 'none',
-                                }}
-                                onClick={() => toggleCollapsed(meta.key)}
-                            >
-                                <span style={{ color: meta.color, fontSize: '0.7rem', lineHeight: 1 }}>
-                                    {isCollapsed ? <FaChevronRight /> : <FaChevronDown />}
-                                </span>
-                                <span style={{
-                                    fontFamily: 'var(--font-heading)', fontSize: '0.67rem',
-                                    letterSpacing: '0.12em', color: meta.color, flex: 1,
-                                }}>
-                                    {meta.headerLabel}
-                                </span>
-                                <span style={{
-                                    fontSize: '0.6rem',
-                                    background: `${meta.color}22`, border: `1px solid ${meta.color}44`,
-                                    color: meta.color, borderRadius: 8, padding: '0 6px', marginRight: 8,
-                                }}>
-                                    {sectionFeatures.length}
-                                </span>
-                                <button
-                                    onClick={e => { e.stopPropagation(); startAdd(meta.key); }}
-                                    disabled={isAddingHere || editingId !== null}
+                            {/* Section header */}
+                            {!isRestricted && (
+                                <div
                                     style={{
-                                        background: `${meta.color}18`,
-                                        border: `1px solid ${meta.color}44`,
-                                        color: meta.color,
-                                        borderRadius: 4, padding: '2px 8px', fontSize: '0.72rem',
-                                        display: 'flex', alignItems: 'center', gap: 3,
-                                        opacity: (isAddingHere || editingId !== null) ? 0.4 : 1,
-                                        cursor: (isAddingHere || editingId !== null) ? 'not-allowed' : 'pointer',
+                                        display: 'flex', alignItems: 'center', gap: 8,
+                                        padding: '9px 14px',
+                                        background: `${meta.color}0c`,
+                                        borderBottom: bodyVisible ? `1px solid ${meta.color}18` : 'none',
+                                        cursor: 'pointer', userSelect: 'none',
                                     }}
+                                    onClick={() => toggleCollapsed(meta.key)}
                                 >
-                                    <FaPlus size={9} /> Aggiungi
-                                </button>
-                            </div>}
+                                    <span style={{ color: meta.color, fontSize: '0.68rem', lineHeight: 1 }}>
+                                        {isCollapsed ? <FaChevronRight /> : <FaChevronDown />}
+                                    </span>
+                                    <meta.Icon size={11} style={{ color: meta.color, flexShrink: 0 }} />
+                                    <span style={{
+                                        fontFamily: 'var(--font-heading)', fontSize: '0.67rem',
+                                        letterSpacing: '0.12em', color: meta.color, flex: 1,
+                                    }}>
+                                        {meta.headerLabel}
+                                    </span>
+                                    <span style={{
+                                        fontSize: '0.6rem',
+                                        background: `${meta.color}20`, border: `1px solid ${meta.color}40`,
+                                        color: meta.color, borderRadius: 8, padding: '0 6px', marginRight: 8,
+                                    }}>
+                                        {sectionFeatures.length}
+                                    </span>
+                                    <button
+                                        onClick={e => { e.stopPropagation(); startAdd(meta.key); }}
+                                        disabled={isAddingHere || editingId !== null}
+                                        style={{
+                                            background: `${meta.color}15`,
+                                            border: `1px solid ${meta.color}40`,
+                                            color: meta.color,
+                                            borderRadius: 4, padding: '2px 8px', fontSize: '0.72rem',
+                                            display: 'flex', alignItems: 'center', gap: 3,
+                                            opacity: (isAddingHere || editingId !== null) ? 0.4 : 1,
+                                            cursor: (isAddingHere || editingId !== null) ? 'not-allowed' : 'pointer',
+                                        }}
+                                    >
+                                        <FaPlus size={9} /> Aggiungi
+                                    </button>
+                                </div>
+                            )}
 
                             {/* Section body */}
                             {bodyVisible && (
-                                <>
+                                <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                                     {isAddingHere && (
-                                        <div style={{ padding: '8px 12px' }}>
-                                            <EditForm {...editFormProps} />
-                                        </div>
+                                        <EditForm {...editFormProps} />
                                     )}
                                     {sectionFeatures.map(feature => (
-                                        <FeatureRow
+                                        <FeatureCard
                                             key={feature.id}
                                             feature={feature}
                                             editingId={editingId}
@@ -710,12 +704,9 @@ export const ClassFeatures: React.FC<ClassFeaturesProps> = ({ restrictTo, hideTo
                                             onDelete={deleteClassFeature}
                                             onSpend={spendClassFeatureResource}
                                             onRecover={recoverClassFeatureResource}
-                                            editFormElement={
-                                                <div style={{ padding: '8px 12px' }}>
-                                                    <EditForm {...editFormProps} />
-                                                </div>
-                                            }
+                                            editFormElement={<EditForm {...editFormProps} />}
                                             color={meta.color}
+                                            meta={meta}
                                         />
                                     ))}
                                     {sectionFeatures.length === 0 && !isAddingHere && (
@@ -726,7 +717,7 @@ export const ClassFeatures: React.FC<ClassFeaturesProps> = ({ restrictTo, hideTo
                                             {meta.emptyMsg}
                                         </div>
                                     )}
-                                </>
+                                </div>
                             )}
                         </div>
                     );

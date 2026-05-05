@@ -483,11 +483,30 @@ export interface ClassFeature {
 export interface Skill {
   id: string;
   name: string;
+  /** Optional multilingual display name. Falls back to `name` if absent. */
+  localizedName?: Partial<Record<string, string>>;
   stat: StatType;
   ranks: number;
   classSkill: boolean;
   armorCheckPenalty: boolean;
   canUseUntrained: boolean;
+}
+
+/** A user-defined skill synergy rule.
+ *  When the character has ≥ `ranksRequired` in `sourceSkillId`,
+ *  they gain `bonus` on checks with `targetSkillId`. */
+export interface CustomSkillSynergy {
+  id: string;
+  /** ID key in `character.skills` that provides the synergy. */
+  sourceSkillId: string;
+  /** ID key in `character.skills` that benefits. */
+  targetSkillId: string;
+  /** Minimum ranks needed in source (default 5). */
+  ranksRequired: number;
+  /** Bonus granted (default +2). */
+  bonus: number;
+  /** Optional free-text label shown in tooltips. */
+  note?: string;
 }
 
 export interface Spell {
@@ -639,6 +658,23 @@ export interface CustomAttack {
   notes?: string;
 }
 
+/** Base skill points per level for each D&D 3.5 class (Italian names). */
+export const CLASS_SKILL_POINTS: Record<string, number> = {
+  'Guerriero': 2, 'Fighter': 2,
+  'Paladino': 2, 'Paladin': 2,
+  'Ranger': 6,
+  'Barbaro': 4, 'Barbarian': 4,
+  'Chierico': 2, 'Cleric': 2,
+  'Druido': 4, 'Druid': 4,
+  'Monaco': 4, 'Monk': 4,
+  'Bardo': 6, 'Bard': 6,
+  'Ladro': 8, 'Rogue': 8,
+  'Mago': 2, 'Wizard': 2,
+  'Stregone': 2, 'Sorcerer': 2,
+  'Warlock': 2, 'Negromante': 2,
+  'Fattucchiere': 2,
+};
+
 export interface CharacterBase {
   id: string;
   userId: string;
@@ -693,6 +729,16 @@ export interface CharacterBase {
   activeSummons?: ActiveSummon[];
   /** Pets / companions */
   activePets?: ActivePet[];
+  /** Extra skill points from race (e.g. +4 for Human), feats, etc. */
+  skillExtraPool?: number;
+  /** Skill synergy rules. Once a skill is "managed" by the user its SRD fallback is suppressed. */
+  customSynergies?: CustomSkillSynergy[];
+  /** IDs of skills whose synergies are fully user-managed (SRD lookup bypassed). */
+  managedSynergySkillIds?: string[];
+  /** Soft-deleted inventory items (trash / recycle bin) */
+  inventoryTrash?: Item[];
+  /** Active condition ids (e.g. 'blinded', 'prone') tracked in the Conditions widget. */
+  activeConditions?: string[];
 }
 
 // ─────────────────────────── BESTIARY ────────────────────────────

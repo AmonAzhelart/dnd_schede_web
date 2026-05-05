@@ -22,20 +22,25 @@ import { CreatureModifierEditor } from '../CreatureModifierEditor';
 import { RacesPanel } from './RacesPanel';
 import { ClassesPanel } from './ClassesPanel';
 import { LanguagesPanel } from './LanguagesPanel';
+import { getSrdSynergiesInvolvingSkill } from '../../data/skillSynergies';
+import { LocalizedFieldEditor } from './LocalizedFieldEditor';
+import { pickLocalized } from '../../i18n';
+import type { LocalizedField } from '../../services/admin';
+import './BackOffice.css';
 
 export type Section = 'invites' | 'spells' | 'skills' | 'feats' | 'icons' | 'bestiary' | 'races' | 'classes' | 'languages';
 
 /** All sections that can be assigned to an invited user. SuperAdmin sees invites too. */
 export const ALL_SECTIONS: { id: Section; labelKey: string; icon: React.ReactNode; superAdminOnly?: boolean }[] = [
-    { id: 'invites',   labelKey: 'backoffice.tabs.invites',   icon: <FaEnvelope />,   superAdminOnly: true },
-    { id: 'races',     labelKey: 'backoffice.tabs.races',     icon: <FaUsers /> },
-    { id: 'classes',   labelKey: 'backoffice.tabs.classes',   icon: <FaShieldAlt /> },
+    { id: 'invites', labelKey: 'backoffice.tabs.invites', icon: <FaEnvelope />, superAdminOnly: true },
+    { id: 'races', labelKey: 'backoffice.tabs.races', icon: <FaUsers /> },
+    { id: 'classes', labelKey: 'backoffice.tabs.classes', icon: <FaShieldAlt /> },
     { id: 'languages', labelKey: 'backoffice.tabs.languages', icon: <FaLanguage /> },
-    { id: 'spells',    labelKey: 'backoffice.tabs.spells',    icon: <FaScroll /> },
-    { id: 'skills',    labelKey: 'backoffice.tabs.skills',    icon: <FaStar /> },
-    { id: 'feats',     labelKey: 'backoffice.tabs.feats',     icon: <FaBolt /> },
-    { id: 'icons',     labelKey: 'backoffice.tabs.icons',     icon: <FaImage /> },
-    { id: 'bestiary',  labelKey: 'backoffice.tabs.bestiary',  icon: <FaDragon /> },
+    { id: 'spells', labelKey: 'backoffice.tabs.spells', icon: <FaScroll /> },
+    { id: 'skills', labelKey: 'backoffice.tabs.skills', icon: <FaStar /> },
+    { id: 'feats', labelKey: 'backoffice.tabs.feats', icon: <FaBolt /> },
+    { id: 'icons', labelKey: 'backoffice.tabs.icons', icon: <FaImage /> },
+    { id: 'bestiary', labelKey: 'backoffice.tabs.bestiary', icon: <FaDragon /> },
 ];
 
 interface Props {
@@ -65,7 +70,7 @@ export function BackOffice({ currentUserEmail, allowedSections, onBack }: Props)
         if (!visibleSections.find(s => s.id === section)) {
             setSection(visibleSections[0]?.id ?? 'races');
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [allowedSections]);
 
     async function runSeed(overwrite: boolean) {
@@ -95,90 +100,81 @@ export function BackOffice({ currentUserEmail, allowedSections, onBack }: Props)
     const sectionLabel = t(visibleSections.find(s => s.id === section)?.labelKey ?? '');
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+        <div className="bo-root">
             {/* ── Top bar ── */}
-            <div style={{
-                display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0,
-                padding: '0 24px', height: 56,
-                borderBottom: '1px solid rgba(255,255,255,0.06)',
-                background: 'rgba(0,0,0,0.25)',
-            }}>
+            <div className="bo-topbar">
                 {onBack && (
-                    <button className="btn-ghost text-sm" onClick={onBack} style={{ marginRight: 4 }}>
+                    <button className="btn-ghost text-sm" onClick={onBack} style={{ marginRight: 4, flexShrink: 0 }}>
                         <FaChevronLeft />
                     </button>
                 )}
-                <span className="text-gradient" style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700, letterSpacing: '0.04em' }}>
-                    D&amp;D Nexus
-                </span>
-                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 18 }}>|</span>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Back-Office</span>
-                <div style={{ flex: 1 }} />
-                {sa && (
-                    <>
-                        <button className="btn-secondary text-xs" disabled={seeding} onClick={() => runSeed(false)} title="Aggiunge i preset mancanti">
-                            <FaSeedling /> {seeding ? 'Seeding…' : 'Popola catalogo'}
-                        </button>
-                        <button className="btn-secondary text-xs" disabled={seeding} onClick={() => runSeed(true)} style={{ borderColor: 'var(--accent-crimson)' }} title="Sovrascrive preset (distruttivo)">
-                            <FaSeedling /> Reseed
-                        </button>
-                    </>
-                )}
-                <span className="text-xs text-muted" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200 }}>{currentUserEmail}</span>
+                <div className="bo-topbar-title">
+                    <span className="text-gradient bo-brand">D&amp;D Nexus</span>
+                    <span className="bo-sep">|</span>
+                    <span className="bo-label">Back-Office</span>
+                </div>
+                <div className="bo-topbar-spacer" />
+                <div className="bo-topbar-actions">
+                    {sa && (
+                        <>
+                            <button className="btn-secondary text-xs bo-seed-btn" disabled={seeding} onClick={() => runSeed(false)} title="Aggiunge i preset mancanti">
+                                <FaSeedling /> {seeding ? 'Seeding…' : 'Popola catalogo'}
+                            </button>
+                            <button className="btn-secondary text-xs bo-seed-btn" disabled={seeding} onClick={() => runSeed(true)} style={{ borderColor: 'var(--accent-crimson)' }} title="Sovrascrive preset (distruttivo)">
+                                <FaSeedling /> Reseed
+                            </button>
+                        </>
+                    )}
+                    <span className="bo-topbar-email">{currentUserEmail}</span>
+                </div>
             </div>
 
             {seedMsg && (
-                <div className="text-xs" style={{ padding: '6px 24px', background: 'rgba(201,168,76,0.1)', borderBottom: '1px solid rgba(201,168,76,0.2)', color: 'var(--accent-gold)' }}>
-                    {seedMsg}
-                </div>
+                <div className="bo-seed-msg">{seedMsg}</div>
             )}
 
+            {/* ── Mobile horizontal tab rail ── */}
+            <nav className="bo-tab-rail" aria-label="Sezioni back-office">
+                {visibleSections.map(s => (
+                    <button
+                        key={s.id}
+                        className={'bo-tab-rail-btn' + (section === s.id ? ' is-active' : '')}
+                        onClick={() => setSection(s.id)}
+                    >
+                        {s.icon}
+                        <span>{t(s.labelKey)}</span>
+                    </button>
+                ))}
+            </nav>
+
             {/* ── Master-detail body ── */}
-            <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-                {/* ── Sidebar ── */}
-                <nav style={{
-                    width: 220, flexShrink: 0, display: 'flex', flexDirection: 'column',
-                    borderRight: '1px solid rgba(255,255,255,0.06)',
-                    background: 'rgba(0,0,0,0.18)',
-                    overflowY: 'auto', padding: '16px 0',
-                }}>
-                    {visibleSections.map(s => {
-                        const active = section === s.id;
-                        return (
-                            <button
-                                key={s.id}
-                                onClick={() => setSection(s.id)}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: 10,
-                                    padding: '10px 20px',
-                                    background: active ? 'rgba(201,168,76,0.12)' : 'transparent',
-                                    borderTop: 'none', borderRight: 'none', borderBottom: 'none',
-                                    borderLeft: `3px solid ${active ? 'var(--accent-gold)' : 'transparent'}`,
-                                    color: active ? 'var(--accent-gold)' : 'var(--text-secondary)',
-                                    cursor: 'pointer', textAlign: 'left', width: '100%',
-                                    fontSize: '0.85rem', fontFamily: 'var(--font-body)',
-                                    transition: 'background 0.15s, color 0.15s',
-                                }}
-                            >
-                                <span style={{ opacity: active ? 1 : 0.6, fontSize: 14 }}>{s.icon}</span>
-                                {t(s.labelKey)}
-                            </button>
-                        );
-                    })}
+            <div className="bo-body">
+                {/* ── Sidebar (desktop only) ── */}
+                <nav className="bo-sidebar" aria-label="Sezioni back-office">
+                    {visibleSections.map(s => (
+                        <button
+                            key={s.id}
+                            className={'bo-sidebar-btn' + (section === s.id ? ' is-active' : '')}
+                            onClick={() => setSection(s.id)}
+                        >
+                            <span className="bo-sidebar-ico">{s.icon}</span>
+                            {t(s.labelKey)}
+                        </button>
+                    ))}
                 </nav>
 
                 {/* ── Content ── */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div className="bo-content">
                     <h2 style={{ margin: 0, fontSize: '1.25rem', fontFamily: 'var(--font-heading)' }}>{sectionLabel}</h2>
-                    {section === 'invites'   && <InvitesPanel currentUserEmail={currentUserEmail} />}
-                    {section === 'races'     && <RacesPanel currentUserEmail={currentUserEmail} />}
-                    {section === 'classes'   && <ClassesPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'invites' && <InvitesPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'races' && <RacesPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'classes' && <ClassesPanel currentUserEmail={currentUserEmail} />}
                     {section === 'languages' && <LanguagesPanel currentUserEmail={currentUserEmail} />}
-                    {section === 'spells'    && <SpellsPanel currentUserEmail={currentUserEmail} />}
-                    {section === 'skills'    && <SkillsPanel currentUserEmail={currentUserEmail} />}
-                    {section === 'feats'     && <FeatsPanel currentUserEmail={currentUserEmail} />}
-                    {section === 'icons'     && <IconsPanel currentUserEmail={currentUserEmail} />}
-                    {section === 'bestiary'  && <BestiaryPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'spells' && <SpellsPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'skills' && <SkillsPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'feats' && <FeatsPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'icons' && <IconsPanel currentUserEmail={currentUserEmail} />}
+                    {section === 'bestiary' && <BestiaryPanel currentUserEmail={currentUserEmail} />}
                 </div>
             </div>
         </div>
@@ -543,9 +539,18 @@ const EMPTY_SKILL = (): CatalogSkill => ({
 });
 
 function SkillsPanel({ currentUserEmail }: { currentUserEmail: string }) {
+    const { t, i18n } = useTranslation();
+    const lang = i18n.resolvedLanguage ?? 'it';
     const [items, setItems] = useState<CatalogSkill[]>([]);
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState<CatalogSkill | null>(null);
+    const [search, setSearch] = useState('');
+
+    // ── Custom synergy sub-editor state ───────────────────────────────────────
+    const [showAddSyn, setShowAddSyn] = useState(false);
+    const [addSynForm, setAddSynForm] = useState({ sourceSkillName: '', targetSkillName: '', ranksRequired: 5, bonus: 2, note: '' });
+    const [editingSynId, setEditingSynId] = useState<string | null>(null);
+    const [editSynForm, setEditSynForm] = useState({ sourceSkillName: '', targetSkillName: '', ranksRequired: 5, bonus: 2, note: '' });
 
     const refresh = async () => {
         setLoading(true);
@@ -554,6 +559,31 @@ function SkillsPanel({ currentUserEmail }: { currentUserEmail: string }) {
     };
     useEffect(() => { refresh(); }, []);
 
+    const filtered = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        if (!q) return items;
+        return items.filter(i => {
+            const displayName = pickLocalized(i.localizedName, lang) || i.name;
+            const displayDesc = pickLocalized(i.localizedDescription, lang) || i.description || '';
+            return displayName.toLowerCase().includes(q) || displayDesc.toLowerCase().includes(q);
+        });
+    }, [items, search, lang]);
+
+    // When switching to a different skill to edit, reset synergy sub-editor.
+    // If the skill has no synergies stored yet, pre-populate from SRD.
+    const openEdit = (s: CatalogSkill) => {
+        setShowAddSyn(false);
+        setEditingSynId(null);
+        setAddSynForm({ sourceSkillName: '', targetSkillName: '', ranksRequired: 5, bonus: 2, note: '' });
+        // Only keep synergies where this skill is the source.
+        const synergies: CatalogSkill['synergies'] = s.synergies
+            ? s.synergies.filter(syn => syn.sourceSkillName === s.name)
+            : getSrdSynergiesInvolvingSkill(s.name)
+                .filter(r => r.sourceSkillName === s.name)
+                .map(r => ({ id: uuid(), sourceSkillName: r.sourceSkillName, targetSkillName: r.targetSkillName, ranksRequired: r.ranksRequired, bonus: r.bonus, note: r.note }));
+        setEditing({ ...s, synergies });
+    };
+
     const save = async () => {
         if (!editing || !editing.name.trim()) return;
         await skillCatalog.upsert({ ...editing, createdBy: editing.createdBy ?? currentUserEmail });
@@ -561,61 +591,253 @@ function SkillsPanel({ currentUserEmail }: { currentUserEmail: string }) {
         await refresh();
     };
     const remove = async (id: string) => {
-        if (!confirm('Eliminare questa abilità?')) return;
+        if (!confirm(t('backoffice.skills.confirmDelete'))) return;
         await skillCatalog.remove(id);
         await refresh();
     };
+
+    // ── Synergy helpers (operate on `editing` draft) ──────────────────────────
+    const addSynergy = () => {
+        if (!editing || !addSynForm.targetSkillName) return;
+        if (addSynForm.targetSkillName === editing.name) return;
+        const newSyn = { id: uuid(), sourceSkillName: editing.name, targetSkillName: addSynForm.targetSkillName, ranksRequired: addSynForm.ranksRequired, bonus: addSynForm.bonus, note: addSynForm.note.trim() || undefined };
+        setEditing({ ...editing, synergies: [...(editing.synergies ?? []), newSyn] });
+        setShowAddSyn(false);
+        setAddSynForm({ sourceSkillName: '', targetSkillName: '', ranksRequired: 5, bonus: 2, note: '' });
+    };
+
+    const startEditSyn = (syn: import('../../services/admin').CatalogSkillSynergy) => {
+        setEditingSynId(syn.id);
+        setEditSynForm({ sourceSkillName: syn.sourceSkillName, targetSkillName: syn.targetSkillName, ranksRequired: syn.ranksRequired, bonus: syn.bonus, note: syn.note ?? '' });
+    };
+
+    const saveEditSyn = () => {
+        if (!editing || !editingSynId || !editSynForm.targetSkillName || editSynForm.targetSkillName === editing.name) return;
+        const updated = (editing.synergies ?? []).map(s =>
+            s.id === editingSynId
+                ? { ...s, sourceSkillName: editing.name, targetSkillName: editSynForm.targetSkillName, ranksRequired: editSynForm.ranksRequired, bonus: editSynForm.bonus, note: editSynForm.note.trim() || undefined }
+                : s,
+        );
+        setEditing({ ...editing, synergies: updated });
+        setEditingSynId(null);
+    };
+
+    const deleteSyn = (synId: string) => {
+        if (!editing) return;
+        setEditing({ ...editing, synergies: (editing.synergies ?? []).filter(s => s.id !== synId) });
+        if (editingSynId === synId) setEditingSynId(null);
+    };
+
+    // All catalog skill names sorted (for select options)
+    const skillNameOptions = [...items].sort((a, b) => a.name.localeCompare(b.name)).map(s => s.name);
+    // Also include the current skill being edited if it's new (has a name but not yet in items)
+    const allSkillNames = editing?.name && !skillNameOptions.includes(editing.name)
+        ? [...skillNameOptions, editing.name].sort((a, b) => a.localeCompare(b))
+        : skillNameOptions;
 
     if (editing) {
         return (
             <div className="glass-panel flex-col gap-3">
                 <div className="section-header">
-                    <span className="section-title">{items.find(i => i.id === editing.id) ? 'Modifica' : 'Nuova'} Abilità</span>
+                    <span className="section-title">
+                        {items.find(i => i.id === editing.id) ? t('backoffice.skills.editSkill') : t('backoffice.skills.newSkill')}
+                    </span>
                     <div className="flex gap-2">
-                        <button className="btn-secondary text-sm" onClick={() => setEditing(null)}><FaTimes /> Annulla</button>
-                        <button className="btn-primary text-sm" onClick={save}><FaSave /> Salva</button>
+                        <button className="btn-secondary text-sm" onClick={() => setEditing(null)}><FaTimes /> {t('common.cancel')}</button>
+                        <button className="btn-primary text-sm" onClick={save}><FaSave /> {t('common.save')}</button>
                     </div>
                 </div>
-                <Field label="Nome"><input className="input w-full" value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} /></Field>
-                <Field label="Caratteristica">
+
+                {/* ── Core fields ── */}
+                <Field label={t('common.name') + ' (canonico / chiave sinergie)'}>
+                    <input className="input w-full" value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} placeholder="Es. Diplomazia (usato come chiave interna)" />
+                </Field>
+                <LocalizedFieldEditor
+                    label={t('common.name') + ' (traduzioni)'}
+                    value={editing.localizedName}
+                    onChange={v => setEditing({ ...editing, localizedName: v as LocalizedField })}
+                    placeholder="Nome visivo per ogni lingua"
+                />
+                <Field label={t('backoffice.skills.ability')}>
                     <select className="input w-full" value={editing.stat} onChange={e => setEditing({ ...editing, stat: e.target.value as StatType })}>
                         {STAT_OPTIONS.map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
                     </select>
                 </Field>
                 <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" checked={editing.canUseUntrained} onChange={e => setEditing({ ...editing, canUseUntrained: e.target.checked })} />
-                    Usabile senza addestramento
+                    {t('backoffice.skills.canUseUntrained')}
                 </label>
                 <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" checked={editing.armorCheckPenalty} onChange={e => setEditing({ ...editing, armorCheckPenalty: e.target.checked })} />
-                    Soggetto a penalità d'armatura
+                    {t('backoffice.skills.armorCheckPenalty')}
                 </label>
-                <Field label="Descrizione (opzionale)">
-                    <textarea className="input w-full" rows={4} value={editing.description ?? ''} onChange={e => setEditing({ ...editing, description: e.target.value })} />
-                </Field>
+                <LocalizedFieldEditor
+                    label={t('common.description') + ' (' + t('backoffice.skills.optional') + ')'}
+                    value={editing.localizedDescription}
+                    onChange={v => setEditing({ ...editing, localizedDescription: v as LocalizedField })}
+                    multiline
+                    placeholder={t('backoffice.skills.descriptionHint')}
+                />
+
+                {/* ── Synergies (unified editable list) ── */}
+                <div className="flex-col gap-2" style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '0.75rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="text-xs text-muted" style={{ fontFamily: 'var(--font-heading)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                            {t('backoffice.skills.synergies')}
+                        </div>
+                        {!showAddSyn && (
+                            <button className="btn-ghost text-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }} onClick={() => setShowAddSyn(true)}>
+                                <FaPlus size={9} /> {t('backoffice.skills.newSynergy', { defaultValue: 'Nuova' })}
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Existing custom synergies */}
+                    {(editing.synergies ?? []).length === 0 && !showAddSyn && (
+                        <div className="text-xs text-muted" style={{ fontStyle: 'italic' }}>
+                            {t('backoffice.skills.noCustomSynergies', { defaultValue: 'Nessuna sinergia.' })}
+                        </div>
+                    )}
+                    <div className="flex-col gap-1">
+                        {(editing.synergies ?? []).map(syn => {
+                            if (editingSynId === syn.id) {
+                                return (
+                                    <div key={syn.id} className="flex-col gap-2" style={{ padding: 8, borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)' }}>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                                            <div className="flex-col gap-1" style={{ gridColumn: '1 / -1' }}>
+                                                <span className="text-xs text-muted">{t('backoffice.skills.synTarget', { defaultValue: 'Destinatario (riceve il bonus)' })}</span>
+                                                <select className="input" style={{ fontSize: '0.75rem', padding: '3px 6px' }} value={editSynForm.targetSkillName} onChange={e => setEditSynForm({ ...editSynForm, targetSkillName: e.target.value })}>
+                                                    <option value="">— seleziona —</option>
+                                                    {allSkillNames.filter(n => n !== editing.name).map(n => <option key={n} value={n}>{n}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="flex-col gap-1">
+                                                <span className="text-xs text-muted">{t('backoffice.skills.synRanks', { defaultValue: 'Gradi richiesti' })}</span>
+                                                <input type="number" className="input" style={{ fontSize: '0.75rem', padding: '3px 6px' }} min={1} max={20} value={editSynForm.ranksRequired} onChange={e => setEditSynForm({ ...editSynForm, ranksRequired: Math.max(1, +e.target.value) })} />
+                                            </div>
+                                            <div className="flex-col gap-1">
+                                                <span className="text-xs text-muted">{t('backoffice.skills.synBonus', { defaultValue: 'Bonus' })}</span>
+                                                <input type="number" className="input" style={{ fontSize: '0.75rem', padding: '3px 6px' }} min={1} max={10} value={editSynForm.bonus} onChange={e => setEditSynForm({ ...editSynForm, bonus: Math.max(1, +e.target.value) })} />
+                                            </div>
+                                            <div className="flex-col gap-1" style={{ gridColumn: '1 / -1' }}>
+                                                <span className="text-xs text-muted">{t('backoffice.skills.synNote', { defaultValue: 'Nota (opzionale)' })}</span>
+                                                <input type="text" className="input" style={{ fontSize: '0.75rem', padding: '3px 6px' }} value={editSynForm.note} onChange={e => setEditSynForm({ ...editSynForm, note: e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button className="btn-primary text-xs" onClick={saveEditSyn} disabled={!editSynForm.targetSkillName || editSynForm.targetSkillName === editing.name}>
+                                                <FaCheck size={9} /> {t('common.save')}
+                                            </button>
+                                            <button className="btn-secondary text-xs" onClick={() => setEditingSynId(null)}>
+                                                <FaTimes size={9} /> {t('common.cancel')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            }
+                            return (
+                                <div key={syn.id} className="flex items-center gap-2 text-xs" style={{ padding: '3px 8px', borderRadius: 6, background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)' }}>
+                                    <span className="text-muted">→</span>
+                                    <span style={{ color: 'var(--text-primary)' }}>{syn.targetSkillName}</span>
+                                    <span className="text-muted" style={{ marginLeft: 4 }}>≥{syn.ranksRequired} gr.</span>
+                                    <span style={{ color: '#4ecdc4', fontWeight: 700 }}>+{syn.bonus}</span>
+                                    {syn.note && <span className="text-muted" title={syn.note}>ℹ</span>}
+                                    <div className="flex gap-1" style={{ marginLeft: 'auto' }}>
+                                        <button className="btn-ghost text-xs" onClick={() => startEditSyn(syn)} title={t('common.edit')}><FaEdit size={9} /></button>
+                                        <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => deleteSyn(syn.id)} title={t('common.delete', { defaultValue: 'Elimina' })}><FaTrash size={9} /></button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Add synergy form */}
+                    {showAddSyn && (
+                        <div className="flex-col gap-2" style={{ padding: 8, borderRadius: 6, border: '1px dashed rgba(201,168,76,0.3)', background: 'rgba(201,168,76,0.04)' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                                <div className="flex-col gap-1" style={{ gridColumn: '1 / -1' }}>
+                                    <span className="text-xs text-muted">{t('backoffice.skills.synTarget', { defaultValue: 'Destinatario (riceve il bonus)' })}</span>
+                                    <select className="input" style={{ fontSize: '0.75rem', padding: '3px 6px' }} value={addSynForm.targetSkillName} onChange={e => setAddSynForm({ ...addSynForm, targetSkillName: e.target.value })}>
+                                        <option value="">— seleziona —</option>
+                                        {allSkillNames.filter(n => n !== editing.name).map(n => <option key={n} value={n}>{n}</option>)}
+                                    </select>
+                                </div>
+                                <div className="flex-col gap-1">
+                                    <span className="text-xs text-muted">{t('backoffice.skills.synRanks', { defaultValue: 'Gradi richiesti' })}</span>
+                                    <input type="number" className="input" style={{ fontSize: '0.75rem', padding: '3px 6px' }} min={1} max={20} value={addSynForm.ranksRequired} onChange={e => setAddSynForm({ ...addSynForm, ranksRequired: Math.max(1, +e.target.value) })} />
+                                </div>
+                                <div className="flex-col gap-1">
+                                    <span className="text-xs text-muted">{t('backoffice.skills.synBonus', { defaultValue: 'Bonus' })}</span>
+                                    <input type="number" className="input" style={{ fontSize: '0.75rem', padding: '3px 6px' }} min={1} max={10} value={addSynForm.bonus} onChange={e => setAddSynForm({ ...addSynForm, bonus: Math.max(1, +e.target.value) })} />
+                                </div>
+                                <div className="flex-col gap-1" style={{ gridColumn: '1 / -1' }}>
+                                    <span className="text-xs text-muted">{t('backoffice.skills.synNote', { defaultValue: 'Nota (opzionale)' })}</span>
+                                    <input type="text" className="input" style={{ fontSize: '0.75rem', padding: '3px 6px' }} placeholder="es. Solo con creature acquatiche" value={addSynForm.note} onChange={e => setAddSynForm({ ...addSynForm, note: e.target.value })} />
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <button className="btn-primary text-xs" onClick={addSynergy} disabled={!addSynForm.targetSkillName || addSynForm.targetSkillName === editing.name}>
+                                    <FaCheck size={9} /> {t('backoffice.skills.newSynergy', { defaultValue: 'Aggiungi' })}
+                                </button>
+                                <button className="btn-secondary text-xs" onClick={() => { setShowAddSyn(false); setAddSynForm({ sourceSkillName: '', targetSkillName: '', ranksRequired: 5, bonus: 2, note: '' }); }}>
+                                    <FaTimes size={9} /> {t('common.cancel')}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         );
     }
 
     return (
         <div className="flex-col gap-3">
-            <div className="flex gap-2 items-center" style={{ justifyContent: 'flex-end' }}>
-                <button className="btn-primary text-sm" onClick={() => setEditing(EMPTY_SKILL())}><FaPlus /> Nuova Abilità</button>
+            <div className="flex gap-2 items-center">
+                <div style={{ position: 'relative', flex: 1 }}>
+                    <FaSearch style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} size={11} />
+                    <input
+                        className="input w-full"
+                        style={{ paddingLeft: '1.75rem' }}
+                        placeholder={t('common.search')}
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                    />
+                </div>
+                <button className="btn-primary text-sm" onClick={() => openEdit(EMPTY_SKILL())}>
+                    <FaPlus /> {t('backoffice.skills.newSkill')}
+                </button>
             </div>
             <div className="glass-panel">
-                {loading && <div className="text-muted text-sm">Caricamento…</div>}
-                {!loading && items.length === 0 && <div className="text-muted text-sm">Nessuna abilità nel catalogo.</div>}
+                {loading && <div className="text-muted text-sm">{t('common.loading')}</div>}
+                {!loading && filtered.length === 0 && <div className="text-muted text-sm">{t('backoffice.skills.empty')}</div>}
                 <div className="flex-col gap-1">
-                    {items.map(s => (
-                        <div key={s.id} className="flex items-center gap-2" style={{ padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)' }}>
-                            <div style={{ flex: 1 }}>
-                                <span style={{ fontFamily: 'var(--font-heading)' }}>{s.name}</span>
-                                <span className="text-xs text-muted"> — {s.stat.toUpperCase()}{s.armorCheckPenalty ? ' • ACP' : ''}{s.canUseUntrained ? ' • untrained' : ''}</span>
+                    {filtered.map(s => {
+                        const hasSyn = (s.synergies ?? []).length > 0;
+                        const displayName = pickLocalized(s.localizedName, lang) || s.name;
+                        const displayDesc = pickLocalized(s.localizedDescription, lang) || s.description;
+                        return (
+                            <div key={s.id} className="flex items-center gap-2" style={{ padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)' }}>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <span style={{ fontFamily: 'var(--font-heading)' }}>{displayName}</span>
+                                    <span className="text-xs text-muted"> — {s.stat.toUpperCase()}</span>
+                                    {s.armorCheckPenalty && <span className="text-xs text-muted"> · ACP</span>}
+                                    {s.canUseUntrained && <span className="text-xs text-muted"> · ∅</span>}
+                                    {hasSyn && (
+                                        <span className="text-xs" style={{ marginLeft: 6, color: '#4ecdc4', opacity: 0.9 }} title={(s.synergies ?? []).map(sy => `${sy.sourceSkillName} → ${sy.targetSkillName} (+${sy.bonus})`).join('; ')}>
+                                            ⇗ {(s.synergies ?? []).length}
+                                        </span>
+                                    )}
+                                    {displayDesc && (
+                                        <div className="text-xs text-muted" style={{ marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '40ch' }}>
+                                            {displayDesc}
+                                        </div>
+                                    )}
+                                </div>
+                                <button className="btn-ghost text-xs" onClick={() => openEdit(s)}>{t('common.edit')}</button>
+                                <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => remove(s.id)}><FaTrash /></button>
                             </div>
-                            <button className="btn-ghost text-xs" onClick={() => setEditing(s)}>Modifica</button>
-                            <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => remove(s.id)}><FaTrash /></button>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </div>
@@ -975,143 +1197,420 @@ function FeatsPanel({ currentUserEmail }: { currentUserEmail: string }) {
         await refresh();
     };
 
+    /* ── EDIT FORM ── */
     if (editing) {
         const isActive = (editing.subcategory ?? 'passive') === 'active';
         const accent = isActive ? 'var(--accent-warning)' : 'var(--accent-success)';
+        const isNew = !items.find(i => i.id === editing.id);
         return (
-            <div className="glass-panel flex-col gap-3">
-                <div className="section-header">
-                    <span className="section-title">{items.find(i => i.id === editing.id) ? 'Modifica' : 'Nuovo'} Privilegio di Classe</span>
-                    <div className="flex gap-2">
-                        <button className="btn-secondary text-sm" onClick={() => setEditing(null)}><FaTimes /> Annulla</button>
-                        <button className="btn-primary text-sm" onClick={save}><FaSave /> Salva</button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                {/* ── Sticky header ── */}
+                <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '10px 14px',
+                    background: `linear-gradient(90deg, ${accent}18 0%, transparent 100%)`,
+                    border: `1px solid ${accent}30`,
+                    borderRadius: 'var(--radius-md)',
+                    marginBottom: 16,
+                    gap: 10,
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{
+                            width: 32, height: 32, borderRadius: 8,
+                            background: `${accent}20`, border: `1px solid ${accent}44`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: accent,
+                        }}>
+                            {isActive ? <FaBolt size={14} /> : <FaStar size={14} />}
+                        </div>
+                        <div>
+                            <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', color: accent }}>
+                                {isNew ? 'Nuovo Privilegio di Classe' : editing.name || 'Modifica Privilegio'}
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                {isActive ? 'Capacità Attiva' : 'Capacità Passiva'}
+                            </div>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn-secondary text-sm" onClick={() => setEditing(null)}>
+                            <FaTimes /> Annulla
+                        </button>
+                        <button
+                            className="btn-primary text-sm"
+                            onClick={save}
+                            disabled={!editing.name.trim()}
+                            style={{ opacity: editing.name.trim() ? 1 : 0.5 }}
+                        >
+                            <FaSave /> Salva
+                        </button>
                     </div>
                 </div>
-                <Field label="Nome"><input className="input w-full" value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} /></Field>
-                <Field label="Tipo">
-                    <div className="flex gap-2">
-                        {(['active', 'passive'] as const).map(s => {
-                            const on = (editing.subcategory ?? 'passive') === s;
-                            const color = s === 'active' ? 'var(--accent-warning)' : 'var(--accent-success)';
-                            return (
-                                <button
-                                    key={s}
-                                    onClick={() => setEditing({ ...editing, subcategory: s })}
-                                    style={{
-                                        fontSize: '0.78rem', padding: '6px 14px', borderRadius: 6, cursor: 'pointer',
-                                        border: `1px solid ${on ? color : 'rgba(255,255,255,0.12)'}`,
-                                        background: on ? `${color}22` : 'transparent',
-                                        color: on ? color : 'var(--text-secondary)',
-                                        fontFamily: 'var(--font-heading)',
-                                    }}
-                                >
-                                    {s === 'active' ? 'Capacità Attiva' : 'Capacità Passiva'}
-                                </button>
-                            );
-                        })}
+
+                {/* ── Identity section ── */}
+                <div className="glass-panel" style={{ marginBottom: 12 }}>
+                    <div style={{
+                        fontSize: '0.62rem', color: 'var(--text-muted)', letterSpacing: '0.1em',
+                        textTransform: 'uppercase', marginBottom: 12,
+                        paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.06)',
+                        fontFamily: 'var(--font-heading)',
+                    }}>
+                        Identità
                     </div>
-                </Field>
-                <Field label="Descrizione">
-                    <textarea className="input w-full" rows={4} value={editing.description} onChange={e => setEditing({ ...editing, description: e.target.value })} />
-                </Field>
-                {isActive && (
-                    <div className="flex gap-2">
+
+                    {/* Name */}
+                    <Field label="Nome *">
                         <input
-                            className="input"
-                            style={{ flex: 1 }}
-                            placeholder="Nome risorsa (es. Incanalare Divinità)"
-                            value={editing.resourceName ?? ''}
-                            onChange={e => setEditing({ ...editing, resourceName: e.target.value })}
+                            className="input w-full"
+                            value={editing.name}
+                            onChange={e => setEditing({ ...editing, name: e.target.value })}
+                            placeholder="Es. Cura Bonus, Furia, Attacco Furtivo…"
+                            style={{ fontSize: '1rem', fontFamily: 'var(--font-heading)' }}
+                            autoFocus
                         />
-                        <input
-                            type="number"
-                            className="input"
-                            style={{ width: 120 }}
-                            placeholder="Usi max"
-                            min={1}
-                            value={editing.resourceMax ?? ''}
-                            onChange={e => setEditing({ ...editing, resourceMax: e.target.value ? Number(e.target.value) : undefined })}
-                        />
+                    </Field>
+
+                    {/* Type toggle */}
+                    <div style={{ marginTop: 12 }}>
+                        <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+                            Tipo
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            {(['passive', 'active'] as const).map(s => {
+                                const on = (editing.subcategory ?? 'passive') === s;
+                                const color = s === 'active' ? 'var(--accent-warning)' : 'var(--accent-success)';
+                                const Icon = s === 'active' ? FaBolt : FaStar;
+                                return (
+                                    <button
+                                        key={s}
+                                        type="button"
+                                        onClick={() => setEditing({ ...editing, subcategory: s })}
+                                        style={{
+                                            flex: 1, padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                                            border: `1px solid ${on ? color + '66' : 'rgba(255,255,255,0.1)'}`,
+                                            background: on ? `linear-gradient(135deg,${color}22,${color}10)` : 'rgba(255,255,255,0.03)',
+                                            color: on ? color : 'var(--text-muted)',
+                                            fontFamily: 'var(--font-heading)', fontSize: '0.82rem',
+                                            transition: 'all 150ms',
+                                        }}
+                                    >
+                                        <Icon size={11} />
+                                        {s === 'active' ? 'Capacità Attiva' : 'Capacità Passiva'}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
-                )}
-                <Field label="Tag (separati da virgola)">
-                    <input className="input w-full" value={(editing.tags ?? []).join(', ')} onChange={e => setEditing({ ...editing, tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })} />
-                </Field>
-                <ModifierEditor
-                    modifiers={editing.modifiers ?? []}
-                    onChange={mods => setEditing({ ...editing, modifiers: mods as Modifier[] })}
-                    accentColor={accent}
-                    title="MODIFICATORI AL PERSONAGGIO"
-                    compact
-                />
-                <CreatureModifierEditor
-                    modifiers={(editing.creatureModifiers ?? []) as CreatureModifier[]}
-                    onChange={cms => setEditing({ ...editing, creatureModifiers: cms })}
-                    accentColor="var(--accent-gold)"
-                />
+
+                    {/* Description */}
+                    <div style={{ marginTop: 12 }}>
+                        <Field label="Descrizione">
+                            <textarea
+                                className="input w-full"
+                                rows={4}
+                                value={editing.description}
+                                onChange={e => setEditing({ ...editing, description: e.target.value })}
+                                placeholder="Descrivi l'effetto narrativo e meccanico di questo privilegio…"
+                                style={{ resize: 'vertical', lineHeight: 1.6 }}
+                            />
+                        </Field>
+                    </div>
+
+                    {/* Active resource (only for active feats) */}
+                    {isActive && (
+                        <div style={{ marginTop: 12 }}>
+                            <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+                                Risorsa (opzionale)
+                            </div>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <input
+                                    className="input"
+                                    style={{ flex: 1 }}
+                                    placeholder="Nome risorsa (es. Incanalare Divinità, Furia)"
+                                    value={editing.resourceName ?? ''}
+                                    onChange={e => setEditing({ ...editing, resourceName: e.target.value })}
+                                />
+                                <input
+                                    type="number"
+                                    className="input"
+                                    style={{ width: 100 }}
+                                    placeholder="Usi max"
+                                    min={1}
+                                    value={editing.resourceMax ?? ''}
+                                    onChange={e => setEditing({ ...editing, resourceMax: e.target.value ? Number(e.target.value) : undefined })}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Tags */}
+                    <div style={{ marginTop: 12 }}>
+                        <Field label="Tag (separati da virgola)">
+                            <input
+                                className="input w-full"
+                                value={(editing.tags ?? []).join(', ')}
+                                onChange={e => setEditing({ ...editing, tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                                placeholder="es. combattimento, magia, guarigione…"
+                            />
+                        </Field>
+                        {(editing.tags ?? []).length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                                {(editing.tags ?? []).map(tag => (
+                                    <span key={tag} style={{
+                                        fontSize: '0.7rem', padding: '2px 8px', borderRadius: 10,
+                                        background: `${accent}18`, border: `1px solid ${accent}33`,
+                                        color: accent,
+                                    }}>{tag}</span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* ── Modifiers section ── */}
+                <div className="glass-panel" style={{ marginBottom: 12 }}>
+                    <ModifierEditor
+                        modifiers={editing.modifiers ?? []}
+                        onChange={mods => setEditing({ ...editing, modifiers: mods as Modifier[] })}
+                        accentColor={accent}
+                        title="Modificatori al Personaggio"
+                    />
+                </div>
+
+                {/* ── Creature modifiers section ── */}
+                <div className="glass-panel">
+                    <CreatureModifierEditor
+                        modifiers={(editing.creatureModifiers ?? []) as CreatureModifier[]}
+                        onChange={cms => setEditing({ ...editing, creatureModifiers: cms })}
+                        accentColor="var(--accent-gold)"
+                    />
+                </div>
             </div>
         );
     }
 
+    /* ── LIST VIEW ── */
     return (
-        <div className="flex-col gap-3">
-            {/* Internal tab bar */}
-            <div className="flex" style={{ gap: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* ── Tab bar ── */}
+            <div style={{ display: 'flex', gap: 6 }}>
                 {(['active', 'passive'] as const).map(s => {
                     const on = activeTab === s;
                     const color = s === 'active' ? 'var(--accent-warning)' : 'var(--accent-success)';
                     const label = s === 'active' ? 'Capacità Attive' : 'Capacità Passive';
+                    const Icon = s === 'active' ? FaBolt : FaStar;
                     const cnt = items.filter(i => (i.subcategory ?? 'passive') === s).length;
                     return (
                         <button
                             key={s}
                             onClick={() => setActiveTab(s)}
                             style={{
-                                flex: 1, padding: '7px 12px', borderRadius: 6, cursor: 'pointer',
+                                flex: 1, padding: '9px 14px', borderRadius: 8, cursor: 'pointer',
                                 fontFamily: 'var(--font-heading)', fontSize: '0.82rem',
-                                border: `1px solid ${on ? color + '66' : 'rgba(255,255,255,0.06)'}`,
-                                background: on ? `linear-gradient(180deg,${color}22,${color}11)` : 'rgba(255,255,255,0.02)',
+                                border: `1px solid ${on ? color + '55' : 'rgba(255,255,255,0.07)'}`,
+                                background: on
+                                    ? `linear-gradient(135deg,${color}22 0%,${color}0e 100%)`
+                                    : 'rgba(255,255,255,0.02)',
                                 color: on ? color : 'var(--text-secondary)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                                transition: 'all 150ms',
                             }}
                         >
+                            <Icon size={11} />
                             {label}
-                            <span style={{ fontSize: '0.65rem', padding: '0 6px', borderRadius: 8,
-                                background: on ? `${color}33` : 'rgba(255,255,255,0.05)',
-                                border: `1px solid ${on ? color + '44' : 'rgba(255,255,255,0.08)'}`,
-                                color: on ? color : 'var(--text-muted)' }}>{cnt}</span>
+                            <span style={{
+                                fontSize: '0.65rem', padding: '1px 7px', borderRadius: 10,
+                                background: on ? `${color}33` : 'rgba(255,255,255,0.06)',
+                                border: `1px solid ${on ? color + '44' : 'rgba(255,255,255,0.09)'}`,
+                                color: on ? color : 'var(--text-muted)',
+                            }}>{cnt}</span>
                         </button>
                     );
                 })}
             </div>
-            <div className="flex gap-2 items-center" style={{ flexWrap: 'wrap' }}>
-                <div className="flex items-center gap-2" style={{ flex: '1 1 240px', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', padding: '0.4rem 0.75rem' }}>
-                    <FaSearch className="text-muted" />
-                    <input className="w-full" style={{ background: 'transparent', border: 'none', color: 'inherit', outline: 'none' }} placeholder="Cerca…" value={search} onChange={e => setSearch(e.target.value)} />
+
+            {/* ── Toolbar ── */}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{
+                    flex: '1 1 240px', display: 'flex', alignItems: 'center', gap: 8,
+                    background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)',
+                    padding: '0.4rem 0.75rem', border: '1px solid rgba(255,255,255,0.07)',
+                }}>
+                    <FaSearch style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                    <input
+                        className="w-full"
+                        style={{ background: 'transparent', border: 'none', color: 'inherit', outline: 'none', fontSize: '0.88rem' }}
+                        placeholder={`Cerca ${activeTab === 'active' ? 'capacità attive' : 'capacità passive'}…`}
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                    />
+                    {search && (
+                        <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }} onClick={() => setSearch('')}>
+                            <FaTimes size={11} />
+                        </button>
+                    )}
                 </div>
-                <button className="btn-primary text-sm" onClick={() => setEditing({ ...EMPTY_FEAT_CAT(), subcategory: activeTab })}><FaPlus /> Nuovo Privilegio</button>
+                <button
+                    className="btn-primary text-sm"
+                    onClick={() => setEditing({ ...EMPTY_FEAT_CAT(), subcategory: activeTab })}
+                    style={{ flexShrink: 0 }}
+                >
+                    <FaPlus /> Nuovo Privilegio
+                </button>
             </div>
-            <div className="glass-panel">
-                {loading && <div className="text-muted text-sm">Caricamento…</div>}
-                {!loading && filtered.length === 0 && <div className="text-muted text-sm">Nessun privilegio nel catalogo.</div>}
-                <div className="flex-col gap-1">
-                    {filtered.map(f => {
-                        const sub = f.subcategory ?? 'passive';
-                        const subColor = sub === 'active' ? 'var(--accent-warning)' : 'var(--accent-success)';
-                        return (
-                            <div key={f.id} className="flex items-center gap-2" style={{ padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)' }}>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontFamily: 'var(--font-heading)', color: subColor }}>
-                                        {f.name}
-                                    </div>
-                                    {f.description && <div className="text-xs text-muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.description}</div>}
-                                </div>
-                                <button className="btn-ghost text-xs" onClick={() => setEditing(f)}>Modifica</button>
-                                <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => remove(f.id)}><FaTrash /></button>
-                            </div>
-                        );
-                    })}
+
+            {/* ── Card grid ── */}
+            {loading && <div className="text-muted text-sm">Caricamento…</div>}
+            {!loading && filtered.length === 0 && (
+                <div style={{
+                    textAlign: 'center', padding: '3rem 1rem',
+                    border: '2px dashed rgba(255,255,255,0.07)', borderRadius: 10,
+                    color: 'var(--text-muted)',
+                }}>
+                    <div style={{ fontSize: '2.5rem', marginBottom: 12, opacity: 0.3 }}>
+                        {activeTab === 'active' ? '⚡' : '✦'}
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9rem', marginBottom: 6 }}>
+                        {search ? `Nessun risultato per "${search}"` : `Nessuna ${activeTab === 'active' ? 'capacità attiva' : 'capacità passiva'}`}
+                    </div>
+                    {!search && (
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                            Crea il primo privilegio con il pulsante qui sopra.
+                        </div>
+                    )}
                 </div>
+            )}
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                gap: 10,
+            }}>
+                {filtered.map(f => {
+                    const sub = f.subcategory ?? 'passive';
+                    const color = sub === 'active' ? 'var(--accent-warning)' : 'var(--accent-success)';
+                    const Icon = sub === 'active' ? FaBolt : FaStar;
+                    const modCount = (f.modifiers ?? []).length;
+                    const creatureModCount = (f.creatureModifiers ?? []).length;
+                    const hasResource = sub === 'active' && f.resourceName;
+                    return (
+                        <div
+                            key={f.id}
+                            style={{
+                                borderRadius: 10, overflow: 'hidden',
+                                border: `1px solid ${color}22`,
+                                background: 'var(--bg-surface-elevated)',
+                                display: 'flex', flexDirection: 'column',
+                                transition: 'border-color 120ms, box-shadow 120ms',
+                                cursor: 'default',
+                            }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = `${color}55`; (e.currentTarget as HTMLDivElement).style.boxShadow = `0 4px 20px ${color}18`; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = `${color}22`; (e.currentTarget as HTMLDivElement).style.boxShadow = 'none'; }}
+                        >
+                            {/* Card color strip */}
+                            <div style={{
+                                height: 4,
+                                background: `linear-gradient(90deg, ${color}, transparent)`,
+                            }} />
+
+                            {/* Card content */}
+                            <div style={{ padding: '12px 14px', flex: 1 }}>
+                                {/* Name + type badge */}
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                                    <div style={{
+                                        width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+                                        background: `${color}18`, border: `1px solid ${color}33`,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', color,
+                                    }}>
+                                        <Icon size={12} />
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{
+                                            fontFamily: 'var(--font-heading)', fontSize: '0.92rem',
+                                            color: 'var(--text-primary)',
+                                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                        }}>
+                                            {f.name}
+                                        </div>
+                                        <div style={{ fontSize: '0.68rem', color, fontFamily: 'var(--font-heading)', marginTop: 1 }}>
+                                            {sub === 'active' ? 'Capacità Attiva' : 'Capacità Passiva'}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Description */}
+                                {f.description && (
+                                    <div style={{
+                                        fontSize: '0.76rem', color: 'var(--text-secondary)', lineHeight: 1.5,
+                                        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                                        overflow: 'hidden', marginBottom: 8,
+                                    }}>
+                                        {f.description}
+                                    </div>
+                                )}
+
+                                {/* Meta badges */}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                                    {modCount > 0 && (
+                                        <span style={{
+                                            fontSize: '0.66rem', padding: '2px 7px', borderRadius: 8,
+                                            background: `${color}15`, border: `1px solid ${color}30`, color,
+                                        }}>
+                                            {modCount} mod.
+                                        </span>
+                                    )}
+                                    {creatureModCount > 0 && (
+                                        <span style={{
+                                            fontSize: '0.66rem', padding: '2px 7px', borderRadius: 8,
+                                            background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)',
+                                            color: 'var(--accent-gold)',
+                                        }}>
+                                            {creatureModCount} evoc.
+                                        </span>
+                                    )}
+                                    {hasResource && (
+                                        <span style={{
+                                            fontSize: '0.66rem', padding: '2px 7px', borderRadius: 8,
+                                            background: 'rgba(91,173,226,0.12)', border: '1px solid rgba(91,173,226,0.25)',
+                                            color: 'var(--accent-ice)',
+                                        }}>
+                                            {f.resourceMax ? `${f.resourceName} ×${f.resourceMax}` : f.resourceName}
+                                        </span>
+                                    )}
+                                    {(f.tags ?? []).map(tag => (
+                                        <span key={tag} style={{
+                                            fontSize: '0.64rem', padding: '1px 6px', borderRadius: 8,
+                                            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                                            color: 'var(--text-muted)',
+                                        }}>{tag}</span>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Card actions */}
+                            <div style={{
+                                display: 'flex', gap: 6, padding: '8px 14px',
+                                borderTop: `1px solid ${color}15`,
+                                background: `${color}06`,
+                            }}>
+                                <button
+                                    className="btn-ghost text-xs"
+                                    onClick={() => setEditing(f)}
+                                    style={{ flex: 1, justifyContent: 'center', display: 'flex', alignItems: 'center', gap: 5 }}
+                                >
+                                    <FaEdit size={10} /> Modifica
+                                </button>
+                                <button
+                                    className="btn-ghost text-xs"
+                                    style={{ color: 'var(--accent-crimson)', display: 'flex', alignItems: 'center', gap: 4 }}
+                                    onClick={() => remove(f.id)}
+                                >
+                                    <FaTrash size={10} />
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );

@@ -114,3 +114,12 @@
     color: var(--accent-crimson);
 }
 
+/* Synergy indicator in widget row */
+.w-skill-syn {
+    font-size: 0.65rem;
+    color: #4ecdc4;
+    opacity: 0.85;
+    flex-shrink: 0;
+    cursor: help;
+    line-height: 1;
+}

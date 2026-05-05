@@ -1,44 +1,19 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { WidgetRenderProps } from '../widgetTypes';
 import { DndIcon } from '../../DndIcon';
-
-interface ConditionDef {
-    id: string;       // icon slug
-    label: string;    // Italian label
-    hint: string;     // brief mechanical hint
-    severity: 'minor' | 'moderate' | 'severe';
-}
-
-const CONDITIONS: ConditionDef[] = [
-    { id: 'blinded', label: 'Accecato', hint: '-2 CA, manca attacchi', severity: 'moderate' },
-    { id: 'charmed', label: 'Affascinato', hint: 'Non può attaccare la fonte', severity: 'minor' },
-    { id: 'deafened', label: 'Assordato', hint: '-4 iniziativa, perde suoni', severity: 'minor' },
-    { id: 'exhaustion', label: 'Affaticato', hint: 'Penalità a TS Tempra', severity: 'moderate' },
-    { id: 'frightened', label: 'Spaventato', hint: 'Fugge o -2 attacco/TS', severity: 'moderate' },
-    { id: 'grappled', label: 'Alle Prese', hint: '-4 DES, velocità 0', severity: 'moderate' },
-    { id: 'incapacitated', label: 'Incapacitato', hint: 'Nessuna azione possibile', severity: 'severe' },
-    { id: 'invisible', label: 'Invisibile', hint: '+2 attacco, -2 CA vs nemici', severity: 'minor' },
-    { id: 'paralyzed', label: 'Paralizzato', hint: 'STR/DES 0, CA -4, no azioni', severity: 'severe' },
-    { id: 'petrified', label: 'Pietrificato', hint: 'Trasformato in pietra', severity: 'severe' },
-    { id: 'poisoned', label: 'Avvelenato', hint: 'Penalità variabile al veleno', severity: 'moderate' },
-    { id: 'prone', label: 'Prono', hint: '-4 attacco in mischia', severity: 'minor' },
-    { id: 'restrained', label: 'Trattenuto', hint: 'Velocità 0, -2 attacco/CA', severity: 'moderate' },
-    { id: 'silenced', label: 'Silenziato', hint: 'Nessuna componente verbale', severity: 'moderate' },
-    { id: 'sleep', label: 'Addormentato', hint: 'Incosciente, può svegliarsi', severity: 'severe' },
-    { id: 'stunned', label: 'Stordito', hint: 'Perde azioni, CA -2', severity: 'severe' },
-    { id: 'unconscious', label: 'Privo di Sensi', hint: 'Come paralizzato + morente', severity: 'severe' },
-];
-
-const SEVERITY_ORDER: Record<string, number> = { minor: 0, moderate: 1, severe: 2 };
+import { useCharacterStore } from '../../../store/characterStore';
+import { CONDITIONS, SEVERITY_ORDER } from '../../../data/conditions';
+const EMPTY_CONDITIONS: string[] = [];
 
 export const ConditionsWidget: React.FC<WidgetRenderProps> = ({ size }) => {
-    const [active, setActive] = useState<string[]>([]);
+    const active = useCharacterStore(s => s.character?.activeConditions ?? EMPTY_CONDITIONS);
+    const setActiveConditions = useCharacterStore(s => s.setActiveConditions);
 
     const compact = size.pixelW < 300 || size.pixelH < 200;
     const wide = size.size === 'lg' || size.size === 'xl';
 
-    const add = (id: string) => setActive(p => [...p, id]);
-    const remove = (id: string) => setActive(p => p.filter(x => x !== id));
+    const add = (id: string) => setActiveConditions([...active, id]);
+    const remove = (id: string) => setActiveConditions(active.filter(x => x !== id));
 
     const activeList = CONDITIONS
         .filter(c => active.includes(c.id))

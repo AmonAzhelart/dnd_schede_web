@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { FaSearch } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
 import { useCharacterStore } from '../../../store/characterStore';
 import type { WidgetRenderProps, WidgetSize } from '../widgetTypes';
 import { ModifierArrows } from './ModifierAura';
 import { RollPickerModal, type RollBreakdownLine } from '../../RollPickerModal';
 import type { RollContext } from '../../../services/modifiers';
+import { useSkillDisplayName } from '../../../hooks/useSkillDisplayName';
 
 const colsFor = (size: WidgetSize) =>
     size.pixelW < 280 ? 1 : size.pixelW < 460 ? 2 : size.pixelW < 720 ? 3 : 4;
@@ -18,6 +20,9 @@ const tier = (n: number): string =>
 
 export const SkillsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
     const { character, getEffectiveSkill, getSkillBreakdown, getActiveModifierDelta } = useCharacterStore();
+    const { i18n } = useTranslation();
+    const lang = i18n.resolvedLanguage ?? 'it';
+    const skillName = useSkillDisplayName();
     const [q, setQ] = useState('');
     const [trainedOnly, setTrainedOnly] = useState(false);
     const [picker, setPicker] = useState<{
@@ -29,7 +34,7 @@ export const SkillsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
     const usable = Object.values(character.skills)
         .filter(s => getSkillBreakdown(s.id).usable)
         .sort((a, b) => getEffectiveSkill(b.id) - getEffectiveSkill(a.id));
-    let filtered = q ? usable.filter(s => s.name.toLowerCase().includes(q.toLowerCase())) : usable;
+    let filtered = q ? usable.filter(s => skillName(s).toLowerCase().includes(q.toLowerCase())) : usable;
     if (trainedOnly) filtered = filtered.filter(s => (s.ranks ?? 0) > 0);
     const cols = colsFor(size);
     const trainedCount = usable.filter(s => (s.ranks ?? 0) > 0).length;
@@ -68,20 +73,36 @@ export const SkillsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                             type="button"
                             key={skill.id}
                             className={`w-skill-row ${auraClass}`}
-                            title={`Apri prova di ${skill.name}`}
-                            onClick={() => setPicker({
-                                ctx: { channel: `skill.${skill.id}`, skillId: skill.id, skillName: skill.name },
-                                title: skill.name,
-                                breakdown: [
-                                    { label: 'Gradi', value: ranks },
-                                    { label: `Mod. ${breakdown.statName?.toUpperCase?.() ?? ''}`.trim(), value: breakdown.statMod ?? 0 },
-                                ],
-                            })}
+                            title={`Apri prova di ${skillName(skill)}`}
+                            onClick={() => {
+                                const bd = getSkillBreakdown(skill.id);
+                                const synergyLines = bd.synergies.map(syn => ({
+                                    label: `Sinergia (${syn.sourceName})`,
+                                    value: syn.bonus,
+                                }));
+                                setPicker({
+                                    ctx: { channel: `skill.${skill.id}`, skillId: skill.id, skillName: skill.name },
+                                    title: skillName(skill),
+                                    breakdown: [
+                                        { label: 'Gradi', value: ranks },
+                                        { label: `Mod. ${breakdown.statName?.toUpperCase?.() ?? ''}`.trim(), value: breakdown.statMod ?? 0 },
+                                        ...synergyLines,
+                                    ],
+                                });
+                            }}
                         >
                             {auraClass && <ModifierArrows delta={skillDelta} count={3} />}
                             <span className={`w-skill-rank ${ranks > 0 ? 'trained' : ''}`}>{ranks > 0 ? ranks : '·'}</span>
-                            <span className="w-skill-name">{skill.name}</span>
+                            <span className="w-skill-name">{skillName(skill)}</span>
                             <span className={`w-skill-mod ${tier(total)}`}>{total >= 0 ? '+' : ''}{total}</span>
+                            {breakdown.synergies && breakdown.synergies.length > 0 && (
+                                <span
+                                    className="w-skill-syn"
+                                    title={breakdown.synergies.map(s => `+${s.bonus} sinergia da ${s.sourceName}`).join(' · ')}
+                                >
+                                    ⇗
+                                </span>
+                            )}
                         </button>
                     );
                 })}

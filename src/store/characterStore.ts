@@ -1,13 +1,16 @@
 import { create } from 'zustand';
-import type { CharacterBase, ClassLevel, HpLevelLogEntry, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell, ActiveModifier, DurationUnit, BestiaryEntry, ActiveSummon, ActivePet, Creature, CreatureStatOverride, CreatureRuntimeModifier } from '../types/dnd';
+import type { CharacterBase, ClassLevel, HpLevelLogEntry, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell, ActiveModifier, DurationUnit, BestiaryEntry, ActiveSummon, ActivePet, Creature, CreatureStatOverride, CreatureRuntimeModifier, CustomSkillSynergy } from '../types/dnd';
 import { computeClassBab, computeClassSaveBase, getExpectedHpForClassLevel } from '../types/dnd';
 import { collectModifierCandidates, resolveStatOverride, type ModifierCandidate, type RollContext } from '../services/modifiers';
+import { computeSynergyBonuses, computeCustomSynergyBonuses, type ActiveSynergy } from '../data/skillSynergies';
 
 type SaveKey = 'fortitude' | 'reflex' | 'will';
 const SAVE_TO_STAT: Record<SaveKey, StatType> = { fortitude: 'con', reflex: 'dex', will: 'wis' };
 const SAVE_TO_PROG_FIELD: Record<SaveKey, 'fortSave' | 'refSave' | 'willSave'> = {
   fortitude: 'fortSave', reflex: 'refSave', will: 'willSave',
 };
+
+import { CONDITION_MODIFIERS } from '../data/conditions';
 
 interface CharacterState {
   character: CharacterBase | null;
@@ -26,6 +29,10 @@ interface CharacterState {
     ranks: number;
     classBonus: number;
     sources: { source: string; value: number; type: ModifierType; kind: 'item' | 'feat' | 'feature' }[];
+    /** Active D&D 3.5 synergy bonuses (each +2 from a skill with ≥5 ranks). */
+    synergies: ActiveSynergy[];
+    /** Sum of all active synergy bonuses. */
+    synergyTotal: number;
     total: number;
     usable: boolean;
   };
@@ -42,6 +49,12 @@ interface CharacterState {
   // Skill management
   updateSkill: (skill: import('../types/dnd').Skill) => void;
   deleteSkill: (skillId: string) => void;
+  // Custom synergy management
+  addCustomSynergy: (syn: CustomSkillSynergy) => void;
+  updateCustomSynergy: (syn: CustomSkillSynergy) => void;
+  deleteCustomSynergy: (synId: string) => void;
+  /** Replace all synergies for a skill and mark it as user-managed (suppresses SRD fallback). */
+  replaceSkillSynergies: (skillId: string, synergies: CustomSkillSynergy[]) => void;
   // Feat management
   addFeat: (feat: Feat) => void;
   updateFeat: (feat: Feat) => void;
@@ -107,6 +120,8 @@ interface CharacterState {
   getActiveModifierDelta: (target: StatType | string) => number;
   /** All non-paused active modifiers targeting `target`. */
   getActiveModifiersFor: (target: StatType | string) => ActiveModifier[];
+  /** Set the full list of active condition ids (e.g. ['blinded', 'prone']). */
+  setActiveConditions: (ids: string[]) => void;
   /** New: collect every applicable modifier (item / feat / class feature /
    *  active buff) for a roll context. Returns auto + optional candidates. */
   getApplicableModifiers: (ctx: RollContext) => ModifierCandidate[];
@@ -143,10 +158,12 @@ const doesModifierStack = (type: ModifierType): boolean => {
   return ['dodge', 'circumstance', 'untyped', 'synergy'].includes(type);
 };
 
-/** Apply 3.5 stacking rules to a list of (type, value) pairs and return the
- *  net bonus. Stacking types sum; non-stacking types contribute the maximum
- *  bonus AND the minimum (most negative) penalty separately, since penalties
- *  always stack with bonuses of the same type. */
+/**
+ * Apply D&D 3.5 RAW stacking rules.
+ * Stacking types (dodge/circumstance/untyped/synergy): sum all values.
+ * All other typed bonuses: best bonus + worst single penalty (SRD: "only the
+ * best bonus and worst penalty applies").
+ */
 const aggregateModifiers = (mods: { type: ModifierType; value: number }[]): number => {
   const byType: Record<string, number[]> = {};
   mods.forEach(m => { (byType[m.type] ||= []).push(m.value); });
@@ -159,8 +176,7 @@ const aggregateModifiers = (mods: { type: ModifierType; value: number }[]): numb
       const positives = values.filter(v => v > 0);
       const negatives = values.filter(v => v < 0);
       if (positives.length) total += Math.max(...positives);
-      // penalties of the same type DO stack with each other (3.5e rule of thumb)
-      if (negatives.length) total += negatives.reduce((s, v) => s + v, 0);
+      if (negatives.length) total += Math.min(...negatives);
     }
   });
   return total;
@@ -384,7 +400,39 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
   deleteSkill: (skillId) => set((state) => {
     if (!state.character) return state;
     const { [skillId]: _, ...rest } = state.character.skills;
-    return { character: { ...state.character, skills: rest } };
+    // Also remove any custom synergies referencing this skill.
+    const customSynergies = (state.character.customSynergies ?? []).filter(
+      s => s.sourceSkillId !== skillId && s.targetSkillId !== skillId,
+    );
+    return { character: { ...state.character, skills: rest, customSynergies } };
+  }),
+
+  addCustomSynergy: (syn) => set((state) => {
+    if (!state.character) return state;
+    const list = [...(state.character.customSynergies ?? []), syn];
+    return { character: { ...state.character, customSynergies: list } };
+  }),
+
+  updateCustomSynergy: (syn) => set((state) => {
+    if (!state.character) return state;
+    const list = (state.character.customSynergies ?? []).map(s => s.id === syn.id ? syn : s);
+    return { character: { ...state.character, customSynergies: list } };
+  }),
+
+  deleteCustomSynergy: (synId) => set((state) => {
+    if (!state.character) return state;
+    const list = (state.character.customSynergies ?? []).filter(s => s.id !== synId);
+    return { character: { ...state.character, customSynergies: list } };
+  }),
+
+  replaceSkillSynergies: (skillId, synergies) => set((state) => {
+    if (!state.character) return state;
+    // Remove old synergies for this skill, then add new list.
+    const filtered = (state.character.customSynergies ?? []).filter(
+      s => s.sourceSkillId !== skillId && s.targetSkillId !== skillId,
+    );
+    const managed = [...new Set([...(state.character.managedSynergySkillIds ?? []), skillId])];
+    return { character: { ...state.character, customSynergies: [...filtered, ...synergies], managedSynergySkillIds: managed } };
   }),
 
   setSavingThrow: (save, breakdown) => set((state) => {
@@ -543,7 +591,7 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       if (!die) return sum;
       return sum + getExpectedHpForClassLevel(die, idx + 1);
     }, 0);
-    return hpFromDice + conMod * totalLevel;
+    return hpFromDice + conMod;
   },
 
   addHpLevelEntry: (entry: HpLevelLogEntry) => set((state) => {
@@ -660,6 +708,38 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     return { character: { ...state.character, modifiersHistory: [] } };
   }),
 
+  setActiveConditions: (ids) => set((state) => {
+    if (!state.character) return state;
+    const prev = state.character.activeConditions ?? [];
+    // Remove modifiers from conditions that were removed
+    const removed = prev.filter(id => !ids.includes(id));
+    // Add modifiers for conditions that were added
+    const added = ids.filter(id => !prev.includes(id));
+    let mods = (state.character.activeModifiers ?? []).filter(
+      m => !m.source?.startsWith('condition:') || !removed.some(id => m.source === `condition:${id}`)
+    );
+    const now = new Date().toISOString();
+    for (const condId of added) {
+      const defs = CONDITION_MODIFIERS[condId];
+      if (!defs) continue;
+      for (const def of defs) {
+        mods = [...mods, {
+          id: `cond_${condId}_${def.target}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 5)}`,
+          name: def.label,
+          target: def.target,
+          value: def.value,
+          type: def.type,
+          unit: 'permanent' as DurationUnit,
+          remaining: null,
+          initial: null,
+          createdAt: now,
+          source: `condition:${condId}`,
+        } satisfies ActiveModifier];
+      }
+    }
+    return { character: { ...state.character, activeConditions: ids, activeModifiers: mods } };
+  }),
+
   getActiveModifiersFor: (target) => {
     const list = get().character?.activeModifiers ?? [];
     return list.filter(m => !m.paused && m.target === target);
@@ -679,6 +759,11 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     // else fall back to the stored manual breakdown.
     if (target === 'fortitude' || target === 'reflex' || target === 'will') {
       return get().getSaveBreakdown(target).total + get().getActiveModifierDelta(target);
+    }
+
+    // Initiative = DEX modifier + any active initiative modifiers.
+    if (target === 'initiative') {
+      return get().getStatModifier('dex') + get().getActiveModifierDelta('initiative');
     }
 
     // Base value calculation
@@ -744,15 +829,17 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
 
     let totalBonus = 0;
 
-    // Apply modifiers
+    // Apply D&D 3.5 stacking rules.
     Object.entries(modifiersByType).forEach(([type, values]) => {
       const modType = type as ModifierType;
       if (doesModifierStack(modType)) {
-        // Sum all
         totalBonus += values.reduce((sum, val) => sum + val, 0);
       } else {
-        // Take maximum (bonuses don't stack, but penalties do! Assuming positive values are bonuses for now)
-        totalBonus += Math.max(...values);
+        // Non-stacking: best bonus + worst single penalty.
+        const positives = values.filter(v => v > 0);
+        const negatives = values.filter(v => v < 0);
+        if (positives.length) totalBonus += Math.max(...positives);
+        if (negatives.length) totalBonus += Math.min(...negatives);
       }
     });
 
@@ -793,31 +880,43 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       return tl === `skill.${skillId}` || tl === `skill.${nameLower}`;
     };
 
-    const activeModifiers: import('../types/dnd').Modifier[] = [];
+    // Collect all skill modifiers from all sources.
+    const allSkillMods: { type: ModifierType; value: number }[] = [];
     character.inventory.forEach(item => {
-      if (item.equipped) activeModifiers.push(...item.modifiers.filter(m => isSkillTarget(m.target)));
+      if (item.equipped) item.modifiers.filter(m => isSkillTarget(m.target)).forEach(m => allSkillMods.push(m));
     });
     character.feats.forEach(feat => {
-      if (feat.active) activeModifiers.push(...feat.modifiers.filter(m => isSkillTarget(m.target)));
+      if (feat.active) feat.modifiers.filter(m => isSkillTarget(m.target)).forEach(m => allSkillMods.push(m));
+    });
+    (character.classFeatures ?? []).forEach(cf => {
+      if (cf.active) (cf.modifiers ?? []).filter((m: import('../types/dnd').Modifier) => isSkillTarget(m.target)).forEach((m: import('../types/dnd').Modifier) => allSkillMods.push(m));
     });
 
-    // Apply modifiers with same stacking rules as getEffectiveStat
+    // D&D 3.5 stacking rules: type-based, regardless of source.
     const byType: Record<string, number[]> = {};
-    activeModifiers.forEach(mod => {
-      if (!byType[mod.type]) byType[mod.type] = [];
-      byType[mod.type].push(mod.value);
-    });
+    allSkillMods.forEach(mod => { (byType[mod.type] ||= []).push(mod.value); });
     Object.entries(byType).forEach(([type, values]) => {
       if (doesModifierStack(type as ModifierType)) {
         total += values.reduce((s, v) => s + v, 0);
       } else {
-        total += Math.max(...values);
+        const positives = values.filter(v => v > 0);
+        const negatives = values.filter(v => v < 0);
+        if (positives.length) total += Math.max(...positives);
+        if (negatives.length) total += Math.min(...negatives);
       }
     });
 
     // Free-standing active modifiers (skill.<id> or skill.<name>)
     total += get().getActiveModifierDelta(`skill.${skillId}`);
     total += get().getActiveModifierDelta(`skill.${nameLower}`);
+
+    // D&D 3.5 skill synergies (+2 per qualifying source skill with ≥5 ranks).
+    const synergies = computeSynergyBonuses(skillId, skill.name, character.skills, character.managedSynergySkillIds ?? []);
+    total += synergies.reduce((s, syn) => s + syn.bonus, 0);
+
+    // User-defined custom synergies.
+    const customSynergies = computeCustomSynergyBonuses(skillId, character.skills, character.customSynergies ?? []);
+    total += customSynergies.reduce((s, syn) => s + syn.bonus, 0);
 
     return total;
   },
@@ -868,20 +967,32 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       );
     });
 
-    // Apply stacking rules to compute total bonus from sources
+    // Apply D&D 3.5 stacking rules: type-based, regardless of source.
     const byType: Record<string, number[]> = {};
     sources.forEach(s => { (byType[s.type] ||= []).push(s.value); });
     let bonus = 0;
     Object.entries(byType).forEach(([type, values]) => {
       if (doesModifierStack(type as ModifierType)) bonus += values.reduce((a, b) => a + b, 0);
-      else bonus += Math.max(...values);
+      else {
+        const positives = values.filter(v => v > 0);
+        const negatives = values.filter(v => v < 0);
+        if (positives.length) bonus += Math.max(...positives);
+        if (negatives.length) bonus += Math.min(...negatives);
+      }
     });
 
     const total = ranks + statMod + classBonus + bonus;
-    // Usable iff at least one of: classSkill OR ranks≥1 OR canUseUntrained OR has external bonus source
-    const usable = skill.classSkill === true || ranks >= 1 || skill.canUseUntrained === true || sources.length > 0;
+    // Usable iff: ranks≥1 OR canUseUntrained OR has external modifier source (feat/item/class feature).
+    // Being a class skill alone does NOT grant usability — it only reduces cost per rank.
+    const usable = ranks >= 1 || skill.canUseUntrained === true || sources.length > 0;
 
-    return { statMod, statName: effectiveStatName, ranks, classBonus, sources, total, usable };
+    // D&D 3.5 skill synergies: +2 per qualifying source skill with ≥5 ranks.
+    const synergies = computeSynergyBonuses(skillId, skill.name, character.skills, character.managedSynergySkillIds ?? []);
+    const customSynergyBonuses = computeCustomSynergyBonuses(skillId, character.skills, character.customSynergies ?? []);
+    const allSynergies = [...synergies, ...customSynergyBonuses];
+    const synergyTotal = allSynergies.reduce((s, syn) => s + syn.bonus, 0);
+
+    return { statMod, statName: effectiveStatName, ranks, classBonus, sources, synergies: allSynergies, synergyTotal, total: total + synergyTotal, usable };
   },
 
   getApplicableModifiers: (ctx: RollContext): ModifierCandidate[] => {

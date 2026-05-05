@@ -1,21 +1,122 @@
-/**
- * Shared editor for the new structured `Modifier` model (channel-based with
- * conditions + manual prompt). Used by ItemModal, Inventory, Feats and
- * ClassFeatures so all three tabs offer the exact same UX.
- *
- * Backward-compatible: legacy `target`-based modifiers without `appliesTo`
- * are auto-converted on first edit (the legacy `target` is mapped onto the
- * matching channel and stored in `appliesTo`).
+﻿/**
+ * ModifierEditor — editor per il modello Modifier strutturato (channel-based).
+ * Compatibile con modificatori legacy (target senza appliesTo).
  */
-import React, { useMemo } from 'react';
-import { FaPlus, FaTimes, FaBolt, FaHandPointer } from 'react-icons/fa';
-import type {
-    Modifier, ModifierType, ModifierCondition, RollChannel, StatType,
-} from '../types/dnd';
+import React, { useMemo, useState } from 'react';
+import { FaPlus, FaTimes, FaBolt, FaHandPointer, FaChevronDown, FaChevronRight } from 'react-icons/fa';
+import { DndIcon } from './DndIcon';
+import type { Modifier, ModifierType, ModifierCondition, RollChannel, StatType } from '../types/dnd';
 import { useCharacterStore } from '../store/characterStore';
 import { ROLL_CHANNEL_LABELS } from '../services/modifiers';
 
+// ── MUI ───────────────────────────────────────────────────────────────────────
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import Autocomplete from '@mui/material/Autocomplete';
+import MuiSelect from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+
+// ── Tema MUI dark-fantasy (esportato per riuso) ───────────────────────────────
+export const dndMuiTheme = createTheme({
+    palette: {
+        mode: 'dark',
+        primary: { main: '#9b59b6' },
+        background: { paper: '#1c1c27', default: '#0d0d0f' },
+        text: { primary: '#e8e4d8', secondary: '#9a9ab0' },
+    },
+    typography: { fontFamily: '"Inter", sans-serif', fontSize: 13 },
+    shape: { borderRadius: 6 },
+    components: {
+        MuiPaper: {
+            styleOverrides: {
+                root: {
+                    backgroundImage: 'none',
+                    backgroundColor: '#1c1c27',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+                },
+            },
+        },
+        MuiOutlinedInput: {
+            styleOverrides: {
+                root: {
+                    borderRadius: 6,
+                    fontSize: '0.82rem',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(255,255,255,0.12)',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(255,255,255,0.22)',
+                    },
+                },
+                input: { padding: '6px 10px' },
+            },
+        },
+        MuiAutocomplete: {
+            styleOverrides: {
+                paper: {
+                    backgroundColor: '#1c1c27',
+                    backgroundImage: 'none',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+                },
+                option: {
+                    fontSize: '0.82rem',
+                    '&[aria-selected="true"]': {
+                        backgroundColor: 'rgba(155,89,182,0.2) !important',
+                    },
+                    '&.Mui-focused': {
+                        backgroundColor: 'rgba(255,255,255,0.06) !important',
+                    },
+                },
+                groupLabel: {
+                    backgroundColor: '#0d0d0f',
+                    color: '#9a9ab0',
+                    fontSize: '0.58rem',
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    lineHeight: '2.2',
+                },
+                groupUl: { padding: 0 },
+                noOptions: { fontSize: '0.82rem', color: '#9a9ab0' },
+            },
+        },
+        MuiSelect: {
+            styleOverrides: {
+                select: { fontSize: '0.82rem', padding: '6px 10px' },
+                icon: { color: '#9a9ab0' },
+            },
+        },
+        MuiMenuItem: {
+            styleOverrides: {
+                root: {
+                    fontSize: '0.82rem',
+                    minHeight: 36,
+                    '&.Mui-selected': {
+                        backgroundColor: 'rgba(155,89,182,0.2)',
+                        '&:hover': { backgroundColor: 'rgba(155,89,182,0.28)' },
+                    },
+                    '&:hover': { backgroundColor: 'rgba(255,255,255,0.06)' },
+                },
+            },
+        },
+        MuiInputLabel: {
+            styleOverrides: {
+                root: {
+                    fontSize: '0.78rem',
+                    color: '#9a9ab0',
+                    '&.Mui-focused': { color: '#9b59b6' },
+                },
+            },
+        },
+    },
+});
+
+// ── Tipi bonus ────────────────────────────────────────────────────────────────
 const MOD_TYPES: { value: ModifierType; label: string }[] = [
+    { value: 'untyped', label: 'Senza tipo' },
     { value: 'enhancement', label: 'Potenziamento' },
     { value: 'armor', label: 'Armatura' },
     { value: 'shield', label: 'Scudo' },
@@ -23,7 +124,6 @@ const MOD_TYPES: { value: ModifierType; label: string }[] = [
     { value: 'deflection', label: 'Deviazione' },
     { value: 'dodge', label: 'Schivata' },
     { value: 'circumstance', label: 'Circostanza' },
-    { value: 'untyped', label: 'Senza tipo' },
     { value: 'morale', label: 'Morale' },
     { value: 'luck', label: 'Fortuna' },
     { value: 'competence', label: 'Competenza' },
@@ -37,405 +137,619 @@ const MOD_TYPES: { value: ModifierType; label: string }[] = [
     { value: 'alchemical', label: 'Alchemico' },
 ];
 
-const COND_KIND_LABELS: { value: ModifierCondition['kind']; label: string }[] = [
-    { value: 'weaponType', label: 'Tipo arma (mischia/distanza/lancio)' },
-    { value: 'weaponCategory', label: 'Categoria arma (es. arco)' },
-    { value: 'weaponName', label: 'Nome arma (es. Spada Lunga)' },
-    { value: 'damageType', label: 'Tipo di danno' },
-    { value: 'skillId', label: 'Solo per abilità specifica' },
-    { value: 'saveType', label: 'Solo per TS specifico' },
-    { value: 'abilityStat', label: 'Solo per prova di caratteristica' },
-    { value: 'spellSchool', label: 'Solo per scuola di magia' },
-    { value: 'spellName', label: 'Solo per incantesimo specifico' },
-    { value: 'spellDamageType', label: 'Solo per tipo di magia (energia)' },
-    { value: 'spellMinLevel', label: 'Solo per magie di livello minimo' },
+// ── Condizioni disponibili ────────────────────────────────────────────────────
+const COND_KINDS: { value: ModifierCondition['kind']; label: string; icon: { category: string; name: string } }[] = [
+    { value: 'weaponType', label: 'Tipo arma', icon: { category: 'combat', name: 'melee' } },
+    { value: 'weaponCategory', label: 'Categoria arma', icon: { category: 'weapon', name: 'sword' } },
+    { value: 'weaponName', label: 'Nome arma', icon: { category: 'weapon', name: 'dagger' } },
+    { value: 'damageType', label: 'Tipo danno', icon: { category: 'damage', name: 'fire' } },
+    { value: 'skillId', label: 'Abilità specifica', icon: { category: 'skill', name: 'arcana' } },
+    { value: 'saveType', label: 'Tiro salvezza', icon: { category: 'd20test', name: 'saving-throw' } },
+    { value: 'abilityStat', label: 'Caratteristica', icon: { category: 'ability', name: 'strength' } },
+    { value: 'spellSchool', label: 'Scuola magia', icon: { category: 'spell', name: 'evocation' } },
+    { value: 'spellName', label: 'Incantesimo', icon: { category: 'spell', name: 'octagon' } },
+    { value: 'spellDamageType', label: 'Tipo magia', icon: { category: 'damage', name: 'lightning' } },
+    { value: 'spellMinLevel', label: 'Livello min. magia', icon: { category: 'spell', name: 'upcast' } },
 ];
 
-/** Migrate a legacy modifier (free-form `target`) into the new `appliesTo`
- *  shape on its first edit. */
+// ── Migrazione legacy ─────────────────────────────────────────────────────────
 function ensureAppliesTo(mod: Modifier): Modifier {
     if (mod.appliesTo && mod.appliesTo.length > 0) return mod;
     const t = (mod.target || '').toLowerCase().trim();
-    let channel: RollChannel | string | null = null;
+    let channel: string | null = null;
     if (!t) channel = null;
     else if (t === 'fortitude') channel = 'save.fort';
     else if (t === 'reflex') channel = 'save.ref';
     else if (t === 'will') channel = 'save.will';
-    else if (t.startsWith('skill.') || t.startsWith('check.') || t.startsWith('save.')
-        || ['attack', 'damage', 'ac', 'initiative', 'cmb', 'cmd'].includes(t)) channel = t;
-    if (!channel) return mod; // Keep legacy stat-based target untouched
+    else if (
+        t.startsWith('skill.') || t.startsWith('check.') || t.startsWith('save.') ||
+        ['attack', 'damage', 'ac', 'initiative', 'cmb', 'cmd'].includes(t)
+    ) channel = t;
+    if (!channel) return mod;
     return { ...mod, appliesTo: [channel as RollChannel] };
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
+// ── Tipo canale opzione ───────────────────────────────────────────────────────
+type ChannelOption = { value: string; label: string; group: string };
 
+// ── Prop pubbliche ────────────────────────────────────────────────────────────
 export interface ModifierEditorProps {
     modifiers: Modifier[];
     onChange: (next: Modifier[]) => void;
-    /** Accent color for the section heading (matches the parent UI). */
     accentColor?: string;
-    /** Optional title override. */
     title?: string;
-    /** Compact layout for tight cards (Feats list). */
     compact?: boolean;
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// ModifierEditor — contenitore principale
+// ═════════════════════════════════════════════════════════════════════════════
 export const ModifierEditor: React.FC<ModifierEditorProps> = ({
-    modifiers, onChange, accentColor = 'var(--accent-arcane)', title = 'MODIFICATORI', compact,
+    modifiers, onChange,
+    accentColor = 'var(--accent-arcane)',
+    title = 'MODIFICATORI',
 }) => {
     const character = useCharacterStore(s => s.character);
 
-    const skillOptions = useMemo(() => character
-        ? Object.values(character.skills).map(s => ({ id: s.id, name: s.name }))
-        : [], [character]);
+    const skillOptions = useMemo(() =>
+        character ? Object.values(character.skills).map(s => ({ id: s.id, name: s.name })) : [],
+        [character]);
 
-    const channelOptions = useMemo(() => {
-        const skillEntries = skillOptions.map(s => ({
+    const weaponOptions = useMemo(() =>
+        character ? character.inventory.filter(i => i.type === 'weapon').map(i => i.name) : [],
+        [character]);
+
+    const channelOptions: ChannelOption[] = useMemo(() => {
+        const skills = skillOptions.map(s => ({
             value: `skill.${s.id}` as RollChannel,
             label: `Abilità: ${s.name}`,
             group: 'Abilità',
         }));
-        return [...ROLL_CHANNEL_LABELS, ...skillEntries];
+        return [...ROLL_CHANNEL_LABELS, ...skills];
     }, [skillOptions]);
 
-    const grouped = useMemo(() => {
-        const map = new Map<string, typeof channelOptions>();
-        channelOptions.forEach(o => {
-            const arr = map.get(o.group) ?? [];
-            arr.push(o);
-            map.set(o.group, arr);
-        });
-        return Array.from(map.entries());
-    }, [channelOptions]);
+    const update = (i: number, fn: (m: Modifier) => Modifier) =>
+        onChange(modifiers.map((m, idx) => idx === i ? fn(ensureAppliesTo(m)) : m));
 
-    const update = (i: number, mutate: (m: Modifier) => Modifier) => {
-        const next = modifiers.map((m, idx) => idx === i ? mutate(ensureAppliesTo(m)) : m);
-        onChange(next);
-    };
+    const addMod = () => onChange([...modifiers, {
+        target: 'attack', value: 1, type: 'untyped', source: '', appliesTo: ['attack'],
+    }]);
 
-    const addMod = () => {
-        onChange([...modifiers, {
-            target: 'attack', value: 1, type: 'enhancement', source: '',
-            appliesTo: ['attack'],
-        }]);
-    };
     const removeMod = (i: number) => onChange(modifiers.filter((_, idx) => idx !== i));
-
-    const setChannel = (i: number, channel: string) => update(i, m => ({
-        ...m,
-        target: channel,
-        appliesTo: [channel as RollChannel],
-    }));
+    const setChannel = (i: number, ch: string) => update(i, m => ({ ...m, target: ch, appliesTo: [ch as RollChannel] }));
 
     const addCondition = (i: number, kind: ModifierCondition['kind']) => update(i, m => {
-        const conds = [...(m.conditions ?? [])];
-        const initial: ModifierCondition = (() => {
+        const init: ModifierCondition = (() => {
             switch (kind) {
                 case 'weaponType': return { kind, value: 'melee' };
-                case 'weaponCategory': return { kind, value: '' };
-                case 'weaponName': return { kind, value: '' };
-                case 'damageType': return { kind, value: '' };
-                case 'skillId': return { kind, value: '' };
                 case 'saveType': return { kind, value: 'fort' };
                 case 'abilityStat': return { kind, value: 'str' };
-                case 'spellSchool': return { kind, value: '' };
-                case 'spellName': return { kind, value: '' };
-                case 'spellDamageType': return { kind, value: '' };
                 case 'spellMinLevel': return { kind, value: 1 };
+                default: return { kind, value: '' };
             }
         })();
-        conds.push(initial);
-        return { ...m, conditions: conds };
+        return { ...m, conditions: [...(m.conditions ?? []), init] };
     });
-    const updateCondition = (i: number, ci: number, value: string) => update(i, m => {
-        const conds = (m.conditions ?? []).map((c, idx) => {
-            if (idx !== ci) return c;
-            // spellMinLevel stores a numeric value; everything else is a string.
-            if (c.kind === 'spellMinLevel') {
-                const n = Math.max(0, Math.min(9, parseInt(value, 10) || 0));
-                return { ...c, value: n };
-            }
-            return { ...c, value: value as never };
-        });
-        return { ...m, conditions: conds };
-    });
-    const removeCondition = (i: number, ci: number) => update(i, m => ({
+
+    const updateCondition = (i: number, ci: number, value: string) => update(i, m => ({
         ...m,
-        conditions: (m.conditions ?? []).filter((_, idx) => idx !== ci),
+        conditions: (m.conditions ?? []).map((c, idx) => {
+            if (idx !== ci) return c;
+            if (c.kind === 'spellMinLevel') return { ...c, value: Math.max(0, Math.min(9, parseInt(value) || 0)) };
+            return { ...c, value: value as never };
+        }),
+    }));
+
+    const removeCondition = (i: number, ci: number) => update(i, m => ({
+        ...m, conditions: (m.conditions ?? []).filter((_, idx) => idx !== ci),
     }));
 
     return (
-        <div style={{ marginBottom: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', letterSpacing: '0.08em' }}>{title}</span>
+        <ThemeProvider theme={dndMuiTheme}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+
+                {/* ── Intestazione sezione ── */}
+                <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    marginBottom: 10,
+                }}>
+                    <span style={{
+                        fontSize: '0.62rem', color: accentColor, letterSpacing: '0.1em',
+                        textTransform: 'uppercase', fontFamily: 'var(--font-heading)',
+                        display: 'flex', alignItems: 'center', gap: 6,
+                    }}>
+                        {title}
+                        {modifiers.length > 0 && (
+                            <span style={{
+                                background: `${accentColor}22`, border: `1px solid ${accentColor}44`,
+                                borderRadius: 10, padding: '0 6px', fontSize: '0.58rem', color: accentColor,
+                            }}>{modifiers.length}</span>
+                        )}
+                    </span>
+                    <button
+                        type="button" onClick={addMod}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: 5,
+                            padding: '4px 12px', borderRadius: 6, cursor: 'pointer',
+                            background: `${accentColor}18`, border: `1px solid ${accentColor}50`,
+                            color: accentColor, fontSize: '0.74rem', fontFamily: 'var(--font-heading)',
+                        }}
+                    >
+                        <FaPlus size={8} /> Aggiungi modificatore
+                    </button>
+                </div>
+
+                {/* ── Stato vuoto ── */}
+                {modifiers.length === 0 && (
+                    <div style={{
+                        padding: '14px 0', textAlign: 'center',
+                        fontSize: '0.76rem', color: 'var(--text-muted)', fontStyle: 'italic',
+                    }}>
+                        Nessun modificatore — l'effetto sarà solo descrittivo.
+                    </div>
+                )}
+
+                {/* ── Lista modificatori ── */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {modifiers.map((rawMod, i) => {
+                        const mod = ensureAppliesTo(rawMod);
+                        const ch = mod.appliesTo?.[0] ?? mod.target;
+                        return (
+                            <ModifierCard
+                                key={i}
+                                mod={mod}
+                                channel={ch}
+                                accentColor={accentColor}
+                                channelOptions={channelOptions}
+                                skillOptions={skillOptions}
+                                weaponOptions={weaponOptions}
+                                onUpdate={fn => update(i, fn)}
+                                onRemove={() => removeMod(i)}
+                                onSetChannel={ch2 => setChannel(i, ch2)}
+                                onAddCondition={kind => addCondition(i, kind)}
+                                onUpdateCondition={(ci, v) => updateCondition(i, ci, v)}
+                                onRemoveCondition={ci => removeCondition(i, ci)}
+                            />
+                        );
+                    })}
+                </div>
+            </div>
+        </ThemeProvider>
+    );
+};
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ModifierCard — singolo modificatore come form card sempre espanso
+// ═════════════════════════════════════════════════════════════════════════════
+interface ModifierCardProps {
+    mod: Modifier;
+    channel: string;
+    accentColor: string;
+    channelOptions: ChannelOption[];
+    skillOptions: { id: string; name: string }[];
+    weaponOptions: string[];
+    onUpdate: (fn: (m: Modifier) => Modifier) => void;
+    onRemove: () => void;
+    onSetChannel: (ch: string) => void;
+    onAddCondition: (kind: ModifierCondition['kind']) => void;
+    onUpdateCondition: (ci: number, v: string) => void;
+    onRemoveCondition: (ci: number) => void;
+}
+
+const ModifierCard: React.FC<ModifierCardProps> = ({
+    mod, channel, accentColor, channelOptions, skillOptions, weaponOptions,
+    onUpdate, onRemove, onSetChannel, onAddCondition, onUpdateCondition, onRemoveCondition,
+}) => {
+    const [showAdvanced, setShowAdvanced] = useState(false);
+    const isManual = !!mod.manualPrompt || mod.scope === 'conditional';
+    const conditions = mod.conditions ?? [];
+    const hasAdvanced = !!mod.extraDice || mod.statOverride !== undefined;
+    const positive = mod.value >= 0;
+
+    const channelMeta = channelOptions.find(o => o.value === channel) ?? null;
+
+    const focusSx = {
+        '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: accentColor,
+        },
+        '& label.Mui-focused': { color: accentColor },
+    };
+
+    return (
+        <div style={{
+            borderRadius: 8,
+            border: `1px solid ${accentColor}30`,
+            overflow: 'hidden',
+            background: 'var(--bg-surface)',
+        }}>
+            {/* ── Header: accent bar · valore · rimuovi ── */}
+            <div style={{
+                display: 'flex', alignItems: 'center',
+                background: `${accentColor}10`,
+                borderBottom: `1px solid ${accentColor}22`,
+                padding: '8px 10px 8px 0',
+                gap: 0,
+            }}>
+                {/* Accent bar laterale */}
+                <div style={{ width: 4, alignSelf: 'stretch', background: accentColor, flexShrink: 0 }} />
+
+                {/* Stepper valore */}
+                <div style={{
+                    display: 'flex', alignItems: 'center',
+                    padding: '0 12px',
+                    borderRight: `1px solid ${accentColor}22`,
+                    gap: 0, flexShrink: 0,
+                }}>
+                    <button type="button" onClick={() => onUpdate(m => ({ ...m, value: m.value - 1 }))} style={stepBtnSt}>−</button>
+                    <input
+                        type="number"
+                        value={mod.value}
+                        onChange={e => onUpdate(m => ({ ...m, value: parseInt(e.target.value) || 0 }))}
+                        style={{
+                            width: 52, textAlign: 'center',
+                            fontSize: '1.25rem', fontFamily: 'var(--font-heading)', fontWeight: 700,
+                            background: 'transparent', border: 'none', outline: 'none',
+                            color: positive ? 'var(--accent-success)' : 'var(--accent-crimson)',
+                            padding: '0 4px', MozAppearance: 'textfield' as never,
+                        }}
+                    />
+                    <button type="button" onClick={() => onUpdate(m => ({ ...m, value: m.value + 1 }))} style={stepBtnSt}>+</button>
+                </div>
+
+                {/* Pulsante rimuovi */}
                 <button
-                    type="button"
-                    onClick={addMod}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: accentColor, fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 3 }}
+                    type="button" onClick={onRemove} title="Rimuovi modificatore"
+                    style={{
+                        marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer',
+                        color: 'rgba(192,57,43,0.45)', padding: '4px 0 4px 10px', flexShrink: 0,
+                        display: 'flex', alignItems: 'center', transition: 'color 120ms',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent-crimson)')}
+                    onMouseLeave={e => (e.currentTarget.style.color = 'rgba(192,57,43,0.45)')}
                 >
-                    <FaPlus size={8} /> Aggiungi
+                    <FaTimes size={13} />
                 </button>
             </div>
 
-            {modifiers.length === 0 && (
-                <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '4px 0 0', fontStyle: 'italic' }}>
-                    Nessun modificatore. L'effetto sarà solo descrittivo.
-                </p>
-            )}
+            {/* ── Bersaglio + Tipo ── */}
+            <div style={{
+                display: 'flex', gap: 8, flexWrap: 'wrap',
+                padding: '10px 14px',
+                borderBottom: `1px solid rgba(255,255,255,0.05)`,
+            }}>
+                {/* Bersaglio — Autocomplete con ricerca */}
+                <Autocomplete<ChannelOption, false, true>
+                    size="small"
+                    options={channelOptions}
+                    groupBy={o => o.group}
+                    getOptionLabel={o => o.label}
+                    value={channelMeta}
+                    onChange={(_, v) => { if (v) onSetChannel(v.value); }}
+                    isOptionEqualToValue={(o, v) => o.value === v.value}
+                    disableClearable
+                    sx={{ flex: '1 1 200px', ...focusSx }}
+                    renderInput={params => (
+                        <TextField
+                            {...params}
+                            label="Bersaglio"
+                            variant="outlined"
+                            size="small"
+                        />
+                    )}
+                />
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {modifiers.map((rawMod, i) => {
-                    const mod = ensureAppliesTo(rawMod);
-                    const channel = mod.appliesTo?.[0] ?? mod.target;
-                    const isManual = !!mod.manualPrompt || mod.scope === 'conditional';
-                    const hasAuto = (mod.conditions?.length ?? 0) > 0;
-                    return (
-                        <div key={i} style={{
-                            border: `1px solid ${accentColor}33`,
-                            background: `${accentColor}08`,
-                            borderRadius: 5,
-                            padding: compact ? 6 : 8,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 6,
-                        }}>
-                            {/* Row 1: channel, value, type, delete */}
-                            <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
-                                <select
-                                    className="input"
-                                    value={channel}
-                                    onChange={e => setChannel(i, e.target.value)}
-                                    style={{ flex: '1 1 180px', fontSize: '0.78rem' }}
-                                >
-                                    {grouped.map(([group, items]) => (
-                                        <optgroup key={group} label={group}>
-                                            {items.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                        </optgroup>
-                                    ))}
-                                </select>
+                {/* Tipo bonus — Select */}
+                <FormControl size="small" sx={{ flex: '0 0 150px', ...focusSx }}>
+                    <InputLabel>Tipo bonus</InputLabel>
+                    <MuiSelect
+                        value={mod.type}
+                        label="Tipo bonus"
+                        onChange={e => onUpdate(m => ({ ...m, type: e.target.value as ModifierType }))}
+                    >
+                        {MOD_TYPES.map(t => <MenuItem key={t.value} value={t.value}>{t.label}</MenuItem>)}
+                    </MuiSelect>
+                </FormControl>
+            </div>
+
+            {/* ── Corpo card ── */}
+            <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+                {/* Attivazione */}
+                <div>
+                    <div style={sectionLabel}>Quando si applica</div>
+                    <div style={{ display: 'flex', gap: 6, marginTop: 5 }}>
+                        <button
+                            type="button"
+                            onClick={() => onUpdate(m => ({ ...m, scope: 'always', manualPrompt: undefined }))}
+                            style={{
+                                flex: 1, padding: '7px 10px', borderRadius: 6, cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                fontSize: '0.8rem', fontFamily: 'var(--font-heading)', transition: 'all 130ms',
+                                border: `1px solid ${!isManual ? 'var(--accent-success)66' : 'rgba(255,255,255,0.08)'}`,
+                                background: !isManual ? 'rgba(39,174,96,0.14)' : 'rgba(255,255,255,0.02)',
+                                color: !isManual ? 'var(--accent-success)' : 'var(--text-muted)',
+                                fontWeight: !isManual ? 600 : 400,
+                            }}
+                        >
+                            <FaBolt size={10} /> Sempre attivo
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onUpdate(m => ({ ...m, scope: 'conditional', manualPrompt: m.manualPrompt ?? '' }))}
+                            style={{
+                                flex: 1, padding: '7px 10px', borderRadius: 6, cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                fontSize: '0.8rem', fontFamily: 'var(--font-heading)', transition: 'all 130ms',
+                                border: `1px solid ${isManual ? 'var(--accent-warning)66' : 'rgba(255,255,255,0.08)'}`,
+                                background: isManual ? 'rgba(230,126,34,0.14)' : 'rgba(255,255,255,0.02)',
+                                color: isManual ? 'var(--accent-warning)' : 'var(--text-muted)',
+                                fontWeight: isManual ? 600 : 400,
+                            }}
+                        >
+                            <FaHandPointer size={10} /> Solo su richiesta
+                        </button>
+                    </div>
+                    {isManual && (
+                        <input
+                            className="input"
+                            placeholder="Etichetta del toggle mostrata al tiro (es. 'Entro 9 m da un alleato')"
+                            value={mod.manualPrompt ?? ''}
+                            onChange={e => onUpdate(m => ({ ...m, manualPrompt: e.target.value, scope: 'conditional' }))}
+                            style={{ marginTop: 6, fontSize: '0.8rem', width: '100%' }}
+                        />
+                    )}
+                </div>
+
+                {/* Condizioni */}
+                <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <div style={sectionLabel}>
+                            Condizioni (filtri applicazione){conditions.length > 0 ? ` · ${conditions.length}` : ''}
+                        </div>
+                    </div>
+
+                    {conditions.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 6 }}>
+                            {conditions.map((c, ci) => (
+                                <ConditionRow
+                                    key={ci}
+                                    cond={c}
+                                    skills={skillOptions}
+                                    weapons={weaponOptions}
+                                    accentColor={accentColor}
+                                    onChange={v => onUpdateCondition(ci, v)}
+                                    onRemove={() => onRemoveCondition(ci)}
+                                />
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Aggiungi condizione — MUI Select con icone */}
+                    <FormControl size="small" fullWidth sx={focusSx}>
+                        <MuiSelect
+                            displayEmpty
+                            value=""
+                            onChange={e => {
+                                if (e.target.value) onAddCondition(e.target.value as ModifierCondition['kind']);
+                            }}
+                            renderValue={() => (
+                                <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                                    ＋ Aggiungi condizione…
+                                </span>
+                            )}
+                        >
+                            {COND_KINDS.map(c => (
+                                <MenuItem key={c.value} value={c.value}>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <DndIcon category={c.icon.category} name={c.icon.name} size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                                        {c.label}
+                                    </span>
+                                </MenuItem>
+                            ))}
+                        </MuiSelect>
+                    </FormControl>
+                </div>
+
+                {/* Opzioni avanzate */}
+                <div>
+                    <button
+                        type="button"
+                        onClick={() => setShowAdvanced(v => !v)}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer',
+                            background: 'none', border: 'none', padding: 0,
+                            color: hasAdvanced ? accentColor : 'var(--text-muted)',
+                            fontSize: '0.64rem', letterSpacing: '0.06em', textTransform: 'uppercase',
+                        }}
+                    >
+                        {showAdvanced ? <FaChevronDown size={8} /> : <FaChevronRight size={8} />}
+                        Opzioni avanzate
+                        {hasAdvanced && !showAdvanced && (
+                            <span style={{
+                                background: `${accentColor}22`, border: `1px solid ${accentColor}44`,
+                                borderRadius: 8, padding: '0 5px', fontSize: '0.56rem', color: accentColor,
+                            }}>configurate</span>
+                        )}
+                    </button>
+
+                    {showAdvanced && (
+                        <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                            <div style={{ flex: '1 1 140px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                <label style={fieldLabel}>Dadi extra (es. 1d6 fuoco)</label>
                                 <input
                                     className="input"
-                                    type="number"
-                                    value={mod.value}
-                                    onChange={e => update(i, m => ({ ...m, value: parseInt(e.target.value) || 0 }))}
-                                    style={{ width: 56, fontSize: '0.78rem', textAlign: 'center' }}
-                                    title="Bonus piatto"
+                                    value={mod.extraDice ?? ''}
+                                    onChange={e => onUpdate(m => ({ ...m, extraDice: e.target.value || undefined }))}
+                                    placeholder="vuoto = nessuno"
+                                    style={{ fontSize: '0.8rem' }}
                                 />
-                                {channel === 'damage' && (
-                                    <input
-                                        className="input"
-                                        value={mod.extraDice ?? ''}
-                                        onChange={e => update(i, m => ({ ...m, extraDice: e.target.value || undefined }))}
-                                        placeholder="+ dadi (es. 1d6)"
-                                        style={{ width: 92, fontSize: '0.78rem' }}
-                                        title="Dadi di danno extra (es. 1d6 fuoco)"
-                                    />
-                                )}
-                                <select
-                                    className="input"
-                                    value={mod.type}
-                                    onChange={e => update(i, m => ({ ...m, type: e.target.value as ModifierType }))}
-                                    style={{ flex: '0 0 140px', fontSize: '0.78rem' }}
-                                >
-                                    {MOD_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                                </select>
-                                <button
-                                    type="button"
-                                    onClick={() => removeMod(i)}
-                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-crimson)', padding: 3 }}
-                                    title="Rimuovi"
-                                >
-                                    <FaTimes size={11} />
-                                </button>
                             </div>
-
-                            {/* Row 2: stat override (optional) */}
-                            <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap', fontSize: '0.72rem' }}>
-                                <span style={{ color: 'var(--text-muted)', flexShrink: 0 }} title="Sostituisce la caratteristica di default usata per questo tiro">
-                                    Usa caratteristica:
-                                </span>
-                                <select
-                                    className="input"
+                            <FormControl size="small" sx={{ flex: '0 0 150px', ...focusSx }}>
+                                <InputLabel title="Usa questa caratteristica al posto di quella di default (es. DES per Weapon Finesse)">
+                                    Sostituisci car.
+                                </InputLabel>
+                                <MuiSelect
                                     value={mod.statOverride ?? ''}
-                                    onChange={e => update(i, m => ({
+                                    label="Sostituisci car."
+                                    onChange={e => onUpdate(m => ({
                                         ...m,
                                         statOverride: e.target.value ? e.target.value as StatType : undefined,
                                     }))}
-                                    style={{ flex: '0 0 120px', fontSize: '0.76rem' }}
-                                    title="Weapon Finesse, Grazia della Lama, ecc."
                                 >
-                                    <option value="">— Default —</option>
+                                    <MenuItem value="">— default —</MenuItem>
                                     {(['str', 'dex', 'con', 'int', 'wis', 'cha'] as StatType[]).map(s => (
-                                        <option key={s} value={s}>{s.toUpperCase()}</option>
+                                        <MenuItem key={s} value={s}>{s.toUpperCase()}</MenuItem>
                                     ))}
-                                </select>
-                            </div>
-
-                            {/* Row 3: scope chooser */}
-                            <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                                <label title="Si applica sempre quando la sorgente è attiva (e le condizioni sono soddisfatte)" style={{ display: 'flex', alignItems: 'center', gap: 3, cursor: 'pointer' }}>
-                                    <input
-                                        type="radio"
-                                        checked={!isManual}
-                                        onChange={() => update(i, m => ({ ...m, scope: 'always', manualPrompt: undefined }))}
-                                    />
-                                    <FaBolt size={9} /> Auto
-                                </label>
-                                <label title="Mostrato come spunta opzionale al momento del tiro" style={{ display: 'flex', alignItems: 'center', gap: 3, cursor: 'pointer' }}>
-                                    <input
-                                        type="radio"
-                                        checked={isManual}
-                                        onChange={() => update(i, m => ({ ...m, scope: 'conditional', manualPrompt: m.manualPrompt ?? '' }))}
-                                    />
-                                    <FaHandPointer size={9} /> Toggle
-                                </label>
-                                {isManual && (
-                                    <input
-                                        className="input"
-                                        placeholder="Etichetta (es. 'Se entro 18 m')"
-                                        value={mod.manualPrompt ?? ''}
-                                        onChange={e => update(i, m => ({ ...m, manualPrompt: e.target.value, scope: 'conditional' }))}
-                                        style={{ flex: 1, fontSize: '0.74rem', minWidth: 140 }}
-                                    />
-                                )}
-                            </div>
-
-                            {/* Conditions */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
-                                        CONDIZIONI {hasAuto ? `(${mod.conditions!.length})` : ''}
-                                    </span>
-                                    <select
-                                        value=""
-                                        onChange={e => {
-                                            if (e.target.value) addCondition(i, e.target.value as ModifierCondition['kind']);
-                                            e.target.value = '';
-                                        }}
-                                        className="input"
-                                        style={{ fontSize: '0.7rem', padding: '2px 4px', width: 150 }}
-                                    >
-                                        <option value="">+ Aggiungi…</option>
-                                        {COND_KIND_LABELS.map(c => (
-                                            <option key={c.value} value={c.value}>{c.label}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                {(mod.conditions ?? []).map((c, ci) => (
-                                    <ConditionRow
-                                        key={ci}
-                                        cond={c}
-                                        skills={skillOptions}
-                                        onChange={v => updateCondition(i, ci, v)}
-                                        onRemove={() => removeCondition(i, ci)}
-                                    />
-                                ))}
-                            </div>
+                                </MuiSelect>
+                            </FormControl>
                         </div>
-                    );
-                })}
+                    )}
+                </div>
             </div>
         </div>
     );
 };
 
-// ──────────────────────────────────────────────────────────────────────────────
+// ── Stili condivisi ───────────────────────────────────────────────────────────
+const stepBtnSt: React.CSSProperties = {
+    width: 26, height: 34,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: 4, cursor: 'pointer',
+    color: 'var(--text-secondary)', fontSize: '1rem', flexShrink: 0,
+    userSelect: 'none',
+};
 
+const sectionLabel: React.CSSProperties = {
+    fontSize: '0.6rem', color: 'var(--text-muted)',
+    letterSpacing: '0.08em', textTransform: 'uppercase',
+};
+
+const fieldLabel: React.CSSProperties = {
+    fontSize: '0.6rem', color: 'var(--text-muted)',
+    letterSpacing: '0.06em', textTransform: 'uppercase',
+};
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ConditionRow — singola condizione con editor del valore
+// ═════════════════════════════════════════════════════════════════════════════
 const ConditionRow: React.FC<{
     cond: ModifierCondition;
     skills: { id: string; name: string }[];
-    onChange: (value: string) => void;
+    weapons: string[];
+    accentColor: string;
+    onChange: (v: string) => void;
     onRemove: () => void;
-}> = ({ cond, skills, onChange, onRemove }) => {
-    const labelMap: Record<ModifierCondition['kind'], string> = {
-        weaponType: 'Tipo arma',
-        weaponCategory: 'Categoria',
-        weaponName: 'Nome arma',
-        damageType: 'Tipo danno',
-        skillId: 'Abilità',
-        saveType: 'TS',
-        abilityStat: 'Caratteristica',
-        spellSchool: 'Scuola',
-        spellName: 'Magia',
-        spellDamageType: 'Tipo magia',
-        spellMinLevel: 'Liv. min.',
+}> = ({ cond, skills, weapons, accentColor, onChange, onRemove }) => {
+    const meta = COND_KINDS.find(c => c.value === cond.kind);
+
+    const focusSx = {
+        '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: accentColor,
+        },
     };
 
-    const renderValueInput = () => {
+    const valueControl = () => {
         switch (cond.kind) {
             case 'weaponType':
                 return (
-                    <select className="input" value={cond.value} onChange={e => onChange(e.target.value)} style={{ flex: 1, fontSize: '0.74rem' }}>
-                        <option value="melee">Mischia</option>
-                        <option value="ranged">A distanza</option>
-                        <option value="thrown">Lancio</option>
-                    </select>
+                    <MuiSelect size="small" value={cond.value} sx={{ flex: 1, fontSize: '0.8rem', ...focusSx }}
+                        onChange={e => onChange(e.target.value as string)}>
+                        <MenuItem value="melee">Mischia</MenuItem>
+                        <MenuItem value="ranged">A distanza</MenuItem>
+                        <MenuItem value="thrown">Lancio</MenuItem>
+                    </MuiSelect>
                 );
             case 'saveType':
                 return (
-                    <select className="input" value={cond.value} onChange={e => onChange(e.target.value)} style={{ flex: 1, fontSize: '0.74rem' }}>
-                        <option value="fort">Tempra</option>
-                        <option value="ref">Riflessi</option>
-                        <option value="will">Volontà</option>
-                    </select>
+                    <MuiSelect size="small" value={cond.value} sx={{ flex: 1, fontSize: '0.8rem', ...focusSx }}
+                        onChange={e => onChange(e.target.value as string)}>
+                        <MenuItem value="fort">Tempra</MenuItem>
+                        <MenuItem value="ref">Riflessi</MenuItem>
+                        <MenuItem value="will">Volontà</MenuItem>
+                    </MuiSelect>
                 );
             case 'abilityStat':
                 return (
-                    <select className="input" value={cond.value} onChange={e => onChange(e.target.value)} style={{ flex: 1, fontSize: '0.74rem' }}>
+                    <MuiSelect size="small" value={cond.value} sx={{ flex: 1, fontSize: '0.8rem', ...focusSx }}
+                        onChange={e => onChange(e.target.value as string)}>
                         {(['str', 'dex', 'con', 'int', 'wis', 'cha'] as StatType[]).map(s => (
-                            <option key={s} value={s}>{s.toUpperCase()}</option>
+                            <MenuItem key={s} value={s}>{s.toUpperCase()}</MenuItem>
                         ))}
-                    </select>
+                    </MuiSelect>
                 );
             case 'skillId':
                 return (
-                    <select className="input" value={cond.value} onChange={e => onChange(e.target.value)} style={{ flex: 1, fontSize: '0.74rem' }}>
-                        <option value="">— Seleziona —</option>
-                        {skills.map(s => (
-                            <option key={s.id} value={s.id}>{s.name}</option>
-                        ))}
-                    </select>
+                    <MuiSelect size="small" value={cond.value} displayEmpty sx={{ flex: 1, fontSize: '0.8rem', ...focusSx }}
+                        onChange={e => onChange(e.target.value as string)}>
+                        <MenuItem value="">— Seleziona abilità —</MenuItem>
+                        {skills.map(s => <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>)}
+                    </MuiSelect>
                 );
             case 'spellMinLevel':
                 return (
-                    <input
-                        className="input"
-                        type="number"
-                        min={0}
-                        max={9}
-                        value={cond.value}
-                        onChange={e => onChange(e.target.value)}
-                        style={{ flex: 1, fontSize: '0.74rem' }}
+                    <input type="number" className="input" min={0} max={9}
+                        value={cond.value} onChange={e => onChange(e.target.value)}
+                        style={{ flex: 1, fontSize: '0.8rem' }} />
+                );
+            case 'weaponName':
+                return (
+                    <Autocomplete<string, false, false, true>
+                        freeSolo
+                        size="small"
+                        options={weapons}
+                        value={String(cond.value)}
+                        onChange={(_, v) => { if (v) onChange(v); }}
+                        onInputChange={(_, v) => onChange(v)}
+                        sx={{ flex: 1, ...focusSx }}
+                        renderInput={params => (
+                            <TextField {...params} size="small" placeholder="es. Lama Solare" />
+                        )}
+                        noOptionsText="Nessuna arma in inventario"
                     />
                 );
             default:
                 return (
-                    <input
-                        className="input"
-                        value={String(cond.value)}
-                        onChange={e => onChange(e.target.value)}
-                        placeholder={cond.kind === 'weaponCategory' ? 'es. arco, spada lunga…' :
-                            cond.kind === 'weaponName' ? 'es. Lama Solare' :
-                                cond.kind === 'spellSchool' ? 'es. Evocazione, Necromanzia…' :
+                    <input className="input" value={String(cond.value)} onChange={e => onChange(e.target.value)}
+                        placeholder={
+                            cond.kind === 'weaponCategory' ? 'es. arco, spada lunga…' :
+                                cond.kind === 'spellSchool' ? 'es. Evocazione…' :
                                     cond.kind === 'spellName' ? 'es. Palla di Fuoco' :
-                                        cond.kind === 'spellDamageType' ? 'es. fuoco, freddo, elettricità' :
-                                            'es. p, t, fuoco…'}
-                        style={{ flex: 1, fontSize: '0.74rem' }}
+                                        cond.kind === 'spellDamageType' ? 'es. fuoco, freddo…' : '…'
+                        }
+                        style={{ flex: 1, fontSize: '0.8rem' }}
                     />
                 );
         }
     };
 
     return (
-        <div style={{ display: 'flex', gap: 4, alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '3px 6px', borderRadius: 4 }}>
-            <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', minWidth: 70 }}>{labelMap[cond.kind]}</span>
-            {renderValueInput()}
-            <button
-                type="button"
-                onClick={onRemove}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-crimson)', padding: 2 }}
+        <div style={{
+            display: 'flex', gap: 8, alignItems: 'center',
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: 6, padding: '6px 8px',
+        }}>
+            {meta && (
+                <DndIcon
+                    category={meta.icon.category} name={meta.icon.name} size={14}
+                    style={{ color: 'var(--text-muted)', flexShrink: 0 }}
+                />
+            )}
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', minWidth: 88, flexShrink: 0 }}>
+                {meta?.label ?? cond.kind}
+            </span>
+            {valueControl()}
+            <button type="button" onClick={onRemove}
+                style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'rgba(192,57,43,0.5)', padding: '2px', flexShrink: 0,
+                    display: 'flex', alignItems: 'center',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent-crimson)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'rgba(192,57,43,0.5)')}
             >
-                <FaTimes size={9} />
+                <FaTimes size={11} />
             </button>
         </div>
     );

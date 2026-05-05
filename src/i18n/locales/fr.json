@@ -101,6 +101,24 @@
             "spellcasting": "Lancement de sorts",
             "startingEquipment": "Équipement de départ",
             "bonusFeats": "Dons bonus suggérés"
+        },
+        "skills": {
+            "newSkill": "Nouvelle Compétence",
+            "editSkill": "Modifier la Compétence",
+            "ability": "Caractéristique",
+            "canUseUntrained": "Utilisable sans formation",
+            "armorCheckPenalty": "Malus d'armure",
+            "optional": "optionnel",
+            "descriptionHint": "Courte description de la compétence…",
+            "synergies": "Synergies",
+            "synergyGrants": "Cette compétence accorde",
+            "synergyReceives": "Cette compétence reçoit",
+            "synergyFrom": "de",
+            "synergyRanks": "rangs",
+            "synergyRanksRequired": "≥{{n}} rangs",
+            "synergyTag": "synergie",
+            "confirmDelete": "Supprimer cette compétence ?",
+            "empty": "Aucune compétence dans le catalogue."
         }
     },
     "sheet": {
@@ -118,5 +136,72 @@
         "closeEdit": "Fermer l'éditeur",
         "customizeDashboard": "Personnaliser le tableau",
         "endCustomize": "Terminé"
+    },
+    "spellbook": {
+        "grimoire": "Grimoire",
+        "dailySpells": "Sorts du Jour",
+        "longRest": "Repos Long",
+        "addSpell": "Ajouter un Sort",
+        "fromCatalog": "Du Catalogue",
+        "groupByLevel": "Par Niveau",
+        "groupBySchool": "Par École",
+        "all": "Tous",
+        "cantrips": "Sorts Mineurs",
+        "cantripShort": "Min.",
+        "level": "Niveau",
+        "levelShort": "Nv",
+        "spellCount_one": "{{count}} sort",
+        "spellCount_other": "{{count}} sorts",
+        "schools": {
+            "Abiurazione": "Abjuration",
+            "Ammaliamento": "Enchantement",
+            "Divinazione": "Divination",
+            "Evocazione": "Invocation",
+            "Illusione": "Illusion",
+            "Invocazione": "Évocation",
+            "Necromanzia": "Nécromancie",
+            "Trasmutazione": "Transmutation"
+        },
+        "schoolDesc": {
+            "Abiurazione": "Protection, barrières et négation magique",
+            "Ammaliamento": "Charme, contrôle mental et persuasion",
+            "Divinazione": "Révélation, prescience et prophétie",
+            "Evocazione": "Invocation de créatures, d'objets et de portails",
+            "Illusione": "Tromperie, ombres et magie illusoire",
+            "Invocazione": "Forces élémentaires, énergie et destruction",
+            "Necromanzia": "Mort, morts-vivants, ténèbres et vitalité",
+            "Trasmutazione": "Transformation de matière, du corps et de l'énergie"
+        }
+    },
+    "synergy": {
+        "label": "Synergie",
+        "tooltip": "+{{bonus}} synergie de {{source}}",
+        "conditions": {
+            "bluff_disguise": "en jouant un rôle",
+            "bluff_intimidate": "",
+            "bluff_sleight": "",
+            "decipherscript_umd": "pour utiliser des parchemins",
+            "escapartist_userope": "avec des cordes",
+            "handleanimal_ride": "",
+            "jump_tumble": "",
+            "knarcana_spellcraft": "",
+            "knarchitecture_search": "portes secrètes et pièges dans les structures",
+            "kndungeon_survival": "souterrain",
+            "kngeography_survival": "en surface",
+            "knlocal_gatherinfo": "",
+            "knnature_survival": "en milieu naturel",
+            "knnature_handleanimal": "",
+            "knnobility_diplomacy": "",
+            "knplanes_survival": "sur d'autres plans",
+            "search_survival": "pour suivre des traces",
+            "sensemotive_diplomacy": "",
+            "spellcraft_umd": "pour déchiffrer des parchemins",
+            "survival_knnature": "",
+            "tumble_balance": "",
+            "tumble_jump": "",
+            "umd_spellcraft": "activer à l'aveugle",
+            "userope_climb": "avec des cordes",
+            "userope_escapartist": "liens en corde"
+        }
     }
 }

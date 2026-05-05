@@ -612,14 +612,14 @@
         gap: 2px;
         padding: 0.35rem 0.15rem 0.5rem;
         border-bottom: none;
-        scroll-snap-type: x proximity;
-        justify-content: space-between;
+        scroll-snap-type: x mandatory;
+        justify-content: flex-start;
     }
 
     .cs-tab {
-        flex: 1 1 0;
-        min-width: 44px;
-        scroll-snap-align: center;
+        flex: 0 0 48px;
+        min-width: 48px;
+        scroll-snap-align: start;
         padding: 0.45rem 0;
         gap: 0;
         border-radius: 10px;

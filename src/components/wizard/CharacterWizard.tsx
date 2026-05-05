@@ -6,87 +6,89 @@ import { DndIcon } from '../DndIcon';
 import { SKILL_PRESETS } from '../../data/skillPresets';
 import type { CharacterBase, Feat, Language, ClassLevel, ClassFeature } from '../../types/dnd';
 import { computeClassBab, computeClassSaveBase } from '../../types/dnd';
-import { raceCatalog, classCatalog, languageCatalog, skillCatalog, featCatalog, iconCatalog,
-  type CatalogRace, type CatalogClass, type CatalogFeat } from '../../services/admin';
+import {
+  raceCatalog, classCatalog, languageCatalog, skillCatalog, featCatalog, iconCatalog,
+  type CatalogRace, type CatalogClass, type CatalogFeat
+} from '../../services/admin';
 import { pickLocalized } from '../../i18n';
 import './CharacterWizard.css';
 
 // ─────────────────────────── Constants ──────────────────────────────────────
-const CUSTOM_RACE  = '__custom__';
+const CUSTOM_RACE = '__custom__';
 const CUSTOM_CLASS = '__custom__';
 
 // ─────────────────────────── Types ──────────────────────────────────────────
-type AbilityKey  = 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';
+type AbilityKey = 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';
 type AbilityMode = 'pointbuy' | 'manual';
 
 export interface RaceInfo {
-  name:            string;
-  category:        'phb' | 'fr' | 'exotic' | 'custom';
-  bonuses:         Partial<Record<AbilityKey, number>>;
-  extraFeat:       boolean;
-  extraSkills:     number;
-  speed:           number;
-  small:           boolean;
-  desc:            string;
+  name: string;
+  category: 'phb' | 'fr' | 'exotic' | 'custom';
+  bonuses: Partial<Record<AbilityKey, number>>;
+  extraFeat: boolean;
+  extraSkills: number;
+  speed: number;
+  small: boolean;
+  desc: string;
   racialLanguages: string[];
 }
 
 export interface ClassInfoFull {
-  name:        string;
-  eng:         string;
-  iconName:    string | null;
-  desc:        string;
-  hitDie:      number;
-  sp:          number;
-  bab:         'high' | 'medium' | 'low';
-  fort:        'good' | 'poor';
-  ref:         'good' | 'poor';
-  will:        'good' | 'poor';
+  name: string;
+  eng: string;
+  iconName: string | null;
+  desc: string;
+  hitDie: number;
+  sp: number;
+  bab: 'high' | 'medium' | 'low';
+  fort: 'good' | 'poor';
+  ref: 'good' | 'poor';
+  will: 'good' | 'poor';
   classSkills: string[];
 }
 
 interface CustomRaceConfig {
-  displayName:       string;
-  bonuses:           Partial<Record<AbilityKey, number>>;
-  extraFeat:         boolean;
-  extraSkillPoints:  number;
-  speed:             number;
-  small:             boolean;
-  racialLanguages:   string[];
-  description:       string;
+  displayName: string;
+  bonuses: Partial<Record<AbilityKey, number>>;
+  extraFeat: boolean;
+  extraSkillPoints: number;
+  speed: number;
+  small: boolean;
+  racialLanguages: string[];
+  description: string;
 }
 
 interface CustomClassConfig {
   displayName: string;
-  hitDie:      number;
-  sp:          number;
-  bab:         'high' | 'medium' | 'low';
-  fort:        'good' | 'poor';
-  ref:         'good' | 'poor';
-  will:        'good' | 'poor';
+  hitDie: number;
+  sp: number;
+  bab: 'high' | 'medium' | 'low';
+  fort: 'good' | 'poor';
+  ref: 'good' | 'poor';
+  will: 'good' | 'poor';
   classSkills: string[];
 }
 
 interface WizardData {
-  name:             string;
-  race:             string;
-  gender:           string;
-  age:              string;
-  alignment:        string;
-  background:       string;
-  className:        string;
-  avatarUrl:        string;
-  abilities:        Record<AbilityKey, number>;
-  abilityMode:      AbilityMode;
-  skills:           Record<string, {
+  name: string;
+  race: string;
+  gender: string;
+  age: string;
+  alignment: string;
+  background: string;
+  className: string;
+  avatarUrl: string;
+  abilities: Record<AbilityKey, number>;
+  abilityMode: AbilityMode;
+  skills: Record<string, {
     id: string; name: string; stat: string;
     ranks: number; classSkill: boolean;
     armorCheckPenalty: boolean; canUseUntrained: boolean;
   }>;
   classSkillOverrides: Record<string, boolean>;
-  feats:            Feat[];
-  languages:        Language[];
-  fixedLangNames:   Set<string>;
+  feats: Feat[];
+  languages: Language[];
+  fixedLangNames: Set<string>;
   customRaceConfig: CustomRaceConfig;
   customClassConfig: CustomClassConfig;
 }
@@ -97,106 +99,106 @@ interface WizardData {
 export const RACES: RaceInfo[] = [
   // ── PHB Core ──────────────────────────────────────────────────────────────
   {
-    name:'Umano', category:'phb', bonuses:{}, extraFeat:true, extraSkills:4, speed:9, small:false,
-    desc:'Versatili e ambiziosi. Guadagnano un talento bonus e 4 punti abilità aggiuntivi al 1° livello.',
-    racialLanguages:[],
+    name: 'Umano', category: 'phb', bonuses: {}, extraFeat: true, extraSkills: 4, speed: 9, small: false,
+    desc: 'Versatili e ambiziosi. Guadagnano un talento bonus e 4 punti abilità aggiuntivi al 1° livello.',
+    racialLanguages: [],
   },
   {
-    name:'Nano delle Colline', category:'phb', bonuses:{ con:2, cha:-2 }, extraFeat:false, extraSkills:0, speed:6, small:false,
-    desc:'+2 Cos, −2 Car. Visione nel buio 18m, resistenza ai veleni, bonus vs maghi e negromanti.',
-    racialLanguages:['Nanico'],
+    name: 'Nano delle Colline', category: 'phb', bonuses: { con: 2, cha: -2 }, extraFeat: false, extraSkills: 0, speed: 6, small: false,
+    desc: '+2 Cos, −2 Car. Visione nel buio 18m, resistenza ai veleni, bonus vs maghi e negromanti.',
+    racialLanguages: ['Nanico'],
   },
   {
-    name:'Elfo', category:'phb', bonuses:{ dex:2, con:-2 }, extraFeat:false, extraSkills:0, speed:9, small:false,
-    desc:'+2 Des, −2 Cos. Immunità al sonno magico, bonus ai tiri salvezza contro incantesimi, bonus Cercare/Ascoltare/Osservare.',
-    racialLanguages:['Elfico'],
+    name: 'Elfo', category: 'phb', bonuses: { dex: 2, con: -2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    desc: '+2 Des, −2 Cos. Immunità al sonno magico, bonus ai tiri salvezza contro incantesimi, bonus Cercare/Ascoltare/Osservare.',
+    racialLanguages: ['Elfico'],
   },
   {
-    name:'Gnomo della Roccia', category:'phb', bonuses:{ con:2, str:-2 }, extraFeat:false, extraSkills:0, speed:6, small:true,
-    desc:'+2 Cos, −2 For. Visione nel buio 18m, illusioni minori innate, bonus vs illusioni e goblinoidi.',
-    racialLanguages:['Gnomesco'],
+    name: 'Gnomo della Roccia', category: 'phb', bonuses: { con: 2, str: -2 }, extraFeat: false, extraSkills: 0, speed: 6, small: true,
+    desc: '+2 Cos, −2 For. Visione nel buio 18m, illusioni minori innate, bonus vs illusioni e goblinoidi.',
+    racialLanguages: ['Gnomesco'],
   },
   {
-    name:'Halfling Piede Leggero', category:'phb', bonuses:{ dex:2, str:-2 }, extraFeat:false, extraSkills:0, speed:6, small:true,
-    desc:'+2 Des, −2 For. +1 ai tiri salvezza, +2 ad Ascoltare, bonus al tiro con le armi.',
-    racialLanguages:['Halfling'],
+    name: 'Halfling Piede Leggero', category: 'phb', bonuses: { dex: 2, str: -2 }, extraFeat: false, extraSkills: 0, speed: 6, small: true,
+    desc: '+2 Des, −2 For. +1 ai tiri salvezza, +2 ad Ascoltare, bonus al tiro con le armi.',
+    racialLanguages: ['Halfling'],
   },
   {
-    name:'Mezzelfo', category:'phb', bonuses:{}, extraFeat:false, extraSkills:0, speed:9, small:false,
-    desc:'Nessun bonus caratteristica. Immunità al sonno, bonus +2 a Diplomazia e Raccogliere Info.',
-    racialLanguages:['Elfico'],
+    name: 'Mezzelfo', category: 'phb', bonuses: {}, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    desc: 'Nessun bonus caratteristica. Immunità al sonno, bonus +2 a Diplomazia e Raccogliere Info.',
+    racialLanguages: ['Elfico'],
   },
   {
-    name:'Mezzorco', category:'phb', bonuses:{ str:2, int:-2, cha:-2 }, extraFeat:false, extraSkills:0, speed:9, small:false,
-    desc:'+2 For, −2 Int, −2 Car. Visione nel buio 18m. Accettato tra orchi e umani, non benvoluto da entrambi.',
-    racialLanguages:['Orco'],
+    name: 'Mezzorco', category: 'phb', bonuses: { str: 2, int: -2, cha: -2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    desc: '+2 For, −2 Int, −2 Car. Visione nel buio 18m. Accettato tra orchi e umani, non benvoluto da entrambi.',
+    racialLanguages: ['Orco'],
   },
   // ── Forgotten Realms ──────────────────────────────────────────────────────
   {
-    name:'Elfo del Sole', category:'fr', bonuses:{ int:2, dex:2, str:-2, con:-2 }, extraFeat:false, extraSkills:0, speed:9, small:false,
-    desc:'+2 Int, +2 Des, −2 For, −2 Cos. La subspecie elfica più arrogante e magicamente dotata dei Reami.',
-    racialLanguages:['Elfico'],
+    name: 'Elfo del Sole', category: 'fr', bonuses: { int: 2, dex: 2, str: -2, con: -2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    desc: '+2 Int, +2 Des, −2 For, −2 Cos. La subspecie elfica più arrogante e magicamente dotata dei Reami.',
+    racialLanguages: ['Elfico'],
   },
   {
-    name:'Elfo della Luna', category:'fr', bonuses:{ dex:2, con:-2 }, extraFeat:false, extraSkills:0, speed:9, small:false,
-    desc:'+2 Des, −2 Cos. La subspecie elfica più comune nei Reami. Socievoli e avventurosi.',
-    racialLanguages:['Elfico'],
+    name: 'Elfo della Luna', category: 'fr', bonuses: { dex: 2, con: -2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    desc: '+2 Des, −2 Cos. La subspecie elfica più comune nei Reami. Socievoli e avventurosi.',
+    racialLanguages: ['Elfico'],
   },
   {
-    name:'Elfo dei Boschi', category:'fr', bonuses:{ str:2, dex:2, con:-2, int:-2 }, extraFeat:false, extraSkills:0, speed:9, small:false,
-    desc:'+2 For, +2 Des, −2 Cos, −2 Int. Reclusi nei boschi profondi; eccellenti esploratori.',
-    racialLanguages:['Elfico'],
+    name: 'Elfo dei Boschi', category: 'fr', bonuses: { str: 2, dex: 2, con: -2, int: -2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    desc: '+2 For, +2 Des, −2 Cos, −2 Int. Reclusi nei boschi profondi; eccellenti esploratori.',
+    racialLanguages: ['Elfico'],
   },
   {
-    name:'Elfo Grigio', category:'fr', bonuses:{ int:2, dex:2, str:-2, con:-2 }, extraFeat:false, extraSkills:0, speed:9, small:false,
-    desc:'+2 Int, +2 Des, −2 For, −2 Cos. La più antica e isolata subspecie elfica, maestri delle arti arcane.',
-    racialLanguages:['Elfico'],
+    name: 'Elfo Grigio', category: 'fr', bonuses: { int: 2, dex: 2, str: -2, con: -2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    desc: '+2 Int, +2 Des, −2 For, −2 Cos. La più antica e isolata subspecie elfica, maestri delle arti arcane.',
+    racialLanguages: ['Elfico'],
   },
   {
-    name:'Elfo Oscuro (Drow)', category:'fr', bonuses:{ dex:2, int:2, cha:2, con:-2, str:-2 }, extraFeat:false, extraSkills:0, speed:9, small:false,
-    desc:'+2 Des, +2 Int, +2 Car, −2 Cos, −2 For. Elfi delle profondità. Resistenza alla magia, abilità innate, sensibilità alla luce.',
-    racialLanguages:['Elfico','Sottocomune'],
+    name: 'Elfo Oscuro (Drow)', category: 'fr', bonuses: { dex: 2, int: 2, cha: 2, con: -2, str: -2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    desc: '+2 Des, +2 Int, +2 Car, −2 Cos, −2 For. Elfi delle profondità. Resistenza alla magia, abilità innate, sensibilità alla luce.',
+    racialLanguages: ['Elfico', 'Sottocomune'],
   },
   {
-    name:'Nano delle Montagne', category:'fr', bonuses:{ str:2, con:2, cha:-2 }, extraFeat:false, extraSkills:0, speed:6, small:false,
-    desc:'+2 For, +2 Cos, −2 Car. Nani robusti e temprati dall\'alta quota. Eccellenti guerrieri.',
-    racialLanguages:['Nanico'],
+    name: 'Nano delle Montagne', category: 'fr', bonuses: { str: 2, con: 2, cha: -2 }, extraFeat: false, extraSkills: 0, speed: 6, small: false,
+    desc: '+2 For, +2 Cos, −2 Car. Nani robusti e temprati dall\'alta quota. Eccellenti guerrieri.',
+    racialLanguages: ['Nanico'],
   },
   {
-    name:'Gnomo dei Boschi', category:'fr', bonuses:{ dex:2, int:2, str:-2, cha:-2 }, extraFeat:false, extraSkills:0, speed:6, small:true,
-    desc:'+2 Des, +2 Int, −2 For, −2 Car. Gnomi selvatici e schivi. Comunicano con gli animali forestali.',
-    racialLanguages:['Gnomesco','Silvano'],
+    name: 'Gnomo dei Boschi', category: 'fr', bonuses: { dex: 2, int: 2, str: -2, cha: -2 }, extraFeat: false, extraSkills: 0, speed: 6, small: true,
+    desc: '+2 Des, +2 Int, −2 For, −2 Car. Gnomi selvatici e schivi. Comunicano con gli animali forestali.',
+    racialLanguages: ['Gnomesco', 'Silvano'],
   },
   {
-    name:'Halfling Strongheart', category:'fr', bonuses:{ dex:2, str:-2 }, extraFeat:true, extraSkills:0, speed:6, small:true,
-    desc:'+2 Des, −2 For, +1 talento bonus. Halfling coraggiosi del Chondath, ottimi avventurieri.',
-    racialLanguages:['Halfling'],
+    name: 'Halfling Strongheart', category: 'fr', bonuses: { dex: 2, str: -2 }, extraFeat: true, extraSkills: 0, speed: 6, small: true,
+    desc: '+2 Des, −2 For, +1 talento bonus. Halfling coraggiosi del Chondath, ottimi avventurieri.',
+    racialLanguages: ['Halfling'],
   },
   // ── Esotiche ──────────────────────────────────────────────────────────────
   {
-    name:'Tiefling', category:'exotic', bonuses:{ dex:2, int:2, cha:-2 }, extraFeat:false, extraSkills:0, speed:9, small:false,
-    desc:'+2 Des, +2 Int, −2 Car. Discendenza diabolica. Resistenza al fuoco, capacità innate, visione nel buio.',
-    racialLanguages:['Infernale'],
+    name: 'Tiefling', category: 'exotic', bonuses: { dex: 2, int: 2, cha: -2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    desc: '+2 Des, +2 Int, −2 Car. Discendenza diabolica. Resistenza al fuoco, capacità innate, visione nel buio.',
+    racialLanguages: ['Infernale'],
   },
   {
-    name:'Aasimar', category:'exotic', bonuses:{ wis:2, cha:2 }, extraFeat:false, extraSkills:0, speed:9, small:false,
-    desc:'+2 Sag, +2 Car. Discendenza celeste. Resistenza acido/elettricità/freddo, luce innata, visione nel buio.',
-    racialLanguages:['Celestiale'],
+    name: 'Aasimar', category: 'exotic', bonuses: { wis: 2, cha: 2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    desc: '+2 Sag, +2 Car. Discendenza celeste. Resistenza acido/elettricità/freddo, luce innata, visione nel buio.',
+    racialLanguages: ['Celestiale'],
   },
   {
-    name:'Genasi della Terra', category:'exotic', bonuses:{ str:2, con:2, int:-2, cha:-2 }, extraFeat:false, extraSkills:0, speed:9, small:false,
-    desc:'+2 For, +2 Cos, −2 Int, −2 Car. Sangue elementale terrestre. Resistenza acido, capacità innate.',
-    racialLanguages:['Terran'],
+    name: 'Genasi della Terra', category: 'exotic', bonuses: { str: 2, con: 2, int: -2, cha: -2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    desc: '+2 For, +2 Cos, −2 Int, −2 Car. Sangue elementale terrestre. Resistenza acido, capacità innate.',
+    racialLanguages: ['Terran'],
   },
   {
-    name:'Genasi del Fuoco', category:'exotic', bonuses:{ int:2, cha:2, wis:-2 }, extraFeat:false, extraSkills:0, speed:9, small:false,
-    desc:'+2 Int, +2 Car, −2 Sag. Sangue elementale igneo. Immunità al fuoco, fire bolt innato.',
-    racialLanguages:['Ignan'],
+    name: 'Genasi del Fuoco', category: 'exotic', bonuses: { int: 2, cha: 2, wis: -2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    desc: '+2 Int, +2 Car, −2 Sag. Sangue elementale igneo. Immunità al fuoco, fire bolt innato.',
+    racialLanguages: ['Ignan'],
   },
   {
-    name:'Githzerai', category:'exotic', bonuses:{ wis:2, dex:2, str:-2, cha:-2 }, extraFeat:false, extraSkills:0, speed:9, small:false,
-    desc:'+2 Sag, +2 Des, −2 For, −2 Car. Guerrieri psionici dei piani astrali. Resistenza alla magia.',
-    racialLanguages:['Githzerai'],
+    name: 'Githzerai', category: 'exotic', bonuses: { wis: 2, dex: 2, str: -2, cha: -2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    desc: '+2 Sag, +2 Des, −2 For, −2 Car. Guerrieri psionici dei piani astrali. Resistenza alla magia.',
+    racialLanguages: ['Githzerai'],
   },
 ];
 
@@ -205,76 +207,76 @@ export const RACES: RaceInfo[] = [
 // eslint-disable-next-line react-refresh/only-export-components
 export const CLASSES: ClassInfoFull[] = [
   {
-    name:'Guerriero',  eng:'Fighter',   iconName:'fighter',
-    desc:'Maestro assoluto delle armi. Talento bonus ogni 2 livelli pari, grande varietà di stili di combattimento.',
-    hitDie:10, sp:2, bab:'high',   fort:'good', ref:'poor', will:'poor',
-    classSkills:['arrampicare','equitazione','gestire_animali','intimidire','nuotare','saltare','cavalcare'],
+    name: 'Guerriero', eng: 'Fighter', iconName: 'fighter',
+    desc: 'Maestro assoluto delle armi. Talento bonus ogni 2 livelli pari, grande varietà di stili di combattimento.',
+    hitDie: 10, sp: 2, bab: 'high', fort: 'good', ref: 'poor', will: 'poor',
+    classSkills: ['arrampicare', 'equitazione', 'gestire_animali', 'intimidire', 'nuotare', 'saltare', 'cavalcare'],
   },
   {
-    name:'Paladino',   eng:'Paladin',   iconName:'paladin',
-    desc:'Campione sacro. Imposizione delle mani, rilevare il male, destriero sacro al 5° livello.',
-    hitDie:10, sp:2, bab:'high',   fort:'good', ref:'poor', will:'poor',
-    classSkills:['concentrazione','con_religione','diplomazia','guarire','equitazione','sapienza_magica'],
+    name: 'Paladino', eng: 'Paladin', iconName: 'paladin',
+    desc: 'Campione sacro. Imposizione delle mani, rilevare il male, destriero sacro al 5° livello.',
+    hitDie: 10, sp: 2, bab: 'high', fort: 'good', ref: 'poor', will: 'poor',
+    classSkills: ['concentrazione', 'con_religione', 'diplomazia', 'guarire', 'equitazione', 'sapienza_magica'],
   },
   {
-    name:'Ranger',     eng:'Ranger',    iconName:'ranger',
-    desc:'Esploratore e cacciatore. Nemico prescelto, tracce, compagno animale al 4°, incantesimi al 4°.',
-    hitDie:8,  sp:6, bab:'high',   fort:'good', ref:'good', will:'poor',
-    classSkills:['arrampicare','ascoltare','cercare','equitazione','furtivita','muoversi_silenziosamente','sopravvivenza','osservare','nuotare','gestire_animali'],
+    name: 'Ranger', eng: 'Ranger', iconName: 'ranger',
+    desc: 'Esploratore e cacciatore. Nemico prescelto, tracce, compagno animale al 4°, incantesimi al 4°.',
+    hitDie: 8, sp: 6, bab: 'high', fort: 'good', ref: 'good', will: 'poor',
+    classSkills: ['arrampicare', 'ascoltare', 'cercare', 'equitazione', 'furtivita', 'muoversi_silenziosamente', 'sopravvivenza', 'osservare', 'nuotare', 'gestire_animali'],
   },
   {
-    name:'Barbaro',    eng:'Barbarian', iconName:'barbarian',
-    desc:'Furia primitiva incontenibile. Barbarie, velocità aumentata, senso del pericolo, riduzione danno ai livelli alti.',
-    hitDie:12, sp:4, bab:'high',   fort:'good', ref:'poor', will:'poor',
-    classSkills:['arrampicare','equitazione','intimidire','ascoltare','sopravvivenza','nuotare'],
+    name: 'Barbaro', eng: 'Barbarian', iconName: 'barbarian',
+    desc: 'Furia primitiva incontenibile. Barbarie, velocità aumentata, senso del pericolo, riduzione danno ai livelli alti.',
+    hitDie: 12, sp: 4, bab: 'high', fort: 'good', ref: 'poor', will: 'poor',
+    classSkills: ['arrampicare', 'equitazione', 'intimidire', 'ascoltare', 'sopravvivenza', 'nuotare'],
   },
   {
-    name:'Chierico',   eng:'Cleric',    iconName:'cleric',
-    desc:'Sacerdote guerriero. Magia divina completa, scacciare o dominare i non morti, domini divini.',
-    hitDie:8,  sp:2, bab:'medium', fort:'good', ref:'poor', will:'good',
-    classSkills:['concentrazione','diplomazia','guarire','con_religione','sapienza_magica','senso_pericoli'],
+    name: 'Chierico', eng: 'Cleric', iconName: 'cleric',
+    desc: 'Sacerdote guerriero. Magia divina completa, scacciare o dominare i non morti, domini divini.',
+    hitDie: 8, sp: 2, bab: 'medium', fort: 'good', ref: 'poor', will: 'good',
+    classSkills: ['concentrazione', 'diplomazia', 'guarire', 'con_religione', 'sapienza_magica', 'senso_pericoli'],
   },
   {
-    name:'Druido',     eng:'Druid',     iconName:'druid',
-    desc:'Guardiano della natura. Magia naturale, mutaforma al 5°, affinità con gli animali, lingue della natura.',
-    hitDie:8,  sp:4, bab:'medium', fort:'good', ref:'poor', will:'good',
-    classSkills:['concentrazione','con_natura','osservare','sopravvivenza','guarire','gestire_animali'],
+    name: 'Druido', eng: 'Druid', iconName: 'druid',
+    desc: 'Guardiano della natura. Magia naturale, mutaforma al 5°, affinità con gli animali, lingue della natura.',
+    hitDie: 8, sp: 4, bab: 'medium', fort: 'good', ref: 'poor', will: 'good',
+    classSkills: ['concentrazione', 'con_natura', 'osservare', 'sopravvivenza', 'guarire', 'gestire_animali'],
   },
   {
-    name:'Monaco',     eng:'Monk',      iconName:'monk',
-    desc:'Combattente mistico senz\'armatura. Attacchi furtivi, schivata straordinaria, resistenza agli incantesimi.',
-    hitDie:8,  sp:4, bab:'medium', fort:'good', ref:'good', will:'good',
-    classSkills:['arrampicare','concentrazione','equitazione','furtivita','saltare','senso_pericoli','sapienza_magica'],
+    name: 'Monaco', eng: 'Monk', iconName: 'monk',
+    desc: 'Combattente mistico senz\'armatura. Attacchi furtivi, schivata straordinaria, resistenza agli incantesimi.',
+    hitDie: 8, sp: 4, bab: 'medium', fort: 'good', ref: 'good', will: 'good',
+    classSkills: ['arrampicare', 'concentrazione', 'equitazione', 'furtivita', 'saltare', 'senso_pericoli', 'sapienza_magica'],
   },
   {
-    name:'Bardo',      eng:'Bard',      iconName:'bard',
-    desc:'Artista e arcanista. Ispirazione bardica, incantesimi, conoscenza universale, abilità fuori classe a scelta.',
-    hitDie:6,  sp:6, bab:'medium', fort:'poor', ref:'good', will:'good',
-    classSkills:['ascoltare','bluff','concentrazione','diplomazia','furtivita','osservare','raccogliere_info','sapienza_magica','senso_pericoli','valutare'],
+    name: 'Bardo', eng: 'Bard', iconName: 'bard',
+    desc: 'Artista e arcanista. Ispirazione bardica, incantesimi, conoscenza universale, abilità fuori classe a scelta.',
+    hitDie: 6, sp: 6, bab: 'medium', fort: 'poor', ref: 'good', will: 'good',
+    classSkills: ['ascoltare', 'bluff', 'concentrazione', 'diplomazia', 'furtivita', 'osservare', 'raccogliere_info', 'sapienza_magica', 'senso_pericoli', 'valutare'],
   },
   {
-    name:'Ladro',      eng:'Rogue',     iconName:'rogue',
-    desc:'Maestro dell\'astuzia. Attacco furtivo, trovare e disattivare trappole, schivata straordinaria.',
-    hitDie:6,  sp:8, bab:'medium', fort:'poor', ref:'good', will:'poor',
-    classSkills:['aprire_serrature','arrampicare','ascoltare','bluff','cercare','diplomazia','disattivare_dispositivi','furtivita','muoversi_silenziosamente','osservare','raccogliere_info','senso_pericoli','usare_oggetti_magici','valutare'],
+    name: 'Ladro', eng: 'Rogue', iconName: 'rogue',
+    desc: 'Maestro dell\'astuzia. Attacco furtivo, trovare e disattivare trappole, schivata straordinaria.',
+    hitDie: 6, sp: 8, bab: 'medium', fort: 'poor', ref: 'good', will: 'poor',
+    classSkills: ['aprire_serrature', 'arrampicare', 'ascoltare', 'bluff', 'cercare', 'diplomazia', 'disattivare_dispositivi', 'furtivita', 'muoversi_silenziosamente', 'osservare', 'raccogliere_info', 'senso_pericoli', 'usare_oggetti_magici', 'valutare'],
   },
   {
-    name:'Mago',       eng:'Wizard',    iconName:'wizard',
-    desc:'Arcanista studioso. Libro degli incantesimi, bonus ai talenti magici, vastissimo repertorio.',
-    hitDie:4,  sp:2, bab:'low',    fort:'poor', ref:'poor', will:'good',
-    classSkills:['concentrazione','con_arcane','con_dungeoneering','con_natura','con_religione','sapienza_magica'],
+    name: 'Mago', eng: 'Wizard', iconName: 'wizard',
+    desc: 'Arcanista studioso. Libro degli incantesimi, bonus ai talenti magici, vastissimo repertorio.',
+    hitDie: 4, sp: 2, bab: 'low', fort: 'poor', ref: 'poor', will: 'good',
+    classSkills: ['concentrazione', 'con_arcane', 'con_dungeoneering', 'con_natura', 'con_religione', 'sapienza_magica'],
   },
   {
-    name:'Stregone',   eng:'Sorcerer',  iconName:'sorcerer',
-    desc:'Magia innata nel sangue. Nessun libro, lancia istintivamente; limitato ma potente.',
-    hitDie:4,  sp:2, bab:'low',    fort:'poor', ref:'poor', will:'good',
-    classSkills:['bluff','concentrazione','sapienza_magica'],
+    name: 'Stregone', eng: 'Sorcerer', iconName: 'sorcerer',
+    desc: 'Magia innata nel sangue. Nessun libro, lancia istintivamente; limitato ma potente.',
+    hitDie: 4, sp: 2, bab: 'low', fort: 'poor', ref: 'poor', will: 'good',
+    classSkills: ['bluff', 'concentrazione', 'sapienza_magica'],
   },
   {
-    name:'Warlock', eng:'Warlock', iconName:'warlock',
-    desc:'Patto oscuro con entità extraplanari. Evocazione delle Tenebre, invocazioni innate, nessuno slot incantesimo.',
-    hitDie:6,  sp:2, bab:'medium', fort:'poor', ref:'poor', will:'good',
-    classSkills:['bluff','concentrazione','con_arcane','intimidire','sapienza_magica','senso_pericoli'],
+    name: 'Warlock', eng: 'Warlock', iconName: 'warlock',
+    desc: 'Patto oscuro con entità extraplanari. Evocazione delle Tenebre, invocazioni innate, nessuno slot incantesimo.',
+    hitDie: 6, sp: 2, bab: 'medium', fort: 'poor', ref: 'poor', will: 'good',
+    classSkills: ['bluff', 'concentrazione', 'con_arcane', 'intimidire', 'sapienza_magica', 'senso_pericoli'],
   },
 ];
 
@@ -282,26 +284,26 @@ export const CLASSES: ClassInfoFull[] = [
 
 // Maps Italian skill names → DndIcon skill/ category names
 const SKILL_ICON_MAP: Record<string, string | null> = {
-  'Acrobazia': 'acrobatics',          'Addestrare Animali': 'animal-handling',
-  'Artista della Fuga': null,         'Ascoltare': 'perception',
-  'Camuffare': 'deception',           'Cavalcare': 'animal-handling',
-  'Cercare': 'investigation',         'Concentrazione': null,
-  'Conoscenze Arcane': 'arcana',      'Conoscenze Architettura': 'history',
-  'Conoscenze Dungeon': 'history',    'Conoscenze Geografia': 'history',
-  'Conoscenze Locali': 'history',     'Conoscenze Natura': 'nature',
+  'Acrobazia': 'acrobatics', 'Addestrare Animali': 'animal-handling',
+  'Artista della Fuga': null, 'Ascoltare': 'perception',
+  'Camuffare': 'deception', 'Cavalcare': 'animal-handling',
+  'Cercare': 'investigation', 'Concentrazione': null,
+  'Conoscenze Arcane': 'arcana', 'Conoscenze Architettura': 'history',
+  'Conoscenze Dungeon': 'history', 'Conoscenze Geografia': 'history',
+  'Conoscenze Locali': 'history', 'Conoscenze Natura': 'nature',
   'Conoscenze Nobiltà e Regalità': 'history', 'Conoscenze Piani': 'arcana',
   'Conoscenze Religioni': 'religion', 'Conoscenze Storia': 'history',
-  'Decifrare Scritture': null,        'Diplomazia': 'persuasion',
+  'Decifrare Scritture': null, 'Diplomazia': 'persuasion',
   'Disattivare Congegni': 'sleight-of-hand', 'Equilibrio': 'acrobatics',
-  'Falsificare': 'deception',         'Guarire': 'medicine',
-  'Intimidire': 'intimidation',       'Muoversi Silenziosamente': 'stealth',
-  'Nascondersi': 'stealth',           'Nuotare': 'athletics',
-  'Osservare': 'perception',          'Parlare Linguaggi': null,
-  'Percepire Intenzioni': 'insight',  'Raccogliere Informazioni': 'insight',
-  'Raggirare': 'deception',           'Rapidità di Mano': 'sleight-of-hand',
-  'Saltare': 'athletics',             'Sapienza Magica': 'arcana',
-  'Scalare': 'athletics',             'Scassinare Serrature': 'sleight-of-hand',
-  'Sopravvivenza': 'survival',        'Valutare': 'history',
+  'Falsificare': 'deception', 'Guarire': 'medicine',
+  'Intimidire': 'intimidation', 'Muoversi Silenziosamente': 'stealth',
+  'Nascondersi': 'stealth', 'Nuotare': 'athletics',
+  'Osservare': 'perception', 'Parlare Linguaggi': null,
+  'Percepire Intenzioni': 'insight', 'Raccogliere Informazioni': 'insight',
+  'Raggirare': 'deception', 'Rapidità di Mano': 'sleight-of-hand',
+  'Saltare': 'athletics', 'Sapienza Magica': 'arcana',
+  'Scalare': 'athletics', 'Scassinare Serrature': 'sleight-of-hand',
+  'Sopravvivenza': 'survival', 'Valutare': 'history',
 };
 
 // Build full skill list from presets (used in wizard step 5).
@@ -313,12 +315,13 @@ export const CATALOG_SKILL_ID_TO_NAME: Record<string, string> = {};
 // loaded from `catalog_skills` (Firestore) into this list at runtime.
 // eslint-disable-next-line react-refresh/only-export-components
 export const ALL_SKILLS = SKILL_PRESETS.map(sp => ({
-  id:         sp.name,
-  name:       sp.name,
-  stat:       sp.stat as string,
+  id: sp.name,
+  name: sp.name,
+  localizedName: undefined as Partial<Record<string, string>> | undefined,
+  stat: sp.stat as string,
   armorCheck: sp.armorCheckPenalty,
-  untrained:  sp.canUseUntrained,
-  icon:       SKILL_ICON_MAP[sp.name] ?? null,
+  untrained: sp.canUseUntrained,
+  icon: SKILL_ICON_MAP[sp.name] ?? null,
 }));
 
 // Catalog feats merged at runtime; kept here so the wizard step can read it.
@@ -343,21 +346,21 @@ export const CATALOG_ICON_SVG_BY_ID: Record<string, string> = {}; // catalog_ico
 
 // Maps old class-skill IDs (in CLASSES[].classSkills) → SKILL_PRESETS names
 const OLD_TO_PRESET: Record<string, string> = {
-  'aprire_serrature':'Scassinare Serrature', 'arrampicare':'Scalare',
-  'ascoltare':'Ascoltare',                   'bluff':'Raggirare',
-  'cercare':'Cercare',                       'concentrazione':'Concentrazione',
-  'con_arcane':'Conoscenze Arcane',          'con_dungeoneering':'Conoscenze Dungeon',
-  'con_natura':'Conoscenze Natura',          'con_religione':'Conoscenze Religioni',
-  'diplomazia':'Diplomazia',                 'disattivare_dispositivi':'Disattivare Congegni',
-  'equitazione':'Cavalcare',                 'falsificare':'Falsificare',
-  'furtivita':'Nascondersi',                 'gestire_animali':'Addestrare Animali',
-  'guarire':'Guarire',                       'intimidire':'Intimidire',
-  'muoversi_silenziosamente':'Muoversi Silenziosamente', 'nuotare':'Nuotare',
-  'osservare':'Osservare',                   'raccogliere_info':'Raccogliere Informazioni',
-  'saltare':'Saltare',                       'sapienza_magica':'Sapienza Magica',
-  'senso_pericoli':'Percepire Intenzioni',   'sopravvivenza':'Sopravvivenza',
-  'usare_oggetti_magici':'Utilizzare Oggetti Magici', 'valutare':'Valutare',
-  'cavalcare':'Cavalcare',
+  'aprire_serrature': 'Scassinare Serrature', 'arrampicare': 'Scalare',
+  'ascoltare': 'Ascoltare', 'bluff': 'Raggirare',
+  'cercare': 'Cercare', 'concentrazione': 'Concentrazione',
+  'con_arcane': 'Conoscenze Arcane', 'con_dungeoneering': 'Conoscenze Dungeon',
+  'con_natura': 'Conoscenze Natura', 'con_religione': 'Conoscenze Religioni',
+  'diplomazia': 'Diplomazia', 'disattivare_dispositivi': 'Disattivare Congegni',
+  'equitazione': 'Cavalcare', 'falsificare': 'Falsificare',
+  'furtivita': 'Nascondersi', 'gestire_animali': 'Addestrare Animali',
+  'guarire': 'Guarire', 'intimidire': 'Intimidire',
+  'muoversi_silenziosamente': 'Muoversi Silenziosamente', 'nuotare': 'Nuotare',
+  'osservare': 'Osservare', 'raccogliere_info': 'Raccogliere Informazioni',
+  'saltare': 'Saltare', 'sapienza_magica': 'Sapienza Magica',
+  'senso_pericoli': 'Percepire Intenzioni', 'sopravvivenza': 'Sopravvivenza',
+  'usare_oggetti_magici': 'Utilizzare Oggetti Magici', 'valutare': 'Valutare',
+  'cavalcare': 'Cavalcare',
 };
 
 function isDefaultClassSkill(skillName: string, classSkillIds: string[]): boolean {
@@ -370,43 +373,43 @@ function isDefaultClassSkill(skillName: string, classSkillIds: string[]): boolea
 // ─────────────────────────── Other static data ──────────────────────────────
 
 const ALIGNMENTS = [
-  'Legale Buono','Neutrale Buono','Caotico Buono',
-  'Legale Neutrale','Neutrale','Caotico Neutrale',
-  'Legale Malvagio','Neutrale Malvagio','Caotico Malvagio',
+  'Legale Buono', 'Neutrale Buono', 'Caotico Buono',
+  'Legale Neutrale', 'Neutrale', 'Caotico Neutrale',
+  'Legale Malvagio', 'Neutrale Malvagio', 'Caotico Malvagio',
 ];
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const ALL_LANGUAGES_POOL = [
-  'Elfico','Nanico','Halfling','Gnomesco','Orco','Goblin','Draconico',
-  'Celestiale','Infernale','Abissale','Silvano','Terran','Aquan','Auran','Ignan',
-  'Gigante','Gnoll','Troglodita','Sottocomune','Githzerai','Githyanki',
-  'Slaad','Druidico','Linguaggio dei Segni','Linguaggio dei Ladri',
+  'Elfico', 'Nanico', 'Halfling', 'Gnomesco', 'Orco', 'Goblin', 'Draconico',
+  'Celestiale', 'Infernale', 'Abissale', 'Silvano', 'Terran', 'Aquan', 'Auran', 'Ignan',
+  'Gigante', 'Gnoll', 'Troglodita', 'Sottocomune', 'Githzerai', 'Githyanki',
+  'Slaad', 'Druidico', 'Linguaggio dei Segni', 'Linguaggio dei Ladri',
 ];
 
 const ABILITY_ICON: Record<AbilityKey, string> = {
-  str:'strength', dex:'dexterity', con:'constitution',
-  int:'intelligence', wis:'wisdom', cha:'charisma',
+  str: 'strength', dex: 'dexterity', con: 'constitution',
+  int: 'intelligence', wis: 'wisdom', cha: 'charisma',
 };
 
 const STAT_NAMES: Record<AbilityKey, string> = {
-  str:'Forza', dex:'Destrezza', con:'Costituzione',
-  int:'Intelligenza', wis:'Saggezza', cha:'Carisma',
+  str: 'Forza', dex: 'Destrezza', con: 'Costituzione',
+  int: 'Intelligenza', wis: 'Saggezza', cha: 'Carisma',
 };
 
 const STAT_ABBR: Record<string, string> = {
-  str:'For', dex:'Des', con:'Cos', int:'Int', wis:'Sag', cha:'Car',
+  str: 'For', dex: 'Des', con: 'Cos', int: 'Int', wis: 'Sag', cha: 'Car',
 };
 
 const PB_COST: Record<number, number> = {
-  8:0, 9:1, 10:2, 11:3, 12:4, 13:5, 14:6, 15:8, 16:10, 17:13, 18:16,
+  8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 6, 15: 8, 16: 10, 17: 13, 18: 16,
 };
 const PB_TOTAL = 28;
 
 // ─────────────────────────── Helpers ────────────────────────────────────────
 
-const abilityMod  = (v: number) => Math.floor((v - 10) / 2);
-const signedMod   = (v: number) => { const m = abilityMod(v); return m >= 0 ? `+${m}` : `${m}`; };
-const signNum     = (n: number) => n >= 0 ? `+${n}` : `${n}`;
+const abilityMod = (v: number) => Math.floor((v - 10) / 2);
+const signedMod = (v: number) => { const m = abilityMod(v); return m >= 0 ? `+${m}` : `${m}`; };
+const signNum = (n: number) => n >= 0 ? `+${n}` : `${n}`;
 
 function totalPBCost(abilities: Record<AbilityKey, number>): number {
   return (Object.keys(abilities) as AbilityKey[]).reduce((s, k) => s + (PB_COST[abilities[k]] ?? 0), 0);
@@ -449,7 +452,7 @@ function finalAbility(base: number, key: AbilityKey, raceInfo: RaceInfo): number
 }
 
 function skillPointPool(classInfo: ClassInfoFull, intScore: number, raceInfo: RaceInfo): number {
-  const intMod   = abilityMod(intScore);
+  const intMod = abilityMod(intScore);
   const perLevel = Math.max(1, classInfo.sp + intMod);
   return perLevel * 4 + raceInfo.extraSkills;
 }
@@ -485,8 +488,14 @@ function buildFullSkillRecord(
       // class skill → 1 SP = 1 rank; cross-class → 2 SP = 1 rank
       ranks:             isClass ? (existing?.ranks ?? 0) : Math.floor((existing?.ranks ?? 0) / 2),
       classSkill:        isClass,
+      id: s.name,
+      name: s.name,
+      ...(s.localizedName ? { localizedName: s.localizedName } : {}),
+      stat: s.stat as any,
+      ranks: existing?.ranks ?? 0,
+      classSkill: isClass,
       armorCheckPenalty: s.armorCheck,
-      canUseUntrained:   s.untrained,
+      canUseUntrained: s.untrained,
     };
   }
   return out;
@@ -539,22 +548,22 @@ function catalogClassToClassInfo(c: CatalogClass, lang: string): ClassInfoFull {
 
 // ─────────────────────────── Race category badge ────────────────────────────
 
-const RACE_CAT_LABEL: Record<string, string> = { phb:'PHB', fr:'Reami', exotic:'Esotica', custom:'Custom' };
+const RACE_CAT_LABEL: Record<string, string> = { phb: 'PHB', fr: 'Reami', exotic: 'Esotica', custom: 'Custom' };
 
 function RaceCategoryBadge({ cat }: { cat: string }) {
   const bg: Record<string, string> = {
-    phb:'rgba(201,168,76,0.2)', fr:'rgba(93,173,226,0.2)',
-    exotic:'rgba(155,89,182,0.2)', custom:'rgba(39,174,96,0.2)',
+    phb: 'rgba(201,168,76,0.2)', fr: 'rgba(93,173,226,0.2)',
+    exotic: 'rgba(155,89,182,0.2)', custom: 'rgba(39,174,96,0.2)',
   };
   const fg: Record<string, string> = {
-    phb:'var(--accent-gold)', fr:'#5dade2',
-    exotic:'var(--accent-arcane)', custom:'#27ae60',
+    phb: 'var(--accent-gold)', fr: '#5dade2',
+    exotic: 'var(--accent-arcane)', custom: '#27ae60',
   };
   return (
     <span style={{
-      display:'inline-block', fontSize:'0.55rem', padding:'0.1rem 0.38rem',
-      borderRadius:2, fontFamily:'var(--font-heading)', letterSpacing:'0.07em',
-      textTransform:'uppercase', background:bg[cat] ?? 'transparent', color:fg[cat] ?? 'var(--text-muted)',
+      display: 'inline-block', fontSize: '0.55rem', padding: '0.1rem 0.38rem',
+      borderRadius: 2, fontFamily: 'var(--font-heading)', letterSpacing: '0.07em',
+      textTransform: 'uppercase', background: bg[cat] ?? 'transparent', color: fg[cat] ?? 'var(--text-muted)',
     }}>
       {RACE_CAT_LABEL[cat] ?? cat}
     </span>
@@ -584,34 +593,34 @@ function CustomRaceForm({ config, onChange }: { config: CustomRaceConfig; onChan
   return (
     <div className="custom-config-form">
       <div className="custom-config-title">
-        <DndIcon category="game" name="character" size={16} style={{ color:'#27ae60' }} />
+        <DndIcon category="game" name="character" size={16} style={{ color: '#27ae60' }} />
         Configura Razza Personalizzata
       </div>
 
-      <div className="form-group" style={{ marginBottom:'0.7rem' }}>
+      <div className="form-group" style={{ marginBottom: '0.7rem' }}>
         <label className="form-label">Nome Razza *</label>
         <input className="input" placeholder="Es: Dragonide, Kenku…" value={config.displayName}
           onChange={e => set('displayName', e.target.value)} />
       </div>
 
-      <div className="form-group" style={{ marginBottom:'0.8rem' }}>
+      <div className="form-group" style={{ marginBottom: '0.8rem' }}>
         <label className="form-label">Descrizione</label>
-        <textarea className="input" rows={2} style={{ resize:'vertical', minHeight:52 }}
+        <textarea className="input" rows={2} style={{ resize: 'vertical', minHeight: 52 }}
           placeholder="Tratti, origini, aspetto…"
           value={config.description} onChange={e => set('description', e.target.value)} />
       </div>
 
-      <div style={{ marginBottom:'0.8rem' }}>
-        <div className="form-label" style={{ marginBottom:'0.4rem' }}>Bonus Caratteristiche</div>
+      <div style={{ marginBottom: '0.8rem' }}>
+        <div className="form-label" style={{ marginBottom: '0.4rem' }}>Bonus Caratteristiche</div>
         <div className="custom-ability-bonus-grid">
           {(Object.keys(STAT_ABBR) as AbilityKey[]).map(k => (
             <div key={k} className="custom-ability-bonus-cell">
               <DndIcon category="ability" name={ABILITY_ICON[k]} size={14}
-                style={{ color:'var(--accent-gold)', opacity:0.7, marginBottom:2 }} />
+                style={{ color: 'var(--accent-gold)', opacity: 0.7, marginBottom: 2 }} />
               <span className="custom-ability-bonus-label">{STAT_ABBR[k]}</span>
-              <select className="input" style={{ padding:'0.22rem 0.3rem', fontSize:'0.8rem', textAlign:'center' }}
+              <select className="input" style={{ padding: '0.22rem 0.3rem', fontSize: '0.8rem', textAlign: 'center' }}
                 value={config.bonuses[k] ?? 0} onChange={e => setBonusStat(k, e.target.value)}>
-                {[-6,-4,-2,0,2,4,6].map(v => (
+                {[-6, -4, -2, 0, 2, 4, 6].map(v => (
                   <option key={v} value={v}>{v > 0 ? `+${v}` : v}</option>
                 ))}
               </select>
@@ -620,7 +629,7 @@ function CustomRaceForm({ config, onChange }: { config: CustomRaceConfig; onChan
         </div>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:'0.55rem', marginBottom:'0.8rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0.55rem', marginBottom: '0.8rem' }}>
         <div className="form-group">
           <label className="form-label">Velocità (m)</label>
           <input className="input" type="number" min={3} max={18} step={3}
@@ -634,22 +643,22 @@ function CustomRaceForm({ config, onChange }: { config: CustomRaceConfig; onChan
         <div className="form-group">
           <label className="form-label">Talento bonus</label>
           <button className={`btn-secondary w-full${config.extraFeat ? ' active' : ''}`}
-            style={{ justifyContent:'center', height:34 }} onClick={() => set('extraFeat', !config.extraFeat)}>
-            {config.extraFeat ? <><FaCheck size={9} style={{ marginRight:3 }} />Sì</> : 'No'}
+            style={{ justifyContent: 'center', height: 34 }} onClick={() => set('extraFeat', !config.extraFeat)}>
+            {config.extraFeat ? <><FaCheck size={9} style={{ marginRight: 3 }} />Sì</> : 'No'}
           </button>
         </div>
         <div className="form-group">
           <label className="form-label">Taglia piccola</label>
           <button className={`btn-secondary w-full${config.small ? ' active' : ''}`}
-            style={{ justifyContent:'center', height:34 }} onClick={() => set('small', !config.small)}>
-            {config.small ? <><FaCheck size={9} style={{ marginRight:3 }} />Piccola</> : 'Media'}
+            style={{ justifyContent: 'center', height: 34 }} onClick={() => set('small', !config.small)}>
+            {config.small ? <><FaCheck size={9} style={{ marginRight: 3 }} />Piccola</> : 'Media'}
           </button>
         </div>
       </div>
 
       <div>
-        <div className="form-label" style={{ marginBottom:'0.3rem' }}>Lingue Razziali</div>
-        <div className="languages-list" style={{ marginBottom:'0.4rem' }}>
+        <div className="form-label" style={{ marginBottom: '0.3rem' }}>Lingue Razziali</div>
+        <div className="languages-list" style={{ marginBottom: '0.4rem' }}>
           <span className="language-tag fixed">Comune</span>
           {config.racialLanguages.map(l => (
             <span key={l} className="language-tag">
@@ -663,7 +672,7 @@ function CustomRaceForm({ config, onChange }: { config: CustomRaceConfig; onChan
           <input className="input" placeholder="Aggiungi lingua razziale…" value={customLang}
             onChange={e => setCustomLang(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') addRacialLang(); }}
-            style={{ maxWidth:200, fontSize:'0.8rem' }} />
+            style={{ maxWidth: 200, fontSize: '0.8rem' }} />
           <button className="btn-secondary" onClick={addRacialLang} disabled={!customLang.trim()}>
             <FaPlus size={10} /> Aggiungi
           </button>
@@ -689,21 +698,21 @@ function CustomClassForm({ config, onChange }: { config: CustomClassConfig; onCh
   return (
     <div className="custom-config-form">
       <div className="custom-config-title">
-        <DndIcon category="game" name="character" size={16} style={{ color:'#27ae60' }} />
+        <DndIcon category="game" name="character" size={16} style={{ color: '#27ae60' }} />
         Configura Classe Personalizzata
       </div>
 
-      <div className="form-group" style={{ marginBottom:'0.7rem' }}>
+      <div className="form-group" style={{ marginBottom: '0.7rem' }}>
         <label className="form-label">Nome Classe *</label>
         <input className="input" placeholder="Es: Spadaccino, Sciamano…" value={config.displayName}
           onChange={e => set('displayName', e.target.value)} />
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.8rem', marginBottom:'0.8rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem', marginBottom: '0.8rem' }}>
         <div>
-          <div className="form-label" style={{ marginBottom:'0.4rem' }}>Dado Vita</div>
+          <div className="form-label" style={{ marginBottom: '0.4rem' }}>Dado Vita</div>
           <div className="custom-die-row">
-            {[4,6,8,10,12].map(d => (
+            {[4, 6, 8, 10, 12].map(d => (
               <button key={d} className={`custom-die-btn${config.hitDie === d ? ' selected' : ''}`}
                 onClick={() => set('hitDie', d)}>
                 <DndIcon category="dice" name={`d${d}`} size={20}
@@ -713,11 +722,11 @@ function CustomClassForm({ config, onChange }: { config: CustomClassConfig; onCh
             ))}
           </div>
         </div>
-        <div style={{ display:'flex', flexDirection:'column', gap:'0.4rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <div>
-            <div className="form-label" style={{ marginBottom:'0.3rem' }}>BAB</div>
+            <div className="form-label" style={{ marginBottom: '0.3rem' }}>BAB</div>
             <div className="custom-radio-row">
-              {(['high','medium','low'] as const).map(v => (
+              {(['high', 'medium', 'low'] as const).map(v => (
                 <button key={v} className={`custom-radio-btn${config.bab === v ? ' selected' : ''}`}
                   onClick={() => set('bab', v)}>
                   {v === 'high' ? 'Alto' : v === 'medium' ? 'Medio' : 'Basso'}
@@ -726,9 +735,9 @@ function CustomClassForm({ config, onChange }: { config: CustomClassConfig; onCh
             </div>
           </div>
           <div>
-            <div className="form-label" style={{ marginBottom:'0.3rem' }}>Punti AB/livello</div>
+            <div className="form-label" style={{ marginBottom: '0.3rem' }}>Punti AB/livello</div>
             <div className="custom-radio-row">
-              {[2,4,6,8].map(v => (
+              {[2, 4, 6, 8].map(v => (
                 <button key={v} className={`custom-radio-btn${config.sp === v ? ' selected' : ''}`}
                   onClick={() => set('sp', v)}>{v}</button>
               ))}
@@ -737,14 +746,14 @@ function CustomClassForm({ config, onChange }: { config: CustomClassConfig; onCh
         </div>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'0.5rem', marginBottom:'0.8rem' }}>
-        {(['fort','ref','will'] as const).map(save => {
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginBottom: '0.8rem' }}>
+        {(['fort', 'ref', 'will'] as const).map(save => {
           const label = save === 'fort' ? 'Tempra' : save === 'ref' ? 'Riflessi' : 'Volontà';
           return (
             <div key={save}>
-              <div className="form-label" style={{ marginBottom:'0.3rem' }}>
+              <div className="form-label" style={{ marginBottom: '0.3rem' }}>
                 <DndIcon category="attribute" name="saving-throw" size={11}
-                  style={{ color:'var(--accent-gold)', marginRight:3 }} />
+                  style={{ color: 'var(--accent-gold)', marginRight: 3 }} />
                 {label}
               </div>
               <div className="custom-radio-row">
@@ -760,9 +769,9 @@ function CustomClassForm({ config, onChange }: { config: CustomClassConfig; onCh
 
       <div>
         <button className="form-label"
-          style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:4, background:'none', border:'none', padding:0, marginBottom:'0.4rem', color:'inherit' }}
+          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', padding: 0, marginBottom: '0.4rem', color: 'inherit' }}
           onClick={() => setShowAllSkills(s => !s)}>
-          <DndIcon category="attribute" name="skillcheck" size={12} style={{ color:'var(--accent-gold)' }} />
+          <DndIcon category="attribute" name="skillcheck" size={12} style={{ color: 'var(--accent-gold)' }} />
           Abilità di classe ({config.classSkills.length})
           {showAllSkills ? <FaChevronUp size={9} /> : <FaChevronDown size={9} />}
         </button>
@@ -778,10 +787,10 @@ function CustomClassForm({ config, onChange }: { config: CustomClassConfig; onCh
           </div>
         )}
         {!showAllSkills && config.classSkills.length > 0 && (
-          <div style={{ display:'flex', flexWrap:'wrap', gap:'0.25rem' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
             {config.classSkills.map(id => {
               const sk = ALL_SKILLS.find(s => s.id === id);
-              return sk ? <span key={id} className="summary-tag" style={{ fontSize:'0.67rem' }}>{sk.name}</span> : null;
+              return sk ? <span key={id} className="summary-tag" style={{ fontSize: '0.67rem' }}>{sk.name}</span> : null;
             })}
           </div>
         )}
@@ -796,10 +805,10 @@ function Step1Edition() {
   return (
     <div>
       <div className="wizard-step-header-row">
-        <DndIcon category="game" name="adventure-book" size={24} style={{ color:'var(--accent-gold)' }} />
+        <DndIcon category="game" name="adventure-book" size={24} style={{ color: 'var(--accent-gold)' }} />
         <div>
           <h3 className="wizard-step-title">Scegli l'Edizione</h3>
-          <p className="wizard-step-subtitle" style={{ margin:0 }}>
+          <p className="wizard-step-subtitle" style={{ margin: 0 }}>
             D&amp;D 3.5 è l'unica edizione attualmente supportata. La 5e sarà disponibile prossimamente.
           </p>
         </div>
@@ -808,7 +817,7 @@ function Step1Edition() {
         <div className="edition-card selected">
           <div className="edition-badge active-ed">Attiva</div>
           <div className="edition-card-icon">
-            <DndIcon category="entity" name="scroll" size={52} style={{ color:'var(--accent-gold)' }} />
+            <DndIcon category="entity" name="scroll" size={52} style={{ color: 'var(--accent-gold)' }} />
           </div>
           <div className="edition-card-name">3.5</div>
           <div className="edition-card-desc">
@@ -818,7 +827,7 @@ function Step1Edition() {
         <div className="edition-card disabled">
           <div className="edition-badge coming-soon">Prossimamente</div>
           <div className="edition-card-icon">
-            <DndIcon category="dice" name="d20" size={52} style={{ color:'var(--text-muted)', opacity:0.4 }} />
+            <DndIcon category="dice" name="d20" size={52} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
           </div>
           <div className="edition-card-name">5e</div>
           <div className="edition-card-desc">
@@ -833,7 +842,7 @@ function Step1Edition() {
 // ─────────────────────────── STEP 2 — Identity ──────────────────────────────
 
 interface StepProps {
-  data:    WizardData;
+  data: WizardData;
   setData: React.Dispatch<React.SetStateAction<WizardData>>;
 }
 
@@ -841,7 +850,7 @@ function Step2Identity({ data, setData }: StepProps) {
   const [raceFilter, setRaceFilter] = useState<'all' | 'phb' | 'fr' | 'exotic'>('all');
 
   const selectRace = (raceName: string) => {
-    const ri    = buildRaceInfo(raceName, data.customRaceConfig);
+    const ri = buildRaceInfo(raceName, data.customRaceConfig);
     const fixed = buildFixedLangs(ri);
     setData(prev => ({
       ...prev,
@@ -851,10 +860,10 @@ function Step2Identity({ data, setData }: StepProps) {
     }));
   };
 
-  const raceInfo   = buildRaceInfo(data.race, data.customRaceConfig);
-  const intFinal   = finalAbility(data.abilities.int, 'int', raceInfo);
+  const raceInfo = buildRaceInfo(data.race, data.customRaceConfig);
+  const intFinal = finalAbility(data.abilities.int, 'int', raceInfo);
   const langBudget = Math.max(0, abilityMod(intFinal));
-  const usedExtra  = data.languages.filter(l => !data.fixedLangNames.has(l.name)).length;
+  const usedExtra = data.languages.filter(l => !data.fixedLangNames.has(l.name)).length;
   const canAddLang = usedExtra < langBudget;
 
   const [customLangText, setCustomLangText] = useState('');
@@ -877,16 +886,16 @@ function Step2Identity({ data, setData }: StepProps) {
   return (
     <div>
       <div className="wizard-step-header-row">
-        <DndIcon category="game" name="character" size={24} style={{ color:'var(--accent-gold)' }} />
+        <DndIcon category="game" name="character" size={24} style={{ color: 'var(--accent-gold)' }} />
         <div>
           <h3 className="wizard-step-title">Identità del Personaggio</h3>
-          <p className="wizard-step-subtitle" style={{ margin:0 }}>
+          <p className="wizard-step-subtitle" style={{ margin: 0 }}>
             Nome, razza, allineamento e tratti fondamentali del tuo eroe.
           </p>
         </div>
       </div>
 
-      <div className="form-grid" style={{ marginBottom:'0.9rem', marginTop:'1rem' }}>
+      <div className="form-grid" style={{ marginBottom: '0.9rem', marginTop: '1rem' }}>
         <div className="form-group">
           <label className="form-label">Nome *</label>
           <input className="input" placeholder="Es: Kaelen Vaelen, Thornir Ironmantle…"
@@ -897,22 +906,22 @@ function Step2Identity({ data, setData }: StepProps) {
           <input className="input" type="url" placeholder="https://…"
             value={data.avatarUrl} onChange={e => setData(p => ({ ...p, avatarUrl: e.target.value }))} />
           {data.avatarUrl && (
-            <div style={{ marginTop:'0.4rem', display:'flex', alignItems:'center', gap:'0.6rem' }}>
-              <img src={data.avatarUrl} alt="Anteprima" style={{ width:44, height:44, borderRadius:'50%', objectFit:'cover', border:'1px solid rgba(201,168,76,0.3)', flexShrink:0 }}
+            <div style={{ marginTop: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <img src={data.avatarUrl} alt="Anteprima" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(201,168,76,0.3)', flexShrink: 0 }}
                 onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-              <span style={{ fontSize:'0.7rem', color:'var(--text-muted)' }}>Anteprima</span>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Anteprima</span>
             </div>
           )}
         </div>
       </div>
 
-      <div style={{ marginBottom:'0.4rem', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+      <div style={{ marginBottom: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <label className="form-label">Razza *</label>
-        <div style={{ display:'flex', gap:'0.3rem' }}>
-          {(['all','phb','fr','exotic'] as const).map(f => (
+        <div style={{ display: 'flex', gap: '0.3rem' }}>
+          {(['all', 'phb', 'fr', 'exotic'] as const).map(f => (
             <button key={f}
               className={`ability-mode-tab${raceFilter === f ? ' active' : ''}`}
-              style={{ fontSize:'0.62rem', padding:'0.2rem 0.5rem' }}
+              style={{ fontSize: '0.62rem', padding: '0.2rem 0.5rem' }}
               onClick={() => setRaceFilter(f)}>
               {f === 'all' ? 'Tutte' : RACE_CAT_LABEL[f]}
             </button>
@@ -932,11 +941,11 @@ function Step2Identity({ data, setData }: StepProps) {
           return (
             <div key={r.name} className={`race-card${data.race === r.name ? ' selected' : ''}`}
               onClick={() => selectRace(r.name)}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'0.15rem', gap: 6 }}>
-                <div style={{ display:'flex', alignItems:'center', gap: 6, minWidth: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.15rem', gap: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
                   {raceIconSvg && (
                     <span
-                      style={{ width: 22, height: 22, display:'inline-flex', alignItems:'center', justifyContent:'center', flexShrink: 0, filter: 'brightness(0) invert(1)' }}
+                      style={{ width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, filter: 'brightness(0) invert(1)' }}
                       dangerouslySetInnerHTML={{ __html: raceIconSvg }}
                     />
                   )}
@@ -947,7 +956,7 @@ function Step2Identity({ data, setData }: StepProps) {
               {bonusStr && <div className="race-card-bonus">{bonusStr}</div>}
               <div className="race-card-desc">{r.desc}</div>
               {r.racialLanguages.length > 0 && (
-                <div style={{ fontSize:'0.6rem', color:'var(--accent-arcane)', marginTop:'0.2rem' }}>
+                <div style={{ fontSize: '0.6rem', color: 'var(--accent-arcane)', marginTop: '0.2rem' }}>
                   +Lingua: {r.racialLanguages.join(', ')}
                 </div>
               )}
@@ -956,8 +965,8 @@ function Step2Identity({ data, setData }: StepProps) {
         })}
         {raceFilter === 'all' && (
           <div className={`race-card${data.race === CUSTOM_RACE ? ' selected' : ''}`}
-            onClick={() => selectRace(CUSTOM_RACE)} style={{ borderStyle:'dashed' }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'0.15rem' }}>
+            onClick={() => selectRace(CUSTOM_RACE)} style={{ borderStyle: 'dashed' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.15rem' }}>
               <div className="race-card-name">Razza Custom</div>
               <RaceCategoryBadge cat="custom" />
             </div>
@@ -978,7 +987,7 @@ function Step2Identity({ data, setData }: StepProps) {
         }} />
       )}
 
-      <div className="form-grid form-grid-3" style={{ margin:'1rem 0 0.9rem' }}>
+      <div className="form-grid form-grid-3" style={{ margin: '1rem 0 0.9rem' }}>
         <div className="form-group">
           <label className="form-label">Allineamento *</label>
           <select className="input" value={data.alignment}
@@ -998,16 +1007,16 @@ function Step2Identity({ data, setData }: StepProps) {
         </div>
       </div>
 
-      <div className="form-group" style={{ marginBottom:'1rem' }}>
+      <div className="form-group" style={{ marginBottom: '1rem' }}>
         <label className="form-label">Descrizione / Background</label>
-        <textarea className="input" rows={3} style={{ resize:'vertical', minHeight:70 }}
+        <textarea className="input" rows={3} style={{ resize: 'vertical', minHeight: 70 }}
           placeholder="Storia, aspetto, motivazioni…"
           value={data.background} onChange={e => setData(p => ({ ...p, background: e.target.value }))} />
       </div>
 
       <div className="languages-section">
         <div className="languages-title">
-          <DndIcon category="entity" name="book" size={13} style={{ color:'var(--accent-arcane)', marginRight:4 }} />
+          <DndIcon category="entity" name="book" size={13} style={{ color: 'var(--accent-arcane)', marginRight: 4 }} />
           Lingue ({usedExtra}/{langBudget} bonus — Int {signedMod(intFinal)})
         </div>
         <div className="languages-list">
@@ -1022,7 +1031,7 @@ function Step2Identity({ data, setData }: StepProps) {
         </div>
         {langBudget > 0 && (
           <div className="language-add">
-            <select className="input" style={{ maxWidth:180, fontSize:'0.78rem' }}
+            <select className="input" style={{ maxWidth: 180, fontSize: '0.78rem' }}
               defaultValue="" disabled={!canAddLang}
               onChange={e => { if (e.target.value) { addLanguage(e.target.value); e.target.value = ''; } }}>
               <option value="" disabled>Da elenco…</option>
@@ -1033,13 +1042,13 @@ function Step2Identity({ data, setData }: StepProps) {
             <input className="input" placeholder="Lingua custom…" value={customLangText}
               onChange={e => setCustomLangText(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') addCustomLang(); }}
-              style={{ maxWidth:150, fontSize:'0.78rem' }} />
+              style={{ maxWidth: 150, fontSize: '0.78rem' }} />
             <button className="btn-secondary" onClick={addCustomLang}
               disabled={!customLangText.trim() || !canAddLang}>
               <FaPlus size={10} />
             </button>
             {!canAddLang && (
-              <span style={{ fontSize:'0.7rem', color:'var(--text-muted)' }}>Slot esauriti</span>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Slot esauriti</span>
             )}
           </div>
         )}
@@ -1059,8 +1068,8 @@ function Step3Class({ data, setData }: StepProps) {
   const dieColorClass = (d: number) => {
     if (d >= 12) return 'die-12';
     if (d >= 10) return 'die-10';
-    if (d >= 8)  return 'die-8';
-    if (d >= 6)  return 'die-6';
+    if (d >= 8) return 'die-8';
+    if (d >= 6) return 'die-6';
     return 'die-4';
   };
 
@@ -1068,31 +1077,31 @@ function Step3Class({ data, setData }: StepProps) {
     <div>
       <div className="wizard-step-header-row">
         {selected?.iconName
-          ? <DndIcon category="class" name={selected.iconName} size={24} style={{ color:'var(--accent-gold)' }} />
-          : <DndIcon category="game" name="combat" size={24} style={{ color:'var(--accent-gold)' }} />
+          ? <DndIcon category="class" name={selected.iconName} size={24} style={{ color: 'var(--accent-gold)' }} />
+          : <DndIcon category="game" name="combat" size={24} style={{ color: 'var(--accent-gold)' }} />
         }
         <div>
           <h3 className="wizard-step-title">Scelta della Classe</h3>
-          <p className="wizard-step-subtitle" style={{ margin:0 }}>
+          <p className="wizard-step-subtitle" style={{ margin: 0 }}>
             La classe determina il tuo stile di combattimento, le abilità e la progressione.
           </p>
         </div>
       </div>
 
       {selected && (
-        <div className="wizard-info-box" style={{ display:'flex', gap:'0.8rem', alignItems:'center', marginTop:'0.9rem' }}>
+        <div className="wizard-info-box" style={{ display: 'flex', gap: '0.8rem', alignItems: 'center', marginTop: '0.9rem' }}>
           {selected.iconName && (
             <DndIcon category="class" name={selected.iconName} size={32}
-              style={{ color:'var(--accent-gold)', flexShrink:0 }} />
+              style={{ color: 'var(--accent-gold)', flexShrink: 0 }} />
           )}
           <div>
             <strong>{selected.name}</strong> — {' '}
             <DndIcon category="dice" name={`d${selected.hitDie}`} size={13}
-              style={{ color:'var(--accent-gold)', marginRight:2, verticalAlign:'middle' }} />
+              style={{ color: 'var(--accent-gold)', marginRight: 2, verticalAlign: 'middle' }} />
             d{selected.hitDie} PF &nbsp;·&nbsp;
             BAB {selected.bab === 'high' ? 'Alto' : selected.bab === 'medium' ? 'Medio' : 'Basso'} &nbsp;·&nbsp;
             <DndIcon category="attribute" name="saving-throw" size={12}
-              style={{ color:'var(--accent-gold)', marginRight:2, verticalAlign:'middle' }} />
+              style={{ color: 'var(--accent-gold)', marginRight: 2, verticalAlign: 'middle' }} />
             Tempra {selected.fort === 'good' ? '✓' : '—'} &nbsp;
             Ref {selected.ref === 'good' ? '✓' : '—'} &nbsp;
             Volontà {selected.will === 'good' ? '✓' : '—'} &nbsp;·&nbsp;
@@ -1101,7 +1110,7 @@ function Step3Class({ data, setData }: StepProps) {
         </div>
       )}
 
-      <div className="class-grid" style={{ marginTop:'0.9rem' }}>
+      <div className="class-grid" style={{ marginTop: '0.9rem' }}>
         {CLASSES.map(c => {
           const catalogClassForCard = CATALOG_CLASS_BY_NAME[c.name];
           const classIconSvg = catalogClassForCard?.iconId
@@ -1113,7 +1122,7 @@ function Step3Class({ data, setData }: StepProps) {
               <div className="class-card-header">
                 {classIconSvg ? (
                   <span
-                    style={{ width: 26, height: 26, display:'inline-flex', alignItems:'center', justifyContent:'center', filter: 'brightness(0) invert(1)' }}
+                    style={{ width: 26, height: 26, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', filter: 'brightness(0) invert(1)' }}
                     dangerouslySetInnerHTML={{ __html: classIconSvg }}
                   />
                 ) : c.iconName && (
@@ -1126,7 +1135,7 @@ function Step3Class({ data, setData }: StepProps) {
               <div className="class-card-stats">
                 <span className={`class-stat-chip ${dieColorClass(c.hitDie)}`}>
                   <DndIcon category="dice" name={`d${c.hitDie}`} size={11}
-                    style={{ marginRight:2, verticalAlign:'middle' }} />
+                    style={{ marginRight: 2, verticalAlign: 'middle' }} />
                   d{c.hitDie}
                 </span>
                 <span className="class-stat-chip">
@@ -1138,7 +1147,7 @@ function Step3Class({ data, setData }: StepProps) {
           );
         })}
         <div className={`class-card${data.className === CUSTOM_CLASS ? ' selected' : ''}`}
-          onClick={() => selectClass(CUSTOM_CLASS)} style={{ borderStyle:'dashed' }}>
+          onClick={() => selectClass(CUSTOM_CLASS)} style={{ borderStyle: 'dashed' }}>
           <div className="class-card-header">
             <DndIcon category="game" name="character" size={26}
               style={{ color: data.className === CUSTOM_CLASS ? '#27ae60' : 'var(--text-muted)' }} />
@@ -1146,13 +1155,13 @@ function Step3Class({ data, setData }: StepProps) {
           </div>
           <div className="class-card-desc">Crea la tua classe con dado vita, BAB, tiri salvezza e abilità a scelta.</div>
           <div className="class-card-stats">
-            <span className="class-stat-chip" style={{ color:'#27ae60' }}>Personalizzata</span>
+            <span className="class-stat-chip" style={{ color: '#27ae60' }}>Personalizzata</span>
           </div>
         </div>
       </div>
 
       {data.className === CUSTOM_CLASS && (
-        <div style={{ marginTop:'0.8rem' }}>
+        <div style={{ marginTop: '0.8rem' }}>
           <CustomClassForm config={data.customClassConfig}
             onChange={cfg => setData(prev => ({ ...prev, customClassConfig: cfg, skills: {} }))} />
         </div>
@@ -1165,13 +1174,13 @@ function Step3Class({ data, setData }: StepProps) {
 
 function Step4Abilities({ data, setData }: StepProps) {
   const { abilities, abilityMode } = data;
-  const raceInfo  = buildRaceInfo(data.race, data.customRaceConfig);
-  const cost      = totalPBCost(abilities);
+  const raceInfo = buildRaceInfo(data.race, data.customRaceConfig);
+  const cost = totalPBCost(abilities);
   const remaining = PB_TOTAL - cost;
 
   const adjustStat = (key: AbilityKey, delta: number) => {
     setData(prev => {
-      const cur  = prev.abilities[key];
+      const cur = prev.abilities[key];
       const next = cur + delta;
       if (next < 8 || next > 18) return prev;
       if (delta > 0) {
@@ -1198,23 +1207,23 @@ function Step4Abilities({ data, setData }: StepProps) {
   return (
     <div>
       <div className="wizard-step-header-row">
-        <DndIcon category="ability" name="strength" size={24} style={{ color:'var(--accent-gold)' }} />
+        <DndIcon category="ability" name="strength" size={24} style={{ color: 'var(--accent-gold)' }} />
         <div>
           <h3 className="wizard-step-title">Caratteristiche</h3>
-          <p className="wizard-step-subtitle" style={{ margin:0 }}>
+          <p className="wizard-step-subtitle" style={{ margin: 0 }}>
             Assegna i punteggi base. I bonus razziali vengono applicati automaticamente.
           </p>
         </div>
       </div>
 
-      <div className="abilities-mode-tabs" style={{ marginTop:'0.9rem' }}>
+      <div className="abilities-mode-tabs" style={{ marginTop: '0.9rem' }}>
         <button className={`ability-mode-tab${abilityMode === 'pointbuy' ? ' active' : ''}`}
-          onClick={() => setData(p => ({ ...p, abilityMode:'pointbuy' }))}>
-          <DndIcon category="dice" name="roll" size={12} style={{ marginRight:4 }} />
+          onClick={() => setData(p => ({ ...p, abilityMode: 'pointbuy' }))}>
+          <DndIcon category="dice" name="roll" size={12} style={{ marginRight: 4 }} />
           Point Buy (28 pt)
         </button>
         <button className={`ability-mode-tab${abilityMode === 'manual' ? ' active' : ''}`}
-          onClick={() => setData(p => ({ ...p, abilityMode:'manual' }))}>
+          onClick={() => setData(p => ({ ...p, abilityMode: 'manual' }))}>
           Manuale / Lancio
         </button>
       </div>
@@ -1230,15 +1239,15 @@ function Step4Abilities({ data, setData }: StepProps) {
 
       <div className="ability-grid">
         {(Object.keys(STAT_NAMES) as AbilityKey[]).map(key => {
-          const base        = abilities[key];
+          const base = abilities[key];
           const racialBonus = raceInfo.bonuses[key] ?? 0;
-          const final       = base + racialBonus;
+          const final = base + racialBonus;
 
           return (
             <div key={key} className="ability-cell">
               <div className="ability-cell-top">
                 <DndIcon category="ability" name={ABILITY_ICON[key]} size={20}
-                  style={{ color:'var(--accent-gold)', opacity:0.8 }} />
+                  style={{ color: 'var(--accent-gold)', opacity: 0.8 }} />
                 <span className="ability-name">{STAT_NAMES[key]}</span>
               </div>
               {abilityMode === 'pointbuy' ? (
@@ -1246,7 +1255,7 @@ function Step4Abilities({ data, setData }: StepProps) {
                   <button className="ability-btn" onClick={() => adjustStat(key, -1)} disabled={base <= 8}>−</button>
                   <span className="ability-value">{base}</span>
                   <button className="ability-btn" onClick={() => adjustStat(key, 1)}
-                    disabled={base >= 18 || remaining - ((PB_COST[base+1] ?? 99) - (PB_COST[base] ?? 0)) < 0}>+</button>
+                    disabled={base >= 18 || remaining - ((PB_COST[base + 1] ?? 99) - (PB_COST[base] ?? 0)) < 0}>+</button>
                 </div>
               ) : (
                 <input className="ability-input" type="number" min={3} max={25}
@@ -1264,7 +1273,7 @@ function Step4Abilities({ data, setData }: StepProps) {
       </div>
 
       {abilityMode === 'pointbuy' && remaining < 0 && (
-        <div style={{ color:'var(--accent-crimson)', fontSize:'0.78rem', textAlign:'center', marginTop:'0.5rem' }}>
+        <div style={{ color: 'var(--accent-crimson)', fontSize: '0.78rem', textAlign: 'center', marginTop: '0.5rem' }}>
           ⚠ Hai speso {-remaining} punti in più del consentito.
         </div>
       )}
@@ -1276,9 +1285,9 @@ function Step4Abilities({ data, setData }: StepProps) {
 
 function Step5Skills({ data, setData }: StepProps) {
   const classInfo = buildClassInfo(data.className, data.customClassConfig);
-  const raceInfo  = buildRaceInfo(data.race, data.customRaceConfig);
-  const intFinal  = finalAbility(data.abilities.int, 'int', raceInfo);
-  const pool      = skillPointPool(classInfo, intFinal, raceInfo);
+  const raceInfo = buildRaceInfo(data.race, data.customRaceConfig);
+  const intFinal = finalAbility(data.abilities.int, 'int', raceInfo);
+  const pool = skillPointPool(classInfo, intFinal, raceInfo);
 
   const getIsClass = (skillName: string): boolean => {
     const override = data.classSkillOverrides[skillName];
@@ -1286,7 +1295,7 @@ function Step5Skills({ data, setData }: StepProps) {
   };
 
   const getRanks = (skillName: string) => data.skills[skillName]?.ranks ?? 0;
-  const usedSP    = usedSkillPoints(data.skills);
+  const usedSP = usedSkillPoints(data.skills);
   const remaining = pool - usedSP;
 
   const toggleClassSkill = (skillName: string) => {
@@ -1294,9 +1303,8 @@ function Step5Skills({ data, setData }: StepProps) {
     setData(prev => {
       const newOverrides = { ...prev.classSkillOverrides, [skillName]: newIsClass };
       const existingRanks = prev.skills[skillName]?.ranks ?? 0;
-      // ranks are stored as SP invested: class max=4, cross-class max=4 (2 effective ranks × 2 SP each)
-      const clampedRanks  = Math.min(existingRanks, 4);
-      const newSkills     = { ...prev.skills };
+      const clampedRanks = Math.min(existingRanks, newIsClass ? 4 : 2);
+      const newSkills = { ...prev.skills };
       if (existingRanks > 0) {
         if (clampedRanks === 0) { delete newSkills[skillName]; }
         else { newSkills[skillName] = { ...prev.skills[skillName], classSkill: newIsClass, ranks: clampedRanks }; }
@@ -1310,10 +1318,9 @@ function Step5Skills({ data, setData }: StepProps) {
       const isClass = prev.classSkillOverrides[skill.name] !== undefined
         ? prev.classSkillOverrides[skill.name]
         : isDefaultClassSkill(skill.name, classInfo.classSkills);
-      // class: max 4 SP (4 ranks); cross-class: max 4 SP (= 2 effective ranks × 2 SP each)
-      const maxR  = 4;
-      const cur   = prev.skills[skill.name]?.ranks ?? 0;
-      const next  = cur + delta;
+      const maxR = isClass ? 4 : 2;
+      const cur = prev.skills[skill.name]?.ranks ?? 0;
+      const next = cur + delta;
       if (next < 0 || next > maxR) return prev;
       // Note: we deliberately allow exceeding the pool; the wizard shows a
       // negative "rimanenti" counter so the user is aware of the overflow.
@@ -1334,19 +1341,20 @@ function Step5Skills({ data, setData }: StepProps) {
   return (
     <div>
       <div className="wizard-step-header-row">
-        <DndIcon category="attribute" name="skillcheck" size={24} style={{ color:'var(--accent-gold)' }} />
+        <DndIcon category="attribute" name="skillcheck" size={24} style={{ color: 'var(--accent-gold)' }} />
         <div>
           <h3 className="wizard-step-title">Abilità</h3>
-          <p className="wizard-step-subtitle" style={{ margin:0 }}>
-            Clicca il pallino per cambiare classe/fuori classe. ● classe (1 punto = +1 grado, max 4), ○ fuori classe (2 punti = +1 grado, max 4 punti).
+          <p className="wizard-step-subtitle" style={{ margin: 0 }}>
+            Clicca il pallino per cambiare classe/fuori classe. ● classe (max 4 gradi, costo 1), ○ fuori classe (max 2, costo 2).
             Pool = ({classInfo.sp}+Int mod)×4{raceInfo.extraSkills > 0 ? `+${raceInfo.extraSkills}` : ''}.
           </p>
         </div>
       </div>
 
-      <div className="skills-info-bar" style={{ marginTop:'0.9rem' }}>
-        <span className="skills-info-label">Pool totale: {pool}</span>
-        <span className="skills-info-count" style={remaining < 0 ? { color:'var(--accent-crimson)', fontWeight:600 } : {}}>
+      <div className="skills-info-bar" style={{ marginTop: '0.9rem' }}>
+        <span className="skills-info-label">Pool totale: <strong>{pool}</strong></span>
+        <span className="skills-info-label" style={{ marginLeft: 8 }}>Spesi: <strong style={{ color: 'var(--accent-gold)' }}>{usedSP}</strong></span>
+        <span className="skills-info-count" style={remaining < 0 ? { color: 'var(--accent-crimson)', fontWeight: 600 } : {}}>
           {remaining < 0 ? `⚠ ${Math.abs(remaining)} OLTRE LA POOL` : `${remaining} rimanenti`}
         </span>
       </div>
@@ -1354,10 +1362,11 @@ function Step5Skills({ data, setData }: StepProps) {
       <table className="skills-table">
         <thead>
           <tr>
-            <th style={{ width:20 }} title="Abilità di classe / fuori classe — clicca per cambiare"></th>
+            <th style={{ width: 20 }} title="Abilità di classe / fuori classe — clicca per cambiare"></th>
             <th>Abilità</th>
             <th>Car.</th>
             <th>Gradi</th>
+            <th title="Costo in punti abilità per grado (classe=1, fuori classe=2)">Costo</th>
             <th>Mod</th>
             <th>Tot.</th>
           </tr>
@@ -1367,15 +1376,15 @@ function Step5Skills({ data, setData }: StepProps) {
             const isClass      = getIsClass(skill.name);
             const ranks        = getRanks(skill.name);   // SP invested
             const effectiveRanks = isClass ? ranks : Math.floor(ranks / 2);
-            const statVal      = finalAbility(data.abilities[skill.stat as AbilityKey] ?? 10, skill.stat as AbilityKey, raceInfo);
-            const mod          = abilityMod(statVal);
-            const total        = effectiveRanks + mod;
+            const statVal = finalAbility(data.abilities[skill.stat as AbilityKey] ?? 10, skill.stat as AbilityKey, raceInfo);
+            const mod = abilityMod(statVal);
+            const total = ranks + mod;
             return (
               <tr key={skill.name}>
                 <td>
                   <button
                     title={isClass ? 'Classe (clic → fuori classe)' : 'Fuori classe (clic → classe)'}
-                    style={{ background:'none', border:'none', cursor:'pointer', padding:0, lineHeight:1 }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}
                     onClick={() => toggleClassSkill(skill.name)}>
                     {isClass
                       ? <span className="skill-class-dot" />
@@ -1384,15 +1393,15 @@ function Step5Skills({ data, setData }: StepProps) {
                   </button>
                 </td>
                 <td>
-                  <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     {skill.icon && (
                       <DndIcon category="skill" name={skill.icon} size={12}
-                        style={{ color:'var(--text-muted)', flexShrink:0 }} />
+                        style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
                     )}
                     {skill.name}
                   </div>
                 </td>
-                <td style={{ color:'var(--text-muted)', fontSize:'0.75rem' }}>{STAT_ABBR[skill.stat]}</td>
+                <td style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{STAT_ABBR[skill.stat]}</td>
                 <td>
                   <div className="skill-rank-controls">
                     <button className="skill-rank-btn" onClick={() => changeRanks(skill, -1)} disabled={ranks === 0}>−</button>
@@ -1401,11 +1410,17 @@ function Step5Skills({ data, setData }: StepProps) {
                       disabled={ranks >= 4}>+</button>
                   </div>
                 </td>
-                <td style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>{signedMod(statVal)}</td>
+                <td style={{ fontSize: '0.65rem', textAlign: 'center' }}>
+                  {isClass
+                    ? <span style={{ color: 'var(--accent-gold)', fontFamily: 'var(--font-heading)' }}>1</span>
+                    : <span style={{ color: '#e67e22', fontFamily: 'var(--font-heading)', fontWeight: 600 }}>2</span>
+                  }
+                </td>
+                <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{signedMod(statVal)}</td>
                 <td>
                   {effectiveRanks > 0
                     ? <span className="skill-total-val">{total >= 0 ? `+${total}` : total}</span>
-                    : <span style={{ color:'var(--text-muted)', fontSize:'0.7rem' }}>—</span>
+                    : <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>—</span>
                   }
                 </td>
               </tr>
@@ -1465,12 +1480,12 @@ function FeatPicker({ data, setData }: StepProps) {
     setData(prev => ({ ...prev, feats: prev.feats.filter(f => f.id !== id) }));
 
   return (
-    <div style={{ marginTop:'1.4rem', borderTop:'1px solid var(--border-subtle)', paddingTop:'0.9rem' }}>
-      <div className="wizard-step-header-row" style={{ marginBottom:'0.5rem' }}>
-        <DndIcon category="game" name="combat" size={20} style={{ color:'var(--accent-gold)' }} />
+    <div style={{ marginTop: '1.4rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.9rem' }}>
+      <div className="wizard-step-header-row" style={{ marginBottom: '0.5rem' }}>
+        <DndIcon category="game" name="combat" size={20} style={{ color: 'var(--accent-gold)' }} />
         <div>
-          <h3 className="wizard-step-title" style={{ fontSize:'1rem' }}>Talenti iniziali</h3>
-          <p className="wizard-step-subtitle" style={{ margin:0 }}>
+          <h3 className="wizard-step-title" style={{ fontSize: '1rem' }}>Talenti iniziali</h3>
+          <p className="wizard-step-subtitle" style={{ margin: 0 }}>
             Slot disponibili: <strong>{baseFeatSlots}</strong> · Selezionati: <strong>{data.feats.length}</strong>
             {raceInfo.extraFeat && ' (+1 dalla razza)'}
           </p>
@@ -1478,14 +1493,14 @@ function FeatPicker({ data, setData }: StepProps) {
       </div>
 
       {data.feats.length > 0 && (
-        <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:'0.6rem' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: '0.6rem' }}>
           {data.feats.map(f => (
             <button key={f.id}
               onClick={() => removePicked(f.id)}
               className="summary-tag"
               title="Rimuovi"
-              style={{ cursor:'pointer', border:'1px solid var(--accent-gold)' }}>
-              {f.name} <FaTimes size={9} style={{ marginLeft:4, opacity:0.7 }} />
+              style={{ cursor: 'pointer', border: '1px solid var(--accent-gold)' }}>
+              {f.name} <FaTimes size={9} style={{ marginLeft: 4, opacity: 0.7 }} />
             </button>
           ))}
         </div>
@@ -1497,13 +1512,13 @@ function FeatPicker({ data, setData }: StepProps) {
         placeholder={WIZARD_FEATS.length > 0 ? `Cerca tra ${WIZARD_FEATS.length} talenti…` : 'Catalogo vuoto — usa l\'aggiunta manuale qui sotto'}
         value={search}
         onChange={e => setSearch(e.target.value)}
-        style={{ marginBottom:'0.4rem' }}
+        style={{ marginBottom: '0.4rem' }}
       />
 
       {WIZARD_FEATS.length > 0 && (
         <div style={{
-          maxHeight:180, overflowY:'auto', display:'flex', flexWrap:'wrap', gap:6,
-          padding:'0.4rem', background:'var(--bg-elevated)', borderRadius:6,
+          maxHeight: 180, overflowY: 'auto', display: 'flex', flexWrap: 'wrap', gap: 6,
+          padding: '0.4rem', background: 'var(--bg-elevated)', borderRadius: 6,
         }}>
           {filtered.map(cf => {
             const picked = isPicked(cf.id);
@@ -1513,7 +1528,7 @@ function FeatPicker({ data, setData }: StepProps) {
                 title={cf.description}
                 className={picked ? 'summary-tag' : 'summary-tag'}
                 style={{
-                  cursor:'pointer',
+                  cursor: 'pointer',
                   borderColor: picked ? 'var(--accent-gold)' : (cf.isDefect ? 'var(--accent-crimson)' : 'transparent'),
                   background: picked ? 'rgba(201,168,76,0.15)' : undefined,
                 }}>
@@ -1522,12 +1537,12 @@ function FeatPicker({ data, setData }: StepProps) {
             );
           })}
           {filtered.length === 0 && (
-            <span style={{ fontSize:'0.7rem', color:'var(--text-muted)' }}>Nessun risultato.</span>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Nessun risultato.</span>
           )}
         </div>
       )}
 
-      <div style={{ display:'flex', gap:6, marginTop:'0.5rem' }}>
+      <div style={{ display: 'flex', gap: 6, marginTop: '0.5rem' }}>
         <input
           type="text"
           className="form-input"
@@ -1548,10 +1563,10 @@ function FeatPicker({ data, setData }: StepProps) {
 
 function Step6Summary({ data }: StepProps) {
   const classInfo = buildClassInfo(data.className, data.customClassConfig);
-  const raceInfo  = buildRaceInfo(data.race, data.customRaceConfig);
+  const raceInfo = buildRaceInfo(data.race, data.customRaceConfig);
 
-  const KEYS: AbilityKey[] = ['str','dex','con','int','wis','cha'];
-  const ABBR: Record<AbilityKey, string> = { str:'FOR', dex:'DES', con:'COS', int:'INT', wis:'SAG', cha:'CAR' };
+  const KEYS: AbilityKey[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+  const ABBR: Record<AbilityKey, string> = { str: 'FOR', dex: 'DES', con: 'COS', int: 'INT', wis: 'SAG', cha: 'CAR' };
 
   const finals = KEYS.reduce((acc, k) => {
     acc[k] = finalAbility(data.abilities[k], k, raceInfo);
@@ -1561,29 +1576,29 @@ function Step6Summary({ data }: StepProps) {
   const conMod = abilityMod(finals.con);
   const dexMod = abilityMod(finals.dex);
   const wisMod = abilityMod(finals.wis);
-  const maxHp  = Math.max(1, classInfo.hitDie + conMod);
+  const maxHp = Math.max(1, classInfo.hitDie + conMod);
   // Base values (BEFORE ability modifiers). The engine adds the ability
   // modifier at runtime, so we save these raw values to avoid double-counting.
-  const acBase   = 10;
+  const acBase = 10;
   const initBase = 0;
-  const bab1  = computeClassBab(1, classInfo.bab);
+  const bab1 = computeClassBab(1, classInfo.bab);
   const fort1 = computeClassSaveBase(1, classInfo.fort);
-  const ref1  = computeClassSaveBase(1, classInfo.ref);
+  const ref1 = computeClassSaveBase(1, classInfo.ref);
   const will1 = computeClassSaveBase(1, classInfo.will);
   // Final values shown in parentheses (after all standard modifiers applied).
-  const acFinal     = acBase + dexMod;
-  const initFinal   = initBase + dexMod;
-  const fortFinal   = fort1 + conMod;
-  const refFinal    = ref1 + dexMod;
-  const willFinal   = will1 + wisMod;
+  const acFinal = acBase + dexMod;
+  const initFinal = initBase + dexMod;
+  const fortFinal = fort1 + conMod;
+  const refFinal = ref1 + dexMod;
+  const willFinal = will1 + wisMod;
 
   const usedSP = usedSkillPoints(data.skills);
-  const pool   = skillPointPool(classInfo, finals.int, raceInfo);
+  const pool = skillPointPool(classInfo, finals.int, raceInfo);
 
   const warnings: string[] = [];
   if (!data.name.trim()) warnings.push('Nome mancante.');
-  if (!data.race)        warnings.push('Razza non selezionata.');
-  if (!data.className)   warnings.push('Classe non selezionata.');
+  if (!data.race) warnings.push('Razza non selezionata.');
+  if (!data.className) warnings.push('Classe non selezionata.');
   if (data.race === CUSTOM_RACE && !data.customRaceConfig.displayName.trim())
     warnings.push('Specifica il nome della razza personalizzata.');
   if (data.className === CUSTOM_CLASS && !data.customClassConfig.displayName.trim())
@@ -1594,25 +1609,25 @@ function Step6Summary({ data }: StepProps) {
   return (
     <div>
       <div className="wizard-step-header-row">
-        <DndIcon category="game" name="explore" size={24} style={{ color:'var(--accent-gold)' }} />
+        <DndIcon category="game" name="explore" size={24} style={{ color: 'var(--accent-gold)' }} />
         <div>
           <h3 className="wizard-step-title">Riepilogo Personaggio</h3>
-          <p className="wizard-step-subtitle" style={{ margin:0 }}>
+          <p className="wizard-step-subtitle" style={{ margin: 0 }}>
             Controlla tutto prima di creare. Potrai sempre modificare il personaggio in seguito.
           </p>
         </div>
       </div>
 
       {warnings.length > 0 && (
-        <div style={{ marginTop:'0.9rem' }}>
+        <div style={{ marginTop: '0.9rem' }}>
           {warnings.map(w => <div key={w} className="summary-warning">⚠ {w}</div>)}
         </div>
       )}
 
-      <div className="summary-grid" style={{ marginTop:'0.5rem' }}>
+      <div className="summary-grid" style={{ marginTop: '0.5rem' }}>
         <div className="summary-section">
           <div className="summary-section-title">
-            <DndIcon category="game" name="character" size={11} style={{ marginRight:4 }} />
+            <DndIcon category="game" name="character" size={11} style={{ marginRight: 4 }} />
             Identità
           </div>
           <div className="summary-row"><span className="summary-label">Nome</span><span className="summary-value">{data.name || '—'}</span></div>
@@ -1627,26 +1642,26 @@ function Step6Summary({ data }: StepProps) {
           <div className="summary-row"><span className="summary-label">Livello</span><span className="summary-value">1</span></div>
           <div className="summary-row"><span className="summary-label">Allineamento</span><span className="summary-value">{data.alignment}</span></div>
           {data.gender && <div className="summary-row"><span className="summary-label">Genere</span><span className="summary-value">{data.gender}</span></div>}
-          {data.age    && <div className="summary-row"><span className="summary-label">Età</span><span className="summary-value">{data.age}</span></div>}
+          {data.age && <div className="summary-row"><span className="summary-label">Età</span><span className="summary-value">{data.age}</span></div>}
         </div>
 
         <div className="summary-section">
           <div className="summary-section-title">
-            <DndIcon category="combat" name="melee" size={11} style={{ marginRight:4 }} />
+            <DndIcon category="combat" name="melee" size={11} style={{ marginRight: 4 }} />
             Statistiche
           </div>
           {[
-            { icon:['hp','full'],          label:'PF Max',     val: String(maxHp) },
-            { icon:['attribute','ac'],      label:'CA',         val: `${acBase} (${acFinal})` },
-            { icon:['combat','initiative'], label:'Iniziativa', val: `${signNum(initBase)} (${signNum(initFinal)})` },
-            { icon:['combat','melee'],      label:'BAB',        val: signNum(bab1) },
-            { icon:['attribute','saving-throw'], label:'Tempra',   val: `${signNum(fort1)} (${signNum(fortFinal)})` },
-            { icon:['attribute','saving-throw'], label:'Riflessi', val: `${signNum(ref1)} (${signNum(refFinal)})`  },
-            { icon:['attribute','saving-throw'], label:'Volontà',  val: `${signNum(will1)} (${signNum(willFinal)})` },
+            { icon: ['hp', 'full'], label: 'PF Max', val: String(maxHp) },
+            { icon: ['attribute', 'ac'], label: 'CA', val: `${acBase} (${acFinal})` },
+            { icon: ['combat', 'initiative'], label: 'Iniziativa', val: `${signNum(initBase)} (${signNum(initFinal)})` },
+            { icon: ['combat', 'melee'], label: 'BAB', val: signNum(bab1) },
+            { icon: ['attribute', 'saving-throw'], label: 'Tempra', val: `${signNum(fort1)} (${signNum(fortFinal)})` },
+            { icon: ['attribute', 'saving-throw'], label: 'Riflessi', val: `${signNum(ref1)} (${signNum(refFinal)})` },
+            { icon: ['attribute', 'saving-throw'], label: 'Volontà', val: `${signNum(will1)} (${signNum(willFinal)})` },
           ].map(row => (
             <div key={row.label} className="summary-row">
               <span className="summary-label">
-                <DndIcon category={row.icon[0]} name={row.icon[1]} size={10} style={{ marginRight:3 }} />
+                <DndIcon category={row.icon[0]} name={row.icon[1]} size={10} style={{ marginRight: 3 }} />
                 {row.label}
               </span>
               <span className="summary-value">{row.val}</span>
@@ -1656,14 +1671,14 @@ function Step6Summary({ data }: StepProps) {
 
         <div className="summary-section">
           <div className="summary-section-title">
-            <DndIcon category="ability" name="strength" size={11} style={{ marginRight:4 }} />
+            <DndIcon category="ability" name="strength" size={11} style={{ marginRight: 4 }} />
             Caratteristiche
           </div>
           <div className="summary-abilities-grid">
             {KEYS.map(k => (
               <div key={k} className="summary-ability">
                 <DndIcon category="ability" name={ABILITY_ICON[k]} size={16}
-                  style={{ color:'var(--accent-gold)', opacity:0.7, marginBottom:2 }} />
+                  style={{ color: 'var(--accent-gold)', opacity: 0.7, marginBottom: 2 }} />
                 <div className="summary-ability-name">{ABBR[k]}</div>
                 <div className="summary-ability-value">{finals[k]}</div>
                 <div className="summary-ability-mod">{signedMod(finals[k])}</div>
@@ -1674,29 +1689,29 @@ function Step6Summary({ data }: StepProps) {
 
         <div className="summary-section">
           <div className="summary-section-title">
-            <DndIcon category="attribute" name="skillcheck" size={11} style={{ marginRight:4 }} />
+            <DndIcon category="attribute" name="skillcheck" size={11} style={{ marginRight: 4 }} />
             Abilità &amp; Talenti
           </div>
           <div className="summary-row">
             <span className="summary-label">Punti AB usati</span>
             <span className="summary-value">{usedSP}/{pool}</span>
           </div>
-          <div style={{ marginTop:'0.4rem' }}>
+          <div style={{ marginTop: '0.4rem' }}>
             {Object.values(data.skills).filter(s => s.ranks > 0).map(s => (
               <span key={s.id} className="summary-tag">{s.name} {s.ranks}</span>
             ))}
             {Object.values(data.skills).filter(s => s.ranks > 0).length === 0 &&
-              <span style={{ fontSize:'0.7rem', color:'var(--text-muted)' }}>Nessuna abilità.</span>}
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Nessuna abilità.</span>}
           </div>
           {data.feats.length > 0 && (
             <>
-              <div style={{ margin:'0.5rem 0 0.2rem', fontSize:'0.65rem', color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.07em' }}>Talenti</div>
+              <div style={{ margin: '0.5rem 0 0.2rem', fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Talenti</div>
               {data.feats.map(f => <span key={f.id} className="summary-tag">{f.name}</span>)}
             </>
           )}
           {data.languages.length > 0 && (
             <>
-              <div style={{ margin:'0.5rem 0 0.2rem', fontSize:'0.65rem', color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.07em' }}>Lingue</div>
+              <div style={{ margin: '0.5rem 0 0.2rem', fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Lingue</div>
               {data.languages.map(l => <span key={l.id} className="summary-tag">{l.name}</span>)}
             </>
           )}
@@ -1709,37 +1724,37 @@ function Step6Summary({ data }: StepProps) {
 // ─────────────────────────── Main Wizard ────────────────────────────────────
 
 interface CharacterWizardProps {
-  userId:     string;
+  userId: string;
   onComplete: (charData: Omit<CharacterBase, 'id'>) => void;
-  onCancel:   () => void;
+  onCancel: () => void;
 }
 
-const STEP_LABEL_KEYS = ['wizard.edition','wizard.identity','wizard.class','wizard.stats','wizard.skills','wizard.summary'];
-const STEP_ICONS  = [
-  { category:'game',      name:'adventure-book' },
-  { category:'game',      name:'character'      },
-  { category:'game',      name:'combat'         },
-  { category:'ability',   name:'strength'       },
-  { category:'attribute', name:'skillcheck'     },
-  { category:'game',      name:'explore'        },
+const STEP_LABEL_KEYS = ['wizard.edition', 'wizard.identity', 'wizard.class', 'wizard.stats', 'wizard.skills', 'wizard.summary'];
+const STEP_ICONS = [
+  { category: 'game', name: 'adventure-book' },
+  { category: 'game', name: 'character' },
+  { category: 'game', name: 'combat' },
+  { category: 'ability', name: 'strength' },
+  { category: 'attribute', name: 'skillcheck' },
+  { category: 'game', name: 'explore' },
 ];
 const TOTAL_STEPS = STEP_LABEL_KEYS.length;
 
 const DEFAULT_DATA: WizardData = {
-  name:'', race:'', gender:'', age:'', alignment:'Neutrale', background:'',
-  className:'', avatarUrl:'',
-  abilities:{ str:10, dex:10, con:10, int:10, wis:10, cha:10 },
-  abilityMode:'pointbuy',
-  skills:{}, feats:[], classSkillOverrides:{},
-  languages:[{ id:'comune', name:'Comune' }],
+  name: '', race: '', gender: '', age: '', alignment: 'Neutrale', background: '',
+  className: '', avatarUrl: '',
+  abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+  abilityMode: 'pointbuy',
+  skills: {}, feats: [], classSkillOverrides: {},
+  languages: [{ id: 'comune', name: 'Comune' }],
   fixedLangNames: new Set(['Comune']),
-  customRaceConfig:{
-    displayName:'', bonuses:{}, extraFeat:false, extraSkillPoints:0,
-    speed:9, small:false, racialLanguages:[], description:'',
+  customRaceConfig: {
+    displayName: '', bonuses: {}, extraFeat: false, extraSkillPoints: 0,
+    speed: 9, small: false, racialLanguages: [], description: '',
   },
-  customClassConfig:{
-    displayName:'', hitDie:8, sp:4, bab:'medium',
-    fort:'poor', ref:'poor', will:'good', classSkills:[],
+  customClassConfig: {
+    displayName: '', hitDie: 8, sp: 4, bab: 'medium',
+    fort: 'poor', ref: 'poor', will: 'good', classSkills: [],
   },
 };
 
@@ -1851,13 +1866,18 @@ export function CharacterWizard({ userId, onComplete, onCancel }: CharacterWizar
           CATALOG_SKILL_ID_TO_NAME[s.id] = s.name;
           if (!ALL_SKILLS.find(x => x.name === s.name)) {
             ALL_SKILLS.push({
-              id:         s.name,
-              name:       s.name,
-              stat:       s.stat,
+              id: s.name,
+              name: s.name,
+              localizedName: s.localizedName as Partial<Record<string, string>> | undefined,
+              stat: s.stat,
               armorCheck: s.armorCheckPenalty,
-              untrained:  s.canUseUntrained,
-              icon:       SKILL_ICON_MAP[s.name] ?? null,
+              untrained: s.canUseUntrained,
+              icon: SKILL_ICON_MAP[s.name] ?? null,
             });
+          } else {
+            // Update localizedName on existing entry from catalog
+            const existing = ALL_SKILLS.find(x => x.name === s.name);
+            if (existing && s.localizedName) existing.localizedName = s.localizedName as Partial<Record<string, string>>;
           }
         }
         // Replace WIZARD_FEATS contents (don't reassign, it's `const`).
@@ -1872,18 +1892,18 @@ export function CharacterWizard({ userId, onComplete, onCancel }: CharacterWizar
   }, []);
 
   const steps = [
-    <Step1Edition   key={0} />,
-    <Step2Identity  key={1} data={data} setData={setData} />,
-    <Step3Class     key={2} data={data} setData={setData} />,
+    <Step1Edition key={0} />,
+    <Step2Identity key={1} data={data} setData={setData} />,
+    <Step3Class key={2} data={data} setData={setData} />,
     <Step4Abilities key={3} data={data} setData={setData} />,
-    <Step5Skills    key={4} data={data} setData={setData} />,
-    <Step6Summary   key={5} data={data} setData={setData} />,
+    <Step5Skills key={4} data={data} setData={setData} />,
+    <Step6Summary key={5} data={data} setData={setData} />,
   ];
 
   const handleCreate = () => {
     const classInfo = buildClassInfo(data.className, data.customClassConfig);
-    const raceInfo  = buildRaceInfo(data.race, data.customRaceConfig);
-    const KEYS: AbilityKey[] = ['str','dex','con','int','wis','cha'];
+    const raceInfo = buildRaceInfo(data.race, data.customRaceConfig);
+    const KEYS: AbilityKey[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
 
     const finals = KEYS.reduce((acc, k) => {
       acc[k] = finalAbility(data.abilities[k], k, raceInfo);
@@ -1895,9 +1915,9 @@ export function CharacterWizard({ userId, onComplete, onCancel }: CharacterWizar
     const wisMod = abilityMod(finals.wis);
     const hitDie = classInfo.hitDie;
 
-    const bab1  = computeClassBab(1, classInfo.bab);
+    const bab1 = computeClassBab(1, classInfo.bab);
     const fort1 = computeClassSaveBase(1, classInfo.fort);
-    const ref1  = computeClassSaveBase(1, classInfo.ref);
+    const ref1 = computeClassSaveBase(1, classInfo.ref);
     const will1 = computeClassSaveBase(1, classInfo.will);
 
     const classLevelEntry: ClassLevel = {
@@ -1906,7 +1926,7 @@ export function CharacterWizard({ userId, onComplete, onCancel }: CharacterWizar
       level: 1,
       babProgression: classInfo.bab,
       fortSave: classInfo.fort,
-      refSave:  classInfo.ref,
+      refSave: classInfo.ref,
       willSave: classInfo.will,
       hitDie,
     };
@@ -1954,11 +1974,11 @@ export function CharacterWizard({ userId, onComplete, onCancel }: CharacterWizar
 
     const charData: Omit<CharacterBase, 'id'> = {
       userId,
-      name:           data.name.trim(),
-      race:           raceInfo.name,
+      name: data.name.trim(),
+      race: raceInfo.name,
       characterClass: classInfo.name,
-      level:          1,
-      alignment:      data.alignment,
+      level: 1,
+      alignment: data.alignment,
       baseStats: {
         str: finals.str, dex: finals.dex, con: finals.con,
         int: finals.int, wis: finals.wis, cha: finals.cha,
@@ -1967,41 +1987,41 @@ export function CharacterWizard({ userId, onComplete, onCancel }: CharacterWizar
         // - reflex/fortitude/will: getSaveBreakdown adds the related ability mod
         // - initiative: derived from getStatModifier('dex')
         // - hp: max HP is recomputed by getTotalMaxHp(); baseStats.hp is only a fallback
-        hp:         Math.max(1, hitDie + conMod),
-        ac:         10,
-        speed:      raceInfo.speed,
-        reflex:     ref1,
-        fortitude:  fort1,
-        will:       will1,
-        bab:        bab1,
+        hp: Math.max(1, hitDie + conMod),
+        ac: 10,
+        speed: raceInfo.speed,
+        reflex: ref1,
+        fortitude: fort1,
+        will: will1,
+        bab: bab1,
         initiative: 0,
       },
       savingThrows: {
         fortitude: { base: fort1, ability: conMod, magic: 0, misc: 0 },
-        reflex:    { base: ref1,  ability: dexMod, magic: 0, misc: 0 },
-        will:      { base: will1, ability: wisMod, magic: 0, misc: 0 },
+        reflex: { base: ref1, ability: dexMod, magic: 0, misc: 0 },
+        will: { base: will1, ability: wisMod, magic: 0, misc: 0 },
       },
       hpDetails: {
         current: Math.max(1, hitDie + conMod),
-        max:     Math.max(1, hitDie + conMod),
+        max: Math.max(1, hitDie + conMod),
         nonLethal: 0, tempHp: 0, negLevels: 0,
         damageReduction: '', elementalResistances: '',
       },
-      movement:  { base: raceInfo.speed },
-      currency:  { platinum:0, gold:0, silver:0, copper:0 },
+      movement: { base: raceInfo.speed },
+      currency: { platinum: 0, gold: 0, silver: 0, copper: 0 },
       languages: mergedLangs,
-      skills:    buildFullSkillRecord(data.skills, data.classSkillOverrides, classInfo.classSkills),
-      feats:     [...data.feats, ...racialAutoFeats],
+      skills: buildFullSkillRecord(data.skills, data.classSkillOverrides, classInfo.classSkills),
+      feats: [...data.feats, ...racialAutoFeats],
       inventory: [],
-      spells:    [],
+      spells: [],
       notes: data.background.trim()
-        ? [{ id: uuidv4(), title:'Background', content: data.background.trim(), date: new Date().toLocaleDateString('it-IT') }]
+        ? [{ id: uuidv4(), title: 'Background', content: data.background.trim(), date: new Date().toLocaleDateString('it-IT') }]
         : [],
-      npcs:          [],
+      npcs: [],
       classFeatures: lvl1Features,
       customAttacks: [],
-      classLevels:   [classLevelEntry],
-      hpLevelLog:    [{ id: uuidv4(), classId: classLevelEntry.id, classLevelNumber: 1 }],
+      classLevels: [classLevelEntry],
+      hpLevelLog: [{ id: uuidv4(), classId: classLevelEntry.id, classLevelNumber: 1 }],
       ...(data.avatarUrl.trim() ? { avatarUrl: data.avatarUrl.trim() } : {}),
     };
 
@@ -2013,7 +2033,7 @@ export function CharacterWizard({ userId, onComplete, onCancel }: CharacterWizar
       <div className="wizard-container">
         <div className="wizard-header">
           <div className="wizard-title">
-            <DndIcon category="dice" name="d20" size={22} style={{ color:'var(--accent-gold)' }} />
+            <DndIcon category="dice" name="d20" size={22} style={{ color: 'var(--accent-gold)' }} />
             <h2>{t('wizard.title')} — D&amp;D 3.5</h2>
           </div>
           <button className="wizard-close btn-ghost" onClick={onCancel} title={t('common.cancel')}>
@@ -2022,7 +2042,7 @@ export function CharacterWizard({ userId, onComplete, onCancel }: CharacterWizar
         </div>
 
         <div className="wizard-progress-bar">
-          <div className="wizard-progress-fill" style={{ width:`${((step+1)/TOTAL_STEPS)*100}%` }} />
+          <div className="wizard-progress-fill" style={{ width: `${((step + 1) / TOTAL_STEPS) * 100}%` }} />
         </div>
 
         <div className="wizard-steps">
@@ -2053,7 +2073,7 @@ export function CharacterWizard({ userId, onComplete, onCancel }: CharacterWizar
             onClick={step === TOTAL_STEPS - 1 ? handleCreate : () => setStep(s => s + 1)}
             disabled={!canProceed(step, data)}>
             {step === TOTAL_STEPS - 1
-              ? <><DndIcon category="dice" name="d20" size={13} style={{ marginRight:5 }} />{t('wizard.create')}</>
+              ? <><DndIcon category="dice" name="d20" size={13} style={{ marginRight: 5 }} />{t('wizard.create')}</>
               : `${t('common.next')} →`
             }
           </button>

@@ -702,8 +702,8 @@ input[type="number"] {
   }
 
   .app-container {
-    padding-bottom: 132px;
-    /* leave room for the two-row mobile shell */
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 132px);
+    /* leave room for the two-row mobile shell + device safe area */
   }
 }
 

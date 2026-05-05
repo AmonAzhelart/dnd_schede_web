@@ -94,7 +94,7 @@ export const MobileShell: React.FC<MobileShellProps> = ({
         const maxHp = character.hpDetails?.max ?? getEffectiveStat('hp');
         const curHp = character.hpDetails?.current ?? character.baseStats.hp;
         const hpPct = Math.max(0, Math.min(100, (curHp / maxHp) * 100));
-        const init = getStatModifier('dex');
+        const init = getEffectiveStat('initiative');
         return {
             hpCur: curHp,
             hpMax: maxHp,

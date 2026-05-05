@@ -1,0 +1,906 @@
+/* ═══════════════════════════════════════════════════════════════
+   SKILLS TAB  —  SkillsTab.css
+   ═══════════════════════════════════════════════════════════════ */
+
+.skills-tab-root {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Scrollable grid area */
+.skills-tab-scroll {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* ─── Budget bar ──────────────────────────────────────────────── */
+.skills-tab-budget {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    flex-wrap: wrap;
+    border: 1px solid rgba(201, 168, 76, 0.18);
+    border-radius: var(--radius-sm, 6px);
+}
+
+.skills-tab-budget-left {
+    flex: 1 1 160px;
+    min-width: 140px;
+}
+
+.skills-tab-budget-title {
+    font-family: var(--font-heading);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.skills-tab-budget-progress {
+    height: 5px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+}
+
+.skills-tab-budget-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease, background 0.2s;
+}
+
+.skills-tab-budget-nums {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.skills-tab-budget-num {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    min-width: 44px;
+}
+
+.skills-tab-budget-num-label {
+    font-size: 0.58rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.skills-tab-budget-num-val {
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    line-height: 1;
+}
+
+.skills-tab-budget-sep {
+    width: 1px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.skills-tab-budget-extra {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+}
+
+.skills-tab-pool-edit-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+    color: var(--accent-gold);
+    font-family: var(--font-heading);
+    font-size: 0.72rem;
+    padding: 1px 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    transition: background 0.15s;
+}
+
+.skills-tab-pool-edit-btn:hover {
+    background: rgba(201, 168, 76, 0.12);
+}
+
+.skills-tab-pool-input {
+    width: 52px;
+    padding: 2px 5px;
+    font-size: 0.72rem;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(201, 168, 76, 0.35);
+    border-radius: 3px;
+    color: var(--text-primary);
+    text-align: center;
+}
+
+/* ─── Rule hint ───────────────────────────────────────────────── */
+.skills-tab-rule-hint {
+    font-size: 0.67rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding: 0 2px;
+}
+
+/* ─── Toolbar ─────────────────────────────────────────────────── */
+.skills-tab-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.skills-tab-search-wrap {
+    position: relative;
+    flex: 1 1 180px;
+    min-width: 140px;
+}
+
+.skills-tab-search-icon {
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.skills-tab-search {
+    width: 100%;
+    padding: 4px 8px 4px 26px !important;
+    font-size: 0.8rem !important;
+}
+
+.skills-tab-filters {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+}
+
+/* ─── Column headers ──────────────────────────────────────────── */
+.skills-tab-col-headers {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background: var(--bg-base, #0d1117);
+    border-radius: 4px 4px 0 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.skills-tab-col-hdr {
+    font-family: var(--font-heading);
+    font-size: 0.57rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    text-align: center;
+}
+
+/* ─── Grid container  ─────────────────────────────────────────── */
+.skills-tab-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 4px;
+    overflow: auto;
+}
+
+/* Each column inside the grid */
+.skills-tab-column {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 480px;
+    min-width: 0;
+    background: var(--bg-base, #0d1117);
+}
+
+/* ─── Individual skill row ────────────────────────────────────── */
+.skills-tab-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 10px;
+    background: var(--bg-base, #0d1117);
+    transition: background 0.12s;
+    overflow: hidden;
+    min-height: 36px;
+}
+
+.skills-tab-row:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.skills-tab-row--unusable {
+    opacity: 0.45;
+}
+
+/* Class dot toggle button */
+.skills-tab-dot-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+}
+
+.skills-tab-dot-btn:hover {
+    opacity: 0.7;
+}
+
+/* Untrained toggle */
+.skills-tab-ut-btn {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+    padding: 2px 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 20px;
+    flex-shrink: 0;
+    color: var(--text-muted);
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.skills-tab-ut-btn:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: var(--text-primary);
+}
+
+.skills-tab-ut-btn--on {
+    color: var(--accent-success, #27ae60);
+    border-color: rgba(39, 174, 96, 0.4);
+    background: rgba(39, 174, 96, 0.08);
+}
+
+.skills-tab-ut-btn--on:hover {
+    background: rgba(39, 174, 96, 0.15);
+}
+
+/* Name area */
+.skills-tab-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.skills-tab-name-text {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.3;
+    display: block;
+}
+
+.skills-tab-name--class {
+    color: var(--accent-gold);
+    font-family: var(--font-heading);
+}
+
+.skills-tab-edit-input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(201, 168, 76, 0.35);
+    border-radius: 3px;
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    padding: 2px 5px;
+}
+
+/* Stat badge */
+.skills-tab-stat {
+    font-family: var(--font-heading);
+    font-size: 0.65rem;
+    padding: 2px 5px;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    flex-shrink: 0;
+    width: 38px;
+    text-align: center;
+}
+
+/* Ranks area */
+.skills-tab-ranks {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+    width: 92px;
+}
+
+.skills-tab-ranks-val {
+    font-family: var(--font-heading);
+    font-size: 0.92rem;
+    min-width: 2ch;
+    text-align: center;
+    color: var(--text-primary);
+}
+
+.skills-tab-cost-badge {
+    font-size: 0.55rem;
+    color: #e67e22;
+    background: rgba(230, 126, 34, 0.12);
+    border: 1px solid rgba(230, 126, 34, 0.3);
+    border-radius: 2px;
+    padding: 0 3px;
+    letter-spacing: 0.03em;
+    flex-shrink: 0;
+}
+
+/* Overriding wizard's skill-rank-btn for use here */
+.skills-tab-root .skill-rank-btn {
+    width: 20px;
+    height: 20px;
+    font-size: 0.82rem;
+}
+
+.skills-tab-root .skill-rank-btn.over-budget {
+    border-color: rgba(231, 76, 60, 0.4);
+    color: #e74c3c;
+}
+
+.skills-tab-root .skill-rank-btn.over-max {
+    border-color: rgba(230, 126, 34, 0.5);
+    color: #e67e22;
+}
+
+/* Rank value over-max highlight */
+.skills-tab-ranks-val.over-max {
+    color: #e67e22;
+}
+
+/* Over-max exclamation badge next to rank value */
+.skills-tab-overmax-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 2px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: #fff;
+    background: #e67e22;
+    border-radius: 50%;
+    width: 11px;
+    height: 11px;
+    line-height: 1;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+/* Stat mod chip */
+.skills-tab-modchip {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    width: 32px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+/* Class bonus chip */
+.skills-tab-classbns {
+    font-size: 0.6rem;
+    color: var(--accent-gold);
+    background: rgba(201, 168, 76, 0.1);
+    border: 1px solid rgba(201, 168, 76, 0.3);
+    border-radius: 2px;
+    padding: 0 3px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Outgoing synergy grants — shown below the skill name */
+.skills-tab-grants {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 3px;
+}
+
+.skills-tab-grant-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 0.58rem;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    padding: 1px 5px;
+    white-space: nowrap;
+    cursor: help;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.skills-tab-grant-chip--active {
+    color: #4ecdc4;
+    background: rgba(78, 205, 196, 0.08);
+    border-color: rgba(78, 205, 196, 0.3);
+}
+
+.skills-tab-grant-bonus {
+    font-family: var(--font-heading);
+    font-weight: 700;
+}
+
+/* Synergy bonus chip */
+.skills-tab-synergy-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 0.6rem;
+    font-family: var(--font-heading);
+    color: #4ecdc4;
+    background: rgba(78, 205, 196, 0.1);
+    border: 1px solid rgba(78, 205, 196, 0.35);
+    border-radius: 2px;
+    padding: 0 3px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    cursor: help;
+}
+
+/* Total mod */
+.skills-tab-total {
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    width: 40px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+/* Tier colours (re-used from widget) */
+.tier-elite {
+    color: #f1c40f;
+}
+
+.tier-good {
+    color: var(--accent-success, #27ae60);
+}
+
+.tier-mid {
+    color: var(--text-primary);
+}
+
+.tier-low {
+    color: var(--text-muted);
+}
+
+.tier-bad {
+    color: var(--accent-crimson, #e74c3c);
+}
+
+/* Actions */
+.skills-tab-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+    width: 72px;
+    justify-content: flex-end;
+}
+
+.skills-tab-icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 3px 4px;
+    border-radius: 3px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s, color 0.12s;
+    flex-shrink: 0;
+}
+
+.skills-tab-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: var(--text-primary);
+}
+
+.skills-tab-icon-btn.roll-btn {
+    color: var(--accent-gold);
+}
+
+.skills-tab-icon-btn.roll-btn:hover {
+    background: rgba(201, 168, 76, 0.15);
+}
+
+.skills-tab-icon-btn.danger:hover {
+    color: var(--accent-crimson);
+    background: rgba(231, 76, 60, 0.1);
+}
+
+/* ─── Section header (unusable section) ──────────────────────── */
+.skills-tab-section-hdr {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 12px;
+    margin-top: 6px;
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-sm, 6px);
+    background: rgba(255, 255, 255, 0.03);
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-family: var(--font-heading);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    transition: background 0.15s;
+    box-sizing: border-box;
+}
+
+.skills-tab-section-hdr:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+}
+
+.skills-tab-section-hdr-chevron {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    transition: transform 0.2s;
+}
+
+.skills-tab-section-hdr-chevron.open {
+    transform: rotate(180deg);
+}
+
+/* ─── Flex row-break (invisible on desktop) ─────────────────── */
+.skills-tab-row-break {
+    display: none;
+}
+
+/* ─── Responsive breakpoints ─────────────────────────────────── */
+
+/* ── Mobile: single column, two-line rows ── */
+@media (max-width: 640px) {
+
+    /* Single column */
+    .skills-tab-column {
+        flex-basis: 100%;
+    }
+
+    /* Budget bar */
+    .skills-tab-budget {
+        gap: 6px;
+        padding: 8px 10px;
+    }
+
+    .skills-tab-budget-nums {
+        gap: 4px;
+    }
+
+    /* Toolbar */
+    .skills-tab-toolbar {
+        flex-wrap: wrap;
+    }
+
+    /* Two-line row layout */
+    .skills-tab-row {
+        flex-wrap: wrap;
+        gap: 5px;
+        padding: 7px 8px 6px;
+        align-items: center;
+    }
+
+    /* Dot stays on line 1 */
+    .skills-tab-dot-btn {
+        order: 1;
+    }
+
+    /* Name fills remaining space on line 1 */
+    .skills-tab-name {
+        order: 2;
+        flex: 1 1 0;
+    }
+
+    /* Full-width break forces everything below to line 2 */
+    .skills-tab-row-break {
+        display: block;
+        flex: 0 0 100%;
+        height: 0;
+        order: 3;
+    }
+
+    /* Controls row (line 2) — align left, pushed by margin on actions */
+    .skills-tab-ut-btn {
+        order: 4;
+    }
+
+    .skills-tab-stat {
+        order: 5;
+    }
+
+    .skills-tab-ranks {
+        order: 6;
+        flex-shrink: 0;
+    }
+
+    .skills-tab-modchip {
+        order: 7;
+        display: block;
+    }
+
+    /* show on mobile */
+    .skills-tab-classbns {
+        order: 8;
+        display: block;
+    }
+
+    .skills-tab-total {
+        order: 9;
+    }
+
+    .skills-tab-actions {
+        order: 10;
+        margin-left: auto;
+        width: auto;
+    }
+
+    /* Larger touch targets for rank buttons */
+    .skills-tab-root .skill-rank-btn {
+        width: 28px;
+        height: 28px;
+        font-size: 0.85rem;
+    }
+
+    /* Slightly larger rank value */
+    .skills-tab-ranks-val {
+        font-size: 1rem;
+        min-width: 2.2ch;
+    }
+
+    /* Stat badge text */
+    .skills-tab-stat {
+        font-size: 0.6rem;
+        padding: 2px 4px;
+        width: 34px;
+    }
+}
+
+/* Narrow rows: hide col headers on small screens */
+@media (max-width: 640px) {
+    .skills-tab-col-headers {
+        display: none;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SKILL EDIT MODAL
+   ═══════════════════════════════════════════════════════════════ */
+
+.skill-edit-modal {
+    max-width: 600px;
+    width: 96vw;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* ── Sections ────────────────────────────────────────────────── */
+.skill-edit-section {
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: 6px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.skill-edit-section-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+}
+
+/* ── Basic fields ────────────────────────────────────────────── */
+.skill-edit-field-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.skill-edit-field-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    min-width: 90px;
+    flex-shrink: 0;
+}
+
+.skill-edit-checks {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.skill-edit-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+}
+
+/* ── SRD synergy rows ────────────────────────────────────────── */
+.skill-edit-syn-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.7rem;
+    padding: 3px 6px;
+    border-radius: 4px;
+    flex-wrap: wrap;
+}
+
+.skill-edit-syn-row--srd {
+    background: rgba(78, 205, 196, 0.06);
+    border: 1px solid rgba(78, 205, 196, 0.15);
+}
+
+.skill-edit-syn-row--custom {
+    background: rgba(201, 168, 76, 0.06);
+    border: 1px solid rgba(201, 168, 76, 0.15);
+}
+
+.skill-edit-syn-row--editing {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 8px;
+}
+
+.skill-edit-syn-dir {
+    font-size: 0.65rem;
+    color: var(--accent-gold);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.skill-edit-syn-name {
+    flex: 1;
+    color: var(--text-primary);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.skill-edit-syn-arrow {
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.skill-edit-syn-ranks {
+    color: var(--text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.skill-edit-syn-bonus {
+    color: #4ecdc4;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.skill-edit-syn-note {
+    color: var(--text-muted);
+    cursor: help;
+    flex-shrink: 0;
+}
+
+.skill-edit-syn-actions {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+/* ── Synergy add/edit form grid ──────────────────────────────── */
+.skill-edit-syn-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+.skill-edit-syn-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.skill-edit-syn-form-field--wide {
+    grid-column: 1 / -1;
+}
+
+.skill-edit-syn-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.skill-edit-syn-add-form {
+    border: 1px dashed rgba(201, 168, 76, 0.25);
+    border-radius: 5px;
+    padding: 8px;
+    background: rgba(201, 168, 76, 0.04);
+}
+
+.input-sm {
+    font-size: 0.72rem;
+    padding: 3px 6px;
+}
+
+.btn-sm {
+    font-size: 0.7rem;
+    padding: 3px 7px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-ghost.danger {
+    color: var(--accent-crimson, #e74c3c);
+}
+
+.btn-ghost.danger:hover {
+    background: rgba(231, 76, 60, 0.12);
+}
+
+@media (max-width: 480px) {
+    .skill-edit-syn-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .skill-edit-syn-form-field--wide {
+        grid-column: 1;
+    }
+}
