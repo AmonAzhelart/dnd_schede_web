@@ -9,7 +9,7 @@ interface HpState { label: string; cls: string; color: string; glow: string }
 
 const getHpState = (pct: number, dying: boolean): HpState => {
     if (dying) return { label: 'MORENTE', cls: 'dying', color: '#c0392b', glow: '#ff4040' };
-    if (pct > 0.75) return { label: 'IN FORZA', cls: 'healthy', color: '#2ecc71', glow: '#7dffaa' };
+    if (pct > 0.75) return { label: 'IN FORZE', cls: 'healthy', color: '#2ecc71', glow: '#7dffaa' };
     if (pct > 0.5) return { label: 'FERITO', cls: 'wounded', color: '#f0c040', glow: '#ffe480' };
     if (pct > 0.25) return { label: 'F. GRAVE', cls: 'hurt', color: '#e67e22', glow: '#ffb060' };
     return { label: 'CRITICO', cls: 'critical', color: '#e74c3c', glow: '#ff7070' };

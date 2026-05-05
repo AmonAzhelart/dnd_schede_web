@@ -31,7 +31,7 @@ const SAVE_DEFS: {
 export const LevelsTab: React.FC = () => {
     const {
         character, addClassLevel, updateClassLevel, deleteClassLevel,
-        getTotalBab, getSaveBreakdown, getTotalMaxHp,
+        getTotalBab, getSaveBreakdown, getTotalMaxHp, getStatModifier,
         addHpLevelEntry, removeLastHpLevelEntry, reorderHpLevelLog,
     } = useCharacterStore();
 
@@ -39,6 +39,7 @@ export const LevelsTab: React.FC = () => {
     const classLevels = character.classLevels ?? [];
     const hpLevelLog = character.hpLevelLog ?? [];
     const totalLevel = classLevels.reduce((s, cl) => s + cl.level, 0);
+    const conMod = getStatModifier('con');
     const totalMaxHp = getTotalMaxHp();
 
     // For each log entry (position = total char level), compute HP per class
@@ -151,6 +152,11 @@ export const LevelsTab: React.FC = () => {
                                     </span>
                                 );
                             })}
+                        {totalLevel > 0 && conMod !== 0 && (
+                            <span className="chip" style={{ color: conMod > 0 ? 'var(--accent-gold)' : 'var(--accent-crimson)' }}>
+                                CON {fmt(conMod)} × {totalLevel} liv = {fmt(conMod * totalLevel)}
+                            </span>
+                        )}
                     </div>
                 </div>
 

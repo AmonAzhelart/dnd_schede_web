@@ -305,6 +305,10 @@ const SKILL_ICON_MAP: Record<string, string | null> = {
 };
 
 // Build full skill list from presets (used in wizard step 5).
+// Maps Firestore skill document IDs → display names (populated at runtime).
+// eslint-disable-next-line react-refresh/only-export-components
+export const CATALOG_SKILL_ID_TO_NAME: Record<string, string> = {};
+
 // `let` (not `const`) because `useEffect` in CharacterWizard merges entries
 // loaded from `catalog_skills` (Firestore) into this list at runtime.
 // eslint-disable-next-line react-refresh/only-export-components
@@ -357,7 +361,10 @@ const OLD_TO_PRESET: Record<string, string> = {
 };
 
 function isDefaultClassSkill(skillName: string, classSkillIds: string[]): boolean {
-  return classSkillIds.some(id => (OLD_TO_PRESET[id] ?? id) === skillName);
+  return classSkillIds.some(id =>
+    (OLD_TO_PRESET[id] ?? id) === skillName ||
+    (CATALOG_SKILL_ID_TO_NAME[id] ?? '') === skillName
+  );
 }
 
 // ─────────────────────────── Other static data ──────────────────────────────
@@ -448,7 +455,9 @@ function skillPointPool(classInfo: ClassInfoFull, intScore: number, raceInfo: Ra
 }
 
 function usedSkillPoints(skills: WizardData['skills']): number {
-  return Object.values(skills).reduce((s, sk) => s + sk.ranks * (sk.classSkill ? 1 : 2), 0);
+  // Each click = 1 SP (ranks stored as SP invested).
+  // For cross-class, 2 SP (2 ranks/clicks) = +1 effective rank.
+  return Object.values(skills).reduce((s, sk) => s + sk.ranks, 0);
 }
 
 /**
@@ -472,7 +481,9 @@ function buildFullSkillRecord(
       id:                s.name,
       name:              s.name,
       stat:              s.stat as any,
-      ranks:             existing?.ranks ?? 0,
+      // Convert stored SP (ranks) to actual D&D ranks:
+      // class skill → 1 SP = 1 rank; cross-class → 2 SP = 1 rank
+      ranks:             isClass ? (existing?.ranks ?? 0) : Math.floor((existing?.ranks ?? 0) / 2),
       classSkill:        isClass,
       armorCheckPenalty: s.armorCheck,
       canUseUntrained:   s.untrained,
@@ -1283,7 +1294,8 @@ function Step5Skills({ data, setData }: StepProps) {
     setData(prev => {
       const newOverrides = { ...prev.classSkillOverrides, [skillName]: newIsClass };
       const existingRanks = prev.skills[skillName]?.ranks ?? 0;
-      const clampedRanks  = Math.min(existingRanks, newIsClass ? 4 : 2);
+      // ranks are stored as SP invested: class max=4, cross-class max=4 (2 effective ranks × 2 SP each)
+      const clampedRanks  = Math.min(existingRanks, 4);
       const newSkills     = { ...prev.skills };
       if (existingRanks > 0) {
         if (clampedRanks === 0) { delete newSkills[skillName]; }
@@ -1298,7 +1310,8 @@ function Step5Skills({ data, setData }: StepProps) {
       const isClass = prev.classSkillOverrides[skill.name] !== undefined
         ? prev.classSkillOverrides[skill.name]
         : isDefaultClassSkill(skill.name, classInfo.classSkills);
-      const maxR  = isClass ? 4 : 2;
+      // class: max 4 SP (4 ranks); cross-class: max 4 SP (= 2 effective ranks × 2 SP each)
+      const maxR  = 4;
       const cur   = prev.skills[skill.name]?.ranks ?? 0;
       const next  = cur + delta;
       if (next < 0 || next > maxR) return prev;
@@ -1325,7 +1338,7 @@ function Step5Skills({ data, setData }: StepProps) {
         <div>
           <h3 className="wizard-step-title">Abilità</h3>
           <p className="wizard-step-subtitle" style={{ margin:0 }}>
-            Clicca il pallino per cambiare classe/fuori classe. ● classe (max 4 gradi, costo 1), ○ fuori classe (max 2, costo 2).
+            Clicca il pallino per cambiare classe/fuori classe. ● classe (1 punto = +1 grado, max 4), ○ fuori classe (2 punti = +1 grado, max 4 punti).
             Pool = ({classInfo.sp}+Int mod)×4{raceInfo.extraSkills > 0 ? `+${raceInfo.extraSkills}` : ''}.
           </p>
         </div>
@@ -1351,11 +1364,12 @@ function Step5Skills({ data, setData }: StepProps) {
         </thead>
         <tbody>
           {ALL_SKILLS.map(skill => {
-            const isClass = getIsClass(skill.name);
-            const ranks   = getRanks(skill.name);
-            const statVal = finalAbility(data.abilities[skill.stat as AbilityKey] ?? 10, skill.stat as AbilityKey, raceInfo);
-            const mod     = abilityMod(statVal);
-            const total   = ranks + mod;
+            const isClass      = getIsClass(skill.name);
+            const ranks        = getRanks(skill.name);   // SP invested
+            const effectiveRanks = isClass ? ranks : Math.floor(ranks / 2);
+            const statVal      = finalAbility(data.abilities[skill.stat as AbilityKey] ?? 10, skill.stat as AbilityKey, raceInfo);
+            const mod          = abilityMod(statVal);
+            const total        = effectiveRanks + mod;
             return (
               <tr key={skill.name}>
                 <td>
@@ -1382,14 +1396,14 @@ function Step5Skills({ data, setData }: StepProps) {
                 <td>
                   <div className="skill-rank-controls">
                     <button className="skill-rank-btn" onClick={() => changeRanks(skill, -1)} disabled={ranks === 0}>−</button>
-                    <span className="skill-rank-value">{ranks}</span>
+                    <span className="skill-rank-value">{effectiveRanks}</span>
                     <button className="skill-rank-btn" onClick={() => changeRanks(skill, 1)}
-                      disabled={ranks >= (isClass ? 4 : 2)}>+</button>
+                      disabled={ranks >= 4}>+</button>
                   </div>
                 </td>
                 <td style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>{signedMod(statVal)}</td>
                 <td>
-                  {ranks > 0
+                  {effectiveRanks > 0
                     ? <span className="skill-total-val">{total >= 0 ? `+${total}` : total}</span>
                     : <span style={{ color:'var(--text-muted)', fontSize:'0.7rem' }}>—</span>
                   }
@@ -1833,6 +1847,8 @@ export function CharacterWizard({ userId, onComplete, onCancel }: CharacterWizar
           ALL_SKILLS.length = 0;
         }
         for (const s of cSkills) {
+          // Build Firestore ID → display name map for class-skill matching
+          CATALOG_SKILL_ID_TO_NAME[s.id] = s.name;
           if (!ALL_SKILLS.find(x => x.name === s.name)) {
             ALL_SKILLS.push({
               id:         s.name,
