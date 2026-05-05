@@ -802,12 +802,14 @@ const SpellCard: React.FC<SpellRowProps> = ({ spell, prepCountFor, slots, prepar
 const SpellCatalogPicker: React.FC<{
   items: CatalogSpell[];
   loading: boolean;
+  knownNames: Set<string>;
   onPick: (cs: CatalogSpell) => void;
   onClose: () => void;
-}> = ({ items, loading, onPick, onClose }) => {
+}> = ({ items, loading, knownNames, onPick, onClose }) => {
   const [activeSchool, setActiveSchool] = useState<string>('all');
   const [activeLevel, setActiveLevel] = useState<number | 'all'>('all');
   const [search, setSearch] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -911,7 +913,7 @@ const SpellCatalogPicker: React.FC<{
         </div>
 
         {/* ── Level sub-tabs ── */}
-        {activeSchool !== 'all' && levelsInSchool.length > 0 && (
+        {levelsInSchool.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '7px 14px', borderBottom: `1px solid ${activeColor}1a`, flexShrink: 0 }}>
             <button
               onClick={() => setActiveLevel('all')}
@@ -926,7 +928,7 @@ const SpellCatalogPicker: React.FC<{
             </button>
             {levelsInSchool.map(level => {
               const isActive = activeLevel === level;
-              const count = items.filter(i => i.school === activeSchool && i.level === level).length;
+              const count = items.filter(i => (activeSchool === 'all' || i.school === activeSchool) && i.level === level).length;
               return (
                 <button key={level} onClick={() => setActiveLevel(isActive ? 'all' : level)} style={{
                   display: 'flex', alignItems: 'center', gap: 4,
@@ -973,35 +975,92 @@ const SpellCatalogPicker: React.FC<{
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {filtered.map(cs => {
                 const color = SCHOOL_COLOR[cs.school] ?? 'var(--accent-gold)';
+                const alreadyKnown = knownNames.has(cs.name.trim().toLowerCase());
+                const isExpanded = expandedId === cs.id;
                 return (
-                  <button key={cs.id} onClick={() => onPick(cs)} style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '9px 12px', borderRadius: 8, textAlign: 'left',
-                    background: 'rgba(255,255,255,0.018)',
-                    border: `1px solid ${color}16`,
-                    cursor: 'pointer', color: 'inherit', transition: 'all 0.12s', width: '100%',
-                  }}
-                    onMouseEnter={e => { e.currentTarget.style.background = `${color}10`; e.currentTarget.style.borderColor = `${color}38`; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.018)'; e.currentTarget.style.borderColor = `${color}16`; }}>
-                    {SCHOOL_ICON_SLUG[cs.school] && getDndIconSvg('spell', SCHOOL_ICON_SLUG[cs.school])
-                      ? <DndIcon category="spell" name={SCHOOL_ICON_SLUG[cs.school]} size={16} style={{ color, flexShrink: 0 }} />
-                      : <span style={{ fontSize: '1rem', flexShrink: 0, lineHeight: 1 }}>{SCHOOL_ICON[cs.school] ?? '✦'}</span>}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-heading)', fontSize: '0.88rem', color: '#d4c090', flexWrap: 'wrap' }}>
-                        {cs.name}
-                        <span style={{ fontSize: '0.63rem', color, background: `${color}16`, border: `1px solid ${color}28`, padding: '1px 6px', borderRadius: 20, fontWeight: 600, whiteSpace: 'nowrap', fontFamily: 'var(--font-body)' }}>
-                          {cs.level === 0 ? 'Trucchetto' : `Lv ${cs.level}`}
-                        </span>
-                        {activeSchool === 'all' && <span style={{ fontSize: '0.63rem', color: '#7a6840', whiteSpace: 'nowrap', fontFamily: 'var(--font-body)' }}>{cs.school}</span>}
-                      </div>
-                      {cs.description && (
-                        <div style={{ fontSize: '0.7rem', color: '#5a4e35', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
-                          {cs.description}
+                  <div key={cs.id} style={{
+                    borderRadius: 8,
+                    border: `1px solid ${alreadyKnown ? 'rgba(39,174,96,0.22)' : `${color}16`}`,
+                    background: alreadyKnown ? 'rgba(39,174,96,0.04)' : 'rgba(255,255,255,0.018)',
+                    overflow: 'hidden',
+                    transition: 'border-color 0.12s',
+                  }}>
+                    {/* Main row */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px' }}>
+                      {SCHOOL_ICON_SLUG[cs.school] && getDndIconSvg('spell', SCHOOL_ICON_SLUG[cs.school])
+                        ? <DndIcon category="spell" name={SCHOOL_ICON_SLUG[cs.school]} size={16} style={{ color, flexShrink: 0 }} />
+                        : <span style={{ fontSize: '1rem', flexShrink: 0, lineHeight: 1 }}>{SCHOOL_ICON[cs.school] ?? '✦'}</span>}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-heading)', fontSize: '0.88rem', color: '#d4c090', flexWrap: 'wrap' }}>
+                          {cs.name}
+                          <span style={{ fontSize: '0.63rem', color, background: `${color}16`, border: `1px solid ${color}28`, padding: '1px 6px', borderRadius: 20, fontWeight: 600, whiteSpace: 'nowrap', fontFamily: 'var(--font-body)' }}>
+                            {cs.level === 0 ? 'Trucchetto' : `Lv ${cs.level}`}
+                          </span>
+                          {activeSchool === 'all' && <span style={{ fontSize: '0.63rem', color: '#7a6840', whiteSpace: 'nowrap', fontFamily: 'var(--font-body)' }}>{cs.school}</span>}
+                          {alreadyKnown && (
+                            <span style={{ fontSize: '0.60rem', color: '#27ae60', background: 'rgba(39,174,96,0.14)', border: '1px solid rgba(39,174,96,0.32)', padding: '1px 7px', borderRadius: 20, whiteSpace: 'nowrap', fontFamily: 'var(--font-body)' }}>
+                              ✓ Già importata
+                            </span>
+                          )}
                         </div>
-                      )}
+                        {!isExpanded && cs.description && (
+                          <div style={{ fontSize: '0.7rem', color: '#5a4e35', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
+                            {cs.description}
+                          </div>
+                        )}
+                      </div>
+                      {/* Action buttons */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                        {cs.castingTime && !isExpanded && (
+                          <span style={{ fontSize: '0.65rem', color: '#5a4e35', whiteSpace: 'nowrap' }}>⏱ {cs.castingTime}</span>
+                        )}
+                        {cs.description && (
+                          <button
+                            onClick={e => { e.stopPropagation(); setExpandedId(isExpanded ? null : cs.id); }}
+                            title={isExpanded ? 'Comprimi' : 'Espandi dettagli'}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                              width: 24, height: 24, borderRadius: 4, cursor: 'pointer',
+                              background: isExpanded ? `${color}20` : 'rgba(255,255,255,0.04)',
+                              border: `1px solid ${isExpanded ? `${color}44` : 'rgba(255,255,255,0.08)'}`,
+                              color: isExpanded ? color : '#5a4e35', fontSize: '0.7rem',
+                              transition: 'all 0.13s', flexShrink: 0,
+                            }}>
+                            {isExpanded ? '▲' : '▼'}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => onPick(cs)}
+                          title="Importa nel grimorio"
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            padding: '4px 10px', borderRadius: 5, cursor: 'pointer',
+                            background: alreadyKnown ? 'rgba(180,140,60,0.06)' : `${color}18`,
+                            border: `1px solid ${alreadyKnown ? 'rgba(180,140,60,0.22)' : `${color}40`}`,
+                            color: alreadyKnown ? '#7a6840' : color,
+                            fontSize: '0.68rem', fontFamily: 'var(--font-heading)', letterSpacing: '0.04em',
+                            transition: 'all 0.12s', flexShrink: 0, whiteSpace: 'nowrap',
+                          }}>
+                          {alreadyKnown ? 'Reimporta' : 'Importa'}
+                        </button>
+                      </div>
                     </div>
-                    {cs.castingTime && <span style={{ fontSize: '0.65rem', color: '#5a4e35', whiteSpace: 'nowrap', flexShrink: 0 }}>⏱ {cs.castingTime}</span>}
-                  </button>
+                    {/* Expanded description */}
+                    {isExpanded && (
+                      <div style={{ padding: '0 12px 12px 42px', borderTop: `1px solid ${color}14` }}>
+                        {cs.castingTime && (
+                          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', padding: '7px 0 8px', fontSize: '0.70rem', color: '#8a7850' }}>
+                            <span>⏱ {cs.castingTime}</span>
+                            {cs.range && <span>⇤ {cs.range}</span>}
+                            {cs.duration && <span>⧗ {cs.duration}</span>}
+                          </div>
+                        )}
+                        <p style={{ margin: 0, fontSize: '0.76rem', color: '#b0986a', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
+                          {cs.description}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -1601,6 +1660,7 @@ export const Spellbook: React.FC = () => {
         <SpellCatalogPicker
           items={catalogItems}
           loading={catalogLoading}
+          knownNames={new Set(spells.map(s => s.name.trim().toLowerCase()))}
           onClose={() => setCatalogOpen(false)}
           onPick={importFromCatalog}
         />
