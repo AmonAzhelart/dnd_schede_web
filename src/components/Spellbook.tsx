@@ -610,23 +610,43 @@ const KanbanCard: React.FC<{
 }> = ({ prep, spell, slotLevel, onCast, onRestore, onRemove }) => {
   const spColor = SCHOOL_COLOR[spell.school] ?? 'var(--text-muted)';
   const isUpcast = spell.level < slotLevel;
+  const slug = SCHOOL_ICON_SLUG[spell.school];
   return (
     <div className={`sb-kanban-card${prep.cast ? ' cast' : ''}`}
-      style={{ borderTopColor: prep.cast ? 'rgba(255,255,255,0.08)' : spColor }}>
-      <div className="sb-kanban-card-main">
-        <span className="sb-kanban-card-school">{SCHOOL_ICON[spell.school] ?? '✦'}</span>
-        <span className="sb-kanban-card-name">{spell.name}</span>
-        {isUpcast && <span className="sb-kanban-upcast-badge" style={{ color: spColor }}>↑{slotLevel}</span>}
+      style={{ '--kcard-c': spColor, borderLeftColor: spColor } as React.CSSProperties}>
+      <div className="sb-kcard-school-strip" style={{ background: `${spColor}18` }}>
+        {slug && getDndIconSvg('spell', slug)
+          ? <DndIcon category="spell" name={slug} size={13} style={{ color: spColor, flexShrink: 0 }} />
+          : <span style={{ fontSize: '0.75rem', color: spColor }}>{SCHOOL_ICON[spell.school] ?? '✦'}</span>
+        }
+        <span className="sb-kcard-school-name" style={{ color: `${spColor}cc` }}>
+          {spell.school}
+        </span>
+        {isUpcast && (
+          <span className="sb-kcard-upcast" style={{ color: spColor }}>
+            <DndIcon category="spell" name="upcast" size={9} style={{ color: spColor }} />
+            Lv{slotLevel}
+          </span>
+        )}
       </div>
-      <div className="sb-kanban-card-actions">
-        <button
-          className={`sb-cast-btn${!prep.cast ? ' active' : ''}`}
-          onClick={prep.cast ? onRestore : onCast}
-          title={prep.cast ? 'Ripristina slot' : 'Lancia (consuma slot)'}
-          style={!prep.cast ? { background: `radial-gradient(circle at 35% 35%, ${spColor}cc, ${spColor}55)`, border: `2px solid ${spColor}`, boxShadow: `0 2px 8px ${spColor}55` } : {}}>
-          {prep.cast ? <FaMinus size={8} /> : <FaBolt size={8} />}
-        </button>
-        <button className="sb-remove-btn" onClick={onRemove} title="Rimuovi preparazione"><FaTrash size={8} /></button>
+      <div className="sb-kcard-body">
+        <span className="sb-kcard-name">{spell.name}</span>
+        <div className="sb-kcard-actions">
+          <button
+            className={`sb-kcast-btn${prep.cast ? ' restore' : ' ready'}`}
+            onClick={prep.cast ? onRestore : onCast}
+            title={prep.cast ? 'Ripristina slot' : 'Lancia (consuma slot)'}
+            style={!prep.cast ? { '--btn-c': spColor } as React.CSSProperties : {}}>
+            {prep.cast
+              ? <FaMinus size={9} />
+              : <DndIcon category="spell" name="consumed" size={13} style={{ color: 'inherit' }} />
+            }
+            <span>{prep.cast ? 'Ripristina' : 'Lancia'}</span>
+          </button>
+          <button className="sb-kcard-remove" onClick={onRemove} title="Rimuovi preparazione">
+            <FaTimes size={8} />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1442,26 +1462,33 @@ export const Spellbook: React.FC = () => {
                 const lvName = lv === 0 ? 'Trucchetti' : `Livello ${lv}`;
                 const accent = LEVEL_COLOR[lv] ?? 'var(--accent-arcane)';
                 return (
-                  <div key={lv} className="sb-kanban-col" style={{ '--kc': accent, borderTopColor: accent } as React.CSSProperties}>
-                    <div className="sb-kanban-col-hdr">
+                  <div key={lv} className="sb-kanban-col" style={{ '--kc': accent } as React.CSSProperties}>
+                    <div className="sb-kanban-col-hdr" style={{ borderBottomColor: `${accent}28` }}>
                       <div className="sb-kanban-col-title">
                         <div className={`sb-slot-level-badge${lv === 0 ? ' trucchetto' : ''}`}
                           style={lv !== 0 ? { background: `linear-gradient(135deg, ${accent}, ${accent}88)`, boxShadow: `0 2px 10px ${accent}55`, color: '#0a0806' } : {}}>
                           {lv === 0 ? 'TR' : lv}
                         </div>
                         <span className="sb-kanban-level-name" style={{ color: accent }}>{lvName}</span>
+                        <span className="sb-kanban-avail-badge" style={{ color: available > 0 ? accent : '#4a4030', borderColor: available > 0 ? `${accent}44` : 'rgba(180,140,60,0.12)' }}>
+                          {available}/{s.total}
+                        </span>
                       </div>
-                      <div className="sb-kanban-slot-info">
-                        {s.total > 0 && <SlotPips total={s.total} used={s.used} color={accent} />}
-                        <div className="sb-kanban-counter">
-                          <span style={{ color: available > 0 ? accent : 'var(--text-muted)', fontFamily: 'var(--font-heading)', fontSize: '1rem' }}>{available}</span>
-                          <span style={{ color: '#5a4e35', fontSize: '0.7rem' }}>/{s.total}</span>
+                      {s.total > 0 && (
+                        <div className="sb-kanban-slot-row">
+                          <SlotPips total={s.total} used={s.used} color={accent} />
+                          <div className="sb-slot-adjust">
+                            <button className="sb-adj-btn" onClick={() => setSpellSlotTotal(lv, s.total + 1)} disabled={s.total >= 9}>+</button>
+                            <button className="sb-adj-btn" onClick={() => setSpellSlotTotal(lv, Math.max(0, s.total - 1))}>-</button>
+                          </div>
                         </div>
-                      </div>
-                      <div className="sb-slot-adjust">
-                        <button className="sb-adj-btn" onClick={() => setSpellSlotTotal(lv, s.total + 1)} disabled={s.total >= 9}>+</button>
-                        <button className="sb-adj-btn" onClick={() => setSpellSlotTotal(lv, Math.max(0, s.total - 1))}>-</button>
-                      </div>
+                      )}
+                      {s.total === 0 && (
+                        <div className="sb-slot-adjust" style={{ alignSelf: 'flex-end' }}>
+                          <button className="sb-adj-btn" onClick={() => setSpellSlotTotal(lv, s.total + 1)} disabled={s.total >= 9}>+</button>
+                          <button className="sb-adj-btn" onClick={() => setSpellSlotTotal(lv, Math.max(0, s.total - 1))}>-</button>
+                        </div>
+                      )}
                     </div>
                     <button className="sb-kanban-add-btn"
                       onClick={() => setPickerLvl(isPickerOpen ? null : lv)}
@@ -1475,13 +1502,21 @@ export const Spellbook: React.FC = () => {
                         ) : (
                           grimoireForLevel.map(sp => {
                             const spColor = SCHOOL_COLOR[sp.school] ?? 'var(--text-muted)';
+                            const spSlug = SCHOOL_ICON_SLUG[sp.school];
                             return (
                               <button key={sp.id} className="sb-kanban-pick-spell"
                                 style={{ borderLeftColor: spColor }}
                                 onClick={() => prepareWizardSpell(lv, sp.id)}>
-                                <span style={{ color: spColor, fontSize: '0.8rem' }}>{SCHOOL_ICON[sp.school] ?? '✦'}</span>
+                                {spSlug && getDndIconSvg('spell', spSlug)
+                                  ? <DndIcon category="spell" name={spSlug} size={11} style={{ color: spColor, flexShrink: 0 }} />
+                                  : <span style={{ color: spColor, fontSize: '0.8rem' }}>{SCHOOL_ICON[sp.school] ?? '✦'}</span>
+                                }
                                 <span>{sp.name}</span>
-                                {sp.level < lv && <span style={{ color: 'var(--accent-arcane)', fontSize: '0.62rem', marginLeft: 'auto' }}>↑Lv{sp.level}</span>}
+                                {sp.level < lv && (
+                                  <span className="sb-pick-upcast" style={{ color: accent }}>
+                                    ↑Lv{sp.level}
+                                  </span>
+                                )}
                               </button>
                             );
                           })

@@ -252,3 +252,241 @@
 .w-abil2-card.defect {
     --accent: var(--accent-crimson);
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   Class Feature detail modal
+   ═══════════════════════════════════════════════════════════════════ */
+.w-cfmodal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.62);
+    backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9990;
+    animation: w-cfmodal-fade 0.13s ease;
+}
+
+@keyframes w-cfmodal-fade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.w-cfmodal {
+    --accent: var(--accent-arcane, #b48ad3);
+    background: linear-gradient(160deg, #1c1810 0%, #11100a 100%);
+    border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+    border-top: 3px solid var(--accent);
+    border-radius: 10px;
+    width: min(420px, 92vw);
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.75), 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
+    animation: w-cfmodal-in 0.16s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+@keyframes w-cfmodal-in {
+    from { opacity: 0; transform: scale(0.88) translateY(8px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Header */
+.w-cfmodal-hdr {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 16px 16px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    flex-shrink: 0;
+}
+
+.w-cfmodal-icon {
+    color: var(--accent);
+    font-size: 1.15rem;
+    display: inline-flex;
+    flex-shrink: 0;
+    margin-top: 2px;
+    opacity: 0.85;
+}
+
+.w-cfmodal-title-wrap {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.w-cfmodal-title {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 700;
+    color: #ddd0a8;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+}
+
+.w-cfmodal-badge {
+    display: inline-flex;
+    align-items: center;
+    font-family: var(--font-heading);
+    font-size: 0.60rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    border-radius: 20px;
+    padding: 2px 8px;
+    align-self: flex-start;
+}
+
+.w-cfmodal-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 5px;
+    color: #7a6a4a;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.13s;
+}
+
+.w-cfmodal-close:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ccc;
+}
+
+/* Resource bar */
+.w-cfmodal-resource {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: color-mix(in srgb, var(--accent) 7%, transparent);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    flex-shrink: 0;
+}
+
+.w-cfmodal-res-label {
+    font-family: var(--font-heading);
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    color: color-mix(in srgb, var(--accent) 80%, #ccc);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.w-cfmodal-res-track {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+}
+
+.w-cfmodal-pips {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.w-cfmodal-pip {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.w-cfmodal-pip.full {
+    background: var(--accent);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.w-cfmodal-pip.empty {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.w-cfmodal-res-num {
+    font-size: 0.82rem;
+    color: var(--accent);
+    font-family: var(--font-heading);
+    padding: 0 4px;
+}
+
+/* Description */
+.w-cfmodal-desc {
+    margin: 0;
+    padding: 14px 16px;
+    font-size: 0.80rem;
+    line-height: 1.65;
+    color: #b8a880;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(180, 140, 60, 0.15) transparent;
+    white-space: pre-wrap;
+}
+
+/* Modifiers */
+.w-cfmodal-mods {
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 10px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex-shrink: 0;
+}
+
+.w-cfmodal-mods-title {
+    font-family: var(--font-heading);
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: #5a4e35;
+    margin-bottom: 2px;
+}
+
+.w-cfmodal-mod-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.73rem;
+}
+
+.w-cfmodal-mod-target {
+    flex: 1;
+    color: #9a8c6a;
+    font-family: var(--font-heading);
+    font-size: 0.72rem;
+}
+
+.w-cfmodal-mod-val {
+    font-family: var(--font-heading);
+    font-size: 0.80rem;
+    font-weight: 700;
+    min-width: 28px;
+    text-align: right;
+}
+
+.w-cfmodal-mod-type {
+    font-size: 0.60rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #4a4030;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 3px;
+    padding: 1px 5px;
+}

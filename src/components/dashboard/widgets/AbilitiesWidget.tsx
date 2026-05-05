@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { FaSearch } from 'react-icons/fa';
-import { GiSpinningSword, GiShield, GiAbstract024, GiCogLock } from 'react-icons/gi';
+import { FaSearch, FaTimes } from 'react-icons/fa';
+import { GiSpinningSword, GiShield } from 'react-icons/gi';
 import { useCharacterStore } from '../../../store/characterStore';
 import type { WidgetRenderProps, WidgetSize } from '../widgetTypes';
 import type { ClassFeature, Feat } from '../../../types/dnd';
@@ -28,21 +28,10 @@ export const AbilitiesWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => 
     const { character, spendClassFeatureResource, recoverClassFeatureResource, toggleFeat } = useCharacterStore();
     const [tab, setTab] = useState<SubTab>('active');
     const [q, setQ] = useState('');
+    const [selectedCfId, setSelectedCfId] = useState<string | null>(null);
 
-    if (!character) return null;
-    const feats = character.feats ?? [];
-    const cf = character.classFeatures ?? [];
-    const cols = colsFor(size);
-    const veryNarrow = size.pixelW < 220;
-    const narrow = size.pixelW < 320;
-
-    const counts: Record<SubTab, number> = {
-        active: cf.filter(f => f.subcategory === 'active').length,
-        passive: cf.filter(f => f.subcategory === 'passive').length,
-        feats: feats.length,
-    };
-
-    const activeMeta = TABS.find(t => t.key === tab)!;
+    const feats = useMemo(() => character?.feats ?? [], [character]);
+    const cf = useMemo(() => character?.classFeatures ?? [], [character]);
 
     const filteredCf = useMemo(() => {
         const ql = q.trim().toLowerCase();
@@ -55,15 +44,34 @@ export const AbilitiesWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => 
         return ql ? feats.filter(f => f.name.toLowerCase().includes(ql)) : feats;
     }, [feats, q]);
 
+    if (!character) return null;
+
+    const cols = colsFor(size);
+    const veryNarrow = size.pixelW < 220;
+    const narrow = size.pixelW < 320;
+
+    const counts: Record<SubTab, number> = {
+        active: cf.filter(f => f.subcategory === 'active').length,
+        passive: cf.filter(f => f.subcategory === 'passive').length,
+        feats: feats.length,
+        option: 0,
+    };
+
+    const activeMeta = TABS.find(t => t.key === tab)!;
+
     const renderCfRow = (item: ClassFeature) => {
         const hasResource = item.subcategory === 'active' && item.resourceMax != null && item.resourceMax > 0;
         const used = item.resourceUsed ?? 0;
         const max = item.resourceMax ?? 0;
         const exhausted = hasResource && used >= max;
         return (
-            <div key={item.id} className={`w-abil2-card ${item.active ? '' : 'dim'} ${exhausted ? 'exhausted' : ''}`}
-                style={{ ['--accent' as string]: activeMeta.color }}>
-                <div className="w-abil2-card-name" title={item.name}>{item.name}</div>
+            <div key={item.id}
+                className={`w-abil2-card ${item.active ? '' : 'dim'} ${exhausted ? 'exhausted' : ''}`}
+                style={{ ['--accent' as string]: activeMeta.color }}
+                role="button"
+                title={item.name}
+                onClick={() => setSelectedCfId(item.id)}>
+                <div className="w-abil2-card-name">{item.name}</div>
                 {hasResource ? (
                     <div className="w-abil2-card-foot">
                         {max <= 8 ? (
@@ -119,6 +127,75 @@ export const AbilitiesWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => 
 
     return (
         <div className="w-abil2-root">
+            {/* Feature detail modal */}
+            {(() => {
+                const item = selectedCfId ? cf.find(f => f.id === selectedCfId) ?? null : null;
+                if (!item) return null;
+                const modalAccent = TABS.find(t => t.key === item.subcategory)?.color ?? 'var(--accent-arcane)';
+                const hasRes = item.subcategory === 'active' && (item.resourceMax ?? 0) > 0;
+                const used = item.resourceUsed ?? 0;
+                const max = item.resourceMax ?? 0;
+                const available = max - used;
+                const Icon = item.subcategory === 'active' ? GiSpinningSword : GiShield;
+                return (
+                    <div className="w-cfmodal-overlay" onClick={() => setSelectedCfId(null)}>
+                        <div className="w-cfmodal" style={{ ['--accent' as string]: modalAccent }}
+                            onClick={e => e.stopPropagation()}>
+                            <div className="w-cfmodal-hdr">
+                                <span className="w-cfmodal-icon"><Icon size={18} /></span>
+                                <div className="w-cfmodal-title-wrap">
+                                    <h3 className="w-cfmodal-title">{item.name}</h3>
+                                    <span className="w-cfmodal-badge">
+                                        {item.subcategory === 'active' ? 'Attiva' : 'Passiva'}
+                                    </span>
+                                </div>
+                                <button className="w-cfmodal-close" onClick={() => setSelectedCfId(null)}
+                                    title="Chiudi"><FaTimes size={13} /></button>
+                            </div>
+                            {hasRes && (
+                                <div className="w-cfmodal-resource">
+                                    <span className="w-cfmodal-res-label">{item.resourceName ?? 'Cariche'}</span>
+                                    <div className="w-cfmodal-res-track">
+                                        {max <= 10 ? (
+                                            <div className="w-cfmodal-pips">
+                                                {Array.from({ length: max }).map((_, i) => (
+                                                    <div key={i} className={`w-cfmodal-pip ${i < available ? 'full' : 'empty'}`} />
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <span className="w-cfmodal-res-num">{available}/{max}</span>
+                                        )}
+                                        <button className="w-abil2-mini-btn" disabled={available <= 0}
+                                            title="Usa una carica"
+                                            onClick={() => spendClassFeatureResource(item.id)}>−</button>
+                                        <button className="w-abil2-mini-btn" disabled={used <= 0}
+                                            title="Recupera una carica"
+                                            onClick={() => recoverClassFeatureResource(item.id)}>+</button>
+                                    </div>
+                                </div>
+                            )}
+                            {item.description && (
+                                <p className="w-cfmodal-desc">{item.description}</p>
+                            )}
+                            {item.modifiers && item.modifiers.length > 0 && (
+                                <div className="w-cfmodal-mods">
+                                    <div className="w-cfmodal-mods-title">Modificatori</div>
+                                    {item.modifiers.map((m, i) => (
+                                        <div key={i} className="w-cfmodal-mod-row">
+                                            <span className="w-cfmodal-mod-target">{m.target}</span>
+                                            <span className="w-cfmodal-mod-val"
+                                                style={{ color: m.value >= 0 ? 'var(--accent-success, #27ae60)' : 'var(--accent-crimson)' }}>
+                                                {m.value > 0 ? '+' : ''}{m.value}
+                                            </span>
+                                            <span className="w-cfmodal-mod-type">{m.type}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            })()}
             {/* Tabs */}
             <div className="w-abil2-tabs" role="tablist">
                 {TABS.map(t => {
