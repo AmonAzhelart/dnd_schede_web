@@ -427,6 +427,57 @@
     flex-shrink: 0;
 }
 
+/* Outgoing synergy grants — shown below the skill name */
+.skills-tab-grants {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 3px;
+}
+
+.skills-tab-grant-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 0.58rem;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    padding: 1px 5px;
+    white-space: nowrap;
+    cursor: help;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.skills-tab-grant-chip--active {
+    color: #4ecdc4;
+    background: rgba(78, 205, 196, 0.08);
+    border-color: rgba(78, 205, 196, 0.3);
+}
+
+.skills-tab-grant-bonus {
+    font-family: var(--font-heading);
+    font-weight: 700;
+}
+
+/* Synergy bonus chip */
+.skills-tab-synergy-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 0.6rem;
+    font-family: var(--font-heading);
+    color: #4ecdc4;
+    background: rgba(78, 205, 196, 0.1);
+    border: 1px solid rgba(78, 205, 196, 0.35);
+    border-radius: 2px;
+    padding: 0 3px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    cursor: help;
+}
+
 /* Total mod */
 .skills-tab-total {
     font-family: var(--font-heading);
@@ -653,5 +704,201 @@
 @media (max-width: 640px) {
     .skills-tab-col-headers {
         display: none;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SKILL EDIT MODAL
+   ═══════════════════════════════════════════════════════════════ */
+
+.skill-edit-modal {
+    max-width: 600px;
+    width: 96vw;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* ── Sections ────────────────────────────────────────────────── */
+.skill-edit-section {
+    border: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+    border-radius: 6px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.skill-edit-section-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+}
+
+/* ── Basic fields ────────────────────────────────────────────── */
+.skill-edit-field-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.skill-edit-field-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    min-width: 90px;
+    flex-shrink: 0;
+}
+
+.skill-edit-checks {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.skill-edit-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+}
+
+/* ── SRD synergy rows ────────────────────────────────────────── */
+.skill-edit-syn-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.7rem;
+    padding: 3px 6px;
+    border-radius: 4px;
+    flex-wrap: wrap;
+}
+
+.skill-edit-syn-row--srd {
+    background: rgba(78, 205, 196, 0.06);
+    border: 1px solid rgba(78, 205, 196, 0.15);
+}
+
+.skill-edit-syn-row--custom {
+    background: rgba(201, 168, 76, 0.06);
+    border: 1px solid rgba(201, 168, 76, 0.15);
+}
+
+.skill-edit-syn-row--editing {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-subtle, rgba(255,255,255,0.12));
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 8px;
+}
+
+.skill-edit-syn-dir {
+    font-size: 0.65rem;
+    color: var(--accent-gold);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.skill-edit-syn-name {
+    flex: 1;
+    color: var(--text-primary);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.skill-edit-syn-arrow {
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.skill-edit-syn-ranks {
+    color: var(--text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.skill-edit-syn-bonus {
+    color: #4ecdc4;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.skill-edit-syn-note {
+    color: var(--text-muted);
+    cursor: help;
+    flex-shrink: 0;
+}
+
+.skill-edit-syn-actions {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+/* ── Synergy add/edit form grid ──────────────────────────────── */
+.skill-edit-syn-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+.skill-edit-syn-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.skill-edit-syn-form-field--wide {
+    grid-column: 1 / -1;
+}
+
+.skill-edit-syn-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.skill-edit-syn-add-form {
+    border: 1px dashed rgba(201, 168, 76, 0.25);
+    border-radius: 5px;
+    padding: 8px;
+    background: rgba(201, 168, 76, 0.04);
+}
+
+.input-sm {
+    font-size: 0.72rem;
+    padding: 3px 6px;
+}
+
+.btn-sm {
+    font-size: 0.7rem;
+    padding: 3px 7px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-ghost.danger {
+    color: var(--accent-crimson, #e74c3c);
+}
+.btn-ghost.danger:hover {
+    background: rgba(231, 76, 60, 0.12);
+}
+
+@media (max-width: 480px) {
+    .skill-edit-syn-form-grid {
+        grid-template-columns: 1fr;
+    }
+    .skill-edit-syn-form-field--wide {
+        grid-column: 1;
     }
 }

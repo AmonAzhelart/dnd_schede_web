@@ -22,6 +22,10 @@ import { CreatureModifierEditor } from '../CreatureModifierEditor';
 import { RacesPanel } from './RacesPanel';
 import { ClassesPanel } from './ClassesPanel';
 import { LanguagesPanel } from './LanguagesPanel';
+import { getSrdSynergiesInvolvingSkill } from '../../data/skillSynergies';
+import { LocalizedFieldEditor } from './LocalizedFieldEditor';
+import { pickLocalized } from '../../i18n';
+import type { LocalizedField } from '../../services/admin';
 import './BackOffice.css';
 
 export type Section = 'invites' | 'spells' | 'skills' | 'feats' | 'icons' | 'bestiary' | 'races' | 'classes' | 'languages';
@@ -535,9 +539,18 @@ const EMPTY_SKILL = (): CatalogSkill => ({
 });
 
 function SkillsPanel({ currentUserEmail }: { currentUserEmail: string }) {
+    const { t, i18n } = useTranslation();
+    const lang = i18n.resolvedLanguage ?? 'it';
     const [items, setItems] = useState<CatalogSkill[]>([]);
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState<CatalogSkill | null>(null);
+    const [search, setSearch] = useState('');
+
+    // ── Custom synergy sub-editor state ───────────────────────────────────────
+    const [showAddSyn, setShowAddSyn] = useState(false);
+    const [addSynForm, setAddSynForm] = useState({ sourceSkillName: '', targetSkillName: '', ranksRequired: 5, bonus: 2, note: '' });
+    const [editingSynId, setEditingSynId] = useState<string | null>(null);
+    const [editSynForm, setEditSynForm] = useState({ sourceSkillName: '', targetSkillName: '', ranksRequired: 5, bonus: 2, note: '' });
 
     const refresh = async () => {
         setLoading(true);
@@ -546,6 +559,31 @@ function SkillsPanel({ currentUserEmail }: { currentUserEmail: string }) {
     };
     useEffect(() => { refresh(); }, []);
 
+    const filtered = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        if (!q) return items;
+        return items.filter(i => {
+            const displayName = pickLocalized(i.localizedName, lang) || i.name;
+            const displayDesc = pickLocalized(i.localizedDescription, lang) || i.description || '';
+            return displayName.toLowerCase().includes(q) || displayDesc.toLowerCase().includes(q);
+        });
+    }, [items, search, lang]);
+
+    // When switching to a different skill to edit, reset synergy sub-editor.
+    // If the skill has no synergies stored yet, pre-populate from SRD.
+    const openEdit = (s: CatalogSkill) => {
+        setShowAddSyn(false);
+        setEditingSynId(null);
+        setAddSynForm({ sourceSkillName: '', targetSkillName: '', ranksRequired: 5, bonus: 2, note: '' });
+        // Only keep synergies where this skill is the source.
+        const synergies: CatalogSkill['synergies'] = s.synergies
+            ? s.synergies.filter(syn => syn.sourceSkillName === s.name)
+            : getSrdSynergiesInvolvingSkill(s.name)
+                .filter(r => r.sourceSkillName === s.name)
+                .map(r => ({ id: uuid(), sourceSkillName: r.sourceSkillName, targetSkillName: r.targetSkillName, ranksRequired: r.ranksRequired, bonus: r.bonus, note: r.note }));
+        setEditing({ ...s, synergies });
+    };
+
     const save = async () => {
         if (!editing || !editing.name.trim()) return;
         await skillCatalog.upsert({ ...editing, createdBy: editing.createdBy ?? currentUserEmail });
@@ -553,61 +591,253 @@ function SkillsPanel({ currentUserEmail }: { currentUserEmail: string }) {
         await refresh();
     };
     const remove = async (id: string) => {
-        if (!confirm('Eliminare questa abilità?')) return;
+        if (!confirm(t('backoffice.skills.confirmDelete'))) return;
         await skillCatalog.remove(id);
         await refresh();
     };
+
+    // ── Synergy helpers (operate on `editing` draft) ──────────────────────────
+    const addSynergy = () => {
+        if (!editing || !addSynForm.targetSkillName) return;
+        if (addSynForm.targetSkillName === editing.name) return;
+        const newSyn = { id: uuid(), sourceSkillName: editing.name, targetSkillName: addSynForm.targetSkillName, ranksRequired: addSynForm.ranksRequired, bonus: addSynForm.bonus, note: addSynForm.note.trim() || undefined };
+        setEditing({ ...editing, synergies: [...(editing.synergies ?? []), newSyn] });
+        setShowAddSyn(false);
+        setAddSynForm({ sourceSkillName: '', targetSkillName: '', ranksRequired: 5, bonus: 2, note: '' });
+    };
+
+    const startEditSyn = (syn: import('../../services/admin').CatalogSkillSynergy) => {
+        setEditingSynId(syn.id);
+        setEditSynForm({ sourceSkillName: syn.sourceSkillName, targetSkillName: syn.targetSkillName, ranksRequired: syn.ranksRequired, bonus: syn.bonus, note: syn.note ?? '' });
+    };
+
+    const saveEditSyn = () => {
+        if (!editing || !editingSynId || !editSynForm.targetSkillName || editSynForm.targetSkillName === editing.name) return;
+        const updated = (editing.synergies ?? []).map(s =>
+            s.id === editingSynId
+                ? { ...s, sourceSkillName: editing.name, targetSkillName: editSynForm.targetSkillName, ranksRequired: editSynForm.ranksRequired, bonus: editSynForm.bonus, note: editSynForm.note.trim() || undefined }
+                : s,
+        );
+        setEditing({ ...editing, synergies: updated });
+        setEditingSynId(null);
+    };
+
+    const deleteSyn = (synId: string) => {
+        if (!editing) return;
+        setEditing({ ...editing, synergies: (editing.synergies ?? []).filter(s => s.id !== synId) });
+        if (editingSynId === synId) setEditingSynId(null);
+    };
+
+    // All catalog skill names sorted (for select options)
+    const skillNameOptions = [...items].sort((a, b) => a.name.localeCompare(b.name)).map(s => s.name);
+    // Also include the current skill being edited if it's new (has a name but not yet in items)
+    const allSkillNames = editing?.name && !skillNameOptions.includes(editing.name)
+        ? [...skillNameOptions, editing.name].sort((a, b) => a.localeCompare(b))
+        : skillNameOptions;
 
     if (editing) {
         return (
             <div className="glass-panel flex-col gap-3">
                 <div className="section-header">
-                    <span className="section-title">{items.find(i => i.id === editing.id) ? 'Modifica' : 'Nuova'} Abilità</span>
+                    <span className="section-title">
+                        {items.find(i => i.id === editing.id) ? t('backoffice.skills.editSkill') : t('backoffice.skills.newSkill')}
+                    </span>
                     <div className="flex gap-2">
-                        <button className="btn-secondary text-sm" onClick={() => setEditing(null)}><FaTimes /> Annulla</button>
-                        <button className="btn-primary text-sm" onClick={save}><FaSave /> Salva</button>
+                        <button className="btn-secondary text-sm" onClick={() => setEditing(null)}><FaTimes /> {t('common.cancel')}</button>
+                        <button className="btn-primary text-sm" onClick={save}><FaSave /> {t('common.save')}</button>
                     </div>
                 </div>
-                <Field label="Nome"><input className="input w-full" value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} /></Field>
-                <Field label="Caratteristica">
+
+                {/* ── Core fields ── */}
+                <Field label={t('common.name') + ' (canonico / chiave sinergie)'}>  
+                    <input className="input w-full" value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} placeholder="Es. Diplomazia (usato come chiave interna)" />
+                </Field>
+                <LocalizedFieldEditor
+                    label={t('common.name') + ' (traduzioni)'}
+                    value={editing.localizedName}
+                    onChange={v => setEditing({ ...editing, localizedName: v as LocalizedField })}
+                    placeholder="Nome visivo per ogni lingua"
+                />
+                <Field label={t('backoffice.skills.ability')}>
                     <select className="input w-full" value={editing.stat} onChange={e => setEditing({ ...editing, stat: e.target.value as StatType })}>
                         {STAT_OPTIONS.map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
                     </select>
                 </Field>
                 <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" checked={editing.canUseUntrained} onChange={e => setEditing({ ...editing, canUseUntrained: e.target.checked })} />
-                    Usabile senza addestramento
+                    {t('backoffice.skills.canUseUntrained')}
                 </label>
                 <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" checked={editing.armorCheckPenalty} onChange={e => setEditing({ ...editing, armorCheckPenalty: e.target.checked })} />
-                    Soggetto a penalità d'armatura
+                    {t('backoffice.skills.armorCheckPenalty')}
                 </label>
-                <Field label="Descrizione (opzionale)">
-                    <textarea className="input w-full" rows={4} value={editing.description ?? ''} onChange={e => setEditing({ ...editing, description: e.target.value })} />
-                </Field>
+<LocalizedFieldEditor
+                    label={t('common.description') + ' (' + t('backoffice.skills.optional') + ')'}
+                    value={editing.localizedDescription}
+                    onChange={v => setEditing({ ...editing, localizedDescription: v as LocalizedField })}
+                    multiline
+                    placeholder={t('backoffice.skills.descriptionHint')}
+                />
+
+                {/* ── Synergies (unified editable list) ── */}
+                <div className="flex-col gap-2" style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '0.75rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="text-xs text-muted" style={{ fontFamily: 'var(--font-heading)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                            {t('backoffice.skills.synergies')}
+                        </div>
+                        {!showAddSyn && (
+                            <button className="btn-ghost text-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }} onClick={() => setShowAddSyn(true)}>
+                                <FaPlus size={9} /> {t('backoffice.skills.newSynergy', { defaultValue: 'Nuova' })}
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Existing custom synergies */}
+                    {(editing.synergies ?? []).length === 0 && !showAddSyn && (
+                        <div className="text-xs text-muted" style={{ fontStyle: 'italic' }}>
+                            {t('backoffice.skills.noCustomSynergies', { defaultValue: 'Nessuna sinergia.' })}
+                        </div>
+                    )}
+                    <div className="flex-col gap-1">
+                        {(editing.synergies ?? []).map(syn => {
+                            if (editingSynId === syn.id) {
+                                return (
+                                    <div key={syn.id} className="flex-col gap-2" style={{ padding: 8, borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)' }}>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                                            <div className="flex-col gap-1" style={{ gridColumn: '1 / -1' }}>
+                                                <span className="text-xs text-muted">{t('backoffice.skills.synTarget', { defaultValue: 'Destinatario (riceve il bonus)' })}</span>
+                                                <select className="input" style={{ fontSize: '0.75rem', padding: '3px 6px' }} value={editSynForm.targetSkillName} onChange={e => setEditSynForm({ ...editSynForm, targetSkillName: e.target.value })}>
+                                                    <option value="">— seleziona —</option>
+                                                    {allSkillNames.filter(n => n !== editing.name).map(n => <option key={n} value={n}>{n}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="flex-col gap-1">
+                                                <span className="text-xs text-muted">{t('backoffice.skills.synRanks', { defaultValue: 'Gradi richiesti' })}</span>
+                                                <input type="number" className="input" style={{ fontSize: '0.75rem', padding: '3px 6px' }} min={1} max={20} value={editSynForm.ranksRequired} onChange={e => setEditSynForm({ ...editSynForm, ranksRequired: Math.max(1, +e.target.value) })} />
+                                            </div>
+                                            <div className="flex-col gap-1">
+                                                <span className="text-xs text-muted">{t('backoffice.skills.synBonus', { defaultValue: 'Bonus' })}</span>
+                                                <input type="number" className="input" style={{ fontSize: '0.75rem', padding: '3px 6px' }} min={1} max={10} value={editSynForm.bonus} onChange={e => setEditSynForm({ ...editSynForm, bonus: Math.max(1, +e.target.value) })} />
+                                            </div>
+                                            <div className="flex-col gap-1" style={{ gridColumn: '1 / -1' }}>
+                                                <span className="text-xs text-muted">{t('backoffice.skills.synNote', { defaultValue: 'Nota (opzionale)' })}</span>
+                                                <input type="text" className="input" style={{ fontSize: '0.75rem', padding: '3px 6px' }} value={editSynForm.note} onChange={e => setEditSynForm({ ...editSynForm, note: e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button className="btn-primary text-xs" onClick={saveEditSyn} disabled={!editSynForm.targetSkillName || editSynForm.targetSkillName === editing.name}>
+                                                <FaCheck size={9} /> {t('common.save')}
+                                            </button>
+                                            <button className="btn-secondary text-xs" onClick={() => setEditingSynId(null)}>
+                                                <FaTimes size={9} /> {t('common.cancel')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            }
+                            return (
+                                <div key={syn.id} className="flex items-center gap-2 text-xs" style={{ padding: '3px 8px', borderRadius: 6, background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)' }}>
+                                    <span className="text-muted">→</span>
+                                    <span style={{ color: 'var(--text-primary)' }}>{syn.targetSkillName}</span>
+                                    <span className="text-muted" style={{ marginLeft: 4 }}>≥{syn.ranksRequired} gr.</span>
+                                    <span style={{ color: '#4ecdc4', fontWeight: 700 }}>+{syn.bonus}</span>
+                                    {syn.note && <span className="text-muted" title={syn.note}>ℹ</span>}
+                                    <div className="flex gap-1" style={{ marginLeft: 'auto' }}>
+                                        <button className="btn-ghost text-xs" onClick={() => startEditSyn(syn)} title={t('common.edit')}><FaEdit size={9} /></button>
+                                        <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => deleteSyn(syn.id)} title={t('common.delete', { defaultValue: 'Elimina' })}><FaTrash size={9} /></button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Add synergy form */}
+                    {showAddSyn && (
+                        <div className="flex-col gap-2" style={{ padding: 8, borderRadius: 6, border: '1px dashed rgba(201,168,76,0.3)', background: 'rgba(201,168,76,0.04)' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                                <div className="flex-col gap-1" style={{ gridColumn: '1 / -1' }}>
+                                    <span className="text-xs text-muted">{t('backoffice.skills.synTarget', { defaultValue: 'Destinatario (riceve il bonus)' })}</span>
+                                    <select className="input" style={{ fontSize: '0.75rem', padding: '3px 6px' }} value={addSynForm.targetSkillName} onChange={e => setAddSynForm({ ...addSynForm, targetSkillName: e.target.value })}>
+                                        <option value="">— seleziona —</option>
+                                        {allSkillNames.filter(n => n !== editing.name).map(n => <option key={n} value={n}>{n}</option>)}
+                                    </select>
+                                </div>
+                                <div className="flex-col gap-1">
+                                    <span className="text-xs text-muted">{t('backoffice.skills.synRanks', { defaultValue: 'Gradi richiesti' })}</span>
+                                    <input type="number" className="input" style={{ fontSize: '0.75rem', padding: '3px 6px' }} min={1} max={20} value={addSynForm.ranksRequired} onChange={e => setAddSynForm({ ...addSynForm, ranksRequired: Math.max(1, +e.target.value) })} />
+                                </div>
+                                <div className="flex-col gap-1">
+                                    <span className="text-xs text-muted">{t('backoffice.skills.synBonus', { defaultValue: 'Bonus' })}</span>
+                                    <input type="number" className="input" style={{ fontSize: '0.75rem', padding: '3px 6px' }} min={1} max={10} value={addSynForm.bonus} onChange={e => setAddSynForm({ ...addSynForm, bonus: Math.max(1, +e.target.value) })} />
+                                </div>
+                                <div className="flex-col gap-1" style={{ gridColumn: '1 / -1' }}>
+                                    <span className="text-xs text-muted">{t('backoffice.skills.synNote', { defaultValue: 'Nota (opzionale)' })}</span>
+                                    <input type="text" className="input" style={{ fontSize: '0.75rem', padding: '3px 6px' }} placeholder="es. Solo con creature acquatiche" value={addSynForm.note} onChange={e => setAddSynForm({ ...addSynForm, note: e.target.value })} />
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <button className="btn-primary text-xs" onClick={addSynergy} disabled={!addSynForm.targetSkillName || addSynForm.targetSkillName === editing.name}>
+                                    <FaCheck size={9} /> {t('backoffice.skills.newSynergy', { defaultValue: 'Aggiungi' })}
+                                </button>
+                                <button className="btn-secondary text-xs" onClick={() => { setShowAddSyn(false); setAddSynForm({ sourceSkillName: '', targetSkillName: '', ranksRequired: 5, bonus: 2, note: '' }); }}>
+                                    <FaTimes size={9} /> {t('common.cancel')}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         );
     }
 
     return (
         <div className="flex-col gap-3">
-            <div className="flex gap-2 items-center" style={{ justifyContent: 'flex-end' }}>
-                <button className="btn-primary text-sm" onClick={() => setEditing(EMPTY_SKILL())}><FaPlus /> Nuova Abilità</button>
+            <div className="flex gap-2 items-center">
+                <div style={{ position: 'relative', flex: 1 }}>
+                    <FaSearch style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} size={11} />
+                    <input
+                        className="input w-full"
+                        style={{ paddingLeft: '1.75rem' }}
+                        placeholder={t('common.search')}
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                    />
+                </div>
+                <button className="btn-primary text-sm" onClick={() => openEdit(EMPTY_SKILL())}>
+                    <FaPlus /> {t('backoffice.skills.newSkill')}
+                </button>
             </div>
             <div className="glass-panel">
-                {loading && <div className="text-muted text-sm">Caricamento…</div>}
-                {!loading && items.length === 0 && <div className="text-muted text-sm">Nessuna abilità nel catalogo.</div>}
+                {loading && <div className="text-muted text-sm">{t('common.loading')}</div>}
+                {!loading && filtered.length === 0 && <div className="text-muted text-sm">{t('backoffice.skills.empty')}</div>}
                 <div className="flex-col gap-1">
-                    {items.map(s => (
-                        <div key={s.id} className="flex items-center gap-2" style={{ padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)' }}>
-                            <div style={{ flex: 1 }}>
-                                <span style={{ fontFamily: 'var(--font-heading)' }}>{s.name}</span>
-                                <span className="text-xs text-muted"> — {s.stat.toUpperCase()}{s.armorCheckPenalty ? ' • ACP' : ''}{s.canUseUntrained ? ' • untrained' : ''}</span>
+                    {filtered.map(s => {
+                        const hasSyn = (s.synergies ?? []).length > 0;
+                        const displayName = pickLocalized(s.localizedName, lang) || s.name;
+                        const displayDesc = pickLocalized(s.localizedDescription, lang) || s.description;
+                        return (
+                            <div key={s.id} className="flex items-center gap-2" style={{ padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)' }}>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <span style={{ fontFamily: 'var(--font-heading)' }}>{displayName}</span>
+                                    <span className="text-xs text-muted"> — {s.stat.toUpperCase()}</span>
+                                    {s.armorCheckPenalty && <span className="text-xs text-muted"> · ACP</span>}
+                                    {s.canUseUntrained && <span className="text-xs text-muted"> · ∅</span>}
+                                    {hasSyn && (
+                                        <span className="text-xs" style={{ marginLeft: 6, color: '#4ecdc4', opacity: 0.9 }} title={(s.synergies ?? []).map(sy => `${sy.sourceSkillName} → ${sy.targetSkillName} (+${sy.bonus})`).join('; ')}>
+                                            ⇗ {(s.synergies ?? []).length}
+                                        </span>
+                                    )}
+                                    {displayDesc && (
+                                        <div className="text-xs text-muted" style={{ marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '40ch' }}>
+                                            {displayDesc}
+                                        </div>
+                                    )}
+                                </div>
+                                <button className="btn-ghost text-xs" onClick={() => openEdit(s)}>{t('common.edit')}</button>
+                                <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => remove(s.id)}><FaTrash /></button>
                             </div>
-                            <button className="btn-ghost text-xs" onClick={() => setEditing(s)}>Modifica</button>
-                            <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => remove(s.id)}><FaTrash /></button>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </div>

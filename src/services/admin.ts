@@ -96,13 +96,36 @@ export interface CatalogSpell extends Spell {
 }
 
 /** Shared skill preset — mirrors `SkillPreset` with optional metadata. */
+/** A user-defined synergy rule stored in the skill catalog.
+ *  References other skills by name (catalog-level, not per-character). */
+export interface CatalogSkillSynergy {
+    id: string;
+    /** Name of the source skill that provides the bonus. */
+    sourceSkillName: string;
+    /** Name of the target skill that receives the bonus. */
+    targetSkillName: string;
+    /** Minimum ranks required in the source skill (default 5). */
+    ranksRequired: number;
+    /** Bonus granted (default +2). */
+    bonus: number;
+    /** Optional free-text description shown in tooltips. */
+    note?: string;
+}
+
 export interface CatalogSkill {
     id: string;
+    /** Canonical Italian name — also used as key for synergy matching. */
     name: string;
+    /** Optional multilingual display name. Falls back to `name` if absent. */
+    localizedName?: LocalizedField;
     stat: StatType;
     canUseUntrained: boolean;
     armorCheckPenalty: boolean;
     description?: string;
+    /** Optional multilingual description. Falls back to `description` if absent. */
+    localizedDescription?: LocalizedField;
+    /** Custom synergy rules for this catalog skill (on top of SRD defaults). */
+    synergies?: CatalogSkillSynergy[];
     createdBy?: string;
     updatedAt?: any;
 }

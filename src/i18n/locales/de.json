@@ -101,6 +101,24 @@
             "spellcasting": "Zauberwirken",
             "startingEquipment": "Startausrüstung",
             "bonusFeats": "Empfohlene Bonustalente"
+        },
+        "skills": {
+            "newSkill": "Neue Fertigkeit",
+            "editSkill": "Fertigkeit bearbeiten",
+            "ability": "Attribut",
+            "canUseUntrained": "Untrainiert nutzbar",
+            "armorCheckPenalty": "Rüstungsprüfungsstrafe",
+            "optional": "optional",
+            "descriptionHint": "Kurze Fertigkeitsbeschreibung…",
+            "synergies": "Synergien",
+            "synergyGrants": "Diese Fertigkeit gewährt",
+            "synergyReceives": "Diese Fertigkeit erhält",
+            "synergyFrom": "von",
+            "synergyRanks": "Ränge",
+            "synergyRanksRequired": "≥{{n}} Ränge",
+            "synergyTag": "Synergie",
+            "confirmDelete": "Diese Fertigkeit löschen?",
+            "empty": "Keine Fertigkeiten im Katalog."
         }
     },
     "sheet": {
@@ -153,6 +171,37 @@
             "Invocazione": "Elementarkräfte, Energie und Vernichtung",
             "Necromanzia": "Tod, Untote, Dunkelheit und Lebenskraft",
             "Trasmutazione": "Verwandlung von Materie, Körper und Energie"
+        }
+    },
+    "synergy": {
+        "label": "Synergie",
+        "tooltip": "+{{bonus}} Synergie von {{source}}",
+        "conditions": {
+            "bluff_disguise": "beim Verkörpern einer Rolle",
+            "bluff_intimidate": "",
+            "bluff_sleight": "",
+            "decipherscript_umd": "zum Nutzen von Schriftrollen",
+            "escapartist_userope": "mit Seilen",
+            "handleanimal_ride": "",
+            "jump_tumble": "",
+            "knarcana_spellcraft": "",
+            "knarchitecture_search": "Geheimtüren und Fallen in Strukturen",
+            "kndungeon_survival": "unterirdisch",
+            "kngeography_survival": "über der Erde",
+            "knlocal_gatherinfo": "",
+            "knnature_survival": "in natürlicher Umgebung",
+            "knnature_handleanimal": "",
+            "knnobility_diplomacy": "",
+            "knplanes_survival": "auf anderen Ebenen",
+            "search_survival": "zum Spurenfolgen",
+            "sensemotive_diplomacy": "",
+            "spellcraft_umd": "zum Entziffern von Schriftrollen",
+            "survival_knnature": "",
+            "tumble_balance": "",
+            "tumble_jump": "",
+            "umd_spellcraft": "blind aktivieren",
+            "userope_climb": "mit Seilen",
+            "userope_escapartist": "Seilbindungen"
         }
     }
 }

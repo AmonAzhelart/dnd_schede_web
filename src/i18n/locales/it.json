@@ -81,6 +81,24 @@
             "automaticLanguages": "Lingue automatiche",
             "favoredClass": "Classe prediletta"
         },
+        "skills": {
+            "newSkill": "Nuova Abilità",
+            "editSkill": "Modifica Abilità",
+            "ability": "Caratteristica",
+            "canUseUntrained": "Usabile senza addestramento",
+            "armorCheckPenalty": "Soggetto a penalità d'armatura",
+            "optional": "opzionale",
+            "descriptionHint": "Breve descrizione dell'abilità…",
+            "synergies": "Sinergie",
+            "synergyGrants": "Questa abilità fornisce",
+            "synergyReceives": "Questa abilità riceve",
+            "synergyFrom": "da",
+            "synergyRanks": "gradi",
+            "synergyRanksRequired": "≥{{n}} gradi",
+            "synergyTag": "sinergia",
+            "confirmDelete": "Eliminare questa abilità?",
+            "empty": "Nessuna abilità nel catalogo."
+        },
         "classes": {
             "title": "Catalogo Classi",
             "newClass": "Nuova classe",
@@ -153,6 +171,37 @@
             "Invocazione": "Forze elementali, energia e distruzione",
             "Necromanzia": "Morte, non-morti, oscurità e vitalità",
             "Trasmutazione": "Trasformazione di materia, corpo ed energia"
+        }
+    },
+    "synergy": {
+        "label": "Sinergia",
+        "tooltip": "+{{bonus}} sinergia da {{source}}",
+        "conditions": {
+            "bluff_disguise": "quando si recita un personaggio",
+            "bluff_intimidate": "",
+            "bluff_sleight": "",
+            "decipherscript_umd": "per usare pergamene",
+            "escapartist_userope": "con corde",
+            "handleanimal_ride": "",
+            "jump_tumble": "",
+            "knarcana_spellcraft": "",
+            "knarchitecture_search": "porte segrete e trappole nelle strutture",
+            "kndungeon_survival": "sottoterra",
+            "kngeography_survival": "in superficie",
+            "knlocal_gatherinfo": "",
+            "knnature_survival": "in ambienti naturali",
+            "knnature_handleanimal": "",
+            "knnobility_diplomacy": "",
+            "knplanes_survival": "su altri piani",
+            "search_survival": "per seguire tracce",
+            "sensemotive_diplomacy": "",
+            "spellcraft_umd": "per decifrare pergamene",
+            "survival_knnature": "",
+            "tumble_balance": "",
+            "tumble_jump": "",
+            "umd_spellcraft": "attivare alla cieca",
+            "userope_climb": "con corde",
+            "userope_escapartist": "legami con corde"
         }
     }
 }

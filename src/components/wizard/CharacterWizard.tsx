@@ -313,6 +313,7 @@ const SKILL_ICON_MAP: Record<string, string | null> = {
 export const ALL_SKILLS = SKILL_PRESETS.map(sp => ({
   id: sp.name,
   name: sp.name,
+  localizedName: undefined as Partial<Record<string, string>> | undefined,
   stat: sp.stat as string,
   armorCheck: sp.armorCheckPenalty,
   untrained: sp.canUseUntrained,
@@ -473,6 +474,7 @@ function buildFullSkillRecord(
     out[s.name] = {
       id: s.name,
       name: s.name,
+      ...(s.localizedName ? { localizedName: s.localizedName } : {}),
       stat: s.stat as any,
       ranks: existing?.ranks ?? 0,
       classSkill: isClass,
@@ -1847,11 +1849,16 @@ export function CharacterWizard({ userId, onComplete, onCancel }: CharacterWizar
             ALL_SKILLS.push({
               id: s.name,
               name: s.name,
+              localizedName: s.localizedName as Partial<Record<string, string>> | undefined,
               stat: s.stat,
               armorCheck: s.armorCheckPenalty,
               untrained: s.canUseUntrained,
               icon: SKILL_ICON_MAP[s.name] ?? null,
             });
+          } else {
+            // Update localizedName on existing entry from catalog
+            const existing = ALL_SKILLS.find(x => x.name === s.name);
+            if (existing && s.localizedName) existing.localizedName = s.localizedName as Partial<Record<string, string>>;
           }
         }
         // Replace WIZARD_FEATS contents (don't reassign, it's `const`).

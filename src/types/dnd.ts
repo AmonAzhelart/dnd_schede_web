@@ -483,11 +483,30 @@ export interface ClassFeature {
 export interface Skill {
   id: string;
   name: string;
+  /** Optional multilingual display name. Falls back to `name` if absent. */
+  localizedName?: Partial<Record<string, string>>;
   stat: StatType;
   ranks: number;
   classSkill: boolean;
   armorCheckPenalty: boolean;
   canUseUntrained: boolean;
+}
+
+/** A user-defined skill synergy rule.
+ *  When the character has ≥ `ranksRequired` in `sourceSkillId`,
+ *  they gain `bonus` on checks with `targetSkillId`. */
+export interface CustomSkillSynergy {
+  id: string;
+  /** ID key in `character.skills` that provides the synergy. */
+  sourceSkillId: string;
+  /** ID key in `character.skills` that benefits. */
+  targetSkillId: string;
+  /** Minimum ranks needed in source (default 5). */
+  ranksRequired: number;
+  /** Bonus granted (default +2). */
+  bonus: number;
+  /** Optional free-text label shown in tooltips. */
+  note?: string;
 }
 
 export interface Spell {
@@ -712,6 +731,10 @@ export interface CharacterBase {
   activePets?: ActivePet[];
   /** Extra skill points from race (e.g. +4 for Human), feats, etc. */
   skillExtraPool?: number;
+  /** Skill synergy rules. Once a skill is "managed" by the user its SRD fallback is suppressed. */
+  customSynergies?: CustomSkillSynergy[];
+  /** IDs of skills whose synergies are fully user-managed (SRD lookup bypassed). */
+  managedSynergySkillIds?: string[];
   /** Soft-deleted inventory items (trash / recycle bin) */
   inventoryTrash?: Item[];
   /** Active condition ids (e.g. 'blinded', 'prone') tracked in the Conditions widget. */

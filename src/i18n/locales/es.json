@@ -101,6 +101,24 @@
             "spellcasting": "Lanzamiento de conjuros",
             "startingEquipment": "Equipo inicial",
             "bonusFeats": "Dotes adicionales sugeridas"
+        },
+        "skills": {
+            "newSkill": "Nueva Habilidad",
+            "editSkill": "Editar Habilidad",
+            "ability": "Característica",
+            "canUseUntrained": "Usable sin entrenamiento",
+            "armorCheckPenalty": "Penalización por armadura",
+            "optional": "opcional",
+            "descriptionHint": "Breve descripción de la habilidad…",
+            "synergies": "Sinergias",
+            "synergyGrants": "Esta habilidad otorga",
+            "synergyReceives": "Esta habilidad recibe",
+            "synergyFrom": "de",
+            "synergyRanks": "rangos",
+            "synergyRanksRequired": "≥{{n}} rangos",
+            "synergyTag": "sinergia",
+            "confirmDelete": "¿Eliminar esta habilidad?",
+            "empty": "No hay habilidades en el catálogo."
         }
     },
     "sheet": {
@@ -153,6 +171,37 @@
             "Invocazione": "Fuerzas elementales, energía y destrucción",
             "Necromanzia": "Muerte, no muertos, oscuridad y vitalidad",
             "Trasmutazione": "Transformación de materia, cuerpo y energía"
+        }
+    },
+    "synergy": {
+        "label": "Sinergia",
+        "tooltip": "+{{bonus}} sinergia de {{source}}",
+        "conditions": {
+            "bluff_disguise": "al interpretar un personaje",
+            "bluff_intimidate": "",
+            "bluff_sleight": "",
+            "decipherscript_umd": "para usar pergaminos",
+            "escapartist_userope": "con cuerdas",
+            "handleanimal_ride": "",
+            "jump_tumble": "",
+            "knarcana_spellcraft": "",
+            "knarchitecture_search": "puertas secretas y trampas en estructuras",
+            "kndungeon_survival": "bajo tierra",
+            "kngeography_survival": "en superficie",
+            "knlocal_gatherinfo": "",
+            "knnature_survival": "en entornos naturales",
+            "knnature_handleanimal": "",
+            "knnobility_diplomacy": "",
+            "knplanes_survival": "en otros planos",
+            "search_survival": "para seguir rastros",
+            "sensemotive_diplomacy": "",
+            "spellcraft_umd": "para descifrar pergaminos",
+            "survival_knnature": "",
+            "tumble_balance": "",
+            "tumble_jump": "",
+            "umd_spellcraft": "activar a ciegas",
+            "userope_climb": "con cuerdas",
+            "userope_escapartist": "ataduras con cuerda"
         }
     }
 }

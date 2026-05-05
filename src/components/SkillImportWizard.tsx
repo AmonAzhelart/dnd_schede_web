@@ -7,7 +7,7 @@ import { FaTimes, FaCheck } from 'react-icons/fa';
 import { skillCatalog } from '../services/admin';
 
 interface WizardRow {
-    preset: typeof SKILL_PRESETS[number];
+    preset: typeof SKILL_PRESETS[number] & { localizedName?: Partial<Record<string, string>> };
     included: boolean;
     classSkill: boolean;
     ranks: number;
@@ -39,6 +39,7 @@ export const SkillImportWizard: React.FC<{ onClose: () => void }> = ({ onClose }
                     .map(c => ({
                         preset: {
                             name: c.name,
+                            localizedName: c.localizedName as Partial<Record<string, string>> | undefined,
                             stat: c.stat,
                             canUseUntrained: c.canUseUntrained,
                             armorCheckPenalty: c.armorCheckPenalty,
@@ -88,6 +89,7 @@ export const SkillImportWizard: React.FC<{ onClose: () => void }> = ({ onClose }
                 newSkills[id] = {
                     id,
                     name: r.preset.name,
+                    ...(r.preset.localizedName ? { localizedName: r.preset.localizedName } : {}),
                     stat: r.preset.stat,
                     ranks: r.ranks,
                     classSkill: r.classSkill,

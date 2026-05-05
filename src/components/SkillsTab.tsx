@@ -10,15 +10,20 @@
  * - Search + filter bar.
  */
 import React, { useState } from 'react';
-import { FaPlus, FaMinus, FaSearch, FaDiceD20, FaStar, FaTrash, FaEdit, FaCheck, FaTimes, FaLock, FaUnlock, FaChevronDown } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
+import { FaPlus, FaMinus, FaSearch, FaDiceD20, FaTrash, FaEdit, FaCheck, FaTimes, FaLock, FaUnlock, FaChevronDown, FaLink } from 'react-icons/fa';
 import { useCharacterStore } from '../store/characterStore';
 import { CLASS_SKILL_POINTS } from '../types/dnd';
-import type { Skill, StatType } from '../types/dnd';
+import type { Skill, CustomSkillSynergy } from '../types/dnd';
+import { getSrdSynergiesForCharacterSkill } from '../data/skillSynergies';
+import { useSkillDisplayName } from '../hooks/useSkillDisplayName';
 import { RollPickerModal, type RollBreakdownLine } from './RollPickerModal';
 import type { RollContext } from '../services/modifiers';
 import { SkillModal } from './SkillModal';
+import { SkillEditModal } from './SkillEditModal';
 import { SkillImportWizard } from './SkillImportWizard';
 import { ModifierArrows } from './dashboard/widgets/ModifierAura';
+
 
 // ─── Skill-point budget helpers ──────────────────────────────────────────────
 
@@ -131,6 +136,10 @@ export const SkillsTab: React.FC = () => {
         getActiveModifierDelta,
     } = useCharacterStore();
 
+    const { i18n } = useTranslation();
+    const lang = i18n.resolvedLanguage ?? 'it';
+    const skillName = useSkillDisplayName();
+
     const [q, setQ] = useState('');
     const [filter, setFilter] = useState<FilterKey>('all');
     const [showUnusable, setShowUnusable] = useState(false);
@@ -139,8 +148,8 @@ export const SkillsTab: React.FC = () => {
     const [picker, setPicker] = useState<{
         ctx: RollContext; title: string; breakdown: RollBreakdownLine[];
     } | null>(null);
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [editForm, setEditForm] = useState<Skill | null>(null);
+    // Edit modal: stores the skill being edited (null = closed)
+    const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
     // Extra pool editor (manual override for race/feat bonus)
     const [editingPool, setEditingPool] = useState(false);
     const [poolDraft, setPoolDraft] = useState('');
@@ -154,7 +163,7 @@ export const SkillsTab: React.FC = () => {
 
     // ── Filter + search ───────────────────────────────────────────────────────
     const filtered = allSkills.filter(s => {
-        if (q && !s.name.toLowerCase().includes(q.toLowerCase())) return false;
+        if (q && !skillName(s).toLowerCase().includes(q.toLowerCase())) return false;
         if (filter === 'class' && !s.classSkill) return false;
         if (filter === 'trained' && (s.ranks ?? 0) < 1) return false;
         if (filter === 'untrained' && (s.ranks ?? 0) > 0) return false;
@@ -177,13 +186,18 @@ export const SkillsTab: React.FC = () => {
     // ── Roll picker ───────────────────────────────────────────────────────────
     const openPicker = (skill: Skill) => {
         const bd = getSkillBreakdown(skill.id);
+        const synergyLines: RollBreakdownLine[] = bd.synergies.map(syn => ({
+            label: `Sinergia (${syn.sourceName})`,
+            value: syn.bonus,
+        }));
         setPicker({
             ctx: { channel: `skill.${skill.id}`, skillId: skill.id, skillName: skill.name },
-            title: skill.name,
+            title: skillName(skill),
             breakdown: [
                 { label: 'Gradi', value: skill.ranks ?? 0 },
                 { label: `Mod. ${STAT_LABEL[skill.stat] ?? skill.stat}`, value: bd.statMod ?? 0 },
                 ...(bd.classBonus > 0 ? [{ label: 'Bonus di classe', value: bd.classBonus }] : []),
+                ...synergyLines,
             ],
         });
     };
@@ -195,18 +209,40 @@ export const SkillsTab: React.FC = () => {
         setEditingPool(false);
     };
 
+    // ── Outgoing synergies for a skill (what it grants to others) ─────────────
+    const getOutgoingSynergies = (skill: Skill): CustomSkillSynergy[] => {
+        const managed = character.managedSynergySkillIds ?? [];
+        const stored = (character.customSynergies ?? []).filter(s => s.sourceSkillId === skill.id);
+        if (managed.includes(skill.id)) return stored;
+        const srd = getSrdSynergiesForCharacterSkill(skill.id, skill.name, character.skills)
+            .filter(s => s.sourceSkillId === skill.id);
+        const toAdd = srd.filter(s => !stored.some(cs => cs.targetSkillId === s.targetSkillId));
+        return [...stored, ...toAdd];
+    };
+
     // ── Row render ────────────────────────────────────────────────────────────
     const renderRow = (skill: Skill) => {
-        const bd = getSkillBreakdown(skill.id);
         const total = getEffectiveSkill(skill.id);
         const ranks = skill.ranks ?? 0;
         const cost = skill.classSkill ? 1 : 2;
         const maxR = skill.classSkill ? maxClassRanks : Math.floor(maxClassRanks / 2);
         const statColor = STAT_COLOR[skill.stat] ?? 'var(--text-muted)';
-        const isEditing = editingId === skill.id;
 
         const delta = getActiveModifierDelta(`skill.${skill.id}`) + getActiveModifierDelta(`skill.${skill.name.toLowerCase()}`);
         const auraClass = delta > 0 ? 'w-mod-aura-buff' : delta < 0 ? 'w-mod-aura-malus' : '';
+
+        // Synergy bonuses active on this skill
+        const bd = getSkillBreakdown(skill.id);
+        const activeSynergies = bd.synergies;
+
+        // Outgoing synergies this skill grants to others
+        const outgoing = getOutgoingSynergies(skill);
+
+        // Helper: localized name for a skill by id
+        const tgtName = (id: string) => {
+            const tgt = character.skills[id];
+            return tgt ? skillName(tgt) : '?';
+        };
 
         // When the pool is empty (or would go negative), visually warn on + button
         const canAfford = remaining >= cost;
@@ -229,24 +265,27 @@ export const SkillsTab: React.FC = () => {
                     <span className={skill.classSkill ? 'skill-class-dot' : 'skill-cross-dot'} />
                 </button>
 
-                {/* Name (editable inline) */}
+                {/* Name */}
                 <div className="skills-tab-name">
-                    {isEditing && editForm ? (
-                        <input
-                            className="skills-tab-edit-input"
-                            value={editForm.name}
-                            autoFocus
-                            onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                            onKeyDown={e => {
-                                if (e.key === 'Enter') { updateSkill({ ...editForm, id: skill.id }); setEditingId(null); setEditForm(null); }
-                                if (e.key === 'Escape') { setEditingId(null); setEditForm(null); }
-                            }}
-                        />
-                    ) : (
-                        <span
-                            className={`skills-tab-name-text${skill.classSkill ? ' skills-tab-name--class' : ''}`}
-                            title={skill.name}
-                        >{skill.name}</span>
+                    <span
+                        className={`skills-tab-name-text${skill.classSkill ? ' skills-tab-name--class' : ''}`}
+                        title={skill.name}
+                    >{skillName(skill)}</span>
+                    {outgoing.length > 0 && (
+                        <div className="skills-tab-grants">
+                            {outgoing.map(syn => {
+                                const active = (skill.ranks ?? 0) >= syn.ranksRequired;
+                                return (
+                                    <span
+                                        key={syn.id}
+                                        className={`skills-tab-grant-chip${active ? ' skills-tab-grant-chip--active' : ''}`}
+                                        title={`≥${syn.ranksRequired} gradi → ${tgtName(syn.targetSkillId)} +${syn.bonus}${syn.note ? ` (${syn.note})` : ''}`}
+                                    >
+                                        →&nbsp;{tgtName(syn.targetSkillId)}&nbsp;<span className="skills-tab-grant-bonus">+{syn.bonus}</span>
+                                    </span>
+                                );
+                            })}
+                        </div>
                     )}
                 </div>
                 {/* Forces a line-break on mobile so controls wrap to a second line */}
@@ -307,6 +346,17 @@ export const SkillsTab: React.FC = () => {
                     </span>
                 )}
 
+                {/* Synergy chip(s) */}
+                {activeSynergies.length > 0 && (
+                    <span
+                        className="skills-tab-synergy-badge"
+                        title={activeSynergies.map(s => `+${s.bonus} sinergia da ${s.sourceName}`).join(' · ')}
+                    >
+                        <FaLink size={7} />
+                        +{activeSynergies.reduce((s, x) => s + x.bonus, 0)}
+                    </span>
+                )}
+
                 {/* Total */}
                 <span className={`skills-tab-total ${tier(total)}`} title={bd.usable ? '' : 'Abilità non utilizzabile senza gradi'}>
                     {total >= 0 ? '+' : ''}{total}
@@ -314,32 +364,23 @@ export const SkillsTab: React.FC = () => {
 
                 {/* Actions */}
                 <div className="skills-tab-actions">
-                    {isEditing ? (
-                        <>
-                            <button className="skills-tab-icon-btn" title="Salva" onClick={() => { if (editForm) updateSkill({ ...editForm, id: skill.id }); setEditingId(null); setEditForm(null); }}>
-                                <FaCheck size={9} />
-                            </button>
-                            <button className="skills-tab-icon-btn" title="Annulla" onClick={() => { setEditingId(null); setEditForm(null); }}>
-                                <FaTimes size={9} />
-                            </button>
-                        </>
-                    ) : (
-                        <>
-                            <button
-                                className="skills-tab-icon-btn roll-btn"
-                                title={`Prova di ${skill.name}`}
-                                onClick={() => openPicker(skill)}
-                            >
-                                <FaDiceD20 size={11} />
-                            </button>
-                            <button className="skills-tab-icon-btn" title="Modifica" onClick={() => { setEditingId(skill.id); setEditForm({ ...skill }); }}>
-                                <FaEdit size={9} />
-                            </button>
-                            <button className="skills-tab-icon-btn danger" title="Elimina" onClick={() => deleteSkill(skill.id)}>
-                                <FaTrash size={9} />
-                            </button>
-                        </>
-                    )}
+                    <button
+                        className="skills-tab-icon-btn roll-btn"
+                        title={`Prova di ${skill.name}`}
+                        onClick={() => openPicker(skill)}
+                    >
+                        <FaDiceD20 size={11} />
+                    </button>
+                    <button
+                        className="skills-tab-icon-btn"
+                        title="Modifica"
+                        onClick={() => setEditingSkill(skill)}
+                    >
+                        <FaEdit size={9} />
+                    </button>
+                    <button className="skills-tab-icon-btn danger" title="Elimina" onClick={() => deleteSkill(skill.id)}>
+                        <FaTrash size={9} />
+                    </button>
                 </div>
             </div>
         );
@@ -483,6 +524,9 @@ export const SkillsTab: React.FC = () => {
                 />
             )}
             {isSkillModalOpen && <SkillModal onClose={() => setIsSkillModalOpen(false)} />}
+            {editingSkill && (
+                <SkillEditModal skill={editingSkill} onClose={() => setEditingSkill(null)} />
+            )}
             {showImportWizard && <SkillImportWizard onClose={() => setShowImportWizard(false)} />}
         </div>
     );

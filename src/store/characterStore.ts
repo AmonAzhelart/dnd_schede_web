@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import type { CharacterBase, ClassLevel, HpLevelLogEntry, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell, ActiveModifier, DurationUnit, BestiaryEntry, ActiveSummon, ActivePet, Creature, CreatureStatOverride, CreatureRuntimeModifier } from '../types/dnd';
+import type { CharacterBase, ClassLevel, HpLevelLogEntry, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell, ActiveModifier, DurationUnit, BestiaryEntry, ActiveSummon, ActivePet, Creature, CreatureStatOverride, CreatureRuntimeModifier, CustomSkillSynergy } from '../types/dnd';
 import { computeClassBab, computeClassSaveBase, getExpectedHpForClassLevel } from '../types/dnd';
 import { collectModifierCandidates, resolveStatOverride, type ModifierCandidate, type RollContext } from '../services/modifiers';
+import { computeSynergyBonuses, computeCustomSynergyBonuses, type ActiveSynergy } from '../data/skillSynergies';
 
 type SaveKey = 'fortitude' | 'reflex' | 'will';
 const SAVE_TO_STAT: Record<SaveKey, StatType> = { fortitude: 'con', reflex: 'dex', will: 'wis' };
@@ -28,6 +29,10 @@ interface CharacterState {
     ranks: number;
     classBonus: number;
     sources: { source: string; value: number; type: ModifierType; kind: 'item' | 'feat' | 'feature' }[];
+    /** Active D&D 3.5 synergy bonuses (each +2 from a skill with ≥5 ranks). */
+    synergies: ActiveSynergy[];
+    /** Sum of all active synergy bonuses. */
+    synergyTotal: number;
     total: number;
     usable: boolean;
   };
@@ -44,6 +49,12 @@ interface CharacterState {
   // Skill management
   updateSkill: (skill: import('../types/dnd').Skill) => void;
   deleteSkill: (skillId: string) => void;
+  // Custom synergy management
+  addCustomSynergy: (syn: CustomSkillSynergy) => void;
+  updateCustomSynergy: (syn: CustomSkillSynergy) => void;
+  deleteCustomSynergy: (synId: string) => void;
+  /** Replace all synergies for a skill and mark it as user-managed (suppresses SRD fallback). */
+  replaceSkillSynergies: (skillId: string, synergies: CustomSkillSynergy[]) => void;
   // Feat management
   addFeat: (feat: Feat) => void;
   updateFeat: (feat: Feat) => void;
@@ -389,7 +400,39 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
   deleteSkill: (skillId) => set((state) => {
     if (!state.character) return state;
     const { [skillId]: _, ...rest } = state.character.skills;
-    return { character: { ...state.character, skills: rest } };
+    // Also remove any custom synergies referencing this skill.
+    const customSynergies = (state.character.customSynergies ?? []).filter(
+      s => s.sourceSkillId !== skillId && s.targetSkillId !== skillId,
+    );
+    return { character: { ...state.character, skills: rest, customSynergies } };
+  }),
+
+  addCustomSynergy: (syn) => set((state) => {
+    if (!state.character) return state;
+    const list = [...(state.character.customSynergies ?? []), syn];
+    return { character: { ...state.character, customSynergies: list } };
+  }),
+
+  updateCustomSynergy: (syn) => set((state) => {
+    if (!state.character) return state;
+    const list = (state.character.customSynergies ?? []).map(s => s.id === syn.id ? syn : s);
+    return { character: { ...state.character, customSynergies: list } };
+  }),
+
+  deleteCustomSynergy: (synId) => set((state) => {
+    if (!state.character) return state;
+    const list = (state.character.customSynergies ?? []).filter(s => s.id !== synId);
+    return { character: { ...state.character, customSynergies: list } };
+  }),
+
+  replaceSkillSynergies: (skillId, synergies) => set((state) => {
+    if (!state.character) return state;
+    // Remove old synergies for this skill, then add new list.
+    const filtered = (state.character.customSynergies ?? []).filter(
+      s => s.sourceSkillId !== skillId && s.targetSkillId !== skillId,
+    );
+    const managed = [...new Set([...(state.character.managedSynergySkillIds ?? []), skillId])];
+    return { character: { ...state.character, customSynergies: [...filtered, ...synergies], managedSynergySkillIds: managed } };
   }),
 
   setSavingThrow: (save, breakdown) => set((state) => {
@@ -867,6 +910,14 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     total += get().getActiveModifierDelta(`skill.${skillId}`);
     total += get().getActiveModifierDelta(`skill.${nameLower}`);
 
+    // D&D 3.5 skill synergies (+2 per qualifying source skill with ≥5 ranks).
+    const synergies = computeSynergyBonuses(skillId, skill.name, character.skills, character.managedSynergySkillIds ?? []);
+    total += synergies.reduce((s, syn) => s + syn.bonus, 0);
+
+    // User-defined custom synergies.
+    const customSynergies = computeCustomSynergyBonuses(skillId, character.skills, character.customSynergies ?? []);
+    total += customSynergies.reduce((s, syn) => s + syn.bonus, 0);
+
     return total;
   },
 
@@ -935,7 +986,13 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     // Being a class skill alone does NOT grant usability — it only reduces cost per rank.
     const usable = ranks >= 1 || skill.canUseUntrained === true || sources.length > 0;
 
-    return { statMod, statName: effectiveStatName, ranks, classBonus, sources, total, usable };
+    // D&D 3.5 skill synergies: +2 per qualifying source skill with ≥5 ranks.
+    const synergies = computeSynergyBonuses(skillId, skill.name, character.skills, character.managedSynergySkillIds ?? []);
+    const customSynergyBonuses = computeCustomSynergyBonuses(skillId, character.skills, character.customSynergies ?? []);
+    const allSynergies = [...synergies, ...customSynergyBonuses];
+    const synergyTotal = allSynergies.reduce((s, syn) => s + syn.bonus, 0);
+
+    return { statMod, statName: effectiveStatName, ranks, classBonus, sources, synergies: allSynergies, synergyTotal, total: total + synergyTotal, usable };
   },
 
   getApplicableModifiers: (ctx: RollContext): ModifierCandidate[] => {

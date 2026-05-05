@@ -81,6 +81,24 @@
             "automaticLanguages": "Automatic languages",
             "favoredClass": "Favored class"
         },
+        "skills": {
+            "newSkill": "New Skill",
+            "editSkill": "Edit Skill",
+            "ability": "Ability",
+            "canUseUntrained": "Usable untrained",
+            "armorCheckPenalty": "Armor check penalty",
+            "optional": "optional",
+            "descriptionHint": "Brief skill description…",
+            "synergies": "Synergies",
+            "synergyGrants": "This skill grants",
+            "synergyReceives": "This skill receives",
+            "synergyFrom": "from",
+            "synergyRanks": "ranks",
+            "synergyRanksRequired": "≥{{n}} ranks",
+            "synergyTag": "synergy",
+            "confirmDelete": "Delete this skill?",
+            "empty": "No skills in the catalog."
+        },
         "classes": {
             "title": "Class Catalog",
             "newClass": "New class",
@@ -153,6 +171,37 @@
             "Invocazione": "Elemental forces, energy and destruction",
             "Necromanzia": "Death, undead, darkness and vitality",
             "Trasmutazione": "Transformation of matter, body and energy"
+        }
+    },
+    "synergy": {
+        "label": "Synergy",
+        "tooltip": "+{{bonus}} synergy from {{source}}",
+        "conditions": {
+            "bluff_disguise": "when acting in character",
+            "bluff_intimidate": "",
+            "bluff_sleight": "",
+            "decipherscript_umd": "to use scrolls",
+            "escapartist_userope": "with ropes",
+            "handleanimal_ride": "",
+            "jump_tumble": "",
+            "knarcana_spellcraft": "",
+            "knarchitecture_search": "secret doors and traps in structures",
+            "kndungeon_survival": "underground",
+            "kngeography_survival": "aboveground",
+            "knlocal_gatherinfo": "",
+            "knnature_survival": "in natural environments",
+            "knnature_handleanimal": "",
+            "knnobility_diplomacy": "",
+            "knplanes_survival": "on other planes",
+            "search_survival": "to follow tracks",
+            "sensemotive_diplomacy": "",
+            "spellcraft_umd": "to decipher scrolls",
+            "survival_knnature": "",
+            "tumble_balance": "",
+            "tumble_jump": "",
+            "umd_spellcraft": "activate blindly",
+            "userope_climb": "with ropes",
+            "userope_escapartist": "rope bindings"
         }
     }
 }
