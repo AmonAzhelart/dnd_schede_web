@@ -649,7 +649,7 @@ function SkillsPanel({ currentUserEmail }: { currentUserEmail: string }) {
                 </div>
 
                 {/* ── Core fields ── */}
-                <Field label={t('common.name') + ' (canonico / chiave sinergie)'}>  
+                <Field label={t('common.name') + ' (canonico / chiave sinergie)'}>
                     <input className="input w-full" value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} placeholder="Es. Diplomazia (usato come chiave interna)" />
                 </Field>
                 <LocalizedFieldEditor
@@ -671,7 +671,7 @@ function SkillsPanel({ currentUserEmail }: { currentUserEmail: string }) {
                     <input type="checkbox" checked={editing.armorCheckPenalty} onChange={e => setEditing({ ...editing, armorCheckPenalty: e.target.checked })} />
                     {t('backoffice.skills.armorCheckPenalty')}
                 </label>
-<LocalizedFieldEditor
+                <LocalizedFieldEditor
                     label={t('common.description') + ' (' + t('backoffice.skills.optional') + ')'}
                     value={editing.localizedDescription}
                     onChange={v => setEditing({ ...editing, localizedDescription: v as LocalizedField })}

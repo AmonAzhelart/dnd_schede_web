@@ -70,7 +70,7 @@ export const SkillEditModal: React.FC<Props> = ({ skill, onClose }) => {
             );
         });
         return [...stored, ...toAdd];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // intentionally run once on mount
 
     const [draftSynergies, setDraftSynergies] = useState<CustomSkillSynergy[]>(initialSynergies);

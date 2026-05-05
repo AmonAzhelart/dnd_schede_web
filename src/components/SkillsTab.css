@@ -720,7 +720,7 @@
 
 /* ── Sections ────────────────────────────────────────────────── */
 .skill-edit-section {
-    border: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
     border-radius: 6px;
     padding: 10px 12px;
     display: flex;
@@ -789,8 +789,8 @@
 }
 
 .skill-edit-syn-row--editing {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid var(--border-subtle, rgba(255,255,255,0.12));
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
@@ -890,6 +890,7 @@
 .btn-ghost.danger {
     color: var(--accent-crimson, #e74c3c);
 }
+
 .btn-ghost.danger:hover {
     background: rgba(231, 76, 60, 0.12);
 }
@@ -898,6 +899,7 @@
     .skill-edit-syn-form-grid {
         grid-template-columns: 1fr;
     }
+
     .skill-edit-syn-form-field--wide {
         grid-column: 1;
     }
