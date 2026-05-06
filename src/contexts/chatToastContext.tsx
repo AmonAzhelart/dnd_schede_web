@@ -23,7 +23,7 @@ interface ChatToastCtx {
 
 // ─── Context ─────────────────────────────────────────────────────────────────
 
-const Ctx = createContext<ChatToastCtx>({ push: () => {} });
+const Ctx = createContext<ChatToastCtx>({ push: () => { } });
 
 // ─── Provider ────────────────────────────────────────────────────────────────
 

@@ -72,7 +72,7 @@ export function PlayerChatNotifier({ isCampaignTabActive, onNavigateToCampaign }
             }
             prevCountRef.current = curr;
         });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [campaignId, userId]);
 
     // When tab becomes active, reset count to avoid spurious toasts after re-focus

@@ -397,11 +397,11 @@ function DetailPanel({
                 )}
                 {tab !== 'chat' && char && (
                     <div className="md-sheet-wrap" style={{ padding: '0.75rem 1rem' }}>
-                        {tab === 'stats'     && <StatsTab char={char} />}
-                        {tab === 'skills'    && <SkillsTab char={char} />}
+                        {tab === 'stats' && <StatsTab char={char} />}
+                        {tab === 'skills' && <SkillsTab char={char} />}
                         {tab === 'inventory' && <InventoryTab char={char} />}
-                        {tab === 'spells'    && <SpellsTab char={char} />}
-                        {tab === 'feats'     && <FeatsTab char={char} />}
+                        {tab === 'spells' && <SpellsTab char={char} />}
+                        {tab === 'feats' && <FeatsTab char={char} />}
                     </div>
                 )}
             </div>
@@ -967,7 +967,7 @@ export function CampaignPage({ userId, userEmail, userDisplayName, initialCampai
             const stored = localStorage.getItem(`dnd_chatReadAt_${userId}_${initialCampaign.id}`);
             if (stored) setChatReadAt(JSON.parse(stored));
         } catch { /* ignore */ }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // ── Subscribe to all master campaigns (only needed for list view) ───
@@ -977,7 +977,7 @@ export function CampaignPage({ userId, userEmail, userDisplayName, initialCampai
             setCampaigns(camps);
             setView(prev => prev === 'loading' ? 'list' : prev);
         });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userId]);
 
     // ── Subscribe to selected campaign doc ───────────────
@@ -996,7 +996,7 @@ export function CampaignPage({ userId, userEmail, userDisplayName, initialCampai
             }),
         );
         return () => unsubs.forEach(u => u());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [view, masterCampaign?.id, JSON.stringify(Object.keys(masterCampaign?.playerCharacters ?? {}))]);
 
     // ── Subscribe to player chats ─────────────────────────
@@ -1009,7 +1009,7 @@ export function CampaignPage({ userId, userEmail, userDisplayName, initialCampai
             ),
         );
         return () => unsubs.forEach(u => u());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [view, masterCampaign?.id, JSON.stringify(Object.keys(masterCampaign?.playerCharacters ?? {}))]);
 
     // ── Toast notifications ───────────────────────────────
@@ -1031,7 +1031,7 @@ export function CampaignPage({ userId, userEmail, userDisplayName, initialCampai
                     const readAt = lastPlayerTs > 0 ? lastPlayerTs : Date.now();
                     const updated = { ...prevRead, [uid]: readAt };
                     if (masterCampaign?.id) {
-                        try { localStorage.setItem(`dnd_chatReadAt_${userId}_${masterCampaign.id}`, JSON.stringify(updated)); } catch {}
+                        try { localStorage.setItem(`dnd_chatReadAt_${userId}_${masterCampaign.id}`, JSON.stringify(updated)); } catch { }
                     }
                     return updated;
                 });
@@ -1049,7 +1049,7 @@ export function CampaignPage({ userId, userEmail, userDisplayName, initialCampai
             }
             prevMsgCountsRef.current[uid] = curr;
         });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [allMessages]);
 
     // ── Helpers ───────────────────────────────────────────
@@ -1067,7 +1067,7 @@ export function CampaignPage({ userId, userEmail, userDisplayName, initialCampai
         setChatReadAt(p => {
             const updated = { ...p, [uid]: now };
             if (masterCampaign?.id) {
-                try { localStorage.setItem(`dnd_chatReadAt_${userId}_${masterCampaign.id}`, JSON.stringify(updated)); } catch {}
+                try { localStorage.setItem(`dnd_chatReadAt_${userId}_${masterCampaign.id}`, JSON.stringify(updated)); } catch { }
             }
             return updated;
         });
@@ -1129,7 +1129,7 @@ export function CampaignPage({ userId, userEmail, userDisplayName, initialCampai
 
     function handleCopyCode() {
         if (!masterCampaign) return;
-        navigator.clipboard.writeText(masterCampaign.inviteCode).catch(() => {});
+        navigator.clipboard.writeText(masterCampaign.inviteCode).catch(() => { });
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     }
@@ -1175,10 +1175,10 @@ export function CampaignPage({ userId, userEmail, userDisplayName, initialCampai
         const selectedChar = selectedUid ? linkedChars[selectedUid] : undefined;
 
         const metaNav: { id: MasterSection; label: string; icon: React.ReactNode; badge?: number }[] = [
-            { id: 'players',    label: 'Avventurieri', icon: <FaUsers size={16} />,         badge: totalUnread || undefined },
-            { id: 'notes',      label: 'Note DM',      icon: <FaStickyNote size={16} /> },
-            { id: 'initiative', label: 'Iniziativa',   icon: <GiCrossedSwords size={18} /> },
-            { id: 'info',       label: 'Campagna',     icon: <FaCog size={15} /> },
+            { id: 'players', label: 'Avventurieri', icon: <FaUsers size={16} />, badge: totalUnread || undefined },
+            { id: 'notes', label: 'Note DM', icon: <FaStickyNote size={16} /> },
+            { id: 'initiative', label: 'Iniziativa', icon: <GiCrossedSwords size={18} /> },
+            { id: 'info', label: 'Campagna', icon: <FaCog size={15} /> },
         ];
 
         return (
