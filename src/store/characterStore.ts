@@ -73,6 +73,7 @@ interface CharacterState {
   setHpDetails: (details: HpDetails) => void;
   addLanguage: (lang: Language) => void;
   removeLanguage: (langId: string) => void;
+  setQuickNotes: (text: string) => void;
   setSavingThrow: (save: 'fortitude' | 'reflex' | 'will', breakdown: SavingThrowBreakdown) => void;
   // Wizard-style spell preparation (one entry per cast)
   prepareWizardSpell: (level: number, spellId: string) => void;
@@ -390,6 +391,11 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
   removeLanguage: (langId) => set((state) => {
     if (!state.character) return state;
     return { character: { ...state.character, languages: (state.character.languages ?? []).filter(l => l.id !== langId) } };
+  }),
+
+  setQuickNotes: (text) => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, quickNotes: text } };
   }),
 
   updateSkill: (skill) => set((state) => {

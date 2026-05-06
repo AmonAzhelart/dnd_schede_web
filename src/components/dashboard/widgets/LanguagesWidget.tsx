@@ -1,6 +1,7 @@
 import React from 'react';
 import { FaLanguage } from 'react-icons/fa';
 import { useCharacterStore } from '../../../store/characterStore';
+import { saveCharacterToDb } from '../../../services/db';
 import type { WidgetRenderProps } from '../widgetTypes';
 
 export const LanguagesWidget: React.FC<WidgetRenderProps> = () => {
@@ -25,13 +26,13 @@ export const LanguagesWidget: React.FC<WidgetRenderProps> = () => {
                     <span
                         key={lang.id}
                         className="w-lang-banner"
-                        onDoubleClick={() => removeLanguage(lang.id)}
+                        onDoubleClick={() => { removeLanguage(lang.id); const c = useCharacterStore.getState().character; if (c) saveCharacterToDb(c); }}
                         title="Doppio click per rimuovere"
                     >
                         {lang.name}
                         <button
                             className="w-lang-banner-x"
-                            onClick={() => removeLanguage(lang.id)}
+                            onClick={() => { removeLanguage(lang.id); const c = useCharacterStore.getState().character; if (c) saveCharacterToDb(c); }}
                             aria-label={`Rimuovi ${lang.name}`}
                         >×</button>
                     </span>
@@ -48,6 +49,8 @@ export const LanguagesWidget: React.FC<WidgetRenderProps> = () => {
                         if (val) {
                             addLanguage({ id: val.toLowerCase().replace(/\s+/g, '_'), name: val });
                             (e.target as HTMLInputElement).value = '';
+                            const c = useCharacterStore.getState().character;
+                            if (c) saveCharacterToDb(c);
                         }
                     }
                 }}

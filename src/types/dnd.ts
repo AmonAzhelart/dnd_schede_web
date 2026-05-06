@@ -743,6 +743,8 @@ export interface CharacterBase {
   campaignId?: string;
   /** Master userId of the linked campaign. Used to allow master read access in Firestore rules. */
   masterId?: string;
+  /** Free-form quick notes saved from the dashboard Notes widget. */
+  quickNotes?: string;
 }
 
 // ─────────────────────────── BESTIARY ────────────────────────────
