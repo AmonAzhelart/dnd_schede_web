@@ -215,5 +215,33 @@
         "selectThread": "Select a user to read their feedback.",
         "replyPlaceholder": "Reply to the user...",
         "confirmDelete": "Delete this message?"
+    },
+    "campaign": {
+        "title": "Campaign",
+        "createTitle": "Create Campaign",
+        "joinTitle": "Join a Campaign",
+        "createBtn": "Create",
+        "joinBtn": "Join",
+        "name": "Campaign name",
+        "description": "Description",
+        "inviteCode": "Invite code",
+        "copyCode": "Copy code",
+        "copiedCode": "Copied!",
+        "players": "Adventurers",
+        "noPlayers": "No players yet. Share the invite code.",
+        "masterLabel": "DM",
+        "chatWithMaster": "Chat with the DM",
+        "chatEmpty": "No messages yet. Start the conversation!",
+        "leaveCampaign": "Leave campaign",
+        "deleteCampaign": "Delete campaign",
+        "deleteWarning": "All players will be unlinked and chats deleted.",
+        "invalidCode": "Invalid code. Please check and try again.",
+        "joinError": "Error joining the campaign.",
+        "creating": "Creating…",
+        "joining": "Joining…",
+        "loading": "Loading…",
+        "createMasterDesc": "Become the DM. Generate an invite code to share with your players.",
+        "joinPlayerDesc": "Enter the DM's invite code to link your character to the campaign.",
+        "linkedCharacter": "Linked character"
     }
 }

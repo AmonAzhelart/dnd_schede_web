@@ -10,7 +10,7 @@ import { SkeletonCharacterCard, SkeletonSheet } from './components/Skeleton';
 import { getUserCharacters, createCharacterWithDataDb, saveCharacterToDb, deleteCharacterDb } from './services/db';
 import type { CharacterBase } from './types/dnd';
 import { CharacterWizard } from './components/wizard/CharacterWizard';
-import { GiSwordman, GiTreasureMap } from 'react-icons/gi';
+import { GiSwordman, GiTreasureMap, GiCastle } from 'react-icons/gi';
 import { FaBookOpen, FaGoogle, FaSignOutAlt, FaPlus, FaChevronLeft, FaCog, FaTrash, FaCommentDots } from 'react-icons/fa';
 import { isEmailAllowed, isSuperAdmin, getInvite } from './services/admin';
 import { BackOffice, type Section } from './components/backoffice/BackOffice';
@@ -18,8 +18,14 @@ import { MobileShell } from './components/mobile/MobileShell';
 import { LanguageSwitcher } from './components/ui/LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
 import { FeedbackChat } from './components/FeedbackChat';
+import { CampaignPage } from './components/campaign/CampaignPage';
+import { CharacterCampaignPanel } from './components/campaign/CharacterCampaignPanel';
+import { PlayerChatNotifier } from './components/campaign/PlayerChatNotifier';
+import { subscribeMasterCampaigns } from './services/campaign';
+import type { Campaign } from './types/campaign';
 
-type Tab = 'scheda' | 'diario' | 'mappe' | 'feedback' | 'backoffice';
+type Tab = 'scheda' | 'diario' | 'mappe' | 'feedback' | 'backoffice' | 'campagna';
+type LandingTab = 'personaggi' | 'campagne';
 
 function App() {
   const { t } = useTranslation();
@@ -34,6 +40,17 @@ function App() {
   const [confirmDelete, setConfirmDelete] = useState<CharacterBase | null>(null);
   /** Sections allowed for this user from their Firestore invite (undefined = superAdmin = all). */
   const [userSections, setUserSections] = useState<Section[] | undefined>(undefined);
+  /** Tab shown in the character-selection landing (characters vs campaigns). */
+  const [landingTab, setLandingTab] = useState<LandingTab>('personaggi');
+  /** Campaign opened full-screen from the inline list */
+  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+  /** All campaigns for the current user (for inline list) */
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaignsLoading, setCampaignsLoading] = useState(false);
+  const [showCampaignCreate, setShowCampaignCreate] = useState(false);
+  const [campaignCreateName, setCampaignCreateName] = useState('');
+  const [campaignCreateDesc, setCampaignCreateDesc] = useState('');
+  const [campaignCreating, setCampaignCreating] = useState(false);
 
   // ── Auto-save ──────────────────────────────────────────
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -135,6 +152,30 @@ function App() {
     setConfirmDelete(null);
   };
 
+  // ── Subscribe to master campaigns when on campagne tab ─────────
+  useEffect(() => {
+    if (!user || landingTab !== 'campagne') return;
+    setCampaignsLoading(true);
+    const unsub = subscribeMasterCampaigns(user.uid, (camps) => {
+      setCampaigns(camps);
+      setCampaignsLoading(false);
+    });
+    return () => { unsub(); setCampaignsLoading(false); };
+  }, [user, landingTab]);
+
+  const handleCampaignCreate = async () => {
+    if (!user || !campaignCreateName.trim()) return;
+    setCampaignCreating(true);
+    try {
+      const { createCampaign } = await import('./services/campaign');
+      const c = await createCampaign(user.uid, user.email ?? '', user.displayName ?? '', campaignCreateName, campaignCreateDesc);
+      setCampaignCreateName('');
+      setCampaignCreateDesc('');
+      setShowCampaignCreate(false);
+      setSelectedCampaign(c);
+    } finally { setCampaignCreating(false); }
+  };
+
   const handleWizardComplete = async (charData: Omit<CharacterBase, 'id'>) => {
     setShowWizard(false);
     setLoadingChars(true);
@@ -208,6 +249,21 @@ function App() {
     );
   }
 
+  // ── FULL-SCREEN CAMPAIGN MASTER VIEW (opened from inline list) ──
+  if (!character && selectedCampaign && user) {
+    return (
+      <div className="app-container animate-fade-in" style={{ flexDirection: 'column', background: 'var(--bg-base)' }}>
+        <CampaignPage
+          userId={user.uid}
+          userEmail={user.email ?? ''}
+          userDisplayName={user.displayName ?? user.email ?? ''}
+          initialCampaign={selectedCampaign}
+          onBack={() => setSelectedCampaign(null)}
+        />
+      </div>
+    );
+  }
+
   if (!character) {
     return (
       <>
@@ -223,65 +279,159 @@ function App() {
 
             <div className="divider" />
 
+            {/* ── Landing tab switcher ── */}
+            <div style={{ display: 'flex', gap: '0.5rem', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', padding: '0.25rem' }}>
+              <button
+                className={`btn-ghost w-full ${landingTab === 'personaggi' ? 'active' : ''}`}
+                style={{ justifyContent: 'center', flex: 1, ...(landingTab === 'personaggi' ? { background: 'rgba(201,168,76,0.15)', color: 'var(--accent-gold)', border: '1px solid rgba(201,168,76,0.3)' } : {}) }}
+                onClick={() => setLandingTab('personaggi')}
+              >
+                <GiSwordman size={14} /> Personaggi
+              </button>
+              <button
+                className={`btn-ghost w-full ${landingTab === 'campagne' ? 'active' : ''}`}
+                style={{ justifyContent: 'center', flex: 1, ...(landingTab === 'campagne' ? { background: 'rgba(201,168,76,0.15)', color: 'var(--accent-gold)', border: '1px solid rgba(201,168,76,0.3)' } : {}) }}
+                onClick={() => setLandingTab('campagne')}
+              >
+                <GiCastle size={14} /> Campagne
+              </button>
+            </div>
+
             <div>
-              <div className="section-header">
-                <span className="section-title">I Tuoi Avventurieri</span>
-                <button className="btn-primary text-xs" onClick={handleCreateCharacter}><FaPlus /> Nuovo</button>
-              </div>
+              {/* ── Section header ── */}
+              {landingTab === 'personaggi' && (
+                <>
+                  <div className="section-header">
+                    <span className="section-title">I Tuoi Avventurieri</span>
+                    <button className="btn-primary text-xs" onClick={handleCreateCharacter}><FaPlus /> Nuovo</button>
+                  </div>
 
-              {loadingChars && (
-                <div className="flex-col gap-2">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <SkeletonCharacterCard key={i} />
-                  ))}
-                </div>
-              )}
+                  {loadingChars && (
+                    <div className="flex-col gap-2">
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <SkeletonCharacterCard key={i} />
+                      ))}
+                    </div>
+                  )}
 
-              {!loadingChars && userCharacters.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '2rem' }}>
-                  <p className="text-muted" style={{ marginBottom: '1rem' }}>Nessun personaggio trovato.</p>
-                  <button className="btn-primary" onClick={handleCreateCharacter}><FaPlus /> Crea il tuo primo eroe</button>
-                </div>
-              )}
+                  {!loadingChars && userCharacters.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '2rem' }}>
+                      <p className="text-muted" style={{ marginBottom: '1rem' }}>Nessun personaggio trovato.</p>
+                      <button className="btn-primary" onClick={handleCreateCharacter}><FaPlus /> Crea il tuo primo eroe</button>
+                    </div>
+                  )}
 
-              <div className="flex-col gap-2">
-                {userCharacters.map(c => (
-                  <div key={c.id} style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
-                    <button className="btn-secondary w-full" style={{ justifyContent: 'space-between', padding: '0.9rem 1.2rem', borderRadius: 'var(--radius-sm)', flex: 1 }} onClick={() => selectCharacter(c)}>
-                      <div className="flex items-center gap-3">
-                        <div style={{
-                          width: 36,
-                          height: 36,
-                          borderRadius: '50%',
-                          background: c.avatarUrl ? `center/cover no-repeat url(${c.avatarUrl})` : 'rgba(201,168,76,0.15)',
-                          border: '1px solid rgba(201,168,76,0.3)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontFamily: 'var(--font-heading)',
-                          color: 'var(--accent-gold)',
-                          overflow: 'hidden',
-                          flexShrink: 0,
-                        }}>
-                          {!c.avatarUrl && c.name.charAt(0)}
-                        </div>
-                        <div style={{ textAlign: 'left' }}>
-                          <div style={{ fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>{c.name}</div>
-                          <div className="text-xs text-muted">{c.race} {c.characterClass} — Lv. {c.level}</div>
-                        </div>
+                  <div className="flex-col gap-2">
+                    {userCharacters.map(c => (
+                      <div key={c.id} style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
+                        <button className="btn-secondary w-full" style={{ justifyContent: 'space-between', padding: '0.9rem 1.2rem', borderRadius: 'var(--radius-sm)', flex: 1 }} onClick={() => selectCharacter(c)}>
+                          <div className="flex items-center gap-3">
+                            <div style={{
+                              width: 36,
+                              height: 36,
+                              borderRadius: '50%',
+                              background: c.avatarUrl ? `center/cover no-repeat url(${c.avatarUrl})` : 'rgba(201,168,76,0.15)',
+                              border: '1px solid rgba(201,168,76,0.3)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontFamily: 'var(--font-heading)',
+                              color: 'var(--accent-gold)',
+                              overflow: 'hidden',
+                              flexShrink: 0,
+                            }}>
+                              {!c.avatarUrl && c.name.charAt(0)}
+                            </div>
+                            <div style={{ textAlign: 'left' }}>
+                              <div style={{ fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>{c.name}</div>
+                              <div className="text-xs text-muted">{c.race} {c.characterClass} — Lv. {c.level}</div>
+                            </div>
+                          </div>
+                          <span className="text-muted" style={{ fontSize: '1.2rem' }}>›</span>
+                        </button>
+                        <button
+                          className="btn-ghost"
+                          style={{ color: 'var(--accent-crimson)', padding: '0 0.7rem', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(192,57,43,0.25)', flexShrink: 0 }}
+                          title={`Elimina ${c.name}`}
+                          onClick={() => setConfirmDelete(c)}>
+                          <FaTrash size={13} />
+                        </button>
                       </div>
-                      <span className="text-muted" style={{ fontSize: '1.2rem' }}>›</span>
-                    </button>
-                    <button
-                      className="btn-ghost"
-                      style={{ color: 'var(--accent-crimson)', padding: '0 0.7rem', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(192,57,43,0.25)', flexShrink: 0 }}
-                      title={`Elimina ${c.name}`}
-                      onClick={() => setConfirmDelete(c)}>
-                      <FaTrash size={13} />
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* ── Campagne inline list ── */}
+              {landingTab === 'campagne' && (
+                <>
+                  <div className="section-header">
+                    <span className="section-title">Le Tue Campagne</span>
+                    <button className="btn-primary text-xs" onClick={() => setShowCampaignCreate(v => !v)}>
+                      <FaPlus /> Nuova
                     </button>
                   </div>
-                ))}
-              </div>
+
+                  {/* Inline create form */}
+                  {showCampaignCreate && (
+                    <div className="flex-col gap-2" style={{ marginBottom: '0.75rem', padding: '0.75rem', background: 'rgba(201,168,76,0.05)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(201,168,76,0.15)' }}>
+                      <input
+                        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '0.45rem 0.7rem', fontSize: '0.88rem', fontFamily: 'inherit', width: '100%' }}
+                        placeholder="Nome campagna *"
+                        value={campaignCreateName}
+                        onChange={e => setCampaignCreateName(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleCampaignCreate()}
+                        autoFocus
+                      />
+                      <input
+                        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '0.45rem 0.7rem', fontSize: '0.85rem', fontFamily: 'inherit', width: '100%' }}
+                        placeholder="Descrizione (opzionale)"
+                        value={campaignCreateDesc}
+                        onChange={e => setCampaignCreateDesc(e.target.value)}
+                      />
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                        <button className="btn-secondary" style={{ fontSize: '0.8rem', padding: '0.35rem 0.8rem' }} onClick={() => { setShowCampaignCreate(false); setCampaignCreateName(''); setCampaignCreateDesc(''); }}>Annulla</button>
+                        <button className="btn-primary" style={{ fontSize: '0.8rem', padding: '0.35rem 0.8rem' }} onClick={handleCampaignCreate} disabled={!campaignCreateName.trim() || campaignCreating}>
+                          {campaignCreating ? 'Creazione…' : 'Crea'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {campaignsLoading && (
+                    <div className="flex-col gap-2">
+                      {Array.from({ length: 2 }).map((_, i) => <SkeletonCharacterCard key={i} />)}
+                    </div>
+                  )}
+
+                  {!campaignsLoading && campaigns.length === 0 && !showCampaignCreate && (
+                    <div style={{ textAlign: 'center', padding: '2rem' }}>
+                      <p className="text-muted" style={{ marginBottom: '1rem' }}>Nessuna campagna ancora.</p>
+                      <button className="btn-primary" onClick={() => setShowCampaignCreate(true)}><FaPlus /> Crea la tua prima campagna</button>
+                    </div>
+                  )}
+
+                  <div className="flex-col gap-2">
+                    {campaigns.map(c => {
+                      const playerCount = Object.keys(c.playerCharacters ?? {}).length;
+                      return (
+                        <button key={c.id} className="btn-secondary w-full" style={{ justifyContent: 'space-between', padding: '0.9rem 1.2rem', borderRadius: 'var(--radius-sm)' }} onClick={() => setSelectedCampaign(c)}>
+                          <div className="flex items-center gap-3">
+                            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-gold)', flexShrink: 0 }}>
+                              <GiCastle size={18} />
+                            </div>
+                            <div style={{ textAlign: 'left' }}>
+                              <div style={{ fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>{c.name}</div>
+                              <div className="text-xs text-muted">{playerCount} giocator{playerCount === 1 ? 'e' : 'i'} · <code style={{ fontSize: '0.7rem', color: 'var(--accent-gold)', opacity: 0.7 }}>{c.inviteCode}</code></div>
+                            </div>
+                          </div>
+                          <span className="text-muted" style={{ fontSize: '1.2rem' }}>›</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="divider" />
@@ -340,6 +490,7 @@ function App() {
     { id: 'scheda', label: 'Scheda', icon: <GiSwordman size={18} /> },
     { id: 'diario', label: 'Diario & NPC', icon: <FaBookOpen size={16} /> },
     { id: 'mappe', label: 'Mappe', icon: <GiTreasureMap size={18} /> },
+    { id: 'campagna', label: 'Campagna', icon: <GiCastle size={17} /> },
     ...(!superAdmin ? [{ id: 'feedback' as Tab, label: 'Feedback', icon: <FaCommentDots size={15} /> }] : []),
     ...(hasBackofficeAccess ? [{ id: 'backoffice' as Tab, label: 'Back-Office', icon: <FaCog size={16} /> }] : []),
   ];
@@ -410,6 +561,12 @@ function App() {
         {activeTab === 'backoffice' && hasBackofficeAccess && (
           <BackOffice currentUserEmail={user.email ?? ''} allowedSections={userSections} onBack={() => setActiveTab('scheda')} />
         )}
+        {activeTab === 'campagna' && user && (
+          <CharacterCampaignPanel
+            userId={user.uid}
+            userDisplayName={user.displayName ?? user.email ?? ''}
+          />
+        )}
         {activeTab === 'feedback' && !superAdmin && user && (
           <FeedbackChat
             userId={user.uid}
@@ -427,6 +584,14 @@ function App() {
         onSwitchCharacter={() => setCharacter(null as any)}
         onLogout={handleLogout}
       />
+
+      {/* ── ALWAYS-ON: player chat notification listener ── */}
+      {user && (
+        <PlayerChatNotifier
+          isCampaignTabActive={activeTab === 'campagna'}
+          onNavigateToCampaign={() => setActiveTab('campagna')}
+        />
+      )}
     </div>
   );
 }

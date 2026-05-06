@@ -739,6 +739,10 @@ export interface CharacterBase {
   inventoryTrash?: Item[];
   /** Active condition ids (e.g. 'blinded', 'prone') tracked in the Conditions widget. */
   activeConditions?: string[];
+  /** Campaign this character is linked to. Set when a player joins a campaign. */
+  campaignId?: string;
+  /** Master userId of the linked campaign. Used to allow master read access in Firestore rules. */
+  masterId?: string;
 }
 
 // ─────────────────────────── BESTIARY ────────────────────────────

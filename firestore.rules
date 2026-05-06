@@ -44,8 +44,13 @@ service cloud.firestore {
     }
 
     // ── Characters: owned by their creator, gated by allowlist.
+    //    Also readable by the campaign master of a linked character.
     match /characters/{charId} {
-      allow read, update, delete: if isAllowed()
+      allow read: if isAllowed() && (
+        resource.data.userId == request.auth.uid ||
+        (resource.data.masterId != null && resource.data.masterId == request.auth.uid)
+      );
+      allow update, delete: if isAllowed()
         && resource.data.userId == request.auth.uid;
       allow create: if isAllowed()
         && request.resource.data.userId == request.auth.uid;
@@ -84,6 +89,48 @@ service cloud.firestore {
       allow delete: if isAllowed()
         && request.auth.uid == userId
         && resource.data.from == 'user';
+    }
+
+    // ── Campaigns: created by masters, joined by players.
+    match /campaigns/{campaignId} {
+      // Master or linked players can read
+      allow read: if isAllowed();
+      // Only the master creates/deletes
+      allow create: if isAllowed()
+        && request.resource.data.masterId == request.auth.uid;
+      allow delete: if isAllowed()
+        && resource.data.masterId == request.auth.uid;
+      // Master can update anything; players can update to join/leave their own entry
+      allow update: if isAllowed() && (
+        resource.data.masterId == request.auth.uid ||
+        request.auth.uid in resource.data.playerIds ||
+        // Joining: user is not yet a player (adding themselves)
+        !(request.auth.uid in resource.data.playerIds)
+      );
+
+      // Chat threads per player
+      match /chats/{playerId} {
+        allow read, write: if isAllowed() && (
+          request.auth.uid == playerId ||
+          get(/databases/$(database)/documents/campaigns/$(campaignId)).data.masterId == request.auth.uid
+        );
+
+        match /messages/{msgId} {
+          allow read: if isAllowed() && (
+            request.auth.uid == playerId ||
+            get(/databases/$(database)/documents/campaigns/$(campaignId)).data.masterId == request.auth.uid
+          );
+          allow create: if isAllowed() && (
+            (request.auth.uid == playerId && request.resource.data.from == 'player') ||
+            (get(/databases/$(database)/documents/campaigns/$(campaignId)).data.masterId == request.auth.uid
+              && request.resource.data.from == 'master')
+          );
+          allow delete: if isAllowed() && (
+            request.auth.uid == playerId ||
+            get(/databases/$(database)/documents/campaigns/$(campaignId)).data.masterId == request.auth.uid
+          );
+        }
+      }
     }
   }
 }

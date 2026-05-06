@@ -1,4 +1,4 @@
-import { doc, setDoc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { CharacterBase } from '../types/dnd';
 import type { DashboardLayout } from '../components/dashboard/widgetTypes';
@@ -71,6 +71,16 @@ export const createNewCharacterDb = async (userId: string, name: string): Promis
 
   return newChar as CharacterBase;
 };
+
+/** Real-time subscription to a single character document. */
+export function subscribeToCharacter(
+  characterId: string,
+  cb: (char: CharacterBase | null) => void,
+): () => void {
+  return onSnapshot(doc(db, 'characters', characterId), snap =>
+    cb(snap.exists() ? (snap.data() as CharacterBase) : null),
+  );
+}
 
 /** Permanently deletes a character document from Firestore. */
 export const deleteCharacterDb = async (characterId: string): Promise<void> => {

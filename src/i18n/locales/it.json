@@ -215,5 +215,33 @@
         "selectThread": "Seleziona un utente per leggere il suo feedback.",
         "replyPlaceholder": "Rispondi all'utente…",
         "confirmDelete": "Eliminare questo messaggio?"
+    },
+    "campaign": {
+        "title": "Campagna",
+        "createTitle": "Crea Campagna",
+        "joinTitle": "Entra in una Campagna",
+        "createBtn": "Crea",
+        "joinBtn": "Entra",
+        "name": "Nome della campagna",
+        "description": "Descrizione",
+        "inviteCode": "Codice invito",
+        "copyCode": "Copia codice",
+        "copiedCode": "Copiato!",
+        "players": "Avventurieri",
+        "noPlayers": "Nessun giocatore ancora. Condividi il codice invito.",
+        "masterLabel": "Master",
+        "chatWithMaster": "Chat con il Master",
+        "chatEmpty": "Nessun messaggio ancora. Inizia la conversazione!",
+        "leaveCampaign": "Lascia la campagna",
+        "deleteCampaign": "Elimina campagna",
+        "deleteWarning": "Tutti i giocatori verranno scollegati e le chat eliminate.",
+        "invalidCode": "Codice non valido. Controlla e riprova.",
+        "joinError": "Errore durante l'adesione alla campagna.",
+        "creating": "Creazione…",
+        "joining": "Connessione…",
+        "loading": "Caricamento…",
+        "createMasterDesc": "Diventa il Master. Genera un codice invito da condividere con i tuoi giocatori.",
+        "joinPlayerDesc": "Inserisci il codice invito del Master per collegare il tuo personaggio alla campagna.",
+        "linkedCharacter": "Personaggio collegato"
     }
 }

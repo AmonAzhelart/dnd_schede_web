@@ -3,6 +3,7 @@ import { useCharacterStore } from '../../../store/characterStore';
 import type { WidgetRenderProps } from '../widgetTypes';
 import { GiDeathSkull } from 'react-icons/gi';
 import { useModifierAura } from './ModifierAura';
+import { saveCharacterToDb } from '../../../services/db';
 
 /* ── State helpers ──────────────────────────────────────────────────────── */
 interface HpState { label: string; cls: string; color: string; glow: string }
@@ -76,7 +77,9 @@ export const HpWidget: React.FC<WidgetRenderProps> = ({ size }) => {
         /* Healing: simply raise current HP, capped at max. */
         if (delta >= 0) {
             const newHp = Math.min(max, currentHp + delta);
-            setCharacter({ ...character, hpDetails: { ...hpDetails, current: newHp, max } });
+            const updated = { ...character, hpDetails: { ...hpDetails, current: newHp, max } };
+            setCharacter(updated);
+            saveCharacterToDb(updated);
             return;
         }
 
@@ -111,11 +114,13 @@ export const HpWidget: React.FC<WidgetRenderProps> = ({ size }) => {
         }
 
         const newHp = Math.max(-10, currentHp - damage);
-        setCharacter({
+        const updated = {
             ...character,
             hpDetails: { ...hpDetails, current: newHp, max, tempHp: nextTempHp },
             activeModifiers: nextActiveMods,
-        });
+        };
+        setCharacter(updated);
+        saveCharacterToDb(updated);
     };
 
     const compact = size.pixelH < 180 || size.pixelW < 190;

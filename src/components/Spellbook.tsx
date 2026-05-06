@@ -1274,7 +1274,7 @@ export const Spellbook: React.FC = () => {
         <div className="sb-grimoire-row">
           <div className="sb-grimoire-main">
             {/* ── School tab rail ── */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '8px 14px 0', flexShrink: 0 }}>
+            <div className="sb-filter-rail" style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '8px 14px 0', flexShrink: 0 }}>
               <button
                 onClick={() => { setGrimActiveSchool('all'); setGrimActiveLevel('all'); setGrimSearch(''); }}
                 style={{
@@ -1315,7 +1315,7 @@ export const Spellbook: React.FC = () => {
 
             {/* ── Level sub-tabs (always shown when there are levels) ── */}
             {grimLevelsInSchool.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '6px 14px 0', flexShrink: 0 }}>
+              <div className="sb-level-rail" style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '6px 14px 0', flexShrink: 0 }}>
                 <button
                   onClick={() => setGrimActiveLevel('all')}
                   style={{
@@ -1363,11 +1363,11 @@ export const Spellbook: React.FC = () => {
                   setForm({ ...EMPTY_SPELL(), level: grimActiveLevel === 'all' ? 1 : grimActiveLevel });
                 }}
                 disabled={isAdding}>
-                <FaPlus size={10} /> {t('spellbook.addSpell')}
+                <FaPlus size={10} /> <span className="sb-btn-label">{t('spellbook.addSpell')}</span>
               </button>
               <button className="btn-secondary" style={{ fontSize: '0.8rem' }}
                 onClick={openCatalogPicker} disabled={isAdding}>
-                <GiBookmarklet size={11} /> {t('spellbook.fromCatalog')}
+                <GiBookmarklet size={11} /> <span className="sb-btn-label">{t('spellbook.fromCatalog')}</span>
               </button>
             </div>
 
