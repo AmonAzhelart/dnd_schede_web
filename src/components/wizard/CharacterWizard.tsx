@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { v4 as uuidv4 } from 'uuid';
-import { FaTimes, FaCheck, FaPlus, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { FaTimes, FaCheck, FaPlus, FaChevronDown, FaChevronUp, FaLink, FaSearch } from 'react-icons/fa';
 import { DndIcon } from '../DndIcon';
 import { SKILL_PRESETS } from '../../data/skillPresets';
 import type { CharacterBase, Feat, Language, ClassLevel, ClassFeature } from '../../types/dnd';
@@ -11,6 +11,7 @@ import {
   type CatalogRace, type CatalogClass, type CatalogFeat
 } from '../../services/admin';
 import { pickLocalized } from '../../i18n';
+import { SKILL_SYNERGIES, computeSynergyBonuses } from '../../data/skillSynergies';
 import './CharacterWizard.css';
 
 // ─────────────────────────── Constants ──────────────────────────────────────
@@ -481,13 +482,13 @@ function buildFullSkillRecord(
       : isDefaultClassSkill(s.name, classSkillIds);
     const existing = wizSkills[s.name];
     out[s.name] = {
-      id:                s.name,
-      name:              s.name,
-      stat:              s.stat as any,
+      id: s.name,
+      name: s.name,
+      stat: s.stat as any,
       // Convert stored SP (ranks) to actual D&D ranks:
       // class skill → 1 SP = 1 rank; cross-class → 2 SP = 1 rank
-      ranks:             isClass ? (existing?.ranks ?? 0) : Math.floor((existing?.ranks ?? 0) / 2),
-      classSkill:        isClass,
+      ranks: isClass ? (existing?.ranks ?? 0) : Math.floor((existing?.ranks ?? 0) / 2),
+      classSkill: isClass,
       id: s.name,
       name: s.name,
       ...(s.localizedName ? { localizedName: s.localizedName } : {}),
@@ -1283,11 +1284,18 @@ function Step4Abilities({ data, setData }: StepProps) {
 
 // ─────────────────────────── STEP 5 — Skills ────────────────────────────────
 
+// Helper: case-insensitive match against a list of name aliases
+function skillNameMatches(skillName: string, candidates: string[]): boolean {
+  const n = skillName.trim().toLowerCase();
+  return candidates.some(c => n === c || n.startsWith(c + ' ') || n.startsWith(c + '('));
+}
+
 function Step5Skills({ data, setData }: StepProps) {
   const classInfo = buildClassInfo(data.className, data.customClassConfig);
   const raceInfo = buildRaceInfo(data.race, data.customRaceConfig);
   const intFinal = finalAbility(data.abilities.int, 'int', raceInfo);
   const pool = skillPointPool(classInfo, intFinal, raceInfo);
+  const [search, setSearch] = useState('');
 
   const getIsClass = (skillName: string): boolean => {
     const override = data.classSkillOverrides[skillName];
@@ -1298,18 +1306,34 @@ function Step5Skills({ data, setData }: StepProps) {
   const usedSP = usedSkillPoints(data.skills);
   const remaining = pool - usedSP;
 
+  // Build a temp skill map (using effective ranks) for synergy computation
+  const tempSkillMap: Record<string, import('../../types/dnd').Skill> = {};
+  for (const s of ALL_SKILLS) {
+    const isCls = getIsClass(s.name);
+    const sp = getRanks(s.name);
+    tempSkillMap[s.name] = {
+      id: s.name, name: s.name, stat: s.stat as any,
+      ranks: isCls ? sp : Math.floor(sp / 2),
+      classSkill: isCls, armorCheckPenalty: s.armorCheck, canUseUntrained: s.untrained,
+    };
+  }
+
   const toggleClassSkill = (skillName: string) => {
-    const newIsClass = !getIsClass(skillName);
     setData(prev => {
-      const newOverrides = { ...prev.classSkillOverrides, [skillName]: newIsClass };
-      const existingRanks = prev.skills[skillName]?.ranks ?? 0;
-      const clampedRanks = Math.min(existingRanks, newIsClass ? 4 : 2);
-      const newSkills = { ...prev.skills };
-      if (existingRanks > 0) {
-        if (clampedRanks === 0) { delete newSkills[skillName]; }
-        else { newSkills[skillName] = { ...prev.skills[skillName], classSkill: newIsClass, ranks: clampedRanks }; }
-      }
-      return { ...prev, classSkillOverrides: newOverrides, skills: newSkills };
+      const prevIsClass = prev.classSkillOverrides[skillName] !== undefined
+        ? prev.classSkillOverrides[skillName]
+        : isDefaultClassSkill(skillName, classInfo.classSkills);
+      const newIsClass = !prevIsClass;
+      const updatedSkill = prev.skills[skillName]
+        ? { ...prev.skills[skillName], classSkill: newIsClass }
+        : undefined;
+      return {
+        ...prev,
+        classSkillOverrides: { ...prev.classSkillOverrides, [skillName]: newIsClass },
+        skills: updatedSkill
+          ? { ...prev.skills, [skillName]: updatedSkill }
+          : prev.skills,
+      };
     });
   };
 
@@ -1318,12 +1342,9 @@ function Step5Skills({ data, setData }: StepProps) {
       const isClass = prev.classSkillOverrides[skill.name] !== undefined
         ? prev.classSkillOverrides[skill.name]
         : isDefaultClassSkill(skill.name, classInfo.classSkills);
-      const maxR = isClass ? 4 : 2;
       const cur = prev.skills[skill.name]?.ranks ?? 0;
       const next = cur + delta;
-      if (next < 0 || next > maxR) return prev;
-      // Note: we deliberately allow exceeding the pool; the wizard shows a
-      // negative "rimanenti" counter so the user is aware of the overflow.
+      if (next < 0) return prev;
       const updated = { ...prev.skills };
       if (next === 0) {
         delete updated[skill.name];
@@ -1338,6 +1359,14 @@ function Step5Skills({ data, setData }: StepProps) {
     });
   };
 
+  const filteredSkills = search.trim()
+    ? ALL_SKILLS.filter(s => s.name.toLowerCase().includes(search.trim().toLowerCase()))
+    : ALL_SKILLS;
+
+  // Level 1 caps: class = 4 effective ranks, cross-class = 2 effective ranks
+  const MAX_CLASS_RANKS = 4;
+  const MAX_CROSS_RANKS = 2;
+
   return (
     <div>
       <div className="wizard-step-header-row">
@@ -1345,7 +1374,7 @@ function Step5Skills({ data, setData }: StepProps) {
         <div>
           <h3 className="wizard-step-title">Abilità</h3>
           <p className="wizard-step-subtitle" style={{ margin: 0 }}>
-            Clicca il pallino per cambiare classe/fuori classe. ● classe (max 4 gradi, costo 1), ○ fuori classe (max 2, costo 2).
+            Clicca il pallino per cambiare classe/fuori classe. ● classe (max {MAX_CLASS_RANKS} gradi, costo 1), ○ fuori classe (max {MAX_CROSS_RANKS}, costo 2).
             Pool = ({classInfo.sp}+Int mod)×4{raceInfo.extraSkills > 0 ? `+${raceInfo.extraSkills}` : ''}.
           </p>
         </div>
@@ -1357,6 +1386,23 @@ function Step5Skills({ data, setData }: StepProps) {
         <span className="skills-info-count" style={remaining < 0 ? { color: 'var(--accent-crimson)', fontWeight: 600 } : {}}>
           {remaining < 0 ? `⚠ ${Math.abs(remaining)} OLTRE LA POOL` : `${remaining} rimanenti`}
         </span>
+      </div>
+
+      {/* Search bar */}
+      <div style={{ position: 'relative', margin: '0.6rem 0 0.4rem' }}>
+        <FaSearch size={11} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Cerca abilità…"
+          style={{
+            width: '100%', paddingLeft: 26, paddingRight: 8, paddingTop: '0.3rem', paddingBottom: '0.3rem',
+            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', fontSize: '0.82rem',
+            fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+          }}
+        />
       </div>
 
       <table className="skills-table">
@@ -1372,15 +1418,33 @@ function Step5Skills({ data, setData }: StepProps) {
           </tr>
         </thead>
         <tbody>
-          {ALL_SKILLS.map(skill => {
-            const isClass      = getIsClass(skill.name);
-            const ranks        = getRanks(skill.name);   // SP invested
+          {filteredSkills.map(skill => {
+            const isClass = getIsClass(skill.name);
+            const ranks = getRanks(skill.name);           // SP invested
             const effectiveRanks = isClass ? ranks : Math.floor(ranks / 2);
+            const maxEffective = isClass ? MAX_CLASS_RANKS : MAX_CROSS_RANKS;
+            const overMax = effectiveRanks > maxEffective;
+
             const statVal = finalAbility(data.abilities[skill.stat as AbilityKey] ?? 10, skill.stat as AbilityKey, raceInfo);
             const mod = abilityMod(statVal);
-            const total = ranks + mod;
+
+            // Incoming synergy bonuses
+            const incomingSyn = computeSynergyBonuses(skill.name, skill.name, tempSkillMap);
+            const synergyBonus = incomingSyn.reduce((s, syn) => s + syn.bonus, 0);
+
+            // Outgoing synergies (what this skill grants to others at ≥5 ranks)
+            const outgoingSyn = SKILL_SYNERGIES.filter(syn =>
+              skillNameMatches(skill.name, syn.sourceNames)
+            ).map(syn => {
+              const targetSkill = ALL_SKILLS.find(s => skillNameMatches(s.name, syn.targetNames));
+              return targetSkill ? { targetName: targetSkill.name, bonus: syn.bonus, required: syn.ranksRequired, active: effectiveRanks >= syn.ranksRequired } : null;
+            }).filter((x): x is { targetName: string; bonus: number; required: number; active: boolean } => x !== null);
+
+            const total = effectiveRanks + mod + synergyBonus;
+            const cost = isClass ? 1 : 2;
+
             return (
-              <tr key={skill.name}>
+              <tr key={skill.name} style={overMax ? { background: 'rgba(192,57,43,0.06)' } : undefined}>
                 <td>
                   <button
                     title={isClass ? 'Classe (clic → fuori classe)' : 'Fuori classe (clic → classe)'}
@@ -1393,21 +1457,59 @@ function Step5Skills({ data, setData }: StepProps) {
                   </button>
                 </td>
                 <td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    {skill.icon && (
-                      <DndIcon category="skill" name={skill.icon} size={12}
-                        style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      {skill.icon && (
+                        <DndIcon category="skill" name={skill.icon} size={12}
+                          style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                      )}
+                      <span style={isClass ? { color: 'var(--text-primary)' } : { color: 'var(--text-secondary)' }}>
+                        {skill.name}
+                      </span>
+                    </div>
+                    {/* Outgoing synergy chips */}
+                    {outgoingSyn.length > 0 && (
+                      <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                        {outgoingSyn.map(syn => (
+                          <span
+                            key={syn.targetName}
+                            title={`≥${syn.required} gradi → ${syn.targetName} +${syn.bonus}`}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 2,
+                              fontSize: '0.58rem', padding: '1px 4px', borderRadius: 3,
+                              background: syn.active ? 'rgba(46,204,113,0.12)' : 'rgba(255,255,255,0.04)',
+                              color: syn.active ? '#2ecc71' : 'var(--text-muted)',
+                              border: `1px solid ${syn.active ? 'rgba(46,204,113,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                            }}
+                          >
+                            <FaLink size={6} />
+                            {syn.targetName.split(' ').slice(0, 2).join(' ')} +{syn.bonus}
+                          </span>
+                        ))}
+                      </div>
                     )}
-                    {skill.name}
                   </div>
                 </td>
                 <td style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{STAT_ABBR[skill.stat]}</td>
                 <td>
                   <div className="skill-rank-controls">
                     <button className="skill-rank-btn" onClick={() => changeRanks(skill, -1)} disabled={ranks === 0}>−</button>
-                    <span className="skill-rank-value">{effectiveRanks}</span>
-                    <button className="skill-rank-btn" onClick={() => changeRanks(skill, 1)}
-                      disabled={ranks >= 4}>+</button>
+                    <span
+                      className="skill-rank-value"
+                      style={overMax ? { color: 'var(--accent-crimson)' } : undefined}
+                      title={overMax ? `⚠ Sopra il massimo consentito (${maxEffective} gradi)` : undefined}
+                    >
+                      {effectiveRanks}
+                      {overMax && (
+                        <span style={{ fontSize: '0.6rem', marginLeft: 2, color: 'var(--accent-crimson)' }}
+                          title={`Max ${maxEffective} gradi al livello 1`}>⚠</span>
+                      )}
+                    </span>
+                    <button
+                      className={`skill-rank-btn${overMax ? ' over-max' : ''}`}
+                      onClick={() => changeRanks(skill, 1)}
+                      title={overMax ? `⚠ Stai superando il massimo (${maxEffective} gradi) — consentito ma non standard` : undefined}
+                    >+</button>
                   </div>
                 </td>
                 <td style={{ fontSize: '0.65rem', textAlign: 'center' }}>
@@ -1418,8 +1520,20 @@ function Step5Skills({ data, setData }: StepProps) {
                 </td>
                 <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{signedMod(statVal)}</td>
                 <td>
-                  {effectiveRanks > 0
-                    ? <span className="skill-total-val">{total >= 0 ? `+${total}` : total}</span>
+                  {(effectiveRanks > 0 || synergyBonus > 0)
+                    ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                        <span className="skill-total-val" style={overMax ? { color: 'var(--accent-crimson)' } : undefined}>
+                          {total >= 0 ? `+${total}` : total}
+                        </span>
+                        {synergyBonus > 0 && (
+                          <span style={{ fontSize: '0.6rem', color: '#2ecc71', display: 'inline-flex', alignItems: 'center', gap: 2 }}
+                            title={incomingSyn.map(s => `+${s.bonus} sinergia da ${s.sourceName}`).join(', ')}>
+                            <FaLink size={6} />+{synergyBonus}
+                          </span>
+                        )}
+                      </span>
+                    )
                     : <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>—</span>
                   }
                 </td>

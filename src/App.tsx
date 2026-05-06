@@ -51,6 +51,7 @@ function App() {
   const [campaignCreateName, setCampaignCreateName] = useState('');
   const [campaignCreateDesc, setCampaignCreateDesc] = useState('');
   const [campaignCreating, setCampaignCreating] = useState(false);
+  const [showLandingFeedback, setShowLandingFeedback] = useState(false);
 
   // ── Auto-save ──────────────────────────────────────────
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -249,6 +250,28 @@ function App() {
     );
   }
 
+  // ── FULL-SCREEN FEEDBACK (from landing) ───────────────────────
+  if (!character && showLandingFeedback && user) {
+    return (
+      <div className="app-container animate-fade-in" style={{ flexDirection: 'column', background: 'var(--bg-base)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.07)', flexShrink: 0, background: 'var(--bg-surface)' }}>
+          <button className="btn-ghost text-sm" style={{ color: 'var(--text-muted)' }} onClick={() => setShowLandingFeedback(false)}>
+            <FaChevronLeft size={12} /> Indietro
+          </button>
+          <div style={{ flex: 1, textAlign: 'center', fontFamily: 'var(--font-heading)', color: 'var(--accent-gold)', fontSize: '1rem' }}>Feedback</div>
+          <div style={{ width: 80 }} />
+        </div>
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          <FeedbackChat
+            userId={user.uid}
+            userEmail={user.email ?? ''}
+            userDisplayName={user.displayName ?? user.email ?? ''}
+          />
+        </div>
+      </div>
+    );
+  }
+
   // ── FULL-SCREEN CAMPAIGN MASTER VIEW (opened from inline list) ──
   if (!character && selectedCampaign && user) {
     return (
@@ -438,6 +461,11 @@ function App() {
             {superAdmin && (
               <button className="btn-secondary w-full" style={{ justifyContent: 'center' }} onClick={() => setActiveTab('backoffice')}>
                 <FaCog /> Back-Office
+              </button>
+            )}
+            {!superAdmin && (
+              <button className="btn-ghost text-sm w-full" style={{ justifyContent: 'center', color: 'var(--text-muted)' }} onClick={() => setShowLandingFeedback(true)}>
+                <FaCommentDots /> Feedback
               </button>
             )}
             <button className="btn-ghost text-sm" style={{ justifyContent: 'center', color: 'var(--accent-crimson)' }} onClick={handleLogout}>
