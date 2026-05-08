@@ -338,8 +338,8 @@ export const CharacterSheet: React.FC = () => {
                 </div>
                 <div className="cs-drawer-field">
                   <span className="cs-drawer-label">Razza</span>
-                  <input 
-                    className="input" 
+                  <input
+                    className="input"
                     list="race-list"
                     value={character.race}
                     onChange={e => {
