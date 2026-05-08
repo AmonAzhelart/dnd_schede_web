@@ -165,6 +165,36 @@
     border-bottom: 1px solid rgba(155, 89, 182, 0.15);
 }
 
+.lv-class-picker {
+    position: relative;
+    flex: 1;
+    min-width: 180px;
+}
+
+.lv-class-picker-btn {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(155, 89, 182, 0.2);
+    border-radius: 6px;
+    padding: 6px 12px;
+    color: var(--text-primary);
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.lv-class-picker-btn:hover {
+    background: rgba(155, 89, 182, 0.12);
+    border-color: rgba(155, 89, 182, 0.35);
+}
+
+.lv-class-picker-btn:focus-visible {
+    outline: 2px solid rgba(155, 89, 182, 0.4);
+    outline-offset: 2px;
+}
+
 .lv-class-input {
     position: relative;
 }
@@ -660,4 +690,370 @@
         grid-template-columns: 20px 1fr 44px 66px auto;
         gap: 0.35rem;
     }
+}
+
+/* ─── Level-up alert ─────────────────────────────────────────── */
+.lv-levelup-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.85rem 1.1rem;
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(201, 168, 76, 0.14), rgba(201, 168, 76, 0.06));
+    border: 1px solid rgba(201, 168, 76, 0.55);
+    color: var(--accent-gold);
+    animation: lv-pulse 2s ease-in-out infinite;
+}
+
+@keyframes lv-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0); }
+    50%       { box-shadow: 0 0 12px 2px rgba(201, 168, 76, 0.2); }
+}
+
+.lv-levelup-alert strong {
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    letter-spacing: 0.05em;
+}
+
+.lv-levelup-icon {
+    margin-top: 2px;
+    flex-shrink: 0;
+    color: var(--accent-gold);
+}
+
+.lv-levelup-sub {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    margin-top: 3px;
+}
+
+/* ─── XP Panel ───────────────────────────────────────────────── */
+.lv-xp-panel {
+    border: 1px solid rgba(94, 197, 224, 0.22);
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(94, 197, 224, 0.05), rgba(20, 20, 28, 0.6));
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.lv-xp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.lv-xp-title {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--font-heading);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-ice, #5ec5e0);
+}
+
+.lv-xp-ecl-badge {
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    color: var(--accent-gold);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.lv-xp-ecl-breakdown {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    font-family: var(--font-body);
+}
+
+.lv-xp-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.9rem;
+    align-items: flex-end;
+}
+
+.lv-xp-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.lv-xp-label {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.lv-xp-input {
+    width: 130px;
+    text-align: right;
+    font-family: var(--font-heading);
+    font-size: 1rem;
+}
+
+.lv-xp-field--la .lv-xp-input {
+    width: 70px;
+}
+
+.lv-xp-next {
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    color: var(--accent-ice, #5ec5e0);
+    padding: 5px 10px;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 6px;
+    border: 1px solid rgba(94, 197, 224, 0.2);
+    min-width: 130px;
+    text-align: right;
+}
+
+/* Progress bar */
+.lv-xp-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.lv-xp-bar-track {
+    flex: 1;
+    height: 8px;
+    background: rgba(0, 0, 0, 0.35);
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.lv-xp-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, rgba(94, 197, 224, 0.6), rgba(94, 197, 224, 0.9));
+    border-radius: 4px;
+    transition: width 0.4s ease;
+}
+
+.lv-xp-bar-fill.full {
+    background: linear-gradient(90deg, rgba(201, 168, 76, 0.7), rgba(201, 168, 76, 1));
+    box-shadow: 0 0 8px rgba(201, 168, 76, 0.4);
+}
+
+.lv-xp-bar-label {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    min-width: 160px;
+}
+
+/* Custom XP table */
+.lv-xp-custom-toggle {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.lv-xp-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+}
+
+.lv-xp-toggle-label input[type="checkbox"] {
+    accent-color: var(--accent-gold);
+    cursor: pointer;
+}
+
+.lv-xp-edit-btn {
+    font-size: 0.72rem;
+    padding: 3px 10px;
+}
+
+.lv-xp-table-editor {
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    padding-top: 0.7rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.lv-xp-table-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 0.5rem;
+}
+
+.lv-xp-table-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.lv-xp-table-lbl {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.lv-xp-table-input {
+    width: 100%;
+    font-size: 0.82rem;
+    text-align: right;
+    padding: 4px 6px;
+}
+
+.lv-xp-table-actions {
+    display: flex;
+    gap: 0.6rem;
+}
+
+/* ─── XP Log (storico) ──────────────────────────────────────── */
+.lv-xp-log-details {
+    border: 1px solid rgba(201, 168, 76, 0.2);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.lv-xp-log-details > summary {
+    cursor: pointer;
+    padding: 0.7rem 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-heading);
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-gold);
+    user-select: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.lv-xp-log-details > summary:hover {
+    background: rgba(201, 168, 76, 0.06);
+}
+
+.lv-xp-log-details > summary::before {
+    content: '▶';
+    display: inline-block;
+    transition: transform 0.2s;
+    color: var(--accent-gold);
+}
+
+.lv-xp-log-details[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+.lv-xp-log-details[open] > summary {
+    border-bottom: 1px solid rgba(201, 168, 76, 0.15);
+}
+
+.lv-xp-log-body {
+    padding: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.lv-xp-log-form {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.lv-xp-log-input {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+}
+
+.lv-xp-log-input:not(.lv-xp-log-desc) {
+    width: 100px;
+    text-align: right;
+}
+
+.lv-xp-log-desc {
+    flex: 1;
+    min-width: 200px;
+}
+
+.lv-xp-log-empty {
+    padding: 1rem;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-style: italic;
+}
+
+.lv-xp-log-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.lv-xp-log-entry {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    padding: 0.6rem 0.8rem;
+    transition: all 0.1s;
+}
+
+.lv-xp-log-entry:hover {
+    border-color: rgba(201, 168, 76, 0.3);
+    background: rgba(201, 168, 76, 0.05);
+}
+
+.lv-xp-log-header {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-size: 0.75rem;
+}
+
+.lv-xp-log-amount {
+    font-family: var(--font-heading);
+    font-size: 0.9rem;
+    color: var(--accent-gold);
+    font-weight: bold;
+    min-width: 60px;
+}
+
+.lv-xp-log-desc {
+    flex: 1;
+    color: var(--text-primary);
+}
+
+.lv-xp-log-date {
+    color: var(--text-muted);
+    font-size: 0.68rem;
+    white-space: nowrap;
+}
+
+.lv-xp-log-del {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    padding: 3px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.1s;
+    flex-shrink: 0;
+}
+
+.lv-xp-log-del:hover {
+    color: var(--accent-crimson);
+    border-color: rgba(192, 57, 43, 0.3);
+    background: rgba(192, 57, 43, 0.08);
 }

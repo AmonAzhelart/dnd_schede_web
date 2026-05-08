@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     FaCopy, FaCheck, FaComments, FaPaperPlane, FaUsers, FaTrash,
     FaSearch, FaTimes, FaChevronLeft, FaShieldAlt, FaHeart, FaBolt,
-    FaBoxOpen, FaStar, FaStickyNote, FaCog, FaPlus, FaMinus, FaSkull,
+    FaBoxOpen, FaStar, FaStickyNote, FaCog, FaPlus, FaMinus, FaSkull, FaBook, FaEdit, FaShare, FaGlobe, FaLock,
 } from 'react-icons/fa';
 import { GiCastle, GiSwordman, GiSpellBook, GiSkills, GiCrossedSwords } from 'react-icons/gi';
 import {
@@ -13,9 +13,13 @@ import {
     subscribeMasterCampaigns,
     subscribeToPlayerChat,
     subscribeToCampaign,
+    subscribeCampaignGlossary,
+    addCampaignGlossaryEntry,
+    updateCampaignGlossaryEntry,
+    deleteCampaignGlossaryEntry,
 } from '../../services/campaign';
 import { subscribeToCharacter } from '../../services/db';
-import type { Campaign, CampaignMessage, MasterNote } from '../../types/campaign';
+import type { Campaign, CampaignMessage, CampaignGlossaryEntry, GlossarySection, MasterNote } from '../../types/campaign';
 import type { CharacterBase } from '../../types/dnd';
 import {
     StatsTab, SkillsTab, InventoryTab, SpellsTab, FeatsTab,
@@ -28,7 +32,7 @@ import './CampaignPage.css';
 
 type MasterView = 'loading' | 'list' | 'create' | 'master';
 type DetailTab = 'chat' | 'stats' | 'skills' | 'inventory' | 'spells' | 'feats';
-type MasterSection = 'players' | 'notes' | 'initiative' | 'info';
+type MasterSection = 'players' | 'notes' | 'initiative' | 'info' | 'glossary';
 
 interface InitCombatant {
     id: string;
@@ -521,6 +525,475 @@ function NotesPanel({ campaign, campaignId }: { campaign: Campaign; campaignId: 
                     </div>
                 )}
             </div>
+        </div>
+    );
+}
+
+// ─────────────────────── Master Glossary panel ───────────────────────────────
+
+const CAT_COLORS_GLOSS: Record<CampaignGlossaryEntry['category'], string> = {
+    person: '#6ab4ff', place: '#6aff9e', item: '#ffb46a', lore: '#c86aff', other: '#aaaaaa',
+};
+const CAT_LABELS_GLOSS: Record<CampaignGlossaryEntry['category'], string> = {
+    person: 'Persona', place: 'Luogo', item: 'Oggetto', lore: 'Lore', other: 'Altro',
+};
+const ALL_CATS_GLOSS: CampaignGlossaryEntry['category'][] = ['person', 'place', 'item', 'lore', 'other'];
+
+function newSectionId() { return `s${Date.now()}-${Math.random().toString(36).slice(2, 6)}`; }
+
+// ── Section Share Modal ──────────────────────────────────────────────────────
+// Shows every section of an entry; for each section the master picks:
+//   "Tutti" | "Nessuno" | specific players.
+
+type SectionMode = 'all' | 'none' | 'select';
+interface SectionSharingState { mode: SectionMode; selected: string[]; }
+
+interface SectionShareModalProps {
+    entry: CampaignGlossaryEntry;
+    playerCharacters: Campaign['playerCharacters'];
+    onConfirm: (sections: GlossarySection[]) => void;
+    onClose: () => void;
+}
+
+function SectionShareModal({ entry, playerCharacters, onConfirm, onClose }: SectionShareModalProps) {
+    const players = Object.entries(playerCharacters);
+    const sections = entry.sections ?? [];
+
+    const [states, setStates] = useState<Record<string, SectionSharingState>>(() => {
+        const map: Record<string, SectionSharingState> = {};
+        sections.forEach(sec => {
+            map[sec.id] = {
+                mode: sec.isPublic ? 'all' : sec.visibleToPlayerIds.length > 0 ? 'select' : 'none',
+                selected: [...sec.visibleToPlayerIds],
+            };
+        });
+        return map;
+    });
+
+    function setMode(secId: string, mode: SectionMode) {
+        setStates(prev => ({ ...prev, [secId]: { ...prev[secId], mode } }));
+    }
+    function togglePlayer(secId: string, uid: string) {
+        setStates(prev => {
+            const cur = prev[secId];
+            const selected = cur.selected.includes(uid)
+                ? cur.selected.filter(x => x !== uid)
+                : [...cur.selected, uid];
+            return { ...prev, [secId]: { ...cur, selected } };
+        });
+    }
+    function handleConfirm() {
+        const updated = sections.map(sec => {
+            const st = states[sec.id] ?? { mode: 'none', selected: [] };
+            return { ...sec, isPublic: st.mode === 'all', visibleToPlayerIds: st.mode === 'select' ? st.selected : [] };
+        });
+        onConfirm(updated);
+    }
+
+    if (sections.length === 0) {
+        return (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.82)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+                <div className="glass-panel animate-fade-in" style={{ width: 380 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                        <FaShare size={13} style={{ color: 'var(--accent-gold)' }} />
+                        <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1rem' }}>Condividi: <em style={{ color: 'var(--accent-gold)' }}>{entry.term}</em></h3>
+                        <button style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} onClick={onClose}><FaTimes size={13} /></button>
+                    </div>
+                    <p className="text-muted text-sm">Nessuna sezione presente. Aggiungine almeno una dalla modalità di modifica per poter condividere.</p>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.75rem' }}>
+                        <button className="btn-secondary" onClick={onClose}>Chiudi</button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.82)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+            onClick={onClose}>
+            <div className="glass-panel animate-fade-in mg-share-modal" onClick={e => e.stopPropagation()}>
+                {/* Header */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', flexShrink: 0 }}>
+                    <FaShare size={13} style={{ color: 'var(--accent-gold)' }} />
+                    <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1rem' }}>
+                        Condividi: <em style={{ color: 'var(--accent-gold)' }}>{entry.term}</em>
+                    </h3>
+                    <button style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} onClick={onClose}><FaTimes size={13} /></button>
+                </div>
+
+                {/* Sections list */}
+                <div className="mg-share-sections">
+                    {sections.map(sec => {
+                        const st = states[sec.id] ?? { mode: 'none', selected: [] };
+                        return (
+                            <div key={sec.id} className="mg-share-section">
+                                <div className="mg-share-sec-header">
+                                    <span className="mg-share-sec-label">{sec.label || <em style={{ color: 'var(--text-muted)' }}>Sezione senza titolo</em>}</span>
+                                    <div className="mg-share-sec-modes">
+                                        <button
+                                            className={`mg-mode-btn ${st.mode === 'none' ? 'active-private' : ''}`}
+                                            onClick={() => setMode(sec.id, 'none')}
+                                            title="Nascosta">
+                                            <FaLock size={9} /> Nascosta
+                                        </button>
+                                        <button
+                                            className={`mg-mode-btn ${st.mode === 'all' ? 'active-public' : ''}`}
+                                            onClick={() => setMode(sec.id, 'all')}
+                                            title="Tutti i giocatori">
+                                            <FaGlobe size={9} /> Tutti
+                                        </button>
+                                        {players.length > 0 && (
+                                            <button
+                                                className={`mg-mode-btn ${st.mode === 'select' ? 'active-select' : ''}`}
+                                                onClick={() => setMode(sec.id, 'select')}
+                                                title="Giocatori specifici">
+                                                <FaUsers size={9} /> Seleziona
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                                {sec.content && <div className="mg-share-sec-preview">{sec.content.length > 100 ? sec.content.slice(0, 100) + '…' : sec.content}</div>}
+                                {st.mode === 'select' && (
+                                    <div className="mg-share-player-list">
+                                        {players.map(([uid, info]) => (
+                                            <label key={uid} className="mg-share-player-row">
+                                                <input type="checkbox"
+                                                    checked={st.selected.includes(uid)}
+                                                    onChange={() => togglePlayer(sec.id, uid)}
+                                                    style={{ accentColor: 'var(--accent-gold)' }} />
+                                                <span className="mg-share-player-char">{info.characterName}</span>
+                                                <span className="mg-share-player-name">({info.playerName})</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Quick actions */}
+                <div className="mg-share-quick">
+                    <span className="text-muted" style={{ fontSize: '0.72rem' }}>Rapido:</span>
+                    <button className="btn-ghost" style={{ fontSize: '0.72rem', color: '#6aff9e' }}
+                        onClick={() => setStates(prev => {
+                            const next = { ...prev };
+                            sections.forEach(s => { next[s.id] = { mode: 'all', selected: [] }; });
+                            return next;
+                        })}>
+                        <FaGlobe size={9} /> Tutto pubblico
+                    </button>
+                    <button className="btn-ghost" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}
+                        onClick={() => setStates(prev => {
+                            const next = { ...prev };
+                            sections.forEach(s => { next[s.id] = { mode: 'none', selected: [] }; });
+                            return next;
+                        })}>
+                        <FaLock size={9} /> Tutto nascosto
+                    </button>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', flexShrink: 0 }}>
+                    <button className="btn-secondary" onClick={onClose}>Annulla</button>
+                    <button className="btn-primary" onClick={handleConfirm}>
+                        <FaCheck size={11} /> Salva condivisione
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ── Entry editor ─────────────────────────────────────────────────────────────
+// Inline form used both for new entries and for editing existing ones.
+
+interface EntryFormProps {
+    entry: CampaignGlossaryEntry;
+    onChange: (entry: CampaignGlossaryEntry) => void;
+    onSave: () => void;
+    onCancel: () => void;
+}
+
+function EntryForm({ entry, onChange, onSave, onCancel }: EntryFormProps) {
+    function updateSection(idx: number, field: keyof GlossarySection, value: string) {
+        const sections = [...(entry.sections ?? [])];
+        sections[idx] = { ...sections[idx], [field]: value };
+        onChange({ ...entry, sections });
+    }
+    function addSection() {
+        const sections = [...(entry.sections ?? []), { id: newSectionId(), label: '', content: '', isPublic: false, visibleToPlayerIds: [] }];
+        onChange({ ...entry, sections });
+    }
+    function removeSection(idx: number) {
+        const sections = (entry.sections ?? []).filter((_, i) => i !== idx);
+        onChange({ ...entry, sections });
+    }
+
+    return (
+        <div className="mg-edit-form">
+            {/* Term + category */}
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <input className="mg-inp" placeholder="Termine…" autoFocus value={entry.term}
+                    onChange={e => onChange({ ...entry, term: e.target.value })} style={{ flex: 1, minWidth: 120 }} />
+                <div className="mg-cat-sel">
+                    {ALL_CATS_GLOSS.map(c => (
+                        <button key={c} className={`mg-cat-btn sm ${entry.category === c ? 'active' : ''}`}
+                            style={{ '--cat-c': CAT_COLORS_GLOSS[c] } as React.CSSProperties}
+                            onClick={() => onChange({ ...entry, category: c })}
+                            title={CAT_LABELS_GLOSS[c]}>{CAT_LABELS_GLOSS[c]}</button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Private master notes */}
+            <div>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <FaLock size={9} /> Note private (solo tu le vedi)
+                </div>
+                <textarea className="mg-ta" rows={2} placeholder="Appunti riservati al master…" value={entry.info}
+                    onChange={e => onChange({ ...entry, info: e.target.value })} />
+            </div>
+
+            {/* Sections */}
+            <div>
+                <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <FaBook size={9} /> Sezioni condivisibili
+                    <span style={{ fontWeight: 400, color: 'var(--text-muted)', textTransform: 'none', letterSpacing: 0 }}>— ognuna può essere rivelata ai giocatori singolarmente</span>
+                </div>
+
+                {(entry.sections ?? []).length === 0 && (
+                    <div className="mg-sections-empty">Nessuna sezione ancora. Aggiungine una per condividere informazioni con i giocatori.</div>
+                )}
+
+                {(entry.sections ?? []).map((sec, idx) => (
+                    <div key={sec.id} className="mg-section-row">
+                        <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', marginBottom: '0.25rem' }}>
+                            <input className="mg-inp mg-sec-label-inp" placeholder="Titolo sezione (es. Aspetto, Segreto…)" value={sec.label}
+                                onChange={e => updateSection(idx, 'label', e.target.value)} />
+                            {sec.isPublic && <FaGlobe size={10} title="Pubblica" style={{ color: '#6aff9e', flexShrink: 0 }} />}
+                            {!sec.isPublic && sec.visibleToPlayerIds.length > 0 && <FaLock size={10} title="Condivisa con alcuni" style={{ color: 'var(--accent-gold)', flexShrink: 0 }} />}
+                            {!sec.isPublic && sec.visibleToPlayerIds.length === 0 && <FaLock size={10} title="Nascosta" style={{ color: 'rgba(255,255,255,0.2)', flexShrink: 0 }} />}
+                            <button className="btn-ghost" style={{ padding: '0.2rem 0.35rem', color: 'var(--accent-crimson)', marginLeft: 'auto', flexShrink: 0 }}
+                                onClick={() => removeSection(idx)} title="Rimuovi sezione">
+                                <FaTrash size={9} />
+                            </button>
+                        </div>
+                        <textarea className="mg-ta" rows={2} placeholder="Contenuto della sezione…" value={sec.content}
+                            onChange={e => updateSection(idx, 'content', e.target.value)} />
+                    </div>
+                ))}
+
+                <button className="btn-ghost mg-add-section-btn" onClick={addSection}>
+                    <FaPlus size={9} /> Aggiungi sezione
+                </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                <button className="btn-secondary" style={{ fontSize: '0.8rem' }} onClick={onCancel}>Annulla</button>
+                <button className="btn-primary" style={{ fontSize: '0.8rem' }} onClick={onSave}
+                    disabled={!entry.term.trim()}>
+                    <FaCheck size={10} /> Salva
+                </button>
+            </div>
+        </div>
+    );
+}
+
+// ── MasterGlossaryPanel ──────────────────────────────────────────────────────
+
+interface MasterGlossaryPanelProps {
+    campaignId: string;
+    masterId: string;
+    playerCharacters: Campaign['playerCharacters'];
+}
+
+type GlossaryEditState = {
+    entry: CampaignGlossaryEntry;
+    isNew: boolean;
+} | null;
+
+function MasterGlossaryPanel({ campaignId, masterId, playerCharacters }: MasterGlossaryPanelProps) {
+    const [entries, setEntries] = useState<CampaignGlossaryEntry[]>([]);
+    const [editState, setEditState] = useState<GlossaryEditState>(null);
+    const [shareEntry, setShareEntry] = useState<CampaignGlossaryEntry | null>(null);
+    const [catFilter, setCatFilter] = useState<CampaignGlossaryEntry['category'] | 'all'>('all');
+
+    useEffect(() => subscribeCampaignGlossary(campaignId, setEntries), [campaignId]);
+
+    const filtered = catFilter === 'all' ? entries : entries.filter(e => e.category === catFilter);
+
+    function newEntry(): CampaignGlossaryEntry {
+        return { id: '', term: '', info: '', category: 'other', createdAt: null, sharedByMasterId: masterId, isPublic: false, visibleToPlayerIds: [], sections: [] };
+    }
+
+    async function handleSave() {
+        if (!editState || !editState.entry.term.trim()) return;
+        if (editState.isNew) {
+            await addCampaignGlossaryEntry(campaignId, masterId, {
+                term: editState.entry.term.trim(),
+                info: editState.entry.info,
+                category: editState.entry.category,
+                isPublic: false,
+                visibleToPlayerIds: [],
+                sections: editState.entry.sections ?? [],
+            });
+        } else {
+            await updateCampaignGlossaryEntry(campaignId, editState.entry);
+        }
+        setEditState(null);
+    }
+
+    async function handleDelete(id: string) {
+        await deleteCampaignGlossaryEntry(campaignId, id);
+    }
+
+    async function handleShareSections(sections: GlossarySection[]) {
+        if (!shareEntry) return;
+        await updateCampaignGlossaryEntry(campaignId, { ...shareEntry, sections });
+        setShareEntry(null);
+    }
+
+    const playerCount = Object.keys(playerCharacters).length;
+
+    // Compute a summary sharing status for an entry
+    function entrySharingStatus(entry: CampaignGlossaryEntry): 'public' | 'partial' | 'hidden' {
+        const sections = entry.sections ?? [];
+        if (sections.some(s => s.isPublic)) return 'public';
+        if (sections.some(s => s.visibleToPlayerIds.length > 0)) return 'partial';
+        return 'hidden';
+    }
+
+    function sectionSharingLabel(sec: GlossarySection, playerChars: Campaign['playerCharacters']): React.ReactNode {
+        if (sec.isPublic) return <span style={{ color: '#6aff9e', fontSize: '0.62rem' }}><FaGlobe size={8} /> Tutti</span>;
+        if (sec.visibleToPlayerIds.length > 0) {
+            const names = sec.visibleToPlayerIds.map(uid => playerChars[uid]?.characterName ?? uid).join(', ');
+            return <span style={{ color: 'var(--accent-gold)', fontSize: '0.62rem' }}><FaLock size={8} /> {names}</span>;
+        }
+        return <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.62rem' }}><FaLock size={8} /> Nascosta</span>;
+    }
+
+    return (
+        <div className="mg-panel">
+            <div className="mg-header">
+                <FaBook size={14} style={{ color: 'var(--accent-gold)' }} />
+                <span>Glossario Campagna</span>
+                <span className="mg-count">{entries.length}</span>
+                <button className="btn-primary" style={{ marginLeft: 'auto', fontSize: '0.8rem', padding: '0.3rem 0.75rem' }}
+                    onClick={() => setEditState({ entry: newEntry(), isNew: true })}>
+                    <FaPlus size={10} /> Nuova voce
+                </button>
+            </div>
+
+            {/* Category filter */}
+            <div className="mg-cat-filter">
+                <button className={`mg-cat-btn ${catFilter === 'all' ? 'active' : ''}`} onClick={() => setCatFilter('all')}>Tutti</button>
+                {ALL_CATS_GLOSS.map(c => (
+                    <button key={c} className={`mg-cat-btn ${catFilter === c ? 'active' : ''}`}
+                        style={{ '--cat-c': CAT_COLORS_GLOSS[c] } as React.CSSProperties}
+                        onClick={() => setCatFilter(c)}>{CAT_LABELS_GLOSS[c]}</button>
+                ))}
+            </div>
+
+            <div className="mg-body">
+                {/* New entry form */}
+                {editState?.isNew && (
+                    <EntryForm
+                        entry={editState.entry}
+                        onChange={entry => setEditState({ ...editState, entry })}
+                        onSave={handleSave}
+                        onCancel={() => setEditState(null)}
+                    />
+                )}
+
+                {filtered.length === 0 && !editState?.isNew && (
+                    <div className="mg-empty">
+                        <FaBook size={36} style={{ color: 'rgba(255,255,255,0.07)', marginBottom: '1rem' }} />
+                        <p className="text-muted text-sm">Nessuna voce nel glossario. Creane una per iniziare.</p>
+                    </div>
+                )}
+
+                {filtered.map(entry => {
+                    const isEditing = editState?.entry.id === entry.id && !editState.isNew;
+                    if (isEditing && editState) {
+                        return (
+                            <EntryForm key={entry.id}
+                                entry={editState.entry}
+                                onChange={e => setEditState({ ...editState, entry: e })}
+                                onSave={handleSave}
+                                onCancel={() => setEditState(null)}
+                            />
+                        );
+                    }
+
+                    const status = entrySharingStatus(entry);
+                    const sections = entry.sections ?? [];
+
+                    return (
+                        <div key={entry.id} className="mg-entry">
+                            <div className="mg-entry-dot" style={{ background: CAT_COLORS_GLOSS[entry.category] }} />
+                            <div className="mg-entry-body">
+                                <div className="mg-entry-top">
+                                    <span className="mg-term">{entry.term}</span>
+                                    <span className="mg-cat-badge" style={{ '--cat-c': CAT_COLORS_GLOSS[entry.category] } as React.CSSProperties}>
+                                        {CAT_LABELS_GLOSS[entry.category]}
+                                    </span>
+                                    <span className={`mg-share-badge ${status}`}>
+                                        {status === 'public' ? <FaGlobe size={9} /> : <FaLock size={9} />}
+                                        {' '}{status === 'public' ? 'Tutti' : status === 'partial' ? 'Parziale' : 'Nascosta'}
+                                    </span>
+                                </div>
+
+                                {/* Private notes (faded) */}
+                                {entry.info && (
+                                    <div className="mg-private-note">
+                                        <FaLock size={8} /> {entry.info}
+                                    </div>
+                                )}
+
+                                {/* Sections summary */}
+                                {sections.length > 0 && (
+                                    <div className="mg-sections-summary">
+                                        {sections.map(sec => (
+                                            <div key={sec.id} className="mg-sec-summary-row">
+                                                <span className="mg-sec-summary-label">{sec.label || <em>Sezione</em>}</span>
+                                                {sectionSharingLabel(sec, playerCharacters)}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                {sections.length === 0 && (
+                                    <div className="mg-no-sections">Nessuna sezione &mdash; <button className="mg-inline-btn" onClick={() => setEditState({ entry: { ...entry }, isNew: false })}>aggiungi sezioni</button> per condividere.</div>
+                                )}
+                            </div>
+                            <div className="mg-entry-acts">
+                                {playerCount > 0 && sections.length > 0 && (
+                                    <button className="btn-ghost" style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem', color: 'var(--accent-gold)' }}
+                                        onClick={() => setShareEntry(entry)} title="Gestisci condivisione sezioni">
+                                        <FaShare size={10} />
+                                    </button>
+                                )}
+                                <button className="btn-ghost" style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem' }}
+                                    onClick={() => setEditState({ entry: { ...entry }, isNew: false })} title="Modifica">
+                                    <FaEdit size={10} />
+                                </button>
+                                <button className="btn-ghost" style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem', color: 'var(--accent-crimson)' }}
+                                    onClick={() => handleDelete(entry.id)} title="Elimina">
+                                    <FaTrash size={10} />
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {shareEntry && (
+                <SectionShareModal
+                    entry={shareEntry}
+                    playerCharacters={playerCharacters}
+                    onConfirm={handleShareSections}
+                    onClose={() => setShareEntry(null)}
+                />
+            )}
         </div>
     );
 }
@@ -1177,6 +1650,7 @@ export function CampaignPage({ userId, userEmail, userDisplayName, initialCampai
         const metaNav: { id: MasterSection; label: string; icon: React.ReactNode; badge?: number }[] = [
             { id: 'players', label: 'Avventurieri', icon: <FaUsers size={16} />, badge: totalUnread || undefined },
             { id: 'notes', label: 'Note DM', icon: <FaStickyNote size={16} /> },
+            { id: 'glossary', label: 'Glossario', icon: <FaBook size={15} /> },
             { id: 'initiative', label: 'Iniziativa', icon: <GiCrossedSwords size={18} /> },
             { id: 'info', label: 'Campagna', icon: <FaCog size={15} /> },
         ];
@@ -1320,6 +1794,15 @@ export function CampaignPage({ userId, userEmail, userDisplayName, initialCampai
                         {/* NOTES section */}
                         {section === 'notes' && (
                             <NotesPanel campaign={masterCampaign} campaignId={masterCampaign.id} />
+                        )}
+
+                        {/* GLOSSARY section */}
+                        {section === 'glossary' && (
+                            <MasterGlossaryPanel
+                                campaignId={masterCampaign.id}
+                                masterId={userId}
+                                playerCharacters={masterCampaign.playerCharacters ?? {}}
+                            />
                         )}
 
                         {/* INITIATIVE section */}

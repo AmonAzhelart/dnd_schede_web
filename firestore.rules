@@ -131,6 +131,16 @@ service cloud.firestore {
           );
         }
       }
+
+      // Glossary entries: master writes, players read their visible entries
+      match /glossaryEntries/{entryId} {
+        allow read: if isAllowed() && (
+          get(/databases/$(database)/documents/campaigns/$(campaignId)).data.masterId == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/campaigns/$(campaignId)).data.playerIds
+        );
+        allow write: if isAllowed() &&
+          get(/databases/$(database)/documents/campaigns/$(campaignId)).data.masterId == request.auth.uid;
+      }
     }
   }
 }

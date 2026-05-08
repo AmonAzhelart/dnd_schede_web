@@ -1,10 +1,11 @@
-import React from 'react';
+﻿import React, { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { FaPlus, FaTrash, FaShieldAlt, FaRunning, FaBrain, FaInfoCircle, FaHeart, FaArrowUp, FaArrowDown } from 'react-icons/fa';
-import { GiSwordsEmblem, GiUpgrade } from 'react-icons/gi';
+import { FaPlus, FaTrash, FaShieldAlt, FaRunning, FaBrain, FaInfoCircle, FaHeart, FaArrowUp, FaArrowDown, FaStar, FaExclamationTriangle, FaHistory } from 'react-icons/fa';
+import { GiSwordsEmblem, GiUpgrade, GiDragonHead } from 'react-icons/gi';
 import { useCharacterStore } from '../store/characterStore';
 import type { BabProgression, SaveProgression, ClassLevel } from '../types/dnd';
-import { CLASS_BAB_PRESETS, CLASS_SAVE_PRESETS, CLASS_HIT_DIE_PRESETS, computeClassBab, computeClassSaveBase, getHpForTotalLevel } from '../types/dnd';
+import { CLASS_BAB_PRESETS, CLASS_SAVE_PRESETS, CLASS_HIT_DIE_PRESETS, computeClassBab, computeClassSaveBase, getHpForTotalLevel, DND35_XP_TABLE, getXpForLevel } from '../types/dnd';
+import { ClassPickerModal } from './ClassPickerModal';
 import './LevelsTab.css';
 
 const BAB_OPTIONS: { value: BabProgression; label: string; hint: string }[] = [
@@ -33,6 +34,8 @@ export const LevelsTab: React.FC = () => {
         character, addClassLevel, updateClassLevel, deleteClassLevel,
         getTotalBab, getSaveBreakdown, getTotalMaxHp, getStatModifier,
         addHpLevelEntry, removeLastHpLevelEntry, reorderHpLevelLog,
+        setCurrentXp, setLevelAdjustment, setRaceHitDice, setXpConfig,
+        getEcl, getXpForNextLevel, addXpLogEntry, removeXpLogEntry,
     } = useCharacterStore();
 
     if (!character) return null;
@@ -41,6 +44,30 @@ export const LevelsTab: React.FC = () => {
     const totalLevel = classLevels.reduce((s, cl) => s + cl.level, 0);
     const conMod = getStatModifier('con');
     const totalMaxHp = getTotalMaxHp();
+
+    // XP & ECL state
+    const currentXp = character.currentXp ?? 0;
+    const la = character.levelAdjustment ?? 0;
+    const raceHD = character.raceHitDice ?? 0;
+    const ecl = getEcl();
+    const xpNextLevel = getXpForNextLevel();
+    const canLevelUp = currentXp >= xpNextLevel && totalLevel > 0;
+    const xpThisLevel = getXpForLevel(ecl, character.useCustomXpTable ? character.customXpThresholds : undefined);
+    const xpProgress = xpNextLevel > xpThisLevel ? Math.min(100, ((currentXp - xpThisLevel) / (xpNextLevel - xpThisLevel)) * 100) : 100;
+    const xpLog = character.xpLog ?? [];
+
+    // Custom XP table state
+    const [editingCustomXp, setEditingCustomXp] = useState(false);
+    const [customThresholdsDraft, setCustomThresholdsDraft] = useState<string[]>(() =>
+        (character.customXpThresholds ?? DND35_XP_TABLE).map(String)
+    );
+
+    // XP log form state
+    const [xpLogForm, setXpLogForm] = useState({ amount: '', description: '' });
+
+    // Class picker state
+    const [isClassPickerOpen, setIsClassPickerOpen] = useState(false);
+    const [classPickerForId, setClassPickerForId] = useState<string | null>(null);
 
     // For each log entry (position = total char level), compute HP per class
     const logEntriesByClass = new Map<string, { totalLevel: number; hp: number }[]>();
@@ -99,6 +126,7 @@ export const LevelsTab: React.FC = () => {
     const fmt = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
 
     return (
+        <>
         <div className="levels-tab animate-fade-in">
 
             {/* ─── Hero summary ─────────────────────────────── */}
@@ -181,6 +209,233 @@ export const LevelsTab: React.FC = () => {
                 })}
             </div>
 
+            {/* ─── Level-up alert ────────────────────────────── */}
+            {canLevelUp && (
+                <div className="lv-levelup-alert">
+                    <FaExclamationTriangle size={16} className="lv-levelup-icon" />
+                    <div>
+                        <strong>Pronto per salire di livello!</strong>
+                        <div className="lv-levelup-sub">
+                            Hai raggiunto {currentXp.toLocaleString('it-IT')} PE · ECL attuale: {ecl} → prossimo ECL: {ecl + 1}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ─── XP Panel ──────────────────────────────────── */}
+            <div className="lv-xp-panel">
+                <div className="lv-xp-header">
+                    <span className="lv-xp-title"><FaStar size={12} /> Punti Esperienza (PE)</span>
+                    <div className="lv-xp-ecl-badge" title="Livello Effettivo del Personaggio (ECL)">
+                        ECL {ecl}
+                        {(la > 0 || raceHD > 0) && (
+                            <span className="lv-xp-ecl-breakdown">
+                                ({totalLevel} classi{la > 0 ? ` + ${la} LA` : ''}{raceHD > 0 ? ` + ${raceHD} HD razza` : ''})
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                <div className="lv-xp-row">
+                    <div className="lv-xp-field">
+                        <label className="lv-xp-label">PE Attuali</label>
+                        <input
+                            type="number"
+                            className="input lv-xp-input"
+                            value={currentXp}
+                            min={0}
+                            step={100}
+                            onChange={e => setCurrentXp(Number(e.target.value))}
+                        />
+                    </div>
+                    <div className="lv-xp-field">
+                        <label className="lv-xp-label">PE per prossimo livello</label>
+                        <div className="lv-xp-next">{xpNextLevel.toLocaleString('it-IT')}</div>
+                    </div>
+                    <div className="lv-xp-field lv-xp-field--la">
+                        <label className="lv-xp-label" title="Level Adjustment: penalità di livello per razze potenti (D&D 3.5)">
+                            <GiDragonHead size={11} /> Mod. di Livello (LA)
+                        </label>
+                        <input
+                            type="number"
+                            className="input lv-xp-input"
+                            value={la}
+                            min={0}
+                            max={10}
+                            onChange={e => setLevelAdjustment(Number(e.target.value))}
+                        />
+                    </div>
+                    <div className="lv-xp-field lv-xp-field--la">
+                        <label className="lv-xp-label" title="Dadi Vita razziali (es. 6 per un Minotauro)">
+                            DV Razziali (HD)
+                        </label>
+                        <input
+                            type="number"
+                            className="input lv-xp-input"
+                            value={raceHD}
+                            min={0}
+                            max={30}
+                            onChange={e => setRaceHitDice(Number(e.target.value))}
+                        />
+                    </div>
+                </div>
+
+                {/* Progress bar */}
+                <div className="lv-xp-bar-wrap" title={`${currentXp.toLocaleString('it-IT')} / ${xpNextLevel.toLocaleString('it-IT')} PE`}>
+                    <div className="lv-xp-bar-track">
+                        <div
+                            className={`lv-xp-bar-fill${canLevelUp ? ' full' : ''}`}
+                            style={{ width: `${xpProgress}%` }}
+                        />
+                    </div>
+                    <span className="lv-xp-bar-label">
+                        {currentXp.toLocaleString('it-IT')} / {xpNextLevel.toLocaleString('it-IT')} PE
+                        {' '}({Math.floor(xpProgress)}%)
+                    </span>
+                </div>
+
+                {/* Custom XP table toggle */}
+                <div className="lv-xp-custom-toggle">
+                    <label className="lv-xp-toggle-label">
+                        <input
+                            type="checkbox"
+                            checked={character.useCustomXpTable ?? false}
+                            onChange={e => {
+                                setXpConfig(e.target.checked, character.customXpThresholds ?? [...DND35_XP_TABLE]);
+                                setCustomThresholdsDraft((character.customXpThresholds ?? DND35_XP_TABLE).map(String));
+                            }}
+                        />
+                        Usa tabella PE personalizzata
+                    </label>
+                    {character.useCustomXpTable && (
+                        <button
+                            className="btn btn-ghost lv-xp-edit-btn"
+                            onClick={() => {
+                                setCustomThresholdsDraft((character.customXpThresholds ?? DND35_XP_TABLE).map(String));
+                                setEditingCustomXp(v => !v);
+                            }}
+                        >
+                            {editingCustomXp ? 'Chiudi' : 'Modifica tabella'}
+                        </button>
+                    )}
+                </div>
+
+                {/* Custom XP table editor */}
+                {character.useCustomXpTable && editingCustomXp && (
+                    <div className="lv-xp-table-editor">
+                        <div className="lv-xp-table-grid">
+                            {customThresholdsDraft.map((val, idx) => (
+                                <div key={idx} className="lv-xp-table-cell">
+                                    <label className="lv-xp-table-lbl">Lv.{idx + 1}</label>
+                                    <input
+                                        type="number"
+                                        className="input lv-xp-table-input"
+                                        value={val}
+                                        min={0}
+                                        step={100}
+                                        onChange={e => {
+                                            const next = [...customThresholdsDraft];
+                                            next[idx] = e.target.value;
+                                            setCustomThresholdsDraft(next);
+                                        }}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                        <div className="lv-xp-table-actions">
+                            <button
+                                className="btn btn-primary"
+                                onClick={() => {
+                                    const parsed = customThresholdsDraft.map(v => Math.max(0, Number(v) || 0));
+                                    setXpConfig(true, parsed);
+                                    setEditingCustomXp(false);
+                                }}
+                            >
+                                Salva tabella
+                            </button>
+                            <button
+                                className="btn btn-ghost"
+                                onClick={() => {
+                                    const reset = [...DND35_XP_TABLE];
+                                    setCustomThresholdsDraft(reset.map(String));
+                                    setXpConfig(true, reset);
+                                }}
+                            >
+                                Ripristina standard
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* ─── XP Log ─────────────────────────────────────── */}
+            <details className="lv-xp-log-details" open={xpLog.length > 0}>
+                <summary>
+                    <FaHistory size={11} /> Storico PE ({xpLog.length})
+                </summary>
+                <div className="lv-xp-log-body">
+                    <div className="lv-xp-log-form">
+                        <input
+                            type="number"
+                            className="input lv-xp-log-input"
+                            placeholder="PE ottenuti"
+                            value={xpLogForm.amount}
+                            min={0}
+                            onChange={e => setXpLogForm({ ...xpLogForm, amount: e.target.value })}
+                        />
+                        <input
+                            type="text"
+                            className="input lv-xp-log-input lv-xp-log-desc"
+                            placeholder="Descrizione (es. Sconfitta Goblin, Fine sessione...)"
+                            value={xpLogForm.description}
+                            onChange={e => setXpLogForm({ ...xpLogForm, description: e.target.value })}
+                        />
+                        <button
+                            className="btn btn-primary"
+                            onClick={() => {
+                                const amt = Number(xpLogForm.amount);
+                                if (amt > 0 && xpLogForm.description.trim()) {
+                                    addXpLogEntry(amt, xpLogForm.description.trim());
+                                    setXpLogForm({ amount: '', description: '' });
+                                }
+                            }}
+                        >
+                            <FaPlus size={10} /> Aggiungi
+                        </button>
+                    </div>
+
+                    {xpLog.length === 0 ? (
+                        <div className="lv-xp-log-empty">Nessun PE guadagnato ancora</div>
+                    ) : (
+                        <div className="lv-xp-log-list">
+                            {xpLog.map((entry, idx) => {
+                                const date = new Date(entry.createdAt);
+                                const dateStr = date.toLocaleDateString('it-IT', {
+                                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                                });
+                                return (
+                                    <div key={entry.id} className="lv-xp-log-entry">
+                                        <div className="lv-xp-log-header">
+                                            <span className="lv-xp-log-amount">+{entry.amount}</span>
+                                            <span className="lv-xp-log-desc">{entry.description}</span>
+                                            <span className="lv-xp-log-date">{dateStr}</span>
+                                            <button
+                                                className="lv-xp-log-del"
+                                                onClick={() => removeXpLogEntry(entry.id)}
+                                                title="Rimuovi entry"
+                                                aria-label="Rimuovi"
+                                            >
+                                                <FaTrash size={10} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            </details>
+
             {/* ─── Section header ────────────────────────────── */}
             <div className="lv-section-head">
                 <h3>Classi del Personaggio</h3>
@@ -206,25 +461,22 @@ export const LevelsTab: React.FC = () => {
             {classLevels.map(cl => {
                 const babVal = computeClassBab(cl.level, cl.babProgression);
                 const isPreset = !!CLASS_BAB_PRESETS[cl.className];
-                const datalistId = `classlist-${cl.id}`;
                 const die = cl.hitDie;
 
                 return (
                     <div key={cl.id} className="lv-card">
                         {/* Head */}
                         <div className="lv-card-head">
-                            <div className="lv-class-input">
-                                <input
-                                    className="input"
-                                    list={datalistId}
-                                    value={cl.className}
-                                    placeholder="Nome classe (es. Guerriero)"
-                                    onChange={e => handleClassNameChange(cl, e.target.value)}
-                                />
-                                <datalist id={datalistId}>
-                                    {Object.keys(CLASS_BAB_PRESETS).map(n => <option key={n} value={n} />)}
-                                </datalist>
-                                {isPreset && <span className="lv-preset-tag">Preset</span>}
+                            <div className="lv-class-picker">
+                                <button
+                                    className="lv-class-picker-btn"
+                                    onClick={() => {
+                                        setClassPickerForId(cl.id);
+                                        setIsClassPickerOpen(true);
+                                    }}
+                                >
+                                    {cl.className || 'Seleziona classe...'}
+                                </button>
                             </div>
 
                             <div className="lv-stepper" title="Livello in questa classe">
@@ -450,9 +702,29 @@ export const LevelsTab: React.FC = () => {
                         <li>I contributi delle singole classi vengono <em>sommati</em> per personaggi multiclasse.</li>
                         <li><strong>PF Lv.1:</strong> massimo del dado vita · <strong>PF Lv. pari:</strong> <code>⌊dado/2⌋</code> · <strong>PF Lv. dispari (≥3):</strong> <code>⌊dado/2⌋ + 1</code></li>
                         <li><strong>PF Max totale</strong> = somma PF da classi + modificatore COS × livello totale</li>
+                        <li><strong>ECL</strong> (Livello Effettivo) = livelli di classe + Modificatore di Livello (LA) + DV razziali</li>
+                        <li><strong>PE per prossimo livello</strong> si basa sull'ECL, non solo sui livelli di classe.</li>
+                        <li>Esempi: Drow (LA +2) con 1 livello da Mago → ECL 3, ha bisogno di 6.000 PE per salire.</li>
                     </ul>
                 </div>
             </details>
         </div>
+
+        {/* Class Picker Modal */}
+        <ClassPickerModal
+            isOpen={isClassPickerOpen}
+            onClose={() => {
+                setIsClassPickerOpen(false);
+                setClassPickerForId(null);
+            }}
+            onSelect={(className) => {
+                const cl = classLevels.find(c => c.id === classPickerForId);
+                if (cl) {
+                    handleClassNameChange(cl, className);
+                }
+            }}
+            currentValue={classPickerForId ? classLevels.find(c => c.id === classPickerForId)?.className : ''}
+        />
+        </>
     );
 };

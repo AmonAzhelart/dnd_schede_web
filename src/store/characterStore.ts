@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import type { CharacterBase, ClassLevel, HpLevelLogEntry, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell, ActiveModifier, DurationUnit, BestiaryEntry, ActiveSummon, ActivePet, Creature, CreatureStatOverride, CreatureRuntimeModifier, CustomSkillSynergy } from '../types/dnd';
-import { computeClassBab, computeClassSaveBase, getExpectedHpForClassLevel } from '../types/dnd';
+import { v4 as uuidv4 } from 'uuid';
+import type { CharacterBase, ClassLevel, HpLevelLogEntry, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell, ActiveModifier, DurationUnit, BestiaryEntry, ActiveSummon, ActivePet, Creature, CreatureStatOverride, CreatureRuntimeModifier, CustomSkillSynergy, NoteTab, NoteContextEntry, XpLogEntry } from '../types/dnd';
+import { computeClassBab, computeClassSaveBase, getExpectedHpForClassLevel, computeEcl, getXpForLevel } from '../types/dnd';
 import { collectModifierCandidates, resolveStatOverride, type ModifierCandidate, type RollContext } from '../services/modifiers';
 import { computeSynergyBonuses, computeCustomSynergyBonuses, type ActiveSynergy } from '../data/skillSynergies';
 
@@ -74,6 +75,27 @@ interface CharacterState {
   addLanguage: (lang: Language) => void;
   removeLanguage: (langId: string) => void;
   setQuickNotes: (text: string) => void;
+  setNoteTabs: (tabs: NoteTab[]) => void;
+  addNoteContextEntry: (entry: NoteContextEntry) => void;
+  updateNoteContextEntry: (entry: NoteContextEntry) => void;
+  removeNoteContextEntry: (id: string) => void;
+  setPlayerGlossaryNote: (campaignId: string, entryId: string, note: string) => void;
+  getPlayerGlossaryNote: (campaignId: string, entryId: string) => string;
+  // XP & Level Adjustment
+  setCurrentXp: (xp: number) => void;
+  setLevelAdjustment: (la: number) => void;
+  setRaceHitDice: (hd: number) => void;
+  setXpConfig: (useCustom: boolean, thresholds?: number[]) => void;
+  /** Computed ECL = class levels total + levelAdjustment + raceHitDice. */
+  getEcl: () => number;
+  /** XP threshold to reach the next level (based on ECL). */
+  getXpForNextLevel: () => number;
+  /** Add a log entry for XP earnings and auto-update currentXp. */
+  addXpLogEntry: (amount: number, description: string) => void;
+  /** Remove an entry from the XP log. */
+  removeXpLogEntry: (id: string) => void;
+  /** Get total XP from log entries. */
+  getTotalXpFromLog: () => number;
   setSavingThrow: (save: 'fortitude' | 'reflex' | 'will', breakdown: SavingThrowBreakdown) => void;
   // Wizard-style spell preparation (one entry per cast)
   prepareWizardSpell: (level: number, spellId: string) => void;
@@ -398,6 +420,121 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     return { character: { ...state.character, quickNotes: text } };
   }),
 
+  setNoteTabs: (tabs) => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, noteTabs: tabs } };
+  }),
+
+  addNoteContextEntry: (entry) => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, noteContext: [...(state.character.noteContext ?? []), entry] } };
+  }),
+
+  updateNoteContextEntry: (entry) => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, noteContext: (state.character.noteContext ?? []).map(e => e.id === entry.id ? entry : e) } };
+  }),
+
+  removeNoteContextEntry: (id) => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, noteContext: (state.character.noteContext ?? []).filter(e => e.id !== id) } };
+  }),
+
+  setPlayerGlossaryNote: (campaignId, entryId, note) => set((state) => {
+    if (!state.character) return state;
+    const key = `${campaignId}::${entryId}`;
+    const notes = { ...(state.character.playerGlossaryNotes ?? {}) };
+    if (note.trim()) {
+      notes[key] = note;
+    } else {
+      delete notes[key];
+    }
+    return { character: { ...state.character, playerGlossaryNotes: notes } };
+  }),
+
+  getPlayerGlossaryNote: (campaignId, entryId) => {
+    const key = `${campaignId}::${entryId}`;
+    const state = useCharacterStore.getState();
+    return (state.character?.playerGlossaryNotes?.[key]) ?? '';
+  },
+
+  setCurrentXp: (xp) => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, currentXp: Math.max(0, xp) } };
+  }),
+
+  setLevelAdjustment: (la) => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, levelAdjustment: Math.max(0, la) } };
+  }),
+
+  setRaceHitDice: (hd) => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, raceHitDice: Math.max(0, hd) } };
+  }),
+
+  setXpConfig: (useCustom, thresholds) => set((state) => {
+    if (!state.character) return state;
+    return {
+      character: {
+        ...state.character,
+        useCustomXpTable: useCustom,
+        ...(thresholds !== undefined ? { customXpThresholds: thresholds } : {}),
+      },
+    };
+  }),
+
+  getEcl: () => {
+    const { character } = get();
+    if (!character) return 1;
+    const classTotal = (character.classLevels ?? []).reduce((s, cl) => s + cl.level, 0);
+    return computeEcl(classTotal, character.levelAdjustment ?? 0, character.raceHitDice ?? 0);
+  },
+
+  getXpForNextLevel: () => {
+    const { character, getEcl } = get();
+    if (!character) return 0;
+    const ecl = getEcl();
+    return getXpForLevel(ecl + 1, character.useCustomXpTable ? character.customXpThresholds : undefined);
+  },
+
+  addXpLogEntry: (amount, description) => set((state) => {
+    if (!state.character) return state;
+    const log = [...(state.character.xpLog ?? [])];
+    log.push({
+      id: uuidv4(),
+      createdAt: new Date().toISOString(),
+      amount: Math.max(0, amount),
+      description,
+    });
+    return {
+      character: {
+        ...state.character,
+        xpLog: log,
+        currentXp: (state.character.currentXp ?? 0) + Math.max(0, amount),
+      },
+    };
+  }),
+
+  removeXpLogEntry: (id) => set((state) => {
+    if (!state.character) return state;
+    const removed = state.character.xpLog?.find(e => e.id === id);
+    const nextLog = (state.character.xpLog ?? []).filter(e => e.id !== id);
+    return {
+      character: {
+        ...state.character,
+        xpLog: nextLog,
+        currentXp: Math.max(0, (state.character.currentXp ?? 0) - (removed?.amount ?? 0)),
+      },
+    };
+  }),
+
+  getTotalXpFromLog: () => {
+    const { character } = get();
+    if (!character?.xpLog) return 0;
+    return character.xpLog.reduce((sum, e) => sum + e.amount, 0);
+  },
+
   updateSkill: (skill) => set((state) => {
     if (!state.character) return state;
     return { character: { ...state.character, skills: { ...state.character.skills, [skill.id]: skill } } };
@@ -597,7 +734,7 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       if (!die) return sum;
       return sum + getExpectedHpForClassLevel(die, idx + 1);
     }, 0);
-    return hpFromDice + conMod;
+    return hpFromDice + conMod * log.length;
   },
 
   addHpLevelEntry: (entry: HpLevelLogEntry) => set((state) => {

@@ -83,6 +83,60 @@ export const CLASS_HIT_DIE_PRESETS: Record<string, number> = {
   'Fattucchiere': 4,
 };
 
+// ──────────────────────────────── RACES (D&D 3.5) ────────────────────────────
+
+/** D&D 3.5 race data with Level Adjustment and racial Hit Dice. */
+export interface RacePreset {
+  name: string;
+  /** Level Adjustment: penalità di livello per razze potenti (es. +2 per Drow). */
+  levelAdjustment: number;
+  /** Racial Hit Dice (HD): dadi vita mostruosi (es. 6 per Minotauro). */
+  raceHitDice: number;
+}
+
+export const RACE_PRESETS: RacePreset[] = [
+  // Standard humanoid races (LA 0)
+  { name: 'Umano', levelAdjustment: 0, raceHitDice: 0 },
+  { name: 'Human', levelAdjustment: 0, raceHitDice: 0 },
+  { name: 'Elfo', levelAdjustment: 0, raceHitDice: 0 },
+  { name: 'Elf', levelAdjustment: 0, raceHitDice: 0 },
+  { name: 'Nano', levelAdjustment: 0, raceHitDice: 0 },
+  { name: 'Dwarf', levelAdjustment: 0, raceHitDice: 0 },
+  { name: 'Mezzorco', levelAdjustment: 0, raceHitDice: 0 },
+  { name: 'Half-Orc', levelAdjustment: 0, raceHitDice: 0 },
+  { name: 'Mezzelfo', levelAdjustment: 0, raceHitDice: 0 },
+  { name: 'Half-Elf', levelAdjustment: 0, raceHitDice: 0 },
+  { name: 'Gnomo', levelAdjustment: 0, raceHitDice: 0 },
+  { name: 'Gnome', levelAdjustment: 0, raceHitDice: 0 },
+  { name: 'Hafling', levelAdjustment: 0, raceHitDice: 0 },
+  { name: 'Halfling', levelAdjustment: 0, raceHitDice: 0 },
+  // Powerful races with LA
+  { name: 'Drow', levelAdjustment: 2, raceHitDice: 0 },
+  { name: 'Drow (Elfo Oscuro)', levelAdjustment: 2, raceHitDice: 0 },
+  { name: 'Tiefling', levelAdjustment: 1, raceHitDice: 0 },
+  { name: 'Aasimar', levelAdjustment: 1, raceHitDice: 0 },
+  { name: 'Dragonborn', levelAdjustment: 2, raceHitDice: 0 },
+  { name: 'Genasi (Terra)', levelAdjustment: 1, raceHitDice: 0 },
+  { name: 'Genasi (Fuoco)', levelAdjustment: 1, raceHitDice: 0 },
+  { name: 'Genasi (Aria)', levelAdjustment: 1, raceHitDice: 0 },
+  { name: 'Genasi (Acqua)', levelAdjustment: 1, raceHitDice: 0 },
+  // Monstrous races with racial HD
+  { name: 'Minotauro', levelAdjustment: 2, raceHitDice: 6 },
+  { name: 'Centauro', levelAdjustment: 2, raceHitDice: 4 },
+  { name: 'Golia', levelAdjustment: 1, raceHitDice: 3 },
+  { name: 'Harpy', levelAdjustment: 1, raceHitDice: 4 },
+  { name: 'Licantropo (Umano)', levelAdjustment: 2, raceHitDice: 0 },
+  { name: 'Vampire Spawn', levelAdjustment: 2, raceHitDice: 2 },
+];
+
+/** Get LA and racial HD for a race name (case-insensitive).
+ *  Returns [0, 0] if not found. */
+export const getRaceAdjustments = (raceName: string): [la: number, hd: number] => {
+  const preset = RACE_PRESETS.find(r => r.name.toLowerCase() === raceName.toLowerCase());
+  if (!preset) return [0, 0];
+  return [preset.levelAdjustment, preset.raceHitDice];
+};
+
 /** HP gained when a character reaches a given **total** character level.
  *  Total level 1 (first level ever) = max die value.
  *  Even total levels = floor(die/2)      (metà bassa).
@@ -94,6 +148,62 @@ export const getHpForTotalLevel = (die: number, totalLevel: number): number => {
 
 /** @deprecated Use {@link getHpForTotalLevel} with the total character level. */
 export const getExpectedHpForClassLevel = getHpForTotalLevel;
+
+// ──────────────────────────────── XP / ECL ────────────────────────────────
+
+/** Standard D&D 3.5 XP table: total XP required to *reach* each level.
+ *  Index 0 = Level 1 (0 XP), index 1 = Level 2 (1000 XP), etc. up to level 20. */
+export const DND35_XP_TABLE: number[] = [
+  0,       // Lv 1
+  1000,    // Lv 2
+  3000,    // Lv 3
+  6000,    // Lv 4
+  10000,   // Lv 5
+  15000,   // Lv 6
+  21000,   // Lv 7
+  28000,   // Lv 8
+  36000,   // Lv 9
+  45000,   // Lv 10
+  55000,   // Lv 11
+  66000,   // Lv 12
+  78000,   // Lv 13
+  91000,   // Lv 14
+  105000,  // Lv 15
+  120000,  // Lv 16
+  136000,  // Lv 17
+  153000,  // Lv 18
+  171000,  // Lv 19
+  190000,  // Lv 20
+];
+
+/** Returns the total XP required to reach the given level (1-based).
+ *  If `customThresholds` is provided and has a value at that index, uses it instead. */
+export const getXpForLevel = (level: number, customThresholds?: number[]): number => {
+  if (level < 1) return 0;
+  const idx = level - 1;
+  if (customThresholds && customThresholds[idx] !== undefined) return customThresholds[idx];
+  if (idx < DND35_XP_TABLE.length) return DND35_XP_TABLE[idx];
+  // Beyond 20: extrapolate (each level costs 1000 * level XP more)
+  return DND35_XP_TABLE[DND35_XP_TABLE.length - 1] + (level - DND35_XP_TABLE.length) * 21000;
+};
+
+/** Experience point log entry with timestamp and description. */
+export interface XpLogEntry {
+  id: string;
+  /** ISO timestamp when XP was earned. */
+  createdAt: string;
+  /** Amount of XP earned. */
+  amount: number;
+  /** Session description (e.g. "Sconfitta Goblin", "Completamento Quest"). */
+  description: string;
+}
+
+/** Compute the Effective Character Level (ECL) given class levels, Level Adjustment and racial HD. */
+export const computeEcl = (
+  classLevelTotal: number,
+  levelAdjustment: number,
+  raceHitDice: number,
+): number => Math.max(1, classLevelTotal + levelAdjustment + raceHitDice);
 
 /** A single entry in the HP acquisition log (tracks the order levels were gained). */
 export interface HpLevelLogEntry {
@@ -675,6 +785,21 @@ export const CLASS_SKILL_POINTS: Record<string, number> = {
   'Fattucchiere': 2,
 };
 
+/** A named tab in the Notes widget. */
+export interface NoteTab {
+  id: string;
+  name: string;
+  content: string;
+}
+
+/** A context (glossary) entry for the Notes widget. */
+export interface NoteContextEntry {
+  id: string;
+  term: string;
+  info: string;
+  category: 'person' | 'place' | 'item' | 'lore' | 'other';
+}
+
 export interface CharacterBase {
   id: string;
   userId: string;
@@ -745,6 +870,27 @@ export interface CharacterBase {
   masterId?: string;
   /** Free-form quick notes saved from the dashboard Notes widget. */
   quickNotes?: string;
+  /** Named tabs for the Notes widget (replaces quickNotes for new characters). */
+  noteTabs?: NoteTab[];
+  /** Glossary of context terms highlighted across all note tabs. */
+  noteContext?: NoteContextEntry[];
+  /** Personal notes on campaign glossary entries: keyed by `${campaignId}::${entryId}` */
+  playerGlossaryNotes?: Record<string, string>;
+
+  // ── XP & Level Adjustment ────────────────────────────────────────────
+  /** Current total XP accumulated by the character. */
+  currentXp?: number;
+  /** Racial Level Adjustment (LA) per D&D 3.5 rules (e.g. +2 for Drow). */
+  levelAdjustment?: number;
+  /** Racial / monster Hit Dice (e.g. 6 for a Minotauro). Contributes to ECL. */
+  raceHitDice?: number;
+  /** When true, use `customXpThresholds` instead of the standard D&D 3.5 table. */
+  useCustomXpTable?: boolean;
+  /** Custom XP required to reach each level (index 0 = Level 1).
+   *  Only used when `useCustomXpTable` is true. */
+  customXpThresholds?: number[];
+  /** Chronological log of XP earnings with descriptions. */
+  xpLog?: XpLogEntry[];
 }
 
 // ─────────────────────────── BESTIARY ────────────────────────────

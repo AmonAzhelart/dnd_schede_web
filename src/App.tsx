@@ -5,6 +5,7 @@ import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { MapBoard } from './components/MapBoard';
 import { AdventureDiary } from './components/AdventureDiary';
+import { NotesPage } from './components/NotesPage';
 import { CharacterSheet } from './components/CharacterSheet';
 import { SkeletonCharacterCard, SkeletonSheet } from './components/Skeleton';
 import { getUserCharacters, createCharacterWithDataDb, saveCharacterToDb, deleteCharacterDb } from './services/db';
@@ -21,10 +22,11 @@ import { FeedbackChat } from './components/FeedbackChat';
 import { CampaignPage } from './components/campaign/CampaignPage';
 import { CharacterCampaignPanel } from './components/campaign/CharacterCampaignPanel';
 import { PlayerChatNotifier } from './components/campaign/PlayerChatNotifier';
+import { CampaignGlossaryNotifier } from './components/campaign/CampaignGlossaryNotifier';
 import { subscribeMasterCampaigns } from './services/campaign';
 import type { Campaign } from './types/campaign';
 
-type Tab = 'scheda' | 'diario' | 'mappe' | 'feedback' | 'backoffice' | 'campagna';
+type Tab = 'scheda' | 'note' | 'mappe' | 'feedback' | 'backoffice' | 'campagna';
 type LandingTab = 'personaggi' | 'campagne';
 
 function App() {
@@ -516,7 +518,7 @@ function App() {
   // ── MAIN APP ───────────────────────────────────────────
   const navItems: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'scheda', label: 'Scheda', icon: <GiSwordman size={18} /> },
-    { id: 'diario', label: 'Diario & NPC', icon: <FaBookOpen size={16} /> },
+    { id: 'note', label: 'Note & Glossario', icon: <FaBookOpen size={16} /> },
     { id: 'mappe', label: 'Mappe', icon: <GiTreasureMap size={18} /> },
     { id: 'campagna', label: 'Campagna', icon: <GiCastle size={17} /> },
     ...(!superAdmin ? [{ id: 'feedback' as Tab, label: 'Feedback', icon: <FaCommentDots size={15} /> }] : []),
@@ -571,14 +573,9 @@ function App() {
       {/* ── MAIN CONTENT ── */}
       <main className="main-content">
         {activeTab === 'scheda' && <CharacterSheet />}
-        {activeTab === 'diario' && (
-          <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-5)' }} className="animate-fade-in">
-            <div className="flex-col gap-4">
-              <div className="section-header">
-                <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Diario & NPC</h2>
-              </div>
-              <AdventureDiary />
-            </div>
+        {activeTab === 'note' && (
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }} className="animate-fade-in">
+            <NotesPage />
           </div>
         )}
         {activeTab === 'mappe' && (
@@ -620,6 +617,9 @@ function App() {
           onNavigateToCampaign={() => setActiveTab('campagna')}
         />
       )}
+
+      {/* ── ALWAYS-ON: campaign glossary popup notifier ── */}
+      {user && <CampaignGlossaryNotifier />}
     </div>
   );
 }

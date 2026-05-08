@@ -180,7 +180,7 @@ export function computeTotalMaxHp(char: CharacterBase): number {
         if (!die) return sum;
         return sum + getExpectedHpForClassLevel(die, idx + 1);
     }, 0);
-    return hpFromDice + conMod;
+    return hpFromDice + conMod * log.length;
 }
 
 /** Compute initiative bonus. */

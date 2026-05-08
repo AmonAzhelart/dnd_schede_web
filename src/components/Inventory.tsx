@@ -1,6 +1,7 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import './Inventory.css';
 import { useCharacterStore } from '../store/characterStore';
+import { saveCharacterToDb } from '../services/db';
 import { v4 as uuidv4 } from 'uuid';
 import {
   FaPlus, FaTrash, FaEdit, FaCheck, FaTimes,
@@ -682,6 +683,8 @@ export const Inventory: React.FC = () => {
     return () => window.removeEventListener('inventory:setTab', onNav as EventListener);
   }, []);
 
+  const timelineEndRef = useRef<HTMLDivElement>(null);
+
   if (!character) return null;
 
   const allItems = character.inventory;
@@ -775,7 +778,10 @@ export const Inventory: React.FC = () => {
       platinum: sign * (txForm.platinum || 0), gold: sign * (txForm.gold || 0),
       silver: sign * (txForm.silver || 0), copper: sign * (txForm.copper || 0),
     });
+    const updated = useCharacterStore.getState().character;
+    if (updated) saveCharacterToDb(updated);
     setTxForm(EMPTY_TX());
+    setTimeout(() => timelineEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
   };
 
   // ─────────────────────────────── RENDER ───────────────────────────────────
@@ -1077,96 +1083,188 @@ export const Inventory: React.FC = () => {
 
         {/* ═══════════ TAB: CURRENCY ═══════════ */}
         {mainTab === 'currency' && (
-          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 16 }}>
+          <div className="inv-purse-root">
 
-            {/* Coin balance */}
-            <div className="glass-panel" style={{ padding: 16 }}>
-              <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: 'var(--font-heading)', letterSpacing: '0.13em', marginBottom: 14 }}>TESORO</div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {/* ══════ COLONNA SX — MONETE ══════ */}
+            <div className="inv-purse-col-left">
+
+              {/* Header */}
+              <div className="inv-cw-hdr">
+                <div className="inv-cw-hdr-rule" />
+                <div className="inv-cw-hdr-title">
+                  <DndIcon category="entity" name="loot" size={14} />
+                  <span>BORSA</span>
+                </div>
+                <div className="inv-cw-hdr-rule" />
+              </div>
+
+              {/* 2×2 coin grid */}
+              <div className="inv-cw-grid">
                 {COIN_LABELS.map(({ key, label, abbr, color }) => (
-                  <div key={key} className="inv-coin-tile" style={{ borderColor: `${color}22` }}>
-                    <div className="inv-coin-orb" style={{ color, background: `${color}18`, borderColor: `${color}40` }}>{abbr}</div>
-                    <div className="inv-coin-amount" style={{ color }}>{currency[key] ?? 0}</div>
-                    <div className="inv-coin-label">{label}</div>
+                  <div key={key} className="inv-cw-card" style={{ '--cc': color } as React.CSSProperties} data-coin={key}>
+                    <div className="inv-cw-disc">
+                      <span className="inv-cw-abbr">{abbr}</span>
+                    </div>
+                    <div className="inv-cw-val">{(currency[key] ?? 0).toLocaleString('it-IT')}</div>
+                    <div className="inv-cw-lbl">{label}</div>
                   </div>
                 ))}
               </div>
-            </div>
 
-            {/* New transaction */}
-            <div className="glass-panel" style={{ padding: 16 }}>
-              <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: 'var(--font-heading)', letterSpacing: '0.13em', marginBottom: 12 }}>NUOVA TRANSAZIONE</div>
-              <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-                {(['in', 'out'] as const).map(dir => (
-                  <button key={dir} onClick={() => setTxForm(f => ({ ...f, dir }))} style={{
-                    padding: '5px 16px', borderRadius: 4, cursor: 'pointer', fontSize: '0.78rem',
-                    background: txForm.dir === dir ? (dir === 'in' ? 'rgba(39,174,96,0.15)' : 'rgba(192,57,43,0.15)') : 'transparent',
-                    border: txForm.dir === dir ? `1px solid ${dir === 'in' ? 'rgba(39,174,96,0.5)' : 'rgba(192,57,43,0.5)'}` : '1px solid rgba(255,255,255,0.1)',
-                    color: txForm.dir === dir ? (dir === 'in' ? 'var(--accent-success)' : 'var(--accent-crimson)') : 'var(--text-muted)',
-                    display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'var(--font-heading)',
-                  }}>
-                    {dir === 'in' ? <FaArrowDown size={10} /> : <FaArrowUp size={10} />}
-                    {dir === 'in' ? 'Entrata' : 'Uscita'}
-                  </button>
-                ))}
-              </div>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                {COIN_LABELS.map(({ key, label, color }) => (
-                  <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: '0.7rem', color }}>
-                    {label}
-                    <input className="input" type="number" min={0} value={txForm[key] || ''}
-                      onChange={e => setTxForm(f => ({ ...f, [key]: parseInt(e.target.value) || 0 }))}
-                      placeholder="0" style={{ width: 68, textAlign: 'center', fontSize: '0.88rem', fontFamily: 'var(--font-heading)', color }} />
-                  </label>
-                ))}
-              </div>
-              <input className="input" placeholder="Descrizione transazione..." value={txForm.description}
-                onChange={e => setTxForm(f => ({ ...f, description: e.target.value }))}
-                onKeyDown={e => { if (e.key === 'Enter') submitTx(); }}
-                style={{ width: '100%', marginBottom: 8, fontSize: '0.85rem' }} />
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button onClick={submitTx} className="btn-primary" style={{ fontSize: '0.82rem' }}>
-                  <FaCheck size={10} /> Registra
-                </button>
-              </div>
-            </div>
-
-            {/* Transaction log */}
-            {txLog.length > 0 && (
-              <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
-                <div style={{ padding: '8px 14px 7px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                  <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: 'var(--font-heading)', letterSpacing: '0.12em' }}>STORICO TRANSAZIONI</span>
+              {/* Total */}
+              <div className="inv-cw-total">
+                <span className="inv-cw-total-lbl">Valore Totale</span>
+                <div className="inv-cw-total-val">
+                  {(
+                    (currency.platinum ?? 0) * 10 +
+                    (currency.gold ?? 0) +
+                    (currency.silver ?? 0) / 10 +
+                    (currency.copper ?? 0) / 100
+                  ).toFixed(2)}
+                  <span className="inv-cw-total-unit"> mo</span>
                 </div>
-                {txLog.map(tx => {
-                  const isPositive = (tx.gold + tx.platinum + tx.silver + tx.copper) >= 0;
-                  const parts = COIN_LABELS.map(({ key, abbr, color }) => tx[key] !== 0 ? { label: abbr, value: tx[key], color } : null).filter(Boolean) as { label: string; value: number; color: string }[];
-                  return (
-                    <div key={tx.id} className="inv-tx-row">
-                      <div style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, flexShrink: 0, background: isPositive ? 'var(--accent-success)' : 'var(--accent-crimson)' }} />
-                      {isPositive ? <FaArrowDown size={9} color="var(--accent-success)" /> : <FaArrowUp size={9} color="var(--accent-crimson)" />}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '0.82rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.description || '—'}</div>
-                        <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>{new Date(tx.date).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
-                      </div>
-                      <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end', flexShrink: 0 }}>
-                        {parts.map(p => (
-                          <span key={p.label} style={{ fontFamily: 'var(--font-heading)', fontSize: '0.82rem', color: p.color }}>
-                            {p.value > 0 ? '+' : ''}{p.value} {p.label}
-                          </span>
-                        ))}
-                      </div>
-                      <button onClick={() => setCharacter({ ...character, currencyLog: txLog.filter(t => t.id !== tx.id) })}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-crimson)', padding: '3px 5px', opacity: 0.4, flexShrink: 0 }}>
-                        <FaTrash size={10} />
-                      </button>
-                    </div>
-                  );
-                })}
               </div>
-            )}
-            {txLog.length === 0 && (
-              <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '0.5rem 0' }}>Nessuna transazione registrata.</div>
-            )}
+
+            </div>
+
+            {/* ══════ COLONNA DX — TIMELINE + FORM ══════ */}
+            <div className="inv-purse-col-right">
+
+              {/* ── Timeline (sopra, scorrevole) ── */}
+              <div className="inv-purse-timeline-panel">
+                <div className="inv-bank-ledger-hdr">
+                  <div className="inv-bank-ledger-hdr-rule" />
+                  <span className="inv-bank-ledger-hdr-title">
+                    <DndIcon category="entity" name="scroll" size={12} />
+                    CRONACA
+                  </span>
+                  <div className="inv-bank-ledger-hdr-rule" />
+                </div>
+
+                {txLog.length === 0 ? (
+                  <div className="inv-bank-log-empty">
+                    <DndIcon category="entity" name="scroll" size={32} />
+                    <span>Nessuna operazione registrata</span>
+                  </div>
+                ) : (
+                  <div className="inv-purse-timeline">
+                    {[...txLog].reverse().map((tx, idx, arr) => {
+                      const isPositive = (tx.gold + tx.platinum + tx.silver + tx.copper) >= 0;
+                      const parts = COIN_LABELS.map(({ key, abbr, color }) =>
+                        tx[key] !== 0 ? { label: abbr, value: tx[key], color } : null
+                      ).filter(Boolean) as { label: string; value: number; color: string }[];
+                      return (
+                        <div key={tx.id} className={`inv-purse-tl-entry${isPositive ? ' gain' : ' loss'}`}>
+                          {/* Linea verticale + dot */}
+                          <div className="inv-purse-tl-spine">
+                            <div className="inv-purse-tl-dot" />
+                            {idx < arr.length - 1 && <div className="inv-purse-tl-line" />}
+                          </div>
+                          {/* Card */}
+                          <div className="inv-purse-tl-card">
+                            <div className="inv-purse-tl-card-top">
+                              <span className="inv-purse-tl-desc">{tx.description || '—'}</span>
+                              <button
+                                className="inv-bank-log-del"
+                                title="Annulla operazione"
+                                onClick={() => {
+                                  const newLog = txLog.filter(t => t.id !== tx.id);
+                                  const cur = character.currency ?? { platinum: 0, gold: 0, silver: 0, copper: 0 };
+                                  const revertedCurrency = {
+                                    platinum: (cur.platinum ?? 0) - tx.platinum,
+                                    gold: (cur.gold ?? 0) - tx.gold,
+                                    silver: (cur.silver ?? 0) - tx.silver,
+                                    copper: (cur.copper ?? 0) - tx.copper,
+                                  };
+                                  setCharacter({ ...character, currency: revertedCurrency, currencyLog: newLog });
+                                  const updated = useCharacterStore.getState().character;
+                                  if (updated) saveCharacterToDb({ ...updated, currency: revertedCurrency, currencyLog: newLog });
+                                }}
+                              >
+                                <FaTrash size={9} />
+                              </button>
+                            </div>
+                            <div className="inv-purse-tl-amounts">
+                              {parts.map(p => (
+                                <span key={p.label} className="inv-bank-log-row-coin" style={{ '--cc': p.color } as React.CSSProperties}>
+                                  {p.value > 0 ? '+' : ''}{p.value} {p.label}
+                                </span>
+                              ))}
+                            </div>
+                            <div className="inv-purse-tl-date">
+                              {new Date(tx.date).toLocaleString('it-IT', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <div ref={timelineEndRef} />
+              </div>
+
+              {/* ── Nuova operazione (in fondo, fisso) ── */}
+              <div className="inv-purse-form-panel">
+                <div className="inv-bank-ledger-hdr">
+                  <div className="inv-bank-ledger-hdr-rule" />
+                  <span className="inv-bank-ledger-hdr-title">
+                    <DndIcon category="entity" name="book" size={12} />
+                    NUOVA OPERAZIONE
+                  </span>
+                  <div className="inv-bank-ledger-hdr-rule" />
+                </div>
+
+                <div className="inv-bank-form-body">
+                  {/* Griglia 2×2 monete */}
+                  <div className="inv-bank-amount-grid">
+                    {COIN_LABELS.map(({ key, label, color }) => (
+                      <div key={key} className="inv-bank-amount-cell" data-coin={key}>
+                        <span className="inv-bank-amount-coin-label" style={{ color }}>{label}</span>
+                        <input
+                          className="inv-bank-amount-input"
+                          type="number" min={0}
+                          value={txForm[key] || ''}
+                          onChange={e => setTxForm(f => ({ ...f, [key]: parseInt(e.target.value) || 0 }))}
+                          placeholder="0"
+                          style={{ '--coin-color': color } as React.CSSProperties}
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Pulsanti entrata/uscita impilati */}
+                  <div className="inv-bank-dir-col">
+                    {(['in', 'out'] as const).map(dir => (
+                      <button
+                        key={dir}
+                        className={`inv-bank-dir-btn inv-bank-dir-btn--${dir}${txForm.dir === dir ? ' active' : ''}`}
+                        onClick={() => setTxForm(f => ({ ...f, dir }))}
+                      >
+                        <span className="inv-bank-dir-seal">
+                          {dir === 'in' ? <FaArrowDown size={9} /> : <FaArrowUp size={9} />}
+                        </span>
+                        <span className="inv-bank-dir-text">{dir === 'in' ? 'Entrata' : 'Uscita'}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="inv-bank-desc-row">
+                  <input
+                    className="inv-bank-desc-input"
+                    placeholder="Causale (es: locanda, bottino drago…)"
+                    value={txForm.description}
+                    onChange={e => setTxForm(f => ({ ...f, description: e.target.value }))}
+                    onKeyDown={e => { if (e.key === 'Enter') submitTx(); }}
+                  />
+                  <button className="inv-bank-submit-btn" onClick={submitTx}>
+                    <FaCheck size={11} />
+                    <span>Registra</span>
+                  </button>
+                </div>
+              </div>
+
+            </div>{/* /col-right */}
           </div>
         )}
 

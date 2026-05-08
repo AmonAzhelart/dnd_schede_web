@@ -1,0 +1,260 @@
+/* ─── Class Picker Modal ────────────────────────────────────── */
+.cpm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.cpm-modal {
+    background: linear-gradient(180deg, rgba(28, 28, 39, 0.98), rgba(20, 20, 28, 0.95));
+    border: 1px solid rgba(155, 89, 182, 0.25);
+    border-radius: 12px;
+    max-width: 400px;
+    width: 90%;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.2s ease;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.cpm-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    border-bottom: 1px solid rgba(155, 89, 182, 0.15);
+}
+
+.cpm-header h3 {
+    margin: 0;
+    font-family: var(--font-heading);
+    color: var(--accent-gold);
+    font-size: 1rem;
+}
+
+.cpm-close {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.1s;
+}
+
+.cpm-close:hover {
+    color: var(--accent-crimson);
+    border-color: rgba(192, 57, 43, 0.3);
+    background: rgba(192, 57, 43, 0.08);
+}
+
+.cpm-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    color: var(--text-muted);
+}
+
+.cpm-search input {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: var(--text-primary);
+    font-size: 0.8rem;
+}
+
+.cpm-search input::placeholder {
+    color: var(--text-muted);
+}
+
+.cpm-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0.5rem;
+}
+
+.cpm-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    padding: 0.65rem 0.8rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.1s;
+    font-size: 0.8rem;
+    font-family: var(--font-heading);
+    text-align: left;
+}
+
+.cpm-item:hover {
+    background: rgba(155, 89, 182, 0.12);
+    border-color: rgba(155, 89, 182, 0.3);
+}
+
+.cpm-item.active {
+    background: rgba(155, 89, 182, 0.18);
+    border-color: rgba(155, 89, 182, 0.4);
+    color: var(--accent-gold);
+}
+
+.cpm-icon {
+    display: flex;
+    align-items: center;
+    font-size: 1.1rem;
+    color: var(--accent-ice, #5ec5e0);
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    justify-content: center;
+}
+
+.cpm-svg-icon {
+    display: flex;
+    align-items: center;
+    width: 22px;
+    height: 22px;
+}
+
+.cpm-svg-icon svg {
+    width: 100%;
+    height: 100%;
+    fill: currentColor;
+}
+
+.cpm-item.active .cpm-icon {
+    color: var(--accent-gold);
+}
+
+.cpm-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 2rem;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.cpm-spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.cpm-empty {
+    padding: 2rem;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+.cpm-name {
+    flex: 1;
+}
+
+.cpm-check {
+    color: var(--accent-success);
+    flex-shrink: 0;
+}
+
+.cpm-custom-toggle {
+    width: calc(100% - 1rem);
+    margin: 0.5rem;
+    padding: 0.6rem;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(155, 89, 182, 0.2);
+    border-radius: 6px;
+    color: var(--accent-gold);
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-family: var(--font-heading);
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.1s;
+}
+
+.cpm-custom-toggle:hover {
+    background: rgba(155, 89, 182, 0.1);
+    border-color: rgba(155, 89, 182, 0.4);
+}
+
+.cpm-custom-form {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.cpm-custom-input {
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+}
+
+.cpm-custom-buttons {
+    display: flex;
+    gap: 0.6rem;
+}
+
+.cpm-custom-buttons button {
+    flex: 1;
+    font-size: 0.75rem;
+}
+
+/* Scrollbar styling */
+.cpm-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.cpm-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.cpm-list::-webkit-scrollbar-thumb {
+    background: rgba(201, 168, 76, 0.3);
+    border-radius: 3px;
+}
+
+.cpm-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(201, 168, 76, 0.5);
+}

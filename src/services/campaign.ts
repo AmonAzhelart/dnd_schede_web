@@ -16,7 +16,7 @@ import {
     arrayRemove,
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import type { Campaign, CampaignMessage, MasterNote } from '../types/campaign';
+import type { Campaign, CampaignMessage, CampaignGlossaryEntry, GlossarySection, MasterNote } from '../types/campaign';
 import { loadCharacterFromDb } from './db';
 import type { CharacterBase } from '../types/dnd';
 
@@ -215,6 +215,81 @@ export async function sendCampaignMessage(
         { lastMessage: trimmed, lastUpdated: serverTimestamp(), playerId },
         { merge: true },
     );
+}
+
+// ─────────────────────── campaign glossary ───────────────────────
+
+const glossaryRef = (campaignId: string) =>
+    collection(db, 'campaigns', campaignId, 'glossaryEntries');
+
+export async function addCampaignGlossaryEntry(
+    campaignId: string,
+    masterId: string,
+    entry: Omit<CampaignGlossaryEntry, 'id' | 'createdAt' | 'sharedByMasterId'>,
+): Promise<CampaignGlossaryEntry> {
+    const payload = { ...entry, sharedByMasterId: masterId, createdAt: serverTimestamp() };
+    const ref = await addDoc(glossaryRef(campaignId), payload);
+    await updateDoc(ref, { id: ref.id });
+    return { ...payload, id: ref.id, createdAt: null } as unknown as CampaignGlossaryEntry;
+}
+
+export async function updateCampaignGlossaryEntry(
+    campaignId: string,
+    entry: CampaignGlossaryEntry,
+): Promise<void> {
+    const { id, ...rest } = entry;
+    await updateDoc(doc(glossaryRef(campaignId), id), rest as Record<string, unknown>);
+}
+
+export async function deleteCampaignGlossaryEntry(
+    campaignId: string,
+    entryId: string,
+): Promise<void> {
+    await deleteDoc(doc(glossaryRef(campaignId), entryId));
+}
+
+/** Subscribe to all glossary entries (for master — sees everything). */
+export function subscribeCampaignGlossary(
+    campaignId: string,
+    cb: (entries: CampaignGlossaryEntry[]) => void,
+): () => void {
+    return onSnapshot(glossaryRef(campaignId), snap =>
+        cb(snap.docs.map(d => ({ id: d.id, ...d.data() }) as CampaignGlossaryEntry)),
+    );
+}
+
+/** Returns only the sections a player can see (isPublic or in visibleToPlayerIds). */
+export function getPlayerVisibleSections(sections: GlossarySection[], playerId: string): GlossarySection[] {
+    return sections.filter(s => s.isPublic || s.visibleToPlayerIds.includes(playerId));
+}
+
+/** Subscribe to glossary entries visible to a specific player.
+ *  Returns entries with sections filtered to only what the player can see.
+ */
+export function subscribePlayerCampaignGlossary(
+    campaignId: string,
+    playerId: string,
+    cb: (entries: CampaignGlossaryEntry[]) => void,
+): () => void {
+    return onSnapshot(glossaryRef(campaignId), snap => {
+        const entries: CampaignGlossaryEntry[] = [];
+        for (const d of snap.docs) {
+            const entry = { id: d.id, ...d.data() } as CampaignGlossaryEntry;
+            const hasSections = Array.isArray(entry.sections) && entry.sections.length > 0;
+            if (hasSections) {
+                const visible = getPlayerVisibleSections(entry.sections, playerId);
+                if (visible.length > 0) {
+                    entries.push({ ...entry, sections: visible });
+                }
+            } else {
+                // Legacy entries without sections: fall back to entry-level flags
+                if (entry.isPublic || (entry.visibleToPlayerIds ?? []).includes(playerId)) {
+                    entries.push({ ...entry, sections: [] });
+                }
+            }
+        }
+        cb(entries);
+    });
 }
 
 // ─────────────────────── master helpers ───────────────────────

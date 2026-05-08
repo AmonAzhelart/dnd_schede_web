@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FaComments, FaSignOutAlt, FaUserShield } from 'react-icons/fa';
+import { FaBook, FaComments, FaSignOutAlt, FaUserShield } from 'react-icons/fa';
 import { GiCastle } from 'react-icons/gi';
 import {
     findCampaignByCode,
@@ -7,11 +7,19 @@ import {
     leaveCampaign,
     subscribeToCampaign,
     subscribeToPlayerChat,
+    subscribePlayerCampaignGlossary,
 } from '../../services/campaign';
-import type { Campaign, CampaignMessage } from '../../types/campaign';
+import type { Campaign, CampaignMessage, CampaignGlossaryEntry } from '../../types/campaign';
 import { useCharacterStore } from '../../store/characterStore';
 import { CampaignChatPanel } from './CampaignPage';
 import './CampaignPage.css';
+
+const CAT_COLORS_CCP: Record<CampaignGlossaryEntry['category'], string> = {
+    person: '#6ab4ff', place: '#6aff9e', item: '#ffb46a', lore: '#c86aff', other: '#aaaaaa',
+};
+const CAT_LABELS_CCP: Record<CampaignGlossaryEntry['category'], string> = {
+    person: 'Persona', place: 'Luogo', item: 'Oggetto', lore: 'Lore', other: 'Altro',
+};
 
 interface Props {
     userId: string;
@@ -23,6 +31,7 @@ export function CharacterCampaignPanel({ userId, userDisplayName }: Props) {
 
     const [campaign, setCampaign] = useState<Campaign | null>(null);
     const [chatMessages, setChatMessages] = useState<CampaignMessage[]>([]);
+    const [campaignGlossary, setCampaignGlossary] = useState<CampaignGlossaryEntry[]>([]);
     const [joinCode, setJoinCode] = useState('');
     const [joining, setJoining] = useState(false);
     const [joinError, setJoinError] = useState('');
@@ -44,6 +53,15 @@ export function CharacterCampaignPanel({ userId, userDisplayName }: Props) {
             return;
         }
         return subscribeToPlayerChat(character.campaignId, userId, setChatMessages);
+    }, [character?.campaignId, userId]);
+
+    // ── Subscribe to campaign glossary ────────────────────
+    useEffect(() => {
+        if (!character?.campaignId) {
+            setCampaignGlossary([]);
+            return;
+        }
+        return subscribePlayerCampaignGlossary(character.campaignId, userId, setCampaignGlossary);
     }, [character?.campaignId, userId]);
 
     async function handleJoin() {
@@ -160,6 +178,40 @@ export function CharacterCampaignPanel({ userId, userDisplayName }: Props) {
                         <div className="text-xs text-muted">{character.race} {character.characterClass} — Lv. {character.level}</div>
                     </div>
                 </div>
+
+                {/* Campaign Glossary */}
+                {campaignGlossary.length > 0 && (
+                    <div style={{ flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.6rem 1.5rem 0.4rem', fontFamily: 'var(--font-heading)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                            <FaBook size={12} style={{ color: 'var(--accent-gold)' }} />
+                            Glossario Campagna
+                            <span style={{ marginLeft: '0.25rem', background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '1px 7px', fontSize: '0.68rem', color: 'var(--text-muted)' }}>{campaignGlossary.length}</span>
+                        </div>
+                        <div style={{ maxHeight: 220, overflowY: 'auto', padding: '0 1rem 0.5rem' }}>
+                            {campaignGlossary.map(entry => (
+                                <div key={entry.id} style={{ display: 'flex', gap: '0.5rem', padding: '0.35rem 0.5rem', borderBottom: '1px solid rgba(255,255,255,0.04)', alignItems: 'flex-start' }}>
+                                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: CAT_COLORS_CCP[entry.category], flexShrink: 0, marginTop: 6 }} />
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', marginBottom: '0.15rem' }}>
+                                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{entry.term}</span>
+                                            <span style={{ fontSize: '0.62rem', padding: '1px 6px', borderRadius: 10, border: `1px solid ${CAT_COLORS_CCP[entry.category]}55`, color: CAT_COLORS_CCP[entry.category], opacity: 0.85 }}>{CAT_LABELS_CCP[entry.category]}</span>
+                                        </div>
+                                        {/* Sections revealed by master */}
+                                        {(entry.sections ?? []).length > 0
+                                            ? (entry.sections ?? []).map(sec => (
+                                                <div key={sec.id} style={{ marginTop: '0.3rem', paddingLeft: '0.5rem', borderLeft: `2px solid ${CAT_COLORS_CCP[entry.category]}44` }}>
+                                                    {sec.label && <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.15rem' }}>{sec.label}</div>}
+                                                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>{sec.content}</div>
+                                                </div>
+                                            ))
+                                            : entry.info && <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>{entry.info}</div>
+                                        }
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Chat */}
                 <div className="campaign-chat-section">

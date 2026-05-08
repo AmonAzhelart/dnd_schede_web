@@ -1,5 +1,6 @@
 import React from 'react';
 import { useCharacterStore } from '../../../store/characterStore';
+import { saveCharacterToDb } from '../../../services/db';
 import type { WidgetRenderProps } from '../widgetTypes';
 
 const COINS = [
@@ -65,6 +66,8 @@ export const CurrencyWidget: React.FC<WidgetRenderProps> = ({ size, goTo }) => {
                             onChange={e => {
                                 const val = Math.max(0, parseInt(e.target.value) || 0);
                                 setCurrency({ ...cur, [key]: val });
+                                const updated = useCharacterStore.getState().character;
+                                if (updated) saveCharacterToDb(updated);
                             }}
                         />
                     </div>

@@ -35,7 +35,6 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
     const { character, setCharacter, getStatModifier, getTotalBab, getMultipleAttacks } = useCharacterStore();
     const { resolveItemSvg } = useIconCatalog();
     const babAura = useModifierAura('bab');
-    const [expanded, setExpanded] = useState<string | null>(null);
     const [picker, setPicker] = useState<{
         title: string;
         subtitle?: string;
@@ -46,7 +45,6 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
 
     const baseFontSize = Math.max(10, Math.min(17, size.pixelW * 0.052));
     const icoSm = Math.max(10, Math.round(1.29 * baseFontSize));  // weapon / arcane icon
-    const icoMd = Math.max(12, Math.round(1.43 * baseFontSize));  // d20 roll button
     const icoXs = Math.max(5, Math.round(0.57 * baseFontSize));  // ammo ± buttons
 
     const adjustAmmoQty = (ammoId: string, delta: number) => {
@@ -90,25 +88,6 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
             },
         ];
         setPicker({ title: `Attacco · ${label}`, subtitle: opts.subtitle, segments });
-    };
-
-    /** Damage-only picker (kept for the explicit "danno" button). */
-    const openDamagePicker = (
-        weapon: Item | undefined,
-        label: string,
-        breakdown: RollBreakdownLine[],
-        opts: { isRanged: boolean; customAttackName?: string; subtitle?: string; baseDice?: string },
-    ) => {
-        setPicker({
-            title: `Danno · ${label}`,
-            subtitle: opts.subtitle,
-            segments: [{
-                ctx: { channel: 'damage', weapon, customAttackName: opts.customAttackName, isRanged: opts.isRanged },
-                label: 'Danno',
-                baseBreakdown: breakdown,
-                baseDice: opts.baseDice,
-            }],
-        });
     };
 
     return (
@@ -171,7 +150,6 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                         const attacks = getMultipleAttacks(abilityMod + weaponBonus + babAura.delta);
                         const primary = attacks[0];
                         const wSvg = resolveItemSvg(w);
-                        const isExpanded = expanded === w.id;
                         const ammoDmgExtra = loadedAmmo?.ammoDetails?.extraDamage;
                         const ammoDmgType = loadedAmmo?.ammoDetails?.extraDamageType;
                         const baseDamage = w.weaponDetails?.damage ?? '';
@@ -179,9 +157,26 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                             ? `${baseDamage} + ${ammoDmgExtra}${ammoDmgType ? ` (${ammoDmgType})` : ''}`
                             : baseDamage || undefined;
                         const meta = `${isRanged ? 'Distanza' : 'Mischia'}${w.weaponDetails?.damageType ? ` · ${w.weaponDetails.damageType}` : ''}${isRanged && w.weaponDetails?.rangeIncrement ? ` · ${w.weaponDetails.rangeIncrement}` : ''}${loadedAmmo ? ` · 🏹 ${loadedAmmo.name}` : ''}`;
+                        const doAttack = () => openAttackPicker(w, w.name,
+                            [
+                                { label: 'BAB', value: getTotalBab() },
+                                { label: atkStatLabel, value: abilityMod },
+                                ...(weaponBonus ? [{ label: 'Bonus arma', value: weaponBonus }] : []),
+                            ],
+                            [
+                                ...(dmgStatLabel ? [{ label: dmgStatLabel, value: dmgStatMod }] : []),
+                            ],
+                            { isRanged, subtitle: meta, baseDice: baseDamage });
 
                         return (
-                            <div key={w.id} className={`w-atk2-row ${isRanged ? 'ranged' : 'melee'}`}>
+                            <div
+                                key={w.id}
+                                className={`w-atk2-row ${isRanged ? 'ranged' : 'melee'}`}
+                                onClick={doAttack}
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') doAttack(); }}
+                            >
                                 <div className="w-atk2-row-main">
                                     <div className="w-atk2-row-left">
                                         <div className="w-atk2-row-nameline">
@@ -195,74 +190,23 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                                             <div className="w-atk2-row-name" title={w.name}>{w.name}</div>
                                         </div>
                                         <div className="w-atk2-row-meta">{meta}</div>
+                                        {attacks.length > 1 && (
+                                            <div className="w-atk2-row-progression">{fmtList(attacks)}</div>
+                                        )}
                                     </div>
                                     <div className="w-atk2-row-right">
-                                        <button
-                                            className="w-atk2-row-stat atk"
-                                            onClick={() => {
-                                                if (attacks.length > 1) {
-                                                    setExpanded(isExpanded ? null : w.id);
-                                                    return;
-                                                }
-                                                openAttackPicker(w, w.name,
-                                                    [
-                                                        { label: 'BAB', value: getTotalBab() },
-                                                        { label: atkStatLabel, value: abilityMod },
-                                                        ...(weaponBonus ? [{ label: 'Bonus arma', value: weaponBonus }] : []),
-                                                    ],
-                                                    [
-                                                        ...(dmgStatLabel ? [{ label: dmgStatLabel, value: dmgStatMod }] : []),
-                                                    ],
-                                                    { isRanged, subtitle: meta, baseDice: baseDamage });
-                                            }}
-                                            title="Apri tiro per colpire e danno"
-                                        >
+                                        <div className="w-atk2-row-stat atk">
                                             <span className="v">{fmtSigned(primary)}</span>
                                             <span className="l">colpire</span>
-                                        </button>
+                                        </div>
                                         {fullDamage && (
-                                            <button
-                                                className="w-atk2-row-stat dmg"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    openDamagePicker(w, w.name, [
-                                                        ...(dmgStatLabel ? [{ label: dmgStatLabel, value: dmgStatMod }] : []),
-                                                    ], { isRanged, subtitle: `Danno base: ${fullDamage}`, baseDice: baseDamage });
-                                                }}
-                                                title="Apri tiro per il danno"
-                                            >
+                                            <div className="w-atk2-row-stat dmg">
                                                 <span className="v">{fullDamage}</span>
                                                 <span className="l">danno</span>
-                                            </button>
+                                            </div>
                                         )}
-                                        <button
-                                            className="w-atk2-roll"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                openAttackPicker(w, w.name,
-                                                    [
-                                                        { label: 'BAB', value: getTotalBab() },
-                                                        { label: atkStatLabel, value: abilityMod },
-                                                        ...(weaponBonus ? [{ label: 'Bonus arma', value: weaponBonus }] : []),
-                                                    ],
-                                                    [
-                                                        ...(dmgStatLabel ? [{ label: dmgStatLabel, value: dmgStatMod }] : []),
-                                                    ],
-                                                    { isRanged, subtitle: meta, baseDice: baseDamage });
-                                            }}
-                                            title="Apri tiro per colpire e danno"
-                                            aria-label="Apri tiro"
-                                        >
-                                            <DndIcon category="dice" name="d20" size={icoMd} />
-                                        </button>
                                     </div>
                                 </div>
-                                {isExpanded && attacks.length > 1 && (
-                                    <div className="w-atk2-row-detail">
-                                        <span className="w-atk2-detail-lbl">Progressione full-attack:</span>
-                                        <span className="w-atk2-detail-val">{fmtList(attacks)}</span>
-                                    </div>
-                                )}
                                 {/* Ammo strip for ranged weapons */}
                                 {isRanged && (
                                     <div className="w-atk2-ammo-strip">
@@ -321,7 +265,36 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                             : atk.damageDice;
                         const meta = `${atk.range ? atk.range : 'Mischia'}${atk.damageType ? ` · ${atk.damageType}` : ''}`;
                         return (
-                            <div key={atk.id} className="w-atk2-row custom">
+                            <div
+                                key={atk.id}
+                                className="w-atk2-row custom"
+                                onClick={() => openAttackPicker(undefined, atk.name,
+                                    [
+                                        ...(atk.useBab ? [{ label: 'BAB', value: getTotalBab() }] : []),
+                                        ...(atk.attackStat ? [{ label: `Mod. ${atk.attackStat.toUpperCase()}`, value: getStatModifier(atk.attackStat) }] : []),
+                                        ...(atk.attackBonusExtra ? [{ label: 'Bonus extra', value: atk.attackBonusExtra }] : []),
+                                    ],
+                                    [
+                                        ...(atk.damageStat ? [{ label: `Mod. ${atk.damageStat.toUpperCase()}`, value: getStatModifier(atk.damageStat) }] : []),
+                                        ...(atk.damageBonusExtra ? [{ label: 'Bonus extra', value: atk.damageBonusExtra }] : []),
+                                    ],
+                                    { isRanged: !!atk.range, customAttackName: atk.name, subtitle: meta, baseDice: atk.damageDice })}
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={e => {
+                                    if (e.key === 'Enter' || e.key === ' ') openAttackPicker(undefined, atk.name,
+                                        [
+                                            ...(atk.useBab ? [{ label: 'BAB', value: getTotalBab() }] : []),
+                                            ...(atk.attackStat ? [{ label: `Mod. ${atk.attackStat.toUpperCase()}`, value: getStatModifier(atk.attackStat) }] : []),
+                                            ...(atk.attackBonusExtra ? [{ label: 'Bonus extra', value: atk.attackBonusExtra }] : []),
+                                        ],
+                                        [
+                                            ...(atk.damageStat ? [{ label: `Mod. ${atk.damageStat.toUpperCase()}`, value: getStatModifier(atk.damageStat) }] : []),
+                                            ...(atk.damageBonusExtra ? [{ label: 'Bonus extra', value: atk.damageBonusExtra }] : []),
+                                        ],
+                                        { isRanged: !!atk.range, customAttackName: atk.name, subtitle: meta, baseDice: atk.damageDice });
+                                }}
+                            >
                                 <div className="w-atk2-row-main">
                                     <div className="w-atk2-row-left">
                                         <div className="w-atk2-row-nameline">
@@ -333,24 +306,10 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                                         <div className="w-atk2-row-meta arcane">{meta}</div>
                                     </div>
                                     <div className="w-atk2-row-right">
-                                        <button
-                                            className="w-atk2-row-stat atk"
-                                            onClick={() => openAttackPicker(undefined, atk.name,
-                                                [
-                                                    ...(atk.useBab ? [{ label: 'BAB', value: getTotalBab() }] : []),
-                                                    ...(atk.attackStat ? [{ label: `Mod. ${atk.attackStat.toUpperCase()}`, value: getStatModifier(atk.attackStat) }] : []),
-                                                    ...(atk.attackBonusExtra ? [{ label: 'Bonus extra', value: atk.attackBonusExtra }] : []),
-                                                ],
-                                                [
-                                                    ...(atk.damageStat ? [{ label: `Mod. ${atk.damageStat.toUpperCase()}`, value: getStatModifier(atk.damageStat) }] : []),
-                                                    ...(atk.damageBonusExtra ? [{ label: 'Bonus extra', value: atk.damageBonusExtra }] : []),
-                                                ],
-                                                { isRanged: !!atk.range, customAttackName: atk.name, subtitle: meta, baseDice: atk.damageDice })}
-                                            title="Apri tiro per colpire e danno"
-                                        >
+                                        <div className="w-atk2-row-stat atk">
                                             <span className="v">{fmtSigned(bonus)}</span>
                                             <span className="l">colpire</span>
-                                        </button>
+                                        </div>
                                         <button
                                             className="w-atk2-row-stat dmg"
                                             onClick={(e) => {
@@ -360,31 +319,10 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                                                     ...(atk.damageBonusExtra ? [{ label: 'Bonus extra', value: atk.damageBonusExtra }] : []),
                                                 ], { isRanged: !!atk.range, customAttackName: atk.name, subtitle: `Danno base: ${atk.damageDice}`, baseDice: atk.damageDice });
                                             }}
-                                            title="Apri tiro per il danno"
+                                            title="Apri solo danno"
                                         >
                                             <span className="v">{dmgDisplay}</span>
                                             <span className="l">danno</span>
-                                        </button>
-                                        <button
-                                            className="w-atk2-roll"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                openAttackPicker(undefined, atk.name,
-                                                    [
-                                                        ...(atk.useBab ? [{ label: 'BAB', value: getTotalBab() }] : []),
-                                                        ...(atk.attackStat ? [{ label: `Mod. ${atk.attackStat.toUpperCase()}`, value: getStatModifier(atk.attackStat) }] : []),
-                                                        ...(atk.attackBonusExtra ? [{ label: 'Bonus extra', value: atk.attackBonusExtra }] : []),
-                                                    ],
-                                                    [
-                                                        ...(atk.damageStat ? [{ label: `Mod. ${atk.damageStat.toUpperCase()}`, value: getStatModifier(atk.damageStat) }] : []),
-                                                        ...(atk.damageBonusExtra ? [{ label: 'Bonus extra', value: atk.damageBonusExtra }] : []),
-                                                    ],
-                                                    { isRanged: !!atk.range, customAttackName: atk.name, subtitle: meta, baseDice: atk.damageDice });
-                                            }}
-                                            title="Apri tiro"
-                                            aria-label="Apri tiro"
-                                        >
-                                            <DndIcon category="dice" name="d20" size={icoMd} />
                                         </button>
                                     </div>
                                 </div>

@@ -474,31 +474,50 @@ export const RollPickerModal: React.FC<RollPickerProps> = ({
                     border: `1px solid ${accent}55`,
                     display: 'flex', flexDirection: 'column', gap: 4,
                 }}>
-                    <div style={{
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                        fontFamily: 'var(--font-heading)',
-                    }}>
-                        <span style={{ fontSize: '0.88rem' }}>
-                            {seg.label}: somma da aggiungere al d20
-                        </span>
-                        <span style={{
-                            fontSize: '1.7rem', color: accent,
-                            fontFamily: 'var(--font-mono, monospace)',
-                        }}>
-                            {t.grandTotal >= 0 ? '+' : ''}{t.grandTotal}
-                        </span>
-                    </div>
-                    {t.diceParts.length > 0 && (
+                    {seg.ctx.channel === 'damage' && t.diceParts.length > 0 ? (
+                        /* Damage segment: show "1d6 +1" combined in one line */
                         <div style={{
                             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                            paddingTop: 4, borderTop: '1px dashed rgba(255,255,255,0.12)',
-                            fontSize: '0.82rem',
+                            fontFamily: 'var(--font-heading)',
                         }}>
-                            <span style={{ color: 'var(--text-muted)' }}>Dadi da tirare</span>
-                            <span style={{ fontFamily: 'var(--font-mono, monospace)', color: accent }}>
-                                {combineDice(t.diceParts)}
+                            <span style={{ fontSize: '0.88rem' }}>{seg.label}</span>
+                            <span style={{
+                                fontSize: '1.7rem', color: accent,
+                                fontFamily: 'var(--font-mono, monospace)',
+                            }}>
+                                {combineDice(t.diceParts)}{t.grandTotal !== 0 ? ` ${t.grandTotal >= 0 ? '+' : ''}${t.grandTotal}` : ''}
                             </span>
                         </div>
+                    ) : (
+                        /* Attack / other: show modifier + "somma al d20" hint */
+                        <>
+                            <div style={{
+                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                fontFamily: 'var(--font-heading)',
+                            }}>
+                                <span style={{ fontSize: '0.88rem' }}>
+                                    {seg.label}: somma da aggiungere al d20
+                                </span>
+                                <span style={{
+                                    fontSize: '1.7rem', color: accent,
+                                    fontFamily: 'var(--font-mono, monospace)',
+                                }}>
+                                    {t.grandTotal >= 0 ? '+' : ''}{t.grandTotal}
+                                </span>
+                            </div>
+                            {t.diceParts.length > 0 && (
+                                <div style={{
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                    paddingTop: 4, borderTop: '1px dashed rgba(255,255,255,0.12)',
+                                    fontSize: '0.82rem',
+                                }}>
+                                    <span style={{ color: 'var(--text-muted)' }}>Dadi da tirare</span>
+                                    <span style={{ fontFamily: 'var(--font-mono, monospace)', color: accent }}>
+                                        {combineDice(t.diceParts)}
+                                    </span>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
             </div>

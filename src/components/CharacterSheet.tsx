@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { useCharacterStore } from '../store/characterStore';
 import type { CustomAttack } from '../types/dnd';
+import { RACE_PRESETS, getRaceAdjustments } from '../types/dnd';
 import { FaHeart, FaStar, FaPlus, FaMinus, FaEdit, FaSearch, FaPalette, FaCheck, FaTrash, FaCamera, FaDragon } from 'react-icons/fa';
 import { GiSwordman, GiAxeSword, GiSpellBook, GiTreasureMap, GiAbstract024, GiUpgrade } from 'react-icons/gi';
 import { Inventory } from './Inventory';
@@ -66,7 +67,7 @@ const downscaleImage = (file: File, maxSize: number): Promise<string> => new Pro
 export const CharacterSheet: React.FC = () => {
   const { t } = useTranslation();
   const { character, setCharacter, getEffectiveStat, getStatModifier, getSkillBreakdown, updateSkill, deleteSkill,
-    getTotalBab, getMultipleAttacks, getTotalMaxHp } = useCharacterStore();
+    getTotalBab, getMultipleAttacks, getTotalMaxHp, setLevelAdjustment, setRaceHitDice } = useCharacterStore();
   const [activeTab, setActiveTab] = useState<SheetTab>('overview');
   const [combatSubTab, setCombatSubTab] = useState<'attacks' | 'modifiers'>('attacks');
   const [abilitiesInitialTab, setAbilitiesInitialTab] = useState<AbilitySubTab | undefined>(undefined);
@@ -337,8 +338,23 @@ export const CharacterSheet: React.FC = () => {
                 </div>
                 <div className="cs-drawer-field">
                   <span className="cs-drawer-label">Razza</span>
-                  <input className="input" value={character.race}
-                    onChange={e => setCharacter({ ...character, race: e.target.value })} />
+                  <input 
+                    className="input" 
+                    list="race-list"
+                    value={character.race}
+                    onChange={e => {
+                      const newRace = e.target.value;
+                      const [la, hd] = getRaceAdjustments(newRace);
+                      setCharacter({ ...character, race: newRace });
+                      if (la > 0) setLevelAdjustment(la);
+                      if (hd > 0) setRaceHitDice(hd);
+                    }}
+                  />
+                  <datalist id="race-list">
+                    {RACE_PRESETS.map(r => (
+                      <option key={r.name} value={r.name} />
+                    ))}
+                  </datalist>
                 </div>
                 <div className="cs-drawer-field">
                   <span className="cs-drawer-label">Allineamento</span>
