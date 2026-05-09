@@ -36,6 +36,10 @@ export interface EffectiveCreatureStats {
     attackDelta: number;
     /** Delta to add to all stored damage values */
     damageDelta: number;
+    /** Full current STR modifier (base + bonuses) */
+    currentStrMod: number;
+    /** Full current DEX modifier (base + bonuses) */
+    currentDexMod: number;
 }
 
 export function computeEffectiveCreatureStats(
@@ -57,6 +61,9 @@ export function computeEffectiveCreatureStats(
     const dStrMod = mod(creature.str + strB) - mod(creature.str);
     const dDexMod = mod(creature.dex + dexB) - mod(creature.dex);
     const dConMod = mod(creature.con + conB) - mod(creature.con);
+    const currentConMod = mod(creature.con + conB);
+    const currentStrMod = mod(creature.str + strB);
+    const currentDexMod = mod(creature.dex + dexB);
     const dWisMod = mod(creature.wis + wisB) - mod(creature.wis);
 
     // In D&D 3.5e the CON modifier applies once per Hit Die.
@@ -72,12 +79,14 @@ export function computeEffectiveCreatureStats(
         wis: creature.wis + wisB,
         cha: creature.cha + bonus('cha'),
         ac: creature.ac + bonus('ac') + dDexMod,
-        hp: creature.hp + bonus('hp') + dConMod * hdCount,
+        hp: creature.hp + bonus('hp') + currentConMod * hdCount,
         fort: creature.fortitude + bonus('fort') + dConMod,
         reflex: creature.reflex + bonus('ref') + dDexMod,
         will: creature.will + bonus('will') + dWisMod,
-        attackDelta: bonus('attack') + dStrMod,
-        damageDelta: bonus('damage') + dStrMod,
+        attackDelta: bonus('attack'),
+        damageDelta: bonus('damage'),
+        currentStrMod,
+        currentDexMod,
     };
 }
 
@@ -423,27 +432,31 @@ export const StatBlock: React.FC<StatBlockProps> = ({
                 </div>
             )}
 
-            {/* Actions — attack bonus and damage include modifier deltas */}
+            {/* Actions — attack bonus and damage include current ability modifier */}
             {(creature.actions ?? []).length > 0 && (
                 <div>
                     <h4 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9rem', marginBottom: 6, color: 'var(--accent-gold)' }}>Attacchi</h4>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         {creature.actions.map(a => {
-                            const effAtk = a.attackBonus !== undefined ? a.attackBonus + eff.attackDelta : undefined;
+                            const atkStat = a.attackStat ?? 'str';
+                            const abilityMod = atkStat === 'str' ? eff.currentStrMod : atkStat === 'dex' ? eff.currentDexMod : 0;
+                            const dmgMod = atkStat === 'str' ? eff.currentStrMod : 0;
+                            const effAtk = a.attackBonus !== undefined ? a.attackBonus + eff.attackDelta + abilityMod : undefined;
+                            const totalDmgDelta = eff.damageDelta + dmgMod;
                             return (
                                 <div key={a.id} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', background: 'var(--bg-surface)', padding: '6px 10px', borderRadius: 'var(--radius-sm)' }}>
                                     <span style={{ fontWeight: 600 }}>{a.name}</span>
                                     {effAtk !== undefined && (
                                         <span className="text-sm text-muted">
                                             Att: {sign(effAtk)}
-                                            {eff.attackDelta !== 0 && (
+                                            {(eff.attackDelta !== 0 || abilityMod !== 0) && (
                                                 <span style={{ opacity: 0.6 }}> (base {sign(a.attackBonus!)})</span>
                                             )}
                                         </span>
                                     )}
                                     {a.damage && (
                                         <span className="text-sm text-muted">
-                                            Danno: {a.damage}{eff.damageDelta !== 0 ? ` ${sign(eff.damageDelta)}` : ''} {a.damageType}
+                                            Danno: {a.damage}{totalDmgDelta !== 0 ? ` ${sign(totalDmgDelta)}` : ''} {a.damageType}
                                         </span>
                                     )}
                                     {a.criticalRange && <span className="text-sm text-muted">Critico: {a.criticalRange} {a.criticalMultiplier}</span>}

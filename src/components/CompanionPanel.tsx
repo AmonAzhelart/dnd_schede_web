@@ -538,21 +538,27 @@ export const CompanionPanel: React.FC<CompanionPanelProps> = ({
                                 <>
                                     <div className="cp-section-title"><span>Attacchi</span></div>
                                     <div className="cp-attacks-list">
-                                        {creature.actions.map(a => (
-                                            <div key={a.id} className="cp-attack-row">
-                                                <span className="cp-attack-name">{a.name}</span>
-                                                {a.attackBonus != null && (
-                                                    <span className="cp-attack-bonus">
-                                                        {sign((a.attackBonus ?? 0) + eff.attackDelta)}
-                                                    </span>
-                                                )}
-                                                {a.damage && (
-                                                    <span className="cp-attack-damage">{a.damage}{eff.damageDelta !== 0 ? ` ${sign(eff.damageDelta)}` : ''}</span>
-                                                )}
-                                                {a.damageType && <span className="cp-attack-type">{a.damageType}</span>}
-                                                <span className="cp-attack-range">{a.range ?? 'Mischia'}</span>
-                                            </div>
-                                        ))}
+                                        {creature.actions.map(a => {
+                                            const atkStat = a.attackStat ?? 'str';
+                                            const abilityMod = atkStat === 'str' ? eff.currentStrMod : atkStat === 'dex' ? eff.currentDexMod : 0;
+                                            const dmgMod = atkStat === 'str' ? eff.currentStrMod : 0;
+                                            const totalDmgDelta = eff.damageDelta + dmgMod;
+                                            return (
+                                                <div key={a.id} className="cp-attack-row">
+                                                    <span className="cp-attack-name">{a.name}</span>
+                                                    {a.attackBonus != null && (
+                                                        <span className="cp-attack-bonus">
+                                                            {sign((a.attackBonus ?? 0) + eff.attackDelta + abilityMod)}
+                                                        </span>
+                                                    )}
+                                                    {a.damage && (
+                                                        <span className="cp-attack-damage">{a.damage}{totalDmgDelta !== 0 ? ` ${sign(totalDmgDelta)}` : ''}</span>
+                                                    )}
+                                                    {a.damageType && <span className="cp-attack-type">{a.damageType}</span>}
+                                                    <span className="cp-attack-range">{a.range ?? 'Mischia'}</span>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </>
                             )}

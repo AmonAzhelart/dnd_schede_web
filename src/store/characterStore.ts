@@ -1238,10 +1238,10 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         ...s.appliedOverrides.filter(o => o.stat === 'con').map(o => ({ type: o.type, value: o.value })),
         ...(s.runtimeModifiers ?? []).filter(m => m.stat === 'con').map(m => ({ type: m.type, value: m.value })),
       ]);
-      const dConMod = Math.floor((s.creature.con + conBonus - 10) / 2) - Math.floor((s.creature.con - 10) / 2);
+      const currentConMod = Math.floor((s.creature.con + conBonus - 10) / 2);
       const hdMatch = s.creature.hpDice?.match(/^(\d+)d\d+/);
       const hdCount = hdMatch ? parseInt(hdMatch[1], 10) : 0;
-      const effective = s.creature.hp + hpFromStatic + hpFromRuntime + dConMod * hdCount;
+      const effective = s.creature.hp + hpFromStatic + hpFromRuntime + currentConMod * hdCount;
       return { ...s, currentHp: Math.max(0, Math.min(effective, s.currentHp + delta)) };
     });
     return { character: { ...state.character, activeSummons } };
@@ -1298,10 +1298,10 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         ...p.appliedOverrides.filter(o => o.stat === 'con').map(o => ({ type: o.type, value: o.value })),
         ...(p.runtimeModifiers ?? []).filter(m => m.stat === 'con').map(m => ({ type: m.type, value: m.value })),
       ]);
-      const dConMod = Math.floor((p.creature.con + conBonus - 10) / 2) - Math.floor((p.creature.con - 10) / 2);
+      const currentConMod = Math.floor((p.creature.con + conBonus - 10) / 2);
       const hdMatch = p.creature.hpDice?.match(/^(\d+)d\d+/);
       const hdCount = hdMatch ? parseInt(hdMatch[1], 10) : 0;
-      const effective = p.creature.hp + hpFromStatic + hpFromRuntime + dConMod * hdCount;
+      const effective = p.creature.hp + hpFromStatic + hpFromRuntime + currentConMod * hdCount;
       return { ...p, currentHp: Math.max(0, Math.min(effective, p.currentHp + delta)) };
     });
     return { character: { ...state.character, activePets } };

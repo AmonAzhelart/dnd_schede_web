@@ -2119,6 +2119,13 @@ function BestiaryPanel({ currentUserEmail }: { currentUserEmail: string }) {
                     <div key={a.id} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px,1fr))', gap: 'var(--space-1)', background: 'var(--bg-surface)', padding: 'var(--space-2)', borderRadius: 'var(--radius-sm)' }}>
                         <Field label="Nome attacco"><input className="input w-full" value={a.name} onChange={ev => updateAction({ ...a, name: ev.target.value })} /></Field>
                         <Field label="Bonus attacco"><input className="input w-full" type="number" value={a.attackBonus ?? 0} onChange={ev => updateAction({ ...a, attackBonus: Number(ev.target.value) })} /></Field>
+                        <Field label="Scala su">
+                            <select className="input w-full" value={a.attackStat ?? 'str'} onChange={ev => updateAction({ ...a, attackStat: ev.target.value as 'str' | 'dex' | 'none' })}>
+                                <option value="str">Forza</option>
+                                <option value="dex">Destrezza</option>
+                                <option value="none">Nessuna</option>
+                            </select>
+                        </Field>
                         <Field label="Danno (es. 1d8+3)"><input className="input w-full" value={a.damage ?? ''} onChange={ev => updateAction({ ...a, damage: ev.target.value })} /></Field>
                         <Field label="Tipo danno"><input className="input w-full" value={a.damageType ?? ''} onChange={ev => updateAction({ ...a, damageType: ev.target.value })} placeholder="taglio, fuoco…" /></Field>
                         <Field label="Critico"><input className="input w-full" value={a.criticalRange ?? '20'} onChange={ev => updateAction({ ...a, criticalRange: ev.target.value })} /></Field>

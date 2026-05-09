@@ -923,6 +923,8 @@ export interface CreatureAction {
   id: string;
   name: string;
   attackBonus?: number;
+  /** Which ability score the attack (and damage) scales on. Defaults to 'str'. */
+  attackStat?: 'str' | 'dex' | 'none';
   /** Damage expression, e.g. "1d8+3" */
   damage?: string;
   damageType?: string;
