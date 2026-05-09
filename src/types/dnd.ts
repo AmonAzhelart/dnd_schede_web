@@ -1072,6 +1072,57 @@ export interface ActiveSummon {
   summonedAt: string;
 }
 
+// ─────────────────────────── COMPANION FEATURES ─────────────────────────
+
+/** A privilege / class-like feature for a companion (like ClassFeature for characters).
+ *  Provides special abilities and optional stat modifiers. */
+export interface CompanionFeature {
+  id: string;
+  /** Display name, e.g. "Attacco Furtivo" */
+  name: string;
+  description: string;
+  /** EX = straordinaria, SP = magica, SU = soprannaturale, PA = passiva */
+  featureType: 'EX' | 'SP' | 'SU' | 'PA';
+  /** Whether this feature is currently active (toggleable) */
+  active: boolean;
+  /** Stat bonuses applied to the creature while active */
+  modifiers: Array<{
+    stat: CreatureRuntimeStat;
+    value: number;
+    type: ModifierType;
+    label?: string;
+  }>;
+  /** Optional resource tracking (e.g. "Ruggito Ispirante" 3/day) */
+  resourceName?: string;
+  resourceMax?: number;
+  resourceUsed?: number;
+}
+
+// ─────────────────────────── COMPANION EQUIPMENT ─────────────────────────
+
+/** An equipment piece worn/carried by a companion.
+ *  Provides stat bonuses and has visual flavor. */
+export interface CompanionEquipment {
+  id: string;
+  name: string;
+  description?: string;
+  /** Equipment slot */
+  slot: 'armatura' | 'barding' | 'collare' | 'borsetta' | 'altro';
+  /** Whether currently equipped (worn) */
+  equipped: boolean;
+  /** Weight in kg */
+  weight?: number;
+  /** Stat modifiers while equipped */
+  modifiers: Array<{
+    stat: CreatureRuntimeStat;
+    value: number;
+    type: ModifierType;
+    label?: string;
+  }>;
+  /** Optional icon id */
+  iconId?: string;
+}
+
 /** A pet / animal companion tracked during play */
 export interface ActivePet {
   id: string;
@@ -1085,4 +1136,14 @@ export interface ActivePet {
   /** Temporary buffs/debuffs added at runtime */
   runtimeModifiers?: CreatureRuntimeModifier[];
   addedAt: string;
+  /** Companion-specific features / privileges (class-like abilities) */
+  features?: CompanionFeature[];
+  /** Companion equipment (barding, collars, items) */
+  equipment?: CompanionEquipment[];
+  /** Free-form notes about this companion */
+  notes?: string;
+  /** XP accumulated by this companion */
+  xp?: number;
+  /** Bond level (0–5) representing the relationship strength */
+  bondLevel?: number;
 }

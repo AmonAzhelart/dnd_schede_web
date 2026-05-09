@@ -11,9 +11,10 @@ import { creatureCatalog, type CatalogCreature } from '../services/admin';
 import type {
     BestiaryEntry, ActiveSummon, ActivePet, Creature, CreatureSize,
     CreatureTypeCategory, CreatureAlignment, CreatureAction, CreatureSpecialAbility,
-    CreatureStatOverride, CreatureRuntimeModifier,
+    CreatureStatOverride, CreatureRuntimeModifier, CompanionFeature, CompanionEquipment,
 } from '../types/dnd';
 import { mod, signMod, CreaturePortrait, StatBlock, computeEffectiveCreatureStats, type StatBlockProps } from './CreatureStatBlock';
+import { CompanionPanel } from './CompanionPanel';
 import './Bestiary.css';
 const pctColor = (p: number) => p > 0.6 ? 'healthy' : p > 0.3 ? 'wounded' : p > 0 ? 'critical' : 'dead';
 
@@ -432,6 +433,9 @@ export const BestiaryPage: React.FC = () => {
         addPet, updatePet, removePet, updatePetHp,
         computeSummonOverrides, computePetOverrides,
         addCreatureRuntimeModifier, removeCreatureRuntimeModifier,
+        updatePetFeature, removePetFeature, togglePetFeature,
+        usePetFeatureResource, resetPetFeatureResource,
+        updatePetEquipment, removePetEquipment, togglePetEquipment,
     } = useCharacterStore();
 
     const [tab, setTab] = useState<BestiaryTab>('catalogo');
@@ -443,7 +447,7 @@ export const BestiaryPage: React.FC = () => {
     const [petDialog, setPetDialog] = useState<{ creature: Creature; overrides: CreatureStatOverride[]; entryId?: string } | null>(null);
     const [editingEntry, setEditingEntry] = useState<BestiaryEntry | null>(null);
     const [editingSummon, setEditingSummon] = useState<ActiveSummon | null>(null);
-    const [editingPet, setEditingPet] = useState<ActivePet | null>(null);
+    const [viewingPet, setViewingPet] = useState<ActivePet | null>(null);
 
     const bestiary = character?.bestiary ?? [];
     const summons = character?.activeSummons ?? [];
@@ -590,20 +594,28 @@ export const BestiaryPage: React.FC = () => {
         );
     }
 
-    /* ─────────────────── Editing active pet ─────────────────── */
-    if (editingPet) {
+    /* ─────────────────── Editing active pet (new CompanionPanel) ─────────────── */
+    if (viewingPet) {
+        // Always get fresh pet from store
+        const freshPet = (character?.activePets ?? []).find(p => p.id === viewingPet.id) ?? viewingPet;
         return (
-            <div style={{ flex: 1, overflow: 'hidden auto', padding: 'var(--space-5)' }}>
-                <StatBlock
-                    creature={editingPet.creature}
-                    overrides={editingPet.appliedOverrides}
-                    runtimeModifiers={editingPet.runtimeModifiers ?? []}
-                    onAddRuntimeModifier={(m) => addCreatureRuntimeModifier('pet', editingPet.id, m)}
-                    onRemoveRuntimeModifier={(mid) => removeCreatureRuntimeModifier('pet', editingPet.id, mid)}
-                    onClose={() => setEditingPet(null)}
-                    actionLabel="Rimuovi compagno"
-                    actionIcon={<FaTimes />}
-                    onAction={() => { removePet(editingPet.id); setEditingPet(null); }}
+            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <CompanionPanel
+                    pet={freshPet}
+                    onClose={() => setViewingPet(null)}
+                    onUpdatePet={(pet) => updatePet(pet)}
+                    onUpdateHp={(delta) => updatePetHp(freshPet.id, delta)}
+                    onAddRuntimeModifier={(m) => addCreatureRuntimeModifier('pet', freshPet.id, m)}
+                    onRemoveRuntimeModifier={(mid) => removeCreatureRuntimeModifier('pet', freshPet.id, mid)}
+                    onUpdateFeature={(f) => updatePetFeature(freshPet.id, f)}
+                    onRemoveFeature={(fid) => removePetFeature(freshPet.id, fid)}
+                    onToggleFeature={(fid) => togglePetFeature(freshPet.id, fid)}
+                    onUseFeatureResource={(fid) => usePetFeatureResource(freshPet.id, fid)}
+                    onResetFeatureResource={(fid) => resetPetFeatureResource(freshPet.id, fid)}
+                    onUpdateEquipment={(e) => updatePetEquipment(freshPet.id, e)}
+                    onRemoveEquipment={(eid) => removePetEquipment(freshPet.id, eid)}
+                    onToggleEquipment={(eid) => togglePetEquipment(freshPet.id, eid)}
+                    onDismiss={() => { removePet(freshPet.id); setViewingPet(null); }}
                 />
             </div>
         );
@@ -771,7 +783,13 @@ export const BestiaryPage: React.FC = () => {
                         {pets.length === 0 && <div className="text-muted text-sm">Nessun compagno. Vai al catalogo o al bestiario personale e usa "Aggiungi come Compagno".</div>}
                         <div className="tracker-grid">
                             {pets.map(p => {
-                                const eff = computeEffectiveCreatureStats(p.creature, p.appliedOverrides, p.runtimeModifiers ?? []);
+                                const eff = computeEffectiveCreatureStats(p.creature, p.appliedOverrides, [
+                                    ...(p.runtimeModifiers ?? []),
+                                    ...(p.equipment ?? []).filter(e => e.equipped).flatMap(e => e.modifiers.map(m => ({ id: `eq-${e.id}`, name: e.name, stat: m.stat, value: m.value, type: m.type }))),
+                                    ...(p.features ?? []).filter(f => f.active).flatMap(f => f.modifiers.map(m => ({ id: `feat-${f.id}`, name: f.name, stat: m.stat, value: m.value, type: m.type }))),
+                                ]);
+                                const featCount = (p.features ?? []).length;
+                                const equipCount = (p.equipment ?? []).filter(e => e.equipped).length;
                                 return (
                                     <TrackerCard
                                         key={p.id}
@@ -784,7 +802,33 @@ export const BestiaryPage: React.FC = () => {
                                         conditions={p.conditions}
                                         onHpDelta={delta => updatePetHp(p.id, delta)}
                                         onDismiss={() => { if (confirm(`Rimuovere ${p.nickname ?? p.creature.name}?`)) removePet(p.id); }}
-                                        onEdit={() => setEditingPet(p)}
+                                        onEdit={() => setViewingPet(p)}
+                                        extra={
+                                            <div style={{ display: 'flex', gap: 8, marginTop: 6, fontSize: '0.72rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+                                                {featCount > 0 && (
+                                                    <span style={{ color: 'var(--accent-gold)' }}>
+                                                        <GiScrollUnfurled style={{ marginRight: 3 }} />{featCount} privilegi
+                                                    </span>
+                                                )}
+                                                {equipCount > 0 && (
+                                                    <span style={{ color: 'var(--accent-arcane)' }}>
+                                                        🛡 {equipCount} oggetti
+                                                    </span>
+                                                )}
+                                                {p.bondLevel ? (
+                                                    <span style={{ color: 'var(--accent-gold)' }}>
+                                                        {'★'.repeat(p.bondLevel)}
+                                                    </span>
+                                                ) : null}
+                                                <button
+                                                    className="btn-ghost text-xs"
+                                                    style={{ marginLeft: 'auto', color: 'var(--accent-gold)', fontSize: '0.7rem', padding: '2px 8px', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 'var(--radius-sm)' }}
+                                                    onClick={() => setViewingPet(p)}
+                                                >
+                                                    Scheda completa →
+                                                </button>
+                                            </div>
+                                        }
                                     />
                                 );
                             })}

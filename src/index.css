@@ -3185,43 +3185,6 @@ input[type="number"] {
   z-index: 3;
 }
 
-/* Tile that has an unconfirmed pending placement */
-.dash-tile.is-pending {
-  outline: 2px dashed rgba(108, 208, 122, 0.85);
-  outline-offset: -2px;
-}
-
-.dash-tile.is-pending::after {
-  content: 'da confermare';
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  font-size: 0.55rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #6cd07a;
-  background: rgba(0, 0, 0, 0.55);
-  padding: 2px 6px;
-  border-radius: 99px;
-  pointer-events: none;
-  z-index: 2;
-}
-
-/* Pending ghost outline (where the tile WILL go after confirm) */
-.dash-ghost.dash-ghost-pending {
-  border: 2px dashed rgba(108, 208, 122, 0.85);
-  background: rgba(108, 208, 122, 0.10);
-  color: rgba(220, 255, 220, 0.9);
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.7rem;
-  letter-spacing: 0.06em;
-  pointer-events: none;
-  z-index: 2;
-}
-
 /* Make the grip a comfortable touch target */
 .dash-grip {
   display: inline-flex;
@@ -3344,12 +3307,6 @@ input[type="number"] {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.dash-action-pending {
-  color: #6cd07a;
-  font-style: normal;
-  font-weight: 600;
 }
 
 .dash-action-close {

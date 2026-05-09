@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { CharacterBase, ClassLevel, HpLevelLogEntry, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell, ActiveModifier, DurationUnit, BestiaryEntry, ActiveSummon, ActivePet, Creature, CreatureStatOverride, CreatureRuntimeModifier, CustomSkillSynergy, NoteTab, NoteContextEntry, XpLogEntry } from '../types/dnd';
+import type { CharacterBase, ClassLevel, HpLevelLogEntry, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell, ActiveModifier, DurationUnit, BestiaryEntry, ActiveSummon, ActivePet, Creature, CreatureStatOverride, CreatureRuntimeModifier, CustomSkillSynergy, NoteTab, NoteContextEntry, XpLogEntry, CompanionFeature, CompanionEquipment } from '../types/dnd';
 import { computeClassBab, computeClassSaveBase, getExpectedHpForClassLevel, computeEcl, getXpForLevel } from '../types/dnd';
 import { collectModifierCandidates, resolveStatOverride, type ModifierCandidate, type RollContext } from '../services/modifiers';
 import { computeSynergyBonuses, computeCustomSynergyBonuses, type ActiveSynergy } from '../data/skillSynergies';
@@ -169,6 +169,22 @@ interface CharacterState {
   updatePetHp: (id: string, delta: number) => void;
   /** Compute stat overrides from active feats/features/items for a pet */
   computePetOverrides: (creature: Creature) => CreatureStatOverride[];
+  /** Add or update a companion feature */
+  updatePetFeature: (petId: string, feature: CompanionFeature) => void;
+  /** Remove a companion feature */
+  removePetFeature: (petId: string, featureId: string) => void;
+  /** Toggle active state of a companion feature */
+  togglePetFeature: (petId: string, featureId: string) => void;
+  /** Use one resource charge of a companion feature */
+  usePetFeatureResource: (petId: string, featureId: string) => void;
+  /** Reset resource of a companion feature */
+  resetPetFeatureResource: (petId: string, featureId: string) => void;
+  /** Add or update a companion equipment item */
+  updatePetEquipment: (petId: string, item: CompanionEquipment) => void;
+  /** Remove a companion equipment item */
+  removePetEquipment: (petId: string, itemId: string) => void;
+  /** Toggle equipped state of a companion equipment item */
+  togglePetEquipment: (petId: string, itemId: string) => void;
 
   // ── Creature runtime modifiers (summons & pets) ──────────────────────
   addCreatureRuntimeModifier: (kind: 'summon' | 'pet', id: string, mod: CreatureRuntimeModifier) => void;
@@ -1338,5 +1354,94 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       );
       return { character: { ...state.character, activePets } };
     }
+  }),
+
+  updatePetFeature: (petId, feature) => set((state) => {
+    if (!state.character) return state;
+    const activePets = (state.character.activePets ?? []).map(p => {
+      if (p.id !== petId) return p;
+      const existing = (p.features ?? []).find(f => f.id === feature.id);
+      const features = existing
+        ? (p.features ?? []).map(f => f.id === feature.id ? feature : f)
+        : [...(p.features ?? []), feature];
+      return { ...p, features };
+    });
+    return { character: { ...state.character, activePets } };
+  }),
+
+  removePetFeature: (petId, featureId) => set((state) => {
+    if (!state.character) return state;
+    const activePets = (state.character.activePets ?? []).map(p =>
+      p.id !== petId ? p : { ...p, features: (p.features ?? []).filter(f => f.id !== featureId) }
+    );
+    return { character: { ...state.character, activePets } };
+  }),
+
+  togglePetFeature: (petId, featureId) => set((state) => {
+    if (!state.character) return state;
+    const activePets = (state.character.activePets ?? []).map(p =>
+      p.id !== petId ? p : {
+        ...p,
+        features: (p.features ?? []).map(f => f.id === featureId ? { ...f, active: !f.active } : f),
+      }
+    );
+    return { character: { ...state.character, activePets } };
+  }),
+
+  usePetFeatureResource: (petId, featureId) => set((state) => {
+    if (!state.character) return state;
+    const activePets = (state.character.activePets ?? []).map(p =>
+      p.id !== petId ? p : {
+        ...p,
+        features: (p.features ?? []).map(f => {
+          if (f.id !== featureId || f.resourceMax == null) return f;
+          return { ...f, resourceUsed: Math.min((f.resourceUsed ?? 0) + 1, f.resourceMax) };
+        }),
+      }
+    );
+    return { character: { ...state.character, activePets } };
+  }),
+
+  resetPetFeatureResource: (petId, featureId) => set((state) => {
+    if (!state.character) return state;
+    const activePets = (state.character.activePets ?? []).map(p =>
+      p.id !== petId ? p : {
+        ...p,
+        features: (p.features ?? []).map(f => f.id === featureId ? { ...f, resourceUsed: 0 } : f),
+      }
+    );
+    return { character: { ...state.character, activePets } };
+  }),
+
+  updatePetEquipment: (petId, item) => set((state) => {
+    if (!state.character) return state;
+    const activePets = (state.character.activePets ?? []).map(p => {
+      if (p.id !== petId) return p;
+      const existing = (p.equipment ?? []).find(e => e.id === item.id);
+      const equipment = existing
+        ? (p.equipment ?? []).map(e => e.id === item.id ? item : e)
+        : [...(p.equipment ?? []), item];
+      return { ...p, equipment };
+    });
+    return { character: { ...state.character, activePets } };
+  }),
+
+  removePetEquipment: (petId, itemId) => set((state) => {
+    if (!state.character) return state;
+    const activePets = (state.character.activePets ?? []).map(p =>
+      p.id !== petId ? p : { ...p, equipment: (p.equipment ?? []).filter(e => e.id !== itemId) }
+    );
+    return { character: { ...state.character, activePets } };
+  }),
+
+  togglePetEquipment: (petId, itemId) => set((state) => {
+    if (!state.character) return state;
+    const activePets = (state.character.activePets ?? []).map(p =>
+      p.id !== petId ? p : {
+        ...p,
+        equipment: (p.equipment ?? []).map(e => e.id === itemId ? { ...e, equipped: !e.equipped } : e),
+      }
+    );
+    return { character: { ...state.character, activePets } };
   }),
 }));

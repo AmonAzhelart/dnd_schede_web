@@ -170,9 +170,10 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
     const [dragZoom, setDragZoom] = useState(1);
     /** Currently selected tile in edit mode (tap-to-select flow). */
     const [selectedUid, setSelectedUid] = useState<string | null>(null);
-    /** Pending placement for the selected tile — staged via drag/nudge,
-     *  committed only when the user presses "Conferma". */
-    const [pending, setPending] = useState<{ uid: string; x: number; y: number; w: number; h: number } | null>(null);
+    /** Snapshot of the layout when edit mode was entered — allows global revert. */
+    const preEditLayoutRef = useRef<DashboardLayout | null>(null);
+    /** Always-current layout ref for snapshot capture (avoids stale closures in effects). */
+    const layoutRef = useRef<DashboardLayout | null>(null);
     /** Currently focused tile (click-to-activate enables internal scrolling). */
     const [activeUid, setActiveUid] = useState<string | null>(null);
     const dashRef = useRef<HTMLDivElement | null>(null);
@@ -201,8 +202,14 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
     // When entering edit mode, sync to current viewport breakpoint
     useEffect(() => { if (!editMode) setEditedBp(viewportBp); }, [viewportBp, editMode]);
 
-    // Clear selection / pending when toggling edit mode or switching breakpoint
-    useEffect(() => { setSelectedUid(null); setPending(null); }, [editMode, editedBp]);
+    // Clear selection when toggling edit mode or switching breakpoint
+    useEffect(() => { setSelectedUid(null); }, [editMode, editedBp]);
+
+    // Snapshot layout on edit-mode entry so the user can revert everything at once
+    useEffect(() => {
+        if (editMode) preEditLayoutRef.current = layoutRef.current;
+        else preEditLayoutRef.current = null;
+    }, [editMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Lock body scroll while in fullscreen edit mode
     useEffect(() => {
@@ -252,6 +259,8 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
     const containerRef = useRef<HTMLDivElement>(null);
     const dragRef = useRef<DragState | null>(null);
     dragRef.current = drag;
+    // Keep layoutRef always current so the edit-mode snapshot captures the right state
+    layoutRef.current = layout;
 
     /* ─── Measure grid pixel width for size-aware widgets ─── */
     const [gridWidth, setGridWidth] = useState(0);
@@ -342,62 +351,48 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
     };
     const setRowHeight = (rowHeight: number) => mutateActive(l => ({ ...l, rowHeight }));
 
-    /* ─── Selection / pending placement (touch-friendly flow) ─── */
+    /* ─── Selection / immediate placement (touch-friendly flow) ─── */
     const widgetByUid = useCallback(
         (uid: string) => activeLayout.widgets.find(w => w.uid === uid) ?? null,
         [activeLayout.widgets],
     );
-    const currentRectFor = useCallback((uid: string) => {
-        if (pending && pending.uid === uid) {
-            return { uid, x: pending.x, y: pending.y, w: pending.w, h: pending.h };
-        }
-        const w = widgetByUid(uid);
-        return w ? { uid, x: w.x, y: w.y, w: w.w, h: w.h } : null;
-    }, [pending, widgetByUid]);
-    const stagePending = useCallback((uid: string, rect: { x: number; y: number; w: number; h: number }) => {
+    const selectTile = useCallback((uid: string) => {
+        if (!editMode) return;
+        setSelectedUid(uid);
+    }, [editMode]);
+    /** Apply a move/resize change immediately, pushing overlapping widgets out of the way. */
+    const applyRect = useCallback((uid: string, rect: { x: number; y: number; w: number; h: number }) => {
         const w = widgetByUid(uid);
         if (!w) return;
         const def = getWidgetDef(w.type);
         const minW = def?.minW ?? 2;
         const minH = def?.minH ?? 2;
         const clamped = clampRect(rect, activeLayout.cols, minW, minH);
-        // If pending matches the original rect exactly, drop it (nothing to confirm)
-        if (clamped.x === w.x && clamped.y === w.y && clamped.w === w.w && clamped.h === w.h) {
-            setPending(null);
-            return;
-        }
-        setPending({ uid, ...clamped });
-    }, [widgetByUid, activeLayout.cols]);
-    const selectTile = useCallback((uid: string) => {
-        if (!editMode) return;
-        setSelectedUid(uid);
-    }, [editMode]);
+        // No-op if nothing changed
+        if (clamped.x === w.x && clamped.y === w.y && clamped.w === w.w && clamped.h === w.h) return;
+        const merged = resolveLayout(activeLayout.widgets, uid, clamped);
+        const updated = merged.map(x => x.uid === uid ? { ...x, ...clamped } : x);
+        updateWidgets(() => compactLayout(updated, uid));
+    }, [widgetByUid, activeLayout.cols, activeLayout.widgets, updateWidgets]);
     const nudge = (dx: number, dy: number) => {
         if (!selectedUid) return;
-        const cur = currentRectFor(selectedUid); if (!cur) return;
-        stagePending(selectedUid, { x: cur.x + dx, y: Math.max(0, cur.y + dy), w: cur.w, h: cur.h });
+        const w = widgetByUid(selectedUid); if (!w) return;
+        applyRect(selectedUid, { x: w.x + dx, y: Math.max(0, w.y + dy), w: w.w, h: w.h });
     };
     const resizeBy = (dw: number, dh: number) => {
         if (!selectedUid) return;
-        const cur = currentRectFor(selectedUid); if (!cur) return;
-        stagePending(selectedUid, { x: cur.x, y: cur.y, w: cur.w + dw, h: cur.h + dh });
+        const w = widgetByUid(selectedUid); if (!w) return;
+        applyRect(selectedUid, { x: w.x, y: w.y, w: w.w + dw, h: w.h + dh });
     };
-    const confirmPending = () => {
-        if (pending) {
-            const target = { x: pending.x, y: pending.y, w: pending.w, h: pending.h };
-            const merged = resolveLayout(activeLayout.widgets, pending.uid, target);
-            const final = merged.map(w => w.uid === pending.uid ? { ...w, ...target } : w);
-            const compacted = compactLayout(final, pending.uid);
-            updateWidgets(() => compacted);
-            setPending(null);
+    const clearSelection = () => { setSelectedUid(null); };
+    const revertEdit = () => {
+        if (preEditLayoutRef.current && confirm('Annullare tutte le modifiche al layout?')) {
+            setLayout(preEditLayoutRef.current);
+            preEditLayoutRef.current = null;
+            setEditMode(false);
+            setPaletteOpen(false);
         }
-        // Always close the action bar when the user presses Conferma so they
-        // get clear feedback that the action completed (even if nothing was
-        // pending: pressing Conferma after a tap means "OK, done").
-        setSelectedUid(null);
     };
-    const cancelPending = () => { setPending(null); setSelectedUid(null); };
-    const clearSelection = () => { setSelectedUid(null); setPending(null); };
     const removeSelected = () => {
         if (!selectedUid) return;
         removeWidget(selectedUid);
@@ -623,10 +618,8 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
             cleanup();
             const finalState = dragRef.current;
             if (finalState) {
-                // Stage the new placement as PENDING — do NOT commit yet.
-                // The user must press "Conferma" in the action bar to apply.
-                // This avoids accidental drops when touch is lost mid-gesture.
-                stagePending(uid, {
+                // Apply the new position immediately — no confirm step needed.
+                applyRect(uid, {
                     x: finalState.ghost.x,
                     y: finalState.ghost.y,
                     w: finalState.ghost.w,
@@ -644,25 +637,18 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
 
     const usedTypes = useMemo(() => new Set(activeLayout.widgets.map(w => w.type)), [activeLayout.widgets]);
 
-    /** Widgets to render: live drag preview > pending preview > raw layout. */
+    /** Widgets to render: live drag preview > raw layout. */
     const displayWidgets: WidgetInstance[] = useMemo(() => {
         if (drag) return drag.preview;
-        if (pending) {
-            const target = { x: pending.x, y: pending.y, w: pending.w, h: pending.h };
-            const merged = resolveLayout(activeLayout.widgets, pending.uid, target);
-            return merged.map(w => w.uid === pending.uid ? { ...w, ...target } : w);
-        }
         return activeLayout.widgets;
-    }, [drag, pending, activeLayout.widgets]);
+    }, [drag, activeLayout.widgets]);
 
     const totalRows = useMemo(() => {
-        const widgets = displayWidgets;
-        const fromWidgets = widgets.reduce((m, w) => Math.max(m, w.y + w.h), 0);
+        const fromWidgets = displayWidgets.reduce((m, w) => Math.max(m, w.y + w.h), 0);
         const fromGhost = drag ? drag.ghost.y + drag.ghost.h : 0;
-        const fromPending = pending ? pending.y + pending.h : 0;
-        const max = Math.max(fromWidgets, fromGhost, fromPending);
+        const max = Math.max(fromWidgets, fromGhost);
         return Math.max(max, editMode ? max + 4 : max);
-    }, [displayWidgets, editMode, drag, pending]);
+    }, [displayWidgets, editMode, drag]);
 
     // Publish the current widget list to the WidgetJump rail (the trigger
     // is the mobile "Panoramica" tab, registered from CharacterSheet).
@@ -750,12 +736,15 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
                     <button className="btn btn-secondary btn-sm" onClick={resetActive} title={`Ripristina layout di default per ${activeBp}`}>
                         <FaUndo size={9} /> Reset
                     </button>
+                    <button className="btn btn-secondary btn-sm" onClick={revertEdit} title="Annulla tutte le modifiche fatte in questa sessione">
+                        <FaBan size={9} /> Annulla tutto
+                    </button>
                 </div>
                 {/* Fatto button — always last / top-right on mobile */}
                 <button
                     className="btn btn-sm btn-primary dash-toolbar-done"
                     onClick={() => { setEditMode(false); setPaletteOpen(false); }}
-                    title="Termina personalizzazione"
+                    title="Salva e chiudi — le modifiche sono già applicate"
                 >
                     <FaCheck size={9} /> Fatto
                 </button>
@@ -836,7 +825,7 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
                             <div
                                 key={w.uid}
                                 data-widget-uid={w.uid}
-                                className={`dash-tile ${isResizing ? 'dragging is-resizing' : ''} ${activeUid === w.uid ? 'is-active' : ''} ${selectedUid === w.uid && editMode ? 'is-selected' : ''} ${pending && pending.uid === w.uid && !drag ? 'is-pending' : ''} ${drag && drag.mode === 'move' ? 'is-minimal' : ''}`}
+                                className={`dash-tile ${isResizing ? 'dragging is-resizing' : ''} ${activeUid === w.uid ? 'is-active' : ''} ${selectedUid === w.uid && editMode ? 'is-selected' : ''} ${drag && drag.mode === 'move' ? 'is-minimal' : ''}`}
                                 style={{
                                     gridColumn: `${visualRect.x + 1} / span ${visualRect.w}`,
                                     gridRow: `${visualRect.y + 1} / span ${visualRect.h}`,
@@ -855,14 +844,14 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
                                 {!(drag && drag.mode === 'move') && (
                                     <div
                                         className="dash-tile-header"
-                                        style={{ borderBottomColor: def.accent ? `${def.accent}33` : undefined, cursor: editMode ? 'pointer' : 'default' }}
+                                        style={{ borderBottomColor: def.accent ? `${def.accent}33` : undefined, cursor: editMode ? 'grab' : 'default' }}
+                                        onPointerDown={editMode ? startDrag(w.uid, 'move') : undefined}
                                     >
                                         {editMode && (
                                             <span
                                                 className="dash-grip"
-                                                title="Trascina per spostare"
-                                                onPointerDown={startDrag(w.uid, 'move')}
-                                                style={{ touchAction: 'none', cursor: 'grab' }}
+                                                title="Trascina l'intestazione per spostare"
+                                                style={{ pointerEvents: 'none' }}
                                             ><FaGripVertical size={11} /></span>
                                         )}
                                         <span className="dash-tile-title" style={{ color: def.accent || 'var(--accent-gold)' }}>
@@ -919,19 +908,6 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
                         </div>
                     )}
 
-                    {/* Pending placement outline — the user must press Conferma to apply. */}
-                    {editMode && pending && !drag && (
-                        <div
-                            className="dash-ghost dash-ghost-pending"
-                            style={{
-                                gridColumn: `${pending.x + 1} / span ${pending.w}`,
-                                gridRow: `${pending.y + 1} / span ${pending.h}`,
-                            }}
-                        >
-                            <span>{pending.w} × {pending.h} — in attesa di conferma</span>
-                        </div>
-                    )}
-
                     {/* Phantom is rendered via portal below to escape the
                         scaled `.dash-frame` ancestor (position:fixed is
                         broken inside CSS transforms). */}
@@ -985,12 +961,13 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
 
             {/* Bottom action bar — portaled to <body> so it stays glued to the
                 viewport regardless of any ancestor stacking context (e.g. the
-                fullscreen edit overlay or transformed dash-frame). */}
-            {editMode && selectedUid && (() => {
+                fullscreen edit overlay or transformed dash-frame).
+                Hidden while dragging to keep the screen uncluttered. */}
+            {editMode && selectedUid && !drag && (() => {
                 const sel = widgetByUid(selectedUid);
                 const def = sel ? getWidgetDef(sel.type) : null;
                 if (!sel || !def) return null;
-                const cur = currentRectFor(selectedUid)!;
+                const cur = { x: sel.x, y: sel.y, w: sel.w, h: sel.h };
                 const minW = def.minW ?? 2;
                 const minH = def.minH ?? 2;
                 const canShrinkW = cur.w > minW;
@@ -1000,7 +977,6 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
                 const canMoveLeft = cur.x > 0;
                 const canMoveRight = cur.x + cur.w < activeLayout.cols;
                 const canMoveUp = cur.y > 0;
-                const hasPending = !!pending && pending.uid === selectedUid;
                 return createPortal(
                     <div className="dash-action-bar" role="dialog" aria-label="Modifica widget">
                         <div className="dash-action-row dash-action-row-top">
@@ -1008,10 +984,7 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
                                 <span className="dash-action-icon" style={{ color: def.accent || 'var(--accent-gold)' }}>{def.icon}</span>
                                 <div className="dash-action-meta">
                                     <span className="dash-action-title">{def.title}</span>
-                                    <span className="dash-action-sub">
-                                        {cur.x},{cur.y} · {cur.w}×{cur.h}
-                                        {hasPending && <em className="dash-action-pending"> · da confermare</em>}
-                                    </span>
+                                    <span className="dash-action-sub">{cur.x},{cur.y} · {cur.w}×{cur.h}</span>
                                 </div>
                             </div>
                             <button
@@ -1054,19 +1027,11 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
                                 <FaTrash />
                             </button>
                             <button
-                                className="btn btn-secondary"
-                                onClick={cancelPending}
-                                disabled={!hasPending}
-                                title="Annulla le modifiche non confermate"
-                            >
-                                <FaBan /> <span className="dash-action-btn-label">Annulla</span>
-                            </button>
-                            <button
                                 className="btn btn-primary dash-action-confirm"
-                                onClick={confirmPending}
-                                title={hasPending ? 'Applica la nuova posizione' : 'Chiudi'}
+                                onClick={clearSelection}
+                                title="Chiudi il pannello — le modifiche sono già applicate"
                             >
-                                <FaCheck /> {hasPending ? 'Conferma' : 'OK'}
+                                <FaCheck /> <span className="dash-action-btn-label">Fatto</span>
                             </button>
                         </div>
                     </div>,
