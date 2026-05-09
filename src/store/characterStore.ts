@@ -954,7 +954,7 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
           const modType: ModifierType =
             item.type === 'shield' ? 'shield' :
               item.type === 'protectiveItem' ? 'deflection' :
-                'armor';
+                'enhancement';
           activeModifiers.push({
             target: 'ac', value: item.armorDetails.armorBonus, type: modType, source: item.name,
           });
@@ -967,6 +967,11 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         activeModifiers.push(...feat.modifiers.filter(m => m.target === target));
       }
     });
+
+    // Include user-managed active modifiers in the same stacking pool
+    (character.activeModifiers ?? [])
+      .filter(m => !m.paused && m.target === target)
+      .forEach(m => activeModifiers.push({ target: m.target, value: m.value, type: m.type, source: m.source ?? '' }));
 
     // If target is 'ac', also add Dex modifier (capped by tightest Max Dex from equipped armor)
     if (target === 'ac') {
@@ -1008,9 +1013,6 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         if (negatives.length) totalBonus += Math.min(...negatives);
       }
     });
-
-    // Add free-standing user-managed active modifiers (buffs/malus).
-    totalBonus += get().getActiveModifierDelta(target);
 
     return baseValue + totalBonus;
   },
