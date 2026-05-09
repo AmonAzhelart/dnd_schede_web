@@ -12,6 +12,8 @@ import { useIconCatalog } from '../services/iconCache';
 import { DndIcon, getDndIconSvg } from './DndIcon';
 import { useMediaQuery } from './mobile/MobileShell';
 import { BottomDrawer } from './ui/BottomDrawer';
+import { computeSpellCasterLevelBonus, computeSpellEffectiveSlotBonus } from '../services/modifiers';
+import type { CharacterBase } from '../types/dnd';
 
 /** Italian school name → english slug for `src/assets/icons/spell/<slug>.svg`. */
 const SCHOOL_ICON_SLUG: Record<string, string> = {
@@ -61,7 +63,7 @@ const SCHOOL_ICON: Record<string, string> = {
 };
 
 const EMPTY_SPELL = (): Omit<Spell, 'id'> => ({
-  name: '', level: 1, school: 'Evocazione', description: '',
+  name: '', level: 1, school: 'Evocazione', spellType: '', description: '',
   castingTime: '', range: '', duration: '', savingThrow: '', components: '',
   attackMode: 'none', baseDice: '', damageType: '', saveStat: 'int',
   upcastDice: '', upcastEveryLevels: 1, upcastMaxSteps: undefined,
@@ -191,6 +193,13 @@ const SpellEditForm: React.FC<SpellEditFormProps> = ({ form, setForm, saveSpell,
         <div className="sb-ef-field">
           <label className="sb-ef-label">Scuola di Magia</label>
           <SchoolPicker value={form.school} onChange={school => setForm(f => ({ ...f, school }))} />
+        </div>
+        <div className="sb-ef-field">
+          <label className="sb-ef-label">Tipo / Descrittore <span style={{ opacity: 0.55, fontWeight: 400 }}>(opzionale)</span></label>
+          <input className="input" placeholder="Es. Guarigione, Offensivo, Controllo…"
+            value={form.spellType ?? ''}
+            onChange={e => setForm(f => ({ ...f, spellType: e.target.value }))}
+            style={{ fontSize: '0.8rem' }} />
         </div>
       </div>
 
@@ -482,7 +491,8 @@ const SpellDetailPanel: React.FC<{
   onPrepare: () => void;
   onUnprepare: () => void;
   creatureNameMap: Record<string, string>;
-}> = ({ spell, prepCount, canPrepare, onPrepare, onUnprepare, creatureNameMap }) => {
+  character?: CharacterBase | null;
+}> = ({ spell, prepCount, canPrepare, onPrepare, onUnprepare, creatureNameMap, character }) => {
   const { t } = useTranslation();
   const { resolveSchoolSvg, sanitizeSvg } = useIconCatalog();
   const color = SCHOOL_COLOR[spell.school] ?? 'var(--text-muted)';
@@ -499,6 +509,16 @@ const SpellDetailPanel: React.FC<{
   const hasDamage = spell.attackMode !== 'none' && spell.baseDice;
   const isCantrip = spell.level === 0;
 
+  // Compute class-feature bonuses for this spell
+  const clBonus = character ? computeSpellCasterLevelBonus(character, {
+    id: spell.id, name: spell.name, level: spell.level,
+    school: spell.school, spellType: spell.spellType, damageType: spell.damageType,
+  }) : 0;
+  const slotBonus = character ? computeSpellEffectiveSlotBonus(character, {
+    id: spell.id, name: spell.name, level: spell.level,
+    school: spell.school, spellType: spell.spellType, damageType: spell.damageType,
+  }) : 0;
+
   return (
     <div className="sb-spell-detail">
 
@@ -511,6 +531,11 @@ const SpellDetailPanel: React.FC<{
           <span className="sb-sdp-school-name" style={{ color }}>
             {t(`spellbook.schools.${spell.school}`, spell.school)}
           </span>
+          {spell.spellType?.trim() && (
+            <span className="sb-sdp-level-pill" style={{ background: 'rgba(180,140,60,0.15)', borderColor: 'rgba(180,140,60,0.35)', color: '#c9aa5f' }}>
+              {spell.spellType}
+            </span>
+          )}
           {isCantrip && <span className="sb-sdp-level-pill" style={{ background: `${color}22`, borderColor: `${color}44`, color }}>Trucchetto</span>}
           {!isCantrip && <span className="sb-sdp-level-pill" style={{ background: `${color}18`, borderColor: `${color}38`, color }}>Lv {spell.level}</span>}
         </div>
@@ -541,6 +566,26 @@ const SpellDetailPanel: React.FC<{
         <div className="sb-sdp-desc">
           <div className="sb-sdp-desc-label">Descrizione</div>
           <p className="sb-sdp-desc-text">{spell.description}</p>
+        </div>
+      )}
+
+      {/* ── Class-feature spell bonuses ── */}
+      {(clBonus !== 0 || slotBonus !== 0) && (
+        <div className="sb-sdp-upcast" style={{ borderLeftColor: 'rgba(155,89,182,0.55)', background: 'rgba(155,89,182,0.06)' }}>
+          <div className="sb-sdp-upcast-hdr">
+            <FaGraduationCap size={11} style={{ color: 'var(--accent-arcane)' }} />
+            <span style={{ color: 'var(--accent-arcane)' }}>Bonus da Privilegio di Classe</span>
+          </div>
+          {clBonus !== 0 && (
+            <span className="sb-sdp-upcast-text">
+              Livello incantatore: {clBonus > 0 ? '+' : ''}{clBonus} (effettivo: {(character as CharacterBase).level + clBonus})
+            </span>
+          )}
+          {slotBonus !== 0 && (
+            <span className="sb-sdp-upcast-text">
+              Slot effettivo: +{slotBonus} livell{slotBonus === 1 ? 'o' : 'i'} (come Lv {spell.level + slotBonus})
+            </span>
+          )}
         </div>
       )}
 
@@ -1473,6 +1518,7 @@ export const Spellbook: React.FC = () => {
                       onPrepare={() => prepareWizardSpell(sel.level, sel.id)}
                       onUnprepare={() => unprepareSpellOne(sel.id)}
                       creatureNameMap={creatureNameMap}
+                      character={character}
                     />
                   ) : null}
                 </div>
@@ -1650,6 +1696,7 @@ export const Spellbook: React.FC = () => {
                 onPrepare={() => prepareWizardSpell(mSel.level, mSel.id)}
                 onUnprepare={() => unprepareSpellOne(mSel.id)}
                 creatureNameMap={creatureNameMap}
+                character={character}
               />
             )}
           </BottomDrawer>

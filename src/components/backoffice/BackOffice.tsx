@@ -420,7 +420,7 @@ function SpellSchoolIcon({ school, color, size = 14 }: { school: string; color: 
 }
 
 const EMPTY_SPELL = (): CatalogSpell => ({
-    id: uuid(), name: '', level: 0, school: 'Invocazione', description: '',
+    id: uuid(), name: '', level: 0, school: 'Invocazione', spellType: '', description: '',
     castingTime: '', range: '', duration: '', savingThrow: '', components: '',
     attackMode: 'none', baseDice: '', damageType: '', saveStat: 'int',
     upcastDice: '', upcastEveryLevels: 1, upcastMaxSteps: undefined,
@@ -511,6 +511,11 @@ function SpellsPanel({ currentUserEmail }: { currentUserEmail: string }) {
                                 <option key={s} value={s}>{s}</option>
                             ))}
                         </select>
+                    </Field>
+                    <Field label="Tipo / Descrittore">
+                        <input className="input w-full" value={editing.spellType ?? ''}
+                            onChange={e => setEditing({ ...editing, spellType: e.target.value })}
+                            placeholder="Es. Guarigione, Offensivo, Controllo…" />
                     </Field>
                     <Field label="Livello">
                         <select className="input w-full" value={editing.level}
@@ -738,6 +743,15 @@ function SpellsPanel({ currentUserEmail }: { currentUserEmail: string }) {
                                     }}>
                                         {s.level === 0 ? 'Trucchetto' : `Lv ${s.level}`}
                                     </span>
+                                    {s.spellType?.trim() && (
+                                        <span style={{
+                                            fontSize: '0.63rem', color: '#c9aa5f', background: 'rgba(180,140,60,0.13)',
+                                            border: '1px solid rgba(180,140,60,0.3)',
+                                            padding: '1px 6px', borderRadius: 20, whiteSpace: 'nowrap',
+                                        }}>
+                                            {s.spellType}
+                                        </span>
+                                    )}
                                     {activeSchool === 'all' && (
                                         <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                                             {s.school}

@@ -24,11 +24,12 @@ export type RollContext =
     | { channel: `skill.${string}`; skillId: string; skillName: string }
     | { channel: 'cmb' | 'cmd' }
     | {
-        channel: 'spell.attack' | 'spell.damage' | 'spell.dc';
+        channel: 'spell.attack' | 'spell.damage' | 'spell.dc' | 'spell.casterLevel' | 'spell.effectiveSlot';
         spellId: string;
         spellName: string;
         spellLevel: number;
         spellSchool?: string;
+        spellType?: string;
         spellDamageType?: string;
         attackMode?: 'none' | 'rangedTouch' | 'meleeTouch' | 'ray' | 'normal';
     };
@@ -155,22 +156,27 @@ function singleConditionMatches(c: ModifierCondition, ctx: RollContext): boolean
         }
         case 'spellSchool': {
             if (!ctx.channel.startsWith('spell.')) return false;
-            const sc = ctx as Extract<RollContext, { channel: 'spell.attack' | 'spell.damage' | 'spell.dc' }>;
+            const sc = ctx as Extract<RollContext, { channel: 'spell.attack' | 'spell.damage' | 'spell.dc' | 'spell.casterLevel' | 'spell.effectiveSlot' }>;
             return ciIncludes(sc.spellSchool, c.value);
+        }
+        case 'spellType': {
+            if (!ctx.channel.startsWith('spell.')) return false;
+            const sc = ctx as Extract<RollContext, { channel: 'spell.attack' | 'spell.damage' | 'spell.dc' | 'spell.casterLevel' | 'spell.effectiveSlot' }>;
+            return ciIncludes(sc.spellType, c.value);
         }
         case 'spellName': {
             if (!ctx.channel.startsWith('spell.')) return false;
-            const sc = ctx as Extract<RollContext, { channel: 'spell.attack' | 'spell.damage' | 'spell.dc' }>;
+            const sc = ctx as Extract<RollContext, { channel: 'spell.attack' | 'spell.damage' | 'spell.dc' | 'spell.casterLevel' | 'spell.effectiveSlot' }>;
             return ciIncludes(sc.spellName, c.value);
         }
         case 'spellDamageType': {
             if (!ctx.channel.startsWith('spell.')) return false;
-            const sc = ctx as Extract<RollContext, { channel: 'spell.attack' | 'spell.damage' | 'spell.dc' }>;
+            const sc = ctx as Extract<RollContext, { channel: 'spell.attack' | 'spell.damage' | 'spell.dc' | 'spell.casterLevel' | 'spell.effectiveSlot' }>;
             return ciIncludes(sc.spellDamageType, c.value);
         }
         case 'spellMinLevel': {
             if (!ctx.channel.startsWith('spell.')) return false;
-            const sc = ctx as Extract<RollContext, { channel: 'spell.attack' | 'spell.damage' | 'spell.dc' }>;
+            const sc = ctx as Extract<RollContext, { channel: 'spell.attack' | 'spell.damage' | 'spell.dc' | 'spell.casterLevel' | 'spell.effectiveSlot' }>;
             return sc.spellLevel >= c.value;
         }
     }
@@ -191,6 +197,7 @@ function describeConditions(mod: Modifier): string {
             case 'saveType': parts.push(`solo TS ${c.value}`); break;
             case 'abilityStat': parts.push(`solo prove di ${c.value.toUpperCase()}`); break;
             case 'spellSchool': parts.push(`scuola ${c.value}`); break;
+            case 'spellType': parts.push(`tipo ${c.value}`); break;
             case 'spellName': parts.push(`incantesimo ${c.value}`); break;
             case 'spellDamageType': parts.push(`magia di ${c.value}`); break;
             case 'spellMinLevel': parts.push(`liv. magia ≥ ${c.value}`); break;
@@ -373,6 +380,8 @@ export const ROLL_CHANNEL_LABELS: { value: RollChannel | string; label: string; 
     { value: 'spell.attack', label: 'Tiro per colpire (incantesimo)', group: 'Magie' },
     { value: 'spell.damage', label: 'Danno (incantesimo)', group: 'Magie' },
     { value: 'spell.dc', label: 'CD del tiro salvezza (incantesimo)', group: 'Magie' },
+    { value: 'spell.casterLevel', label: 'Livello incantatore effettivo', group: 'Magie' },
+    { value: 'spell.effectiveSlot', label: 'Livello slot effettivo (upcast)', group: 'Magie' },
     { value: 'check.str', label: 'Prova di Forza', group: 'Caratteristiche' },
     { value: 'check.dex', label: 'Prova di Destrezza', group: 'Caratteristiche' },
     { value: 'check.con', label: 'Prova di Costituzione', group: 'Caratteristiche' },
@@ -550,4 +559,59 @@ export function resolveStatOverride(
     if (overrides.length === 0) return null;
     // Pick the override that gives the best (highest) modifier value.
     return overrides.reduce((best, cur) => cur.modValue > best.modValue ? cur : best).stat;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Spell caster-level / effective-slot bonuses from class features
+// ──────────────────────────────────────────────────────────────────────────────
+
+type SpellRef = {
+    id: string;
+    name: string;
+    level: number;
+    school?: string;
+    spellType?: string;
+    damageType?: string;
+};
+
+/** Returns the net bonus to the effective caster level for a spell.
+ *  Applies D&D 3.5 stacking rules over all active items / feats / class features. */
+export function computeSpellCasterLevelBonus(
+    character: CharacterBase,
+    spell: SpellRef,
+): number {
+    const ctx: RollContext = {
+        channel: 'spell.casterLevel',
+        spellId: spell.id,
+        spellName: spell.name,
+        spellLevel: spell.level,
+        spellSchool: spell.school,
+        spellType: spell.spellType,
+        spellDamageType: spell.damageType,
+    };
+    const candidates = collectModifierCandidates(character, ctx);
+    return aggregateBonuses(
+        candidates.filter(c => c.available).map(c => ({ type: c.type, value: c.value })),
+    );
+}
+
+/** Returns the net bonus to the effective slot level for a spell (upcast equivalent).
+ *  A value of +1 means the spell is treated as prepared in a slot 1 level higher. */
+export function computeSpellEffectiveSlotBonus(
+    character: CharacterBase,
+    spell: SpellRef,
+): number {
+    const ctx: RollContext = {
+        channel: 'spell.effectiveSlot',
+        spellId: spell.id,
+        spellName: spell.name,
+        spellLevel: spell.level,
+        spellSchool: spell.school,
+        spellType: spell.spellType,
+        spellDamageType: spell.damageType,
+    };
+    const candidates = collectModifierCandidates(character, ctx);
+    return aggregateBonuses(
+        candidates.filter(c => c.available).map(c => ({ type: c.type, value: c.value })),
+    );
 }

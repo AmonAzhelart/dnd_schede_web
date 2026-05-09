@@ -21,6 +21,7 @@ export const SpellModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [name, setName] = useState('');
   const [level, setLevel] = useState(1);
   const [school, setSchool] = useState('Evocazione');
+  const [spellType, setSpellType] = useState('');
   const [description, setDescription] = useState('');
   const [prepared, setPrepared] = useState(1);
   // Roll/scaling fields
@@ -41,6 +42,7 @@ export const SpellModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       name: name.trim(),
       level,
       school,
+      spellType: spellType.trim() || undefined,
       description,
       prepared,
       cast: 0,
@@ -82,6 +84,10 @@ export const SpellModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               <label className="text-xs text-muted">Lanci/giorno</label>
               <input className="input" type="number" value={prepared} onChange={e => setPrepared(+e.target.value)} min={1} />
             </div>
+          </div>
+          <div className="flex-col gap-1">
+            <label className="text-xs text-muted">Tipo / Descrittore <span style={{ opacity: 0.55 }}>(opzionale)</span></label>
+            <input className="input" placeholder="Es. Guarigione, Offensivo, Controllo…" value={spellType} onChange={e => setSpellType(e.target.value)} />
           </div>
 
           <textarea className="input" placeholder="Descrizione ed effetti..." value={description} onChange={e => setDescription(e.target.value)} style={{ minHeight: 80 }} />

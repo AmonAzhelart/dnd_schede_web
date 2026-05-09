@@ -421,6 +421,7 @@ export const SpellSlotsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) =>
                                 spellName: spell.name,
                                 spellLevel: spell.level,
                                 spellSchool: spell.school,
+                                spellType: spell.spellType,
                                 spellDamageType: spell.damageType,
                                 attackMode: spell.attackMode,
                             },
@@ -450,6 +451,7 @@ export const SpellSlotsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) =>
                             spellName: spell.name,
                             spellLevel: spell.level,
                             spellSchool: spell.school,
+                            spellType: spell.spellType,
                             spellDamageType: spell.damageType,
                             attackMode: spell.attackMode,
                         },
@@ -608,7 +610,7 @@ export const SpellSlotsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) =>
                     return (
                         <RollPickerModal
                             segments={[{
-                                ctx: { channel: 'spell.dc', spellId: spell.id, spellName: spell.name, spellLevel: spell.level, spellSchool: spell.school },
+                                ctx: { channel: 'spell.dc', spellId: spell.id, spellName: spell.name, spellLevel: spell.level, spellSchool: spell.school, spellType: spell.spellType },
                                 label: spell.name,
                                 baseBreakdown: [],
                             }]}

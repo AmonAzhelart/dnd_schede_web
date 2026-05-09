@@ -147,6 +147,7 @@ const COND_KINDS: { value: ModifierCondition['kind']; label: string; icon: { cat
     { value: 'saveType', label: 'Tiro salvezza', icon: { category: 'd20test', name: 'saving-throw' } },
     { value: 'abilityStat', label: 'Caratteristica', icon: { category: 'ability', name: 'strength' } },
     { value: 'spellSchool', label: 'Scuola magia', icon: { category: 'spell', name: 'evocation' } },
+    { value: 'spellType', label: 'Tipo incantesimo', icon: { category: 'spell', name: 'octagon' } },
     { value: 'spellName', label: 'Incantesimo', icon: { category: 'spell', name: 'octagon' } },
     { value: 'spellDamageType', label: 'Tipo magia', icon: { category: 'damage', name: 'lightning' } },
     { value: 'spellMinLevel', label: 'Livello min. magia', icon: { category: 'spell', name: 'upcast' } },

@@ -391,6 +391,7 @@ export type RollChannel =
   | 'save.fort' | 'save.ref' | 'save.will'
   | 'cmb' | 'cmd'
   | 'spell.attack' | 'spell.damage' | 'spell.dc'
+  | 'spell.casterLevel' | 'spell.effectiveSlot'
   | `check.${StatType}`
   | `skill.${string}`;
 
@@ -414,6 +415,8 @@ export type ModifierCondition =
   | { kind: 'abilityStat'; value: StatType }
   /** Restrict a `spell.*` modifier to a specific spell school (case-insensitive substring). */
   | { kind: 'spellSchool'; value: string }
+  /** Restrict a `spell.*` modifier to a specific spell type/descriptor (case-insensitive substring). */
+  | { kind: 'spellType'; value: string }
   /** Restrict a `spell.*` modifier to a specific spell name. */
   | { kind: 'spellName'; value: string }
   /** Restrict a `spell.*` modifier to a specific damage/energy type. */
@@ -624,6 +627,8 @@ export interface Spell {
   name: string;
   level: number;
   school: string;
+  /** Optional descriptor/type beyond the school (e.g. 'Guarigione', 'Offensivo', 'Controllo'). */
+  spellType?: string;
   description: string;
   castingTime?: string;
   range?: string;
