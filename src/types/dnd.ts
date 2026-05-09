@@ -662,6 +662,12 @@ export interface Spell {
   upcastEveryLevels?: number;
   /** Optional cap on the number of upcast steps (regardless of slot level). */
   upcastMaxSteps?: number;
+  /** Extra duration added per upcast "step" (e.g. `'1 minuto'`, `'1 round'`).
+   *  Applies when the spell is prepared in a slot higher than `level`. */
+  upcastDuration?: string;
+  /** Number of slot levels above the spell's base level needed to gain one
+   *  extra duration step. Default = 1. */
+  upcastDurationEveryLevels?: number;
   /** Energy / damage type tag (used for resistances/conditions). */
   damageType?: string;
   /** Stat that sets the save DC (`int` for wizard, `wis` for cleric, etc.). */

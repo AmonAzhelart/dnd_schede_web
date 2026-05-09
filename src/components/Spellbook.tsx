@@ -67,6 +67,7 @@ const EMPTY_SPELL = (): Omit<Spell, 'id'> => ({
   castingTime: '', range: '', duration: '', savingThrow: '', components: '',
   attackMode: 'none', baseDice: '', damageType: '', saveStat: 'int',
   upcastDice: '', upcastEveryLevels: 1, upcastMaxSteps: undefined,
+  upcastDuration: '', upcastDurationEveryLevels: 1,
   summonableCreatureIds: [],
 });
 
@@ -306,6 +307,22 @@ const SpellEditForm: React.FC<SpellEditFormProps> = ({ form, setForm, saveSpell,
               <input className="input" type="number" min={1} value={form.upcastMaxSteps ?? ''}
                 onChange={e => setForm(f => ({ ...f, upcastMaxSteps: e.target.value === '' ? undefined : Math.max(1, +e.target.value) }))}
                 placeholder="illimitato"
+                style={{ fontSize: '0.8rem' }} />
+            </div>
+          </div>
+          {/* Upcast duration sub-row */}
+          <div className="sb-ef-grid">
+            <div className="sb-ef-field">
+              <label className="sb-ef-label">Durata extra per step (es. 1 minuto)</label>
+              <input className="input" value={form.upcastDuration ?? ''}
+                onChange={e => setForm(f => ({ ...f, upcastDuration: e.target.value }))}
+                placeholder="vuoto = nessuna"
+                style={{ fontSize: '0.8rem' }} />
+            </div>
+            <div className="sb-ef-field">
+              <label className="sb-ef-label">Livelli slot / step (durata)</label>
+              <input className="input" type="number" min={1} value={form.upcastDurationEveryLevels ?? 1}
+                onChange={e => setForm(f => ({ ...f, upcastDurationEveryLevels: Math.max(1, +e.target.value || 1) }))}
                 style={{ fontSize: '0.8rem' }} />
             </div>
           </div>
@@ -594,11 +611,24 @@ const SpellDetailPanel: React.FC<{
         <div className="sb-sdp-upcast" style={{ borderLeftColor: `${color}55`, background: `${color}08` }}>
           <div className="sb-sdp-upcast-hdr">
             <FaGraduationCap size={11} style={{ color }} />
-            <span style={{ color }}>Potenziamento</span>
+            <span style={{ color }}>Potenziamento — Danno</span>
           </div>
           <span className="sb-sdp-upcast-text">
-            +{spell.upcastDice} per ogni livello superiore al {spell.upcastEveryLevels ?? 1}°
+            +{spell.upcastDice} per ogni {spell.upcastEveryLevels && spell.upcastEveryLevels > 1 ? `${spell.upcastEveryLevels} livelli` : 'livello'} sopra il base
             {spell.upcastMaxSteps ? ` (max ${spell.upcastMaxSteps} volte)` : ''}
+          </span>
+        </div>
+      )}
+
+      {/* ── Upcast duration ── */}
+      {spell.upcastDuration?.trim() && (
+        <div className="sb-sdp-upcast" style={{ borderLeftColor: `${color}55`, background: `${color}08` }}>
+          <div className="sb-sdp-upcast-hdr">
+            <FaHourglass size={11} style={{ color }} />
+            <span style={{ color }}>Potenziamento — Durata</span>
+          </div>
+          <span className="sb-sdp-upcast-text">
+            +{spell.upcastDuration} per ogni {spell.upcastDurationEveryLevels && spell.upcastDurationEveryLevels > 1 ? `${spell.upcastDurationEveryLevels} livelli` : 'livello'} sopra il base
           </span>
         </div>
       )}
@@ -1248,6 +1278,8 @@ export const Spellbook: React.FC = () => {
       upcastDice: spell.upcastDice ?? '',
       upcastEveryLevels: spell.upcastEveryLevels ?? 1,
       upcastMaxSteps: spell.upcastMaxSteps,
+      upcastDuration: spell.upcastDuration ?? '',
+      upcastDurationEveryLevels: spell.upcastDurationEveryLevels ?? 1,
     });
     setEditingId(spell.id); setIsAdding(false);
     setSelectedSpellId(spell.id);

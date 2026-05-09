@@ -424,6 +424,7 @@ const EMPTY_SPELL = (): CatalogSpell => ({
     castingTime: '', range: '', duration: '', savingThrow: '', components: '',
     attackMode: 'none', baseDice: '', damageType: '', saveStat: 'int',
     upcastDice: '', upcastEveryLevels: 1, upcastMaxSteps: undefined,
+    upcastDuration: '', upcastDurationEveryLevels: 1,
 });
 
 function SpellsPanel({ currentUserEmail }: { currentUserEmail: string }) {
@@ -577,7 +578,7 @@ function SpellsPanel({ currentUserEmail }: { currentUserEmail: string }) {
                         <input className="input w-full" value={editing.upcastDice ?? ''}
                             onChange={e => setEditing({ ...editing, upcastDice: e.target.value })} placeholder="vuoto = nessun upcast" />
                     </Field>
-                    <Field label="Liv. slot/step">
+                    <Field label="Liv. slot/step (danno)">
                         <input className="input w-full" type="number" min={1} value={editing.upcastEveryLevels ?? 1}
                             onChange={e => setEditing({ ...editing, upcastEveryLevels: Math.max(1, Number(e.target.value) || 1) })}
                             title="Livelli di slot sopra il livello base per +1 step" />
@@ -586,6 +587,14 @@ function SpellsPanel({ currentUserEmail }: { currentUserEmail: string }) {
                         <input className="input w-full" type="number" min={1} value={editing.upcastMaxSteps ?? ''}
                             onChange={e => setEditing({ ...editing, upcastMaxSteps: e.target.value === '' ? undefined : Math.max(1, Number(e.target.value)) })}
                             placeholder="—" />
+                    </Field>
+                    <Field label="Durata extra/step (es. 1 minuto)">
+                        <input className="input w-full" value={editing.upcastDuration ?? ''}
+                            onChange={e => setEditing({ ...editing, upcastDuration: e.target.value })} placeholder="vuoto = nessuna" />
+                    </Field>
+                    <Field label="Liv. slot/step (durata)">
+                        <input className="input w-full" type="number" min={1} value={editing.upcastDurationEveryLevels ?? 1}
+                            onChange={e => setEditing({ ...editing, upcastDurationEveryLevels: Math.max(1, Number(e.target.value) || 1) })} />
                     </Field>
                 </div>
 

@@ -501,11 +501,32 @@ export const SpellSlotsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) =>
 
                 // Build footer: spell info + summon picker (if applicable)
                 const spellInfoFooter = (() => {
+                    // Compute effective upcast duration
+                    const effectiveDuration = (() => {
+                        if (!spell.upcastDuration?.trim() || castLvl <= spell.level) return spell.duration;
+                        const everyLvl = spell.upcastDurationEveryLevels ?? 1;
+                        // For cantrips (level 0), slot 1 is the natural cast level, so steps start from 1.
+                        const refLevel = Math.max(spell.level, 1);
+                        const steps = Math.floor((castLvl - refLevel) / everyLvl);
+                        if (steps <= 0) return spell.duration;
+                        const parseND = (s: string) => {
+                            const m = s.trim().match(/^(\d+)\s+(.+)$/);
+                            return m ? { n: parseInt(m[1], 10), unit: m[2].trim() } : null;
+                        };
+                        const upP = parseND(spell.upcastDuration);
+                        const baseP = spell.duration ? parseND(spell.duration) : null;
+                        if (upP && baseP) {
+                            const total = baseP.n + steps * upP.n;
+                            return `${total} ${upP.unit}`;
+                        }
+                        const extra = `+${steps}×${spell.upcastDuration}`;
+                        return spell.duration ? `${spell.duration} ${extra}` : extra;
+                    })();
                     const stats: [string, string | undefined][] = [
                         ['Scuola', spell.school],
                         ['Tempo lancio', spell.castingTime],
                         ['Gittata', spell.range],
-                        ['Durata', spell.duration],
+                        ['Durata', effectiveDuration],
                         ['Tiro salv.', spell.savingThrow],
                         ['Componenti', spell.components],
                         ['Tipo danno', spell.damageType],
