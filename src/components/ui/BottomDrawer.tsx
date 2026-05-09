@@ -72,6 +72,7 @@ export const BottomDrawer: React.FC<BottomDrawerProps> = ({
         <div
             className="bd-backdrop"
             onPointerDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+            onClick={(e) => { if (e.target === e.currentTarget) e.stopPropagation(); }}
             role="dialog"
             aria-modal="true"
         >

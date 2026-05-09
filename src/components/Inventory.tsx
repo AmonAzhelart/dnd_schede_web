@@ -655,6 +655,9 @@ export const Inventory: React.FC = () => {
   const isMobileSheet = useMediaQuery('(max-width: 768px)');
   // Currency
   const [txForm, setTxForm] = useState(EMPTY_TX());
+  // Mobile: bottom-drawers for currency tab
+  const [txLogOpen, setTxLogOpen] = useState(false);
+  const [txFormOpen, setTxFormOpen] = useState(false);
   // Icon catalog (shared cache, loaded once per session)
   const { icons: iconCatalogItems, resolveItemSvg, loading: iconCatalogLoading } = useIconCatalog();
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
@@ -782,6 +785,7 @@ export const Inventory: React.FC = () => {
     if (updated) saveCharacterToDb(updated);
     setTxForm(EMPTY_TX());
     setTimeout(() => timelineEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    if (isMobileSheet) setTxFormOpen(false);
   };
 
   // ─────────────────────────────── RENDER ───────────────────────────────────
@@ -798,9 +802,10 @@ export const Inventory: React.FC = () => {
         if (selectedId === item.id && editingItemId === null) { closeSidebar(); }
         else { setSelectedId(item.id); cancelEditItem(); }
       } else {
-        // Mobile: if a sheet is already open (different item), close it first
-        if (selectedId !== null && selectedId !== item.id) { setSelectedId(null); }
-        else { setSelectedId(selectedId === item.id ? null : item.id); }
+        // Mobile: if a sheet is already open for a DIFFERENT item, only close it
+        if (selectedId !== null && selectedId !== item.id) { setSelectedId(null); return; }
+        // Same item: toggle
+        setSelectedId(selectedId === item.id ? null : item.id);
       }
     },
     onEquip: () => toggleEquipItem(item.id),
@@ -990,8 +995,7 @@ export const Inventory: React.FC = () => {
             !trashQ || i.name.toLowerCase().includes(trashQ) || (i.description ?? '').toLowerCase().includes(trashQ)
           );
           return (
-            <div className="inv-pack-body">
-              {/* Trash search */}
+            <div className="inv-pack-body inv-pack-body--trash">
               <div className="inv-controls" style={{ paddingBottom: 0 }}>
                 <div className="inv-search-wrap">
                   <FaSearch className="inv-search-icon" size={12} />
@@ -1125,6 +1129,21 @@ export const Inventory: React.FC = () => {
                 </div>
               </div>
 
+              {/* Mobile action buttons */}
+              {isMobileSheet && (
+                <div className="inv-cw-mobile-actions">
+                  <button className="inv-cw-action-btn" onClick={() => setTxLogOpen(true)}>
+                    <DndIcon category="entity" name="scroll" size={15} />
+                    <span>CRONACA</span>
+                    {txLog.length > 0 && <span className="inv-cw-cronaca-badge">{txLog.length}</span>}
+                  </button>
+                  <button className="inv-cw-action-btn inv-cw-action-btn--primary" onClick={() => setTxFormOpen(true)}>
+                    <FaPlus size={12} />
+                    <span>OPERAZIONE</span>
+                  </button>
+                </div>
+              )}
+
             </div>
 
             {/* ══════ COLONNA DX — TIMELINE + FORM ══════ */}
@@ -1203,7 +1222,7 @@ export const Inventory: React.FC = () => {
                 <div ref={timelineEndRef} />
               </div>
 
-              {/* ── Nuova operazione (in fondo, fisso) ── */}
+              {/* ── Nuova operazione ── */}
               <div className="inv-purse-form-panel">
                 <div className="inv-bank-ledger-hdr">
                   <div className="inv-bank-ledger-hdr-rule" />
@@ -1269,6 +1288,131 @@ export const Inventory: React.FC = () => {
         )}
 
       </div>{/* /inv-pack-main */}
+
+      {/* ════ MOBILE DRAWER — nuova operazione monete ════ */}
+      {isMobileSheet && (
+        <BottomDrawer
+          open={txFormOpen}
+          onClose={() => setTxFormOpen(false)}
+          title="NUOVA OPERAZIONE"
+          accentColor="var(--accent-gold)"
+          size="auto"
+        >
+          <div className="inv-bank-form-body inv-bank-form-body--mobile">
+            <div className="inv-bank-amount-grid">
+              {COIN_LABELS.map(({ key, label, color }) => (
+                <div key={key} className="inv-bank-amount-cell" data-coin={key}>
+                  <span className="inv-bank-amount-coin-label" style={{ color }}>{label}</span>
+                  <input
+                    className="inv-bank-amount-input"
+                    type="number" min={0}
+                    value={txForm[key] || ''}
+                    onChange={e => setTxForm(f => ({ ...f, [key]: parseInt(e.target.value) || 0 }))}
+                    placeholder="0"
+                    style={{ '--coin-color': color } as React.CSSProperties}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="inv-bank-dir-col">
+              {(['in', 'out'] as const).map(dir => (
+                <button
+                  key={dir}
+                  className={`inv-bank-dir-btn inv-bank-dir-btn--${dir}${txForm.dir === dir ? ' active' : ''}`}
+                  onClick={() => setTxForm(f => ({ ...f, dir }))}
+                >
+                  <span className="inv-bank-dir-seal">
+                    {dir === 'in' ? <FaArrowDown size={9} /> : <FaArrowUp size={9} />}
+                  </span>
+                  <span className="inv-bank-dir-text">{dir === 'in' ? 'Entrata' : 'Uscita'}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="inv-bank-desc-row inv-bank-desc-row--mobile">
+            <input
+              className="inv-bank-desc-input"
+              placeholder="Causale (es: locanda, bottino drago…)"
+              value={txForm.description}
+              onChange={e => setTxForm(f => ({ ...f, description: e.target.value }))}
+              onKeyDown={e => { if (e.key === 'Enter') submitTx(); }}
+            />
+            <button className="inv-bank-submit-btn inv-bank-submit-btn--mobile" onClick={submitTx}>
+              <FaCheck size={11} />
+              <span>Registra</span>
+            </button>
+          </div>
+        </BottomDrawer>
+      )}
+
+      {/* ════ MOBILE DRAWER — cronaca monete ════ */}
+      {isMobileSheet && (
+        <BottomDrawer
+          open={txLogOpen}
+          onClose={() => setTxLogOpen(false)}
+          title="CRONACA"
+          accentColor="var(--accent-gold)"
+          size="full"
+        >
+          {txLog.length === 0 ? (
+            <div className="inv-bank-log-empty">
+              <DndIcon category="entity" name="scroll" size={32} />
+              <span>Nessuna operazione registrata</span>
+            </div>
+          ) : (
+            <div className="inv-purse-timeline">
+              {[...txLog].reverse().map((tx, idx, arr) => {
+                const isPositive = (tx.gold + tx.platinum + tx.silver + tx.copper) >= 0;
+                const parts = COIN_LABELS.map(({ key, abbr, color }) =>
+                  tx[key] !== 0 ? { label: abbr, value: tx[key], color } : null
+                ).filter(Boolean) as { label: string; value: number; color: string }[];
+                return (
+                  <div key={tx.id} className={`inv-purse-tl-entry${isPositive ? ' gain' : ' loss'}`}>
+                    <div className="inv-purse-tl-spine">
+                      <div className="inv-purse-tl-dot" />
+                      {idx < arr.length - 1 && <div className="inv-purse-tl-line" />}
+                    </div>
+                    <div className="inv-purse-tl-card">
+                      <div className="inv-purse-tl-card-top">
+                        <span className="inv-purse-tl-desc">{tx.description || '—'}</span>
+                        <button
+                          className="inv-bank-log-del inv-bank-log-del--visible"
+                          title="Annulla operazione"
+                          onClick={() => {
+                            const newLog = txLog.filter(t => t.id !== tx.id);
+                            const cur = character.currency ?? { platinum: 0, gold: 0, silver: 0, copper: 0 };
+                            const revertedCurrency = {
+                              platinum: (cur.platinum ?? 0) - tx.platinum,
+                              gold: (cur.gold ?? 0) - tx.gold,
+                              silver: (cur.silver ?? 0) - tx.silver,
+                              copper: (cur.copper ?? 0) - tx.copper,
+                            };
+                            setCharacter({ ...character, currency: revertedCurrency, currencyLog: newLog });
+                            const updated = useCharacterStore.getState().character;
+                            if (updated) saveCharacterToDb({ ...updated, currency: revertedCurrency, currencyLog: newLog });
+                          }}
+                        >
+                          <FaTrash size={9} />
+                        </button>
+                      </div>
+                      <div className="inv-purse-tl-amounts">
+                        {parts.map(p => (
+                          <span key={p.label} className="inv-bank-log-row-coin" style={{ '--cc': p.color } as React.CSSProperties}>
+                            {p.value > 0 ? '+' : ''}{p.value} {p.label}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="inv-purse-tl-date">
+                        {new Date(tx.date).toLocaleString('it-IT', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </BottomDrawer>
+      )}
 
       {/* ════ FULL-HEIGHT SIDEBAR (desktop only, pushes pack) ════
             VIEW mode  → selectedId set, editingItemId null  → ItemDetailPanel
