@@ -251,7 +251,7 @@
     opacity: 1;
 }
 
-/* Campaign entry sections */
+/* Campaign entry sections (legacy, unused in compact mode but kept) */
 .np-gloss-section-block {
     margin-top: 0.35rem;
     padding-left: 0.5rem;
@@ -265,6 +265,52 @@
     letter-spacing: 0.06em;
     color: var(--text-muted);
     margin-bottom: 0.1rem;
+}
+
+/* Compact info line for campaign entries */
+.np-gloss-info-clamp {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+/* Compact personal note indicator inside campaign entries */
+.np-gloss-note-indicator {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 4px;
+    font-size: 0.68rem;
+    color: var(--text-muted);
+}
+
+.np-gloss-note-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-gold);
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+.np-gloss-note-preview {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.67rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.np-gloss-note-empty-inline {
+    opacity: 0.45;
+}
+
+.np-gloss-note-empty-text {
+    font-size: 0.67rem;
+    font-style: italic;
 }
 
 /* Count badge next to tab */

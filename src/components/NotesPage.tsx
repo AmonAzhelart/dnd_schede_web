@@ -117,6 +117,8 @@ export const NotesPage: React.FC = () => {
     const [glossSearch, setGlossSearch] = useState('');
     const [glossCatFilter, setGlossCatFilter] = useState<NoteContextEntry['category'] | 'all'>('all');
     const [editingCampaignNoteEntry, setEditingCampaignNoteEntry] = useState<CampaignGlossaryEntry | null>(null);
+    const [campaignGlossSearch, setCampaignGlossSearch] = useState('');
+    const [campaignGlossCatFilter, setCampaignGlossCatFilter] = useState<CampaignGlossaryEntry['category'] | 'all'>('all');
 
     // ── Campaign glossary ─────────────────────────────────────────────────────
     const [campaignEntries, setCampaignEntries] = useState<CampaignGlossaryEntry[]>([]);
@@ -441,6 +443,37 @@ export const NotesPage: React.FC = () => {
                             <span className="np-gloss-sub">Condiviso dal Master</span>
                         </div>
 
+                        {campaignEntries.length > 0 && (
+                            <>
+                                <div className="np-gloss-search">
+                                    <FaSearch size={9} className="np-gloss-search-ico" />
+                                    <input
+                                        className="np-gloss-search-inp"
+                                        placeholder="Cerca voci…"
+                                        value={campaignGlossSearch}
+                                        onChange={e => setCampaignGlossSearch(e.target.value)}
+                                    />
+                                    {campaignGlossSearch && (
+                                        <button className="wn-icon-btn" onClick={() => setCampaignGlossSearch('')}>
+                                            <FaTimes size={8} />
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="np-gloss-cat-filters">
+                                    {(['all', ...ALL_CATS] as const).map(c => (
+                                        <button
+                                            key={c}
+                                            className={`np-gloss-cat-filter ${campaignGlossCatFilter === c ? 'active' : ''}`}
+                                            style={{ '--filter-c': c === 'all' ? 'var(--accent-gold)' : CAT_COLORS[c as NoteContextEntry['category']] } as React.CSSProperties}
+                                            onClick={() => setCampaignGlossCatFilter(c === campaignGlossCatFilter ? 'all' : c)}
+                                        >
+                                            {c === 'all' ? 'Tutti' : CAT_LABELS[c as NoteContextEntry['category']]}
+                                        </button>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+
                         {campaignEntries.length === 0 && (
                             <div className="np-gloss-empty">
                                 <FaGlobe size={22} style={{ color: 'rgba(255,255,255,0.08)', marginBottom: 6 }} />
@@ -448,66 +481,82 @@ export const NotesPage: React.FC = () => {
                             </div>
                         )}
 
-                        {campaignEntries.map(entry => {
-                            const currentNote = character?.campaignId
-                                ? (character.playerGlossaryNotes?.[`${character.campaignId}::${entry.id}`] ?? '')
-                                : '';
-                            return (
-                                <div
-                                    key={entry.id}
-                                    className="np-gloss-entry campaign"
-                                    onClick={() => {
-                                        const detail = (entry.sections ?? []).length > 0
-                                            ? entry.sections.map(sec => sec.label ? `${sec.label}\n${sec.content}` : sec.content).join('\n\n')
-                                            : (entry.info || 'Nessuna descrizione disponibile.');
-                                        setGlossModal({ id: `cmp-${entry.id}`, term: entry.term, info: detail, category: entry.category as NoteContextEntry['category'], onEdit: () => { setGlossModal(null); setEditingCampaignNoteEntry(entry); }, editLabel: 'La mia nota' });
-                                    }}
-                                    role="button"
-                                    title="Apri descrizione"
-                                >
-                                    <div className="np-gloss-entry-dot"
-                                        style={{ background: CAT_COLORS[entry.category as NoteContextEntry['category']], '--dot-color': CAT_COLORS[entry.category as NoteContextEntry['category']] } as React.CSSProperties} />
-                                    <div className="np-gloss-entry-body">
-                                        <div className="np-gloss-term">
-                                            {entry.term}
-                                            <span className="np-gloss-cat-badge"
-                                                style={{ '--cat-c': CAT_COLORS[entry.category as NoteContextEntry['category']] } as React.CSSProperties}>
-                                                {CAT_LABELS[entry.category as NoteContextEntry['category']]}
-                                            </span>
-                                        </div>
-                                        {/* Show sections if present, otherwise fall back to legacy info */}
-                                        {(entry.sections ?? []).length > 0
-                                            ? (entry.sections ?? []).map(sec => (
-                                                <div key={sec.id} className="np-gloss-section-block"
-                                                    style={{ '--sec-color': `${CAT_COLORS[entry.category as NoteContextEntry['category']]}44` } as React.CSSProperties}>
-                                                    {sec.label && (
-                                                        <div className="np-gloss-section-label">{sec.label}</div>
-                                                    )}
-                                                    <div className="np-gloss-info">{sec.content}</div>
+                        {campaignEntries
+                            .filter(entry => {
+                                if (campaignGlossCatFilter !== 'all' && entry.category !== campaignGlossCatFilter) return false;
+                                if (campaignGlossSearch.trim()) {
+                                    const q = campaignGlossSearch.toLowerCase();
+                                    const infoText = (entry.sections ?? []).map(s => `${s.label} ${s.content}`).join(' ') || entry.info || '';
+                                    return entry.term.toLowerCase().includes(q) || infoText.toLowerCase().includes(q);
+                                }
+                                return true;
+                            })
+                            .map(entry => {
+                                const currentNote = character?.campaignId
+                                    ? (character.playerGlossaryNotes?.[`${character.campaignId}::${entry.id}`] ?? '')
+                                    : '';
+                                const previewInfo = (entry.sections ?? []).length > 0
+                                    ? (entry.sections[0].content ?? '').slice(0, 80)
+                                    : (entry.info ?? '').slice(0, 80);
+                                return (
+                                    <div
+                                        key={entry.id}
+                                        className="np-gloss-entry campaign"
+                                        onClick={() => {
+                                            const detail = (entry.sections ?? []).length > 0
+                                                ? entry.sections.map(sec => sec.label ? `${sec.label}\n${sec.content}` : sec.content).join('\n\n')
+                                                : (entry.info || 'Nessuna descrizione disponibile.');
+                                            setGlossModal({ id: `cmp-${entry.id}`, term: entry.term, info: detail, category: entry.category as NoteContextEntry['category'], onEdit: () => { setGlossModal(null); setEditingCampaignNoteEntry(entry); }, editLabel: 'La mia nota' });
+                                        }}
+                                        role="button"
+                                        title="Apri descrizione"
+                                    >
+                                        <div className="np-gloss-entry-dot"
+                                            style={{ background: CAT_COLORS[entry.category as NoteContextEntry['category']], '--dot-color': CAT_COLORS[entry.category as NoteContextEntry['category']] } as React.CSSProperties} />
+                                        <div className="np-gloss-entry-body">
+                                            <div className="np-gloss-term">
+                                                {entry.term}
+                                                <span className="np-gloss-cat-badge"
+                                                    style={{ '--cat-c': CAT_COLORS[entry.category as NoteContextEntry['category']] } as React.CSSProperties}>
+                                                    {CAT_LABELS[entry.category as NoteContextEntry['category']]}
+                                                </span>
+                                            </div>
+                                            {previewInfo && <div className="np-gloss-info np-gloss-info-clamp">{previewInfo}{previewInfo.length >= 80 ? '…' : ''}</div>}
+                                            {currentNote && (
+                                                <div className="np-gloss-note-indicator" onClick={e => e.stopPropagation()}>
+                                                    <span className="np-gloss-note-dot" />
+                                                    <span className="np-gloss-note-preview">{currentNote.slice(0, 60)}{currentNote.length > 60 ? '…' : ''}</span>
+                                                    <button className="wn-icon-btn" onClick={() => setEditingCampaignNoteEntry(entry)} title="Modifica nota"><FaEdit size={8} /></button>
                                                 </div>
-                                            ))
-                                            : entry.info && <div className="np-gloss-info">{entry.info}</div>
-                                        }
-                                        {/* Personal notes */}
-                                        <div className="wn-ge-personal-notes" onClick={e => e.stopPropagation()}>
-                                            {currentNote ? (
-                                                <div className="wn-ge-note-display">
-                                                    <div className="wn-ge-note-label">📝 Mia nota:</div>
-                                                    <div className="wn-ge-note-text">{currentNote}</div>
-                                                </div>
-                                            ) : (
-                                                <div className="wn-ge-note-empty">Nessuna nota personale</div>
                                             )}
-                                            <button
-                                                className="wn-icon-btn"
-                                                onClick={() => setEditingCampaignNoteEntry(entry)}
-                                                title="Aggiungi/modifica nota"
-                                            ><FaEdit size={9} /></button>
+                                            {!currentNote && (
+                                                <div className="np-gloss-note-indicator np-gloss-note-empty-inline" onClick={e => e.stopPropagation()}>
+                                                    <span className="np-gloss-note-empty-text">Nessuna nota personale</span>
+                                                    <button className="wn-icon-btn" onClick={() => setEditingCampaignNoteEntry(entry)} title="Aggiungi nota"><FaEdit size={8} /></button>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
+                                );
+                            })
+                        }
+
+                        {campaignEntries.length > 0 && (campaignGlossSearch || campaignGlossCatFilter !== 'all') &&
+                            campaignEntries.filter(entry => {
+                                if (campaignGlossCatFilter !== 'all' && entry.category !== campaignGlossCatFilter) return false;
+                                if (campaignGlossSearch.trim()) {
+                                    const q = campaignGlossSearch.toLowerCase();
+                                    const infoText = (entry.sections ?? []).map(s => `${s.label} ${s.content}`).join(' ') || entry.info || '';
+                                    return entry.term.toLowerCase().includes(q) || infoText.toLowerCase().includes(q);
+                                }
+                                return true;
+                            }).length === 0 && (
+                                <div className="np-gloss-empty">
+                                    <FaSearch size={16} style={{ color: 'rgba(255,255,255,0.08)', marginBottom: 6 }} />
+                                    <p>Nessun risultato per "{campaignGlossSearch || CAT_LABELS[campaignGlossCatFilter as NoteContextEntry['category']]}"</p>
                                 </div>
-                            );
-                        })}
+                            )
+                        }
                     </div>
                 )}
             </div>
