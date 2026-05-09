@@ -84,7 +84,7 @@ export function computeEffectiveStat(char: CharacterBase, target: StatType | str
             const modType: ModifierType =
                 item.type === 'shield' ? 'shield' :
                     item.type === 'protectiveItem' ? 'deflection' :
-                        'armor';
+                        'enhancement';
             mods.push({ target: 'ac', value: item.armorDetails.armorBonus, type: modType, source: item.name });
         }
     });
