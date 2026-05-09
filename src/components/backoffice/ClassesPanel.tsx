@@ -10,11 +10,19 @@ import {
 import { pickLocalized } from '../../i18n';
 import { LocalizedFieldEditor } from './LocalizedFieldEditor';
 import { IconPicker } from './IconPicker';
+import { ModifierEditor } from '../ModifierEditor';
+import { CreatureModifierEditor } from '../CreatureModifierEditor';
+import type { Modifier, CreatureModifier } from '../../types/dnd';
 
 interface Props { currentUserEmail: string; }
 
 const HIT_DICE: CatalogClass['hitDie'][] = [4, 6, 8, 10, 12];
-const BAB_OPTIONS: CatalogClass['babProgression'][] = ['high', 'medium', 'low'];
+const BAB_OPTIONS: { value: CatalogClass['babProgression']; label: string }[] = [
+    { value: 'high', label: 'Alto (×1)' },
+    { value: 'medium', label: 'Medio (×¾)' },
+    { value: 'low', label: 'Basso (×½)' },
+];
+const BAB_LABEL: Record<string, string> = { high: 'Alto', medium: 'Medio', low: 'Basso' };
 const SAVE_OPTIONS = ['good', 'poor'] as const;
 const SUBCATEGORIES: ClassLevelFeature['subcategory'][] = ['active', 'passive'];
 
@@ -162,7 +170,7 @@ export function ClassesPanel({ currentUserEmail }: Props) {
                     <div style={{ flex: '1 1 120px' }}>
                         <label className="text-xs text-muted">{t('backoffice.classes.babProgression')}</label>
                         <select className="input w-full" value={editing.babProgression} onChange={e => setField('babProgression', e.target.value as CatalogClass['babProgression'])}>
-                            {BAB_OPTIONS.map(b => <option key={b} value={b}>{b}</option>)}
+                            {BAB_OPTIONS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
                         </select>
                     </div>
                     <div style={{ flex: '1 1 120px' }}>
@@ -243,6 +251,18 @@ export function ClassesPanel({ currentUserEmail }: Props) {
                                         <input type="number" className="input" style={{ width: 100 }} placeholder="Max usi" value={f.resourceMax ?? ''} onChange={e => updateFeature(f._i, { resourceMax: e.target.value ? Number(e.target.value) : undefined })} />
                                     </div>
                                 )}
+                                <ModifierEditor
+                                    modifiers={f.modifiers ?? []}
+                                    onChange={mods => updateFeature(f._i, { modifiers: mods as Modifier[] })}
+                                    accentColor={f.subcategory === 'active' ? 'var(--accent-crimson)' : 'var(--accent-arcane)'}
+                                    title="MODIFICATORI"
+                                    compact
+                                />
+                                <CreatureModifierEditor
+                                    modifiers={f.creatureModifiers ?? []}
+                                    onChange={cms => updateFeature(f._i, { creatureModifiers: cms as CreatureModifier[] })}
+                                    accentColor={f.subcategory === 'active' ? 'var(--accent-crimson)' : 'var(--accent-gold)'}
+                                />
                             </div>
                         ))}
                     </div>
@@ -345,8 +365,22 @@ export function ClassesPanel({ currentUserEmail }: Props) {
                                 : <span style={{ width: 24, height: 24, flexShrink: 0 }} />}
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontFamily: 'var(--font-heading)' }}>{pickLocalized(c.name, lang) || t('common.untitled')}</div>
-                                <div className="text-xs text-muted">
-                                    d{c.hitDie} • BAB {c.babProgression} • {c.featuresByLevel.length} privilegi
+                                <div className="text-xs text-muted" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+                                    <span title="Dado Vita">d{c.hitDie}</span>
+                                    <span>·</span>
+                                    <span title="BAB">BAB {BAB_LABEL[c.babProgression] ?? c.babProgression}</span>
+                                    <span>·</span>
+                                    <span title="Tiri Salvezza (Tempra / Riflessi / Volontà)" style={{ color: 'var(--accent-arcane, #9b59b6)' }}>
+                                        TS {c.fortitude === 'good' ? '↑' : '↓'}/{c.reflex === 'good' ? '↑' : '↓'}/{c.will === 'good' ? '↑' : '↓'}
+                                    </span>
+                                    <span>·</span>
+                                    <span title="Punti abilità per livello">{c.skillPointsPerLevel} pt/lv</span>
+                                    {c.spellcasting?.type !== 'none' && c.spellcasting?.type && <>
+                                        <span>·</span>
+                                        <span style={{ color: 'var(--accent-gold)' }}>{c.spellcasting.type === 'arcane' ? '✦ Arcano' : '✦ Divino'}</span>
+                                    </>}
+                                    <span>·</span>
+                                    <span>{c.featuresByLevel.length} privilegi</span>
                                 </div>
                             </div>
                             <button className="btn-ghost text-xs" onClick={() => setEditing(c)}><FaEdit /></button>

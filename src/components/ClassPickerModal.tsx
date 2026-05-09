@@ -10,7 +10,7 @@ import './ClassPickerModal.css';
 interface ClassPickerModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSelect: (className: string) => void;
+    onSelect: (className: string, catalogClass?: CatalogClass) => void;
     currentValue?: string;
 }
 
@@ -78,7 +78,7 @@ export const ClassPickerModal: React.FC<ClassPickerModalProps> = ({ isOpen, onCl
                                         <button
                                             key={cls.id}
                                             className={`cpm-item ${isActive ? 'active' : ''}`}
-                                            onClick={() => { onSelect(name); onClose(); }}
+                                            onClick={() => { onSelect(name, cls); onClose(); }}
                                         >
                                             <span className="cpm-icon">
                                                 {svg ? (
@@ -90,7 +90,18 @@ export const ClassPickerModal: React.FC<ClassPickerModalProps> = ({ isOpen, onCl
                                                     <GiSwordman size={18} />
                                                 )}
                                             </span>
-                                            <span className="cpm-name">{name}</span>
+                                            <span className="cpm-name-block">
+                                                <span className="cpm-name">{name}</span>
+                                                <span className="cpm-meta">
+                                                    d{cls.hitDie}
+                                                    {' · BAB '}
+                                                    {cls.babProgression === 'high' ? 'alto' : cls.babProgression === 'medium' ? 'medio' : 'basso'}
+                                                    {cls.spellcasting?.type !== 'none' && cls.spellcasting?.type
+                                                        ? ` · ${cls.spellcasting.type === 'arcane' ? 'Arcano' : 'Divino'}`
+                                                        : ''}
+                                                    {` · ${cls.skillPointsPerLevel} pt/lv`}
+                                                </span>
+                                            </span>
                                             {isActive && <FaCheck size={12} className="cpm-check" />}
                                         </button>
                                     );

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    FaCopy, FaCheck, FaComments, FaPaperPlane, FaUsers, FaTrash,
+    FaCopy, FaCheck, FaCheckDouble, FaComments, FaPaperPlane, FaUsers, FaTrash,
     FaSearch, FaTimes, FaChevronLeft, FaShieldAlt, FaHeart, FaBolt,
     FaBoxOpen, FaStar, FaStickyNote, FaCog, FaPlus, FaMinus, FaSkull, FaBook, FaEdit, FaShare, FaGlobe, FaLock,
 } from 'react-icons/fa';
@@ -17,6 +17,9 @@ import {
     addCampaignGlossaryEntry,
     updateCampaignGlossaryEntry,
     deleteCampaignGlossaryEntry,
+    markChatRead,
+    subscribeToChatMeta,
+    type ChatMeta,
 } from '../../services/campaign';
 import { subscribeToCharacter } from '../../services/db';
 import type { Campaign, CampaignMessage, CampaignGlossaryEntry, GlossarySection, MasterNote } from '../../types/campaign';
@@ -101,6 +104,7 @@ export function CampaignChatPanel({ campaignId, playerId, from, fromName, messag
     const [sending, setSending] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchOpen, setSearchOpen] = useState(false);
+    const [chatMeta, setChatMeta] = useState<ChatMeta>({ playerReadAt: null, masterReadAt: null });
     const bottomRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -109,11 +113,30 @@ export function CampaignChatPanel({ campaignId, playerId, from, fromName, messag
         return subscribeToPlayerChat(campaignId, playerId, setLocalMessages);
     }, [campaignId, playerId, externalMessages]);
 
+    // Subscribe to read timestamps
+    useEffect(() => {
+        return subscribeToChatMeta(campaignId, playerId, setChatMeta);
+    }, [campaignId, playerId]);
+
+    // Mark our side as read whenever we mount or new messages arrive
+    useEffect(() => {
+        markChatRead(campaignId, playerId, from).catch(() => { });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [campaignId, playerId, from, (externalMessages ?? localMessages).length]);
+
     const serverMessages = externalMessages ?? localMessages;
     const allMessages: CampaignMessage[] = [
         ...serverMessages,
         ...pendingMsgs.filter(p => !serverMessages.some(m => m.text === p.text && m.from === p.from)),
     ];
+
+    // Timestamp at which the OTHER party last read the chat
+    const otherReadAt = from === 'player' ? chatMeta.masterReadAt : chatMeta.playerReadAt;
+
+    function isMessageRead(msg: CampaignMessage): boolean {
+        return msg.timestamp != null && otherReadAt != null &&
+            otherReadAt.toMillis() >= msg.timestamp.toMillis();
+    }
 
     const filteredMessages = useMemo(() => {
         if (!searchQuery.trim()) return allMessages;
@@ -194,17 +217,26 @@ export function CampaignChatPanel({ campaignId, playerId, from, fromName, messag
                 )}
                 {filteredMessages.map(msg => {
                     const isPending = msg.id.startsWith('__pend_');
+                    const isMe = msg.from === from;
+                    const read = isMe && !isPending && isMessageRead(msg);
                     return (
-                        <div key={msg.id} className={`campaign-chat-bubble ${msg.from === from ? 'is-me' : 'is-other'} ${isPending ? 'is-pending' : ''}`}>
-                            {msg.from !== from && (
+                        <div key={msg.id} className={`campaign-chat-bubble ${isMe ? 'is-me' : 'is-other'} ${isPending ? 'is-pending' : ''}`}>
+                            {!isMe && (
                                 <span className="campaign-chat-sender">{msg.fromName}</span>
                             )}
                             <span className="campaign-chat-text">
                                 <HighlightText text={msg.text} query={searchQuery} />
                             </span>
-                            <span className="campaign-chat-ts">
-                                {isPending ? '…' : msg.timestamp ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                            </span>
+                            <div className="campaign-chat-footer">
+                                <span className="campaign-chat-ts">
+                                    {isPending ? '…' : msg.timestamp ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                </span>
+                                {isMe && !isPending && (
+                                    <span className={`chat-read-tick${read ? ' is-read' : ''}`} title={read ? 'Letto' : 'Inviato'}>
+                                        {read ? <FaCheckDouble size={10} /> : <FaCheck size={10} />}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     );
                 })}

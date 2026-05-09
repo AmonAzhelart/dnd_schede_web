@@ -67,6 +67,8 @@ interface CharacterState {
   spendClassFeatureResource: (featureId: string) => void;
   recoverClassFeatureResource: (featureId: string) => void;
   resetClassFeatureResources: () => void;
+  /** Replace the full classFeatures array (used for catalog sync). */
+  setClassFeatures: (features: ClassFeature[]) => void;
   // Extended data
   setCurrency: (currency: Currency) => void;
   addCurrencyTransaction: (tx: CurrencyTransaction) => void;
@@ -389,6 +391,11 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     if (!state.character) return state;
     const classFeatures = (state.character.classFeatures ?? []).map(f => ({ ...f, resourceUsed: 0 }));
     return { character: { ...state.character, classFeatures } };
+  }),
+
+  setClassFeatures: (features) => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, classFeatures: features } };
   }),
 
   setCurrency: (currency) => set((state) => {

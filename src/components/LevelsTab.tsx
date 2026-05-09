@@ -1,10 +1,12 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { FaPlus, FaTrash, FaShieldAlt, FaRunning, FaBrain, FaInfoCircle, FaHeart, FaArrowUp, FaArrowDown, FaStar, FaExclamationTriangle, FaHistory } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaShieldAlt, FaRunning, FaBrain, FaInfoCircle, FaHeart, FaArrowUp, FaArrowDown, FaStar, FaExclamationTriangle, FaHistory, FaChevronDown, FaChevronRight } from 'react-icons/fa';
 import { GiSwordsEmblem, GiUpgrade, GiDragonHead } from 'react-icons/gi';
 import { useCharacterStore } from '../store/characterStore';
 import type { BabProgression, SaveProgression, ClassLevel } from '../types/dnd';
 import { CLASS_BAB_PRESETS, CLASS_SAVE_PRESETS, CLASS_HIT_DIE_PRESETS, computeClassBab, computeClassSaveBase, getHpForTotalLevel, DND35_XP_TABLE, getXpForLevel } from '../types/dnd';
+import { classCatalog, type CatalogClass } from '../services/admin';
+import { pickLocalized } from '../i18n';
 import { ClassPickerModal } from './ClassPickerModal';
 import './LevelsTab.css';
 
@@ -36,6 +38,7 @@ export const LevelsTab: React.FC = () => {
         addHpLevelEntry, removeLastHpLevelEntry, reorderHpLevelLog,
         setCurrentXp, setLevelAdjustment, setRaceHitDice, setXpConfig,
         getEcl, getXpForNextLevel, addXpLogEntry, removeXpLogEntry,
+        setClassFeatures,
     } = useCharacterStore();
 
     if (!character) return null;
@@ -61,6 +64,74 @@ export const LevelsTab: React.FC = () => {
     const [customThresholdsDraft, setCustomThresholdsDraft] = useState<string[]>(() =>
         (character.customXpThresholds ?? DND35_XP_TABLE).map(String)
     );
+
+    // Catalog classes (for auto-fill and features display)
+    const [catalogClasses, setCatalogClasses] = useState<CatalogClass[]>([]);
+    useEffect(() => { classCatalog.list().then(setCatalogClasses); }, []);
+
+    // Expanded class features toggle per card
+    const [expandedFeatures, setExpandedFeatures] = useState<Set<string>>(new Set());
+    const toggleFeatures = (id: string) =>
+        setExpandedFeatures(prev => {
+            const next = new Set(prev);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return next;
+        });
+
+    // ── Auto-sync catalog class features into character.classFeatures ──
+    const classLevelsKey = classLevels.map(cl => `${cl.id}:${cl.catalogClassId ?? ''}:${cl.level}`).join('|');
+    useEffect(() => {
+        if (!character || catalogClasses.length === 0) return;
+
+        const existing = character.classFeatures ?? [];
+        // Split: catalog-derived vs manually added
+        const manual = existing.filter(f => !f.catalogFeatureId);
+        const catalogDerived = existing.filter(f => !!f.catalogFeatureId);
+
+        // Build desired set of catalog features
+        const desired: (typeof existing[number])[] = [];
+        for (const cl of classLevels) {
+            if (!cl.catalogClassId) continue;
+            const catalogCls = catalogClasses.find(c => c.id === cl.catalogClassId);
+            if (!catalogCls) continue;
+            for (const feat of catalogCls.featuresByLevel) {
+                if (feat.level > cl.level) continue;
+                // Check if already exists (match by catalogFeatureId + catalogClassLevelId)
+                const already = catalogDerived.find(
+                    f => f.catalogFeatureId === feat.id && f.catalogClassLevelId === cl.id
+                );
+                if (already) {
+                    desired.push(already);
+                } else {
+                    desired.push({
+                        id: uuidv4(),
+                        name: pickLocalized(feat.name, 'it'),
+                        description: feat.description
+                            ? (typeof feat.description === 'string' ? feat.description : pickLocalized(feat.description, 'it'))
+                            : '',
+                        subcategory: feat.subcategory,
+                        modifiers: feat.modifiers ?? [],
+                        creatureModifiers: feat.creatureModifiers ?? [],
+                        active: feat.subcategory === 'active',
+                        resourceName: feat.resourceName,
+                        resourceMax: feat.resourceMax,
+                        resourceUsed: 0,
+                        catalogFeatureId: feat.id,
+                        catalogClassLevelId: cl.id,
+                    });
+                }
+            }
+        }
+
+        const next = [...manual, ...desired];
+        // Only update if something changed (compare by ids)
+        const existingIds = existing.map(f => f.id).join(',');
+        const nextIds = next.map(f => f.id).join(',');
+        if (existingIds !== nextIds) {
+            setClassFeatures(next);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [classLevelsKey, catalogClasses]);
 
     // XP log form state
     const [xpLogForm, setXpLogForm] = useState({ amount: '', description: '' });
@@ -94,26 +165,55 @@ export const LevelsTab: React.FC = () => {
         addHpLevelEntry({ id: uuidv4(), classId: id, classLevelNumber: 1 });
     };
 
-    const handleClassNameChange = (cl: ClassLevel, name: string) => {
-        const bab = CLASS_BAB_PRESETS[name];
-        const sv = CLASS_SAVE_PRESETS[name];
-        const hd = CLASS_HIT_DIE_PRESETS[name];
-        updateClassLevel({
-            ...cl,
-            className: name,
-            babProgression: bab ?? cl.babProgression,
-            fortSave: sv?.fort ?? cl.fortSave,
-            refSave: sv?.ref ?? cl.refSave,
-            willSave: sv?.will ?? cl.willSave,
-            hitDie: hd ?? cl.hitDie,
-        });
+    const handleClassSelect = (cl: ClassLevel, name: string, catalogClass?: CatalogClass) => {
+        if (catalogClass) {
+            updateClassLevel({
+                ...cl,
+                className: name,
+                catalogClassId: catalogClass.id,
+                babProgression: catalogClass.babProgression,
+                fortSave: catalogClass.fortitude,
+                refSave: catalogClass.reflex,
+                willSave: catalogClass.will,
+                hitDie: catalogClass.hitDie,
+            });
+        } else {
+            // Fallback: use static presets (for custom/legacy class names)
+            const bab = CLASS_BAB_PRESETS[name];
+            const sv = CLASS_SAVE_PRESETS[name];
+            const hd = CLASS_HIT_DIE_PRESETS[name];
+            updateClassLevel({
+                ...cl,
+                className: name,
+                catalogClassId: undefined,
+                babProgression: bab ?? cl.babProgression,
+                fortSave: sv?.fort ?? cl.fortSave,
+                refSave: sv?.ref ?? cl.refSave,
+                willSave: sv?.will ?? cl.willSave,
+                hitDie: hd ?? cl.hitDie,
+            });
+        }
     };
+
+    // Level-up preview state
+    const [levelUpPreview, setLevelUpPreview] = useState<ClassLevel | null>(null);
 
     const handleLevelUp = (cl: ClassLevel) => {
         const newLevel = Math.min(20, cl.level + 1);
         if (newLevel <= cl.level) return;
         updateClassLevel({ ...cl, level: newLevel });
         addHpLevelEntry({ id: uuidv4(), classId: cl.id, classLevelNumber: newLevel });
+    };
+
+    const requestLevelUp = (cl: ClassLevel) => {
+        if (cl.level >= 20) return;
+        setLevelUpPreview(cl);
+    };
+
+    const confirmLevelUp = () => {
+        if (!levelUpPreview) return;
+        handleLevelUp(levelUpPreview);
+        setLevelUpPreview(null);
     };
 
     const handleLevelDown = (cl: ClassLevel) => {
@@ -408,7 +508,7 @@ export const LevelsTab: React.FC = () => {
                             <div className="lv-xp-log-empty">Nessun PE guadagnato ancora</div>
                         ) : (
                             <div className="lv-xp-log-list">
-                                {xpLog.map((entry, idx) => {
+                                {xpLog.map((entry) => {
                                     const date = new Date(entry.createdAt);
                                     const dateStr = date.toLocaleDateString('it-IT', {
                                         month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -460,8 +560,15 @@ export const LevelsTab: React.FC = () => {
                 {/* ─── Class cards ──────────────────────────────── */}
                 {classLevels.map(cl => {
                     const babVal = computeClassBab(cl.level, cl.babProgression);
-                    const isPreset = !!CLASS_BAB_PRESETS[cl.className];
+                    void CLASS_BAB_PRESETS; // preset lookup now in handleClassSelect
                     const die = cl.hitDie;
+                    const catalogCls = cl.catalogClassId
+                        ? catalogClasses.find(c => c.id === cl.catalogClassId)
+                        : undefined;
+                    const featuresAtLevel = (catalogCls?.featuresByLevel ?? [])
+                        .filter(f => f.level <= cl.level)
+                        .sort((a, b) => a.level - b.level);
+                    const isFeaturesExpanded = expandedFeatures.has(cl.id);
 
                     return (
                         <div key={cl.id} className="lv-card">
@@ -489,7 +596,7 @@ export const LevelsTab: React.FC = () => {
                                     <div className="lv-num">{cl.level}</div>
                                     <button
                                         className="plus"
-                                        onClick={() => handleLevelUp(cl)}
+                                        onClick={() => requestLevelUp(cl)}
                                         disabled={cl.level >= 20}
                                         aria-label="Aumenta livello"
                                     >+</button>
@@ -577,6 +684,56 @@ export const LevelsTab: React.FC = () => {
                                     );
                                 })}
                             </div>
+
+                            {/* Catalog class info bar */}
+                            {catalogCls && (
+                                <div className="lv-catalog-bar">
+                                    {catalogCls.skillPointsPerLevel > 0 && (
+                                        <span className="lv-catalog-chip">{catalogCls.skillPointsPerLevel} pt abilità/lv</span>
+                                    )}
+                                    {catalogCls.spellcasting?.type !== 'none' && catalogCls.spellcasting?.type && (
+                                        <span className="lv-catalog-chip spell">
+                                            {catalogCls.spellcasting.type === 'arcane' ? '✦ Arcano' : '✦ Divino'}
+                                            {catalogCls.spellcasting.stat ? ` (${catalogCls.spellcasting.stat.toUpperCase()})` : ''}
+                                        </span>
+                                    )}
+                                    {featuresAtLevel.length > 0 && (
+                                        <button
+                                            className="lv-catalog-chip btn-feat-toggle"
+                                            onClick={() => toggleFeatures(cl.id)}
+                                        >
+                                            {isFeaturesExpanded ? <FaChevronDown size={9} /> : <FaChevronRight size={9} />}
+                                            {featuresAtLevel.length} privilegi
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Class features from catalog */}
+                            {catalogCls && isFeaturesExpanded && featuresAtLevel.length > 0 && (
+                                <div className="lv-features-list">
+                                    {featuresAtLevel.map(f => {
+                                        const modCount = (f.modifiers?.length ?? 0) + (f.creatureModifiers?.length ?? 0);
+                                        return (
+                                            <div key={f.id} className={`lv-feature-row ${f.subcategory}`}>
+                                                <span className="lv-feature-lv">Lv.{f.level}</span>
+                                                <span className={`lv-feature-tag ${f.subcategory}`}>
+                                                    {f.subcategory === 'active' ? 'Attivo' : 'Passivo'}
+                                                </span>
+                                                <span className="lv-feature-name">{pickLocalized(f.name, 'it')}</span>
+                                                {f.resourceName && (
+                                                    <span className="lv-feature-resource" title={`Risorsa: ${f.resourceName} (max ${f.resourceMax ?? '?'})`}>
+                                                        {f.resourceName}{f.resourceMax ? ` ×${f.resourceMax}` : ''}
+                                                    </span>
+                                                )}
+                                                {modCount > 0 && (
+                                                    <span className="lv-feature-modcount" title={`${modCount} modificatori meccanici`}>+{modCount}</span>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
 
                             {/* HP breakdown */}
                             {die ? (
@@ -717,14 +874,124 @@ export const LevelsTab: React.FC = () => {
                     setIsClassPickerOpen(false);
                     setClassPickerForId(null);
                 }}
-                onSelect={(className) => {
+                onSelect={(className, catalogClass) => {
                     const cl = classLevels.find(c => c.id === classPickerForId);
                     if (cl) {
-                        handleClassNameChange(cl, className);
+                        handleClassSelect(cl, className, catalogClass);
                     }
                 }}
                 currentValue={classPickerForId ? classLevels.find(c => c.id === classPickerForId)?.className : ''}
             />
+
+            {/* ─── Level-up preview modal ──────────────────────────── */}
+            {levelUpPreview && (() => {
+                const cl = levelUpPreview;
+                const newLevel = cl.level + 1;
+                const catalogCls = catalogClasses.find(c => c.id === cl.catalogClassId);
+                const newFeatures = catalogCls?.featuresByLevel.filter(f => f.level === newLevel) ?? [];
+                const babNow = computeClassBab(cl.level, cl.babProgression);
+                const babNew = computeClassBab(newLevel, cl.babProgression);
+                const saves = [
+                    { name: 'Tempra', prog: cl.fortSave, Icon: FaShieldAlt },
+                    { name: 'Riflessi', prog: cl.refSave, Icon: FaRunning },
+                    { name: 'Volontà', prog: cl.willSave, Icon: FaBrain },
+                ] as const;
+                return (
+                    <div className="lv-up-overlay" onClick={() => setLevelUpPreview(null)}>
+                        <div className="lv-up-modal" onClick={e => e.stopPropagation()}>
+                            <div className="lv-up-header">
+                                <GiUpgrade size={20} className="lv-up-icon" />
+                                <div>
+                                    <div className="lv-up-title">Aumento di livello</div>
+                                    <div className="lv-up-subtitle">{cl.className || 'Classe'} · Livello {cl.level} → {newLevel}</div>
+                                </div>
+                                <button className="btn-ghost" style={{ marginLeft: 'auto' }} onClick={() => setLevelUpPreview(null)}>✕</button>
+                            </div>
+
+                            <div className="lv-up-body">
+                                {/* Stats preview */}
+                                <div className="lv-up-stats">
+                                    <div className="lv-up-stat">
+                                        <GiSwordsEmblem size={13} />
+                                        <span className="lv-up-stat-label">BAB</span>
+                                        <span className="lv-up-stat-old">+{babNow}</span>
+                                        <span className="lv-up-arrow">→</span>
+                                        <span className="lv-up-stat-new">+{babNew}</span>
+                                        {babNew > babNow && <span className="lv-up-delta">+{babNew - babNow}</span>}
+                                    </div>
+                                    <div className="lv-up-stat">
+                                        <FaHeart size={11} />
+                                        <span className="lv-up-stat-label">Dado vita</span>
+                                        <span className="lv-up-stat-new">d{cl.hitDie}</span>
+                                        {(cl.hitDie ?? 0) > 0 && <span className="lv-up-delta">+{Math.ceil((cl.hitDie ?? 0) / 2)} avg</span>}
+                                    </div>
+                                    {saves.map(sv => {
+                                        const progField = sv.name === 'Tempra' ? cl.fortSave : sv.name === 'Riflessi' ? cl.refSave : cl.willSave;
+                                        if (!progField) return null;
+                                        const baseNow = computeClassSaveBase(cl.level, progField);
+                                        const baseNew = computeClassSaveBase(newLevel, progField);
+                                        return (
+                                            <div key={sv.name} className="lv-up-stat">
+                                                <sv.Icon size={11} />
+                                                <span className="lv-up-stat-label">{sv.name}</span>
+                                                <span className="lv-up-stat-old">{fmt(baseNow)}</span>
+                                                <span className="lv-up-arrow">→</span>
+                                                <span className="lv-up-stat-new">{fmt(baseNew)}</span>
+                                                {baseNew > baseNow && <span className="lv-up-delta">+{baseNew - baseNow}</span>}
+                                            </div>
+                                        );
+                                    })}
+                                    {(catalogCls?.skillPointsPerLevel ?? 0) > 0 && (
+                                        <div className="lv-up-stat">
+                                            <FaStar size={11} />
+                                            <span className="lv-up-stat-label">Punti abilità</span>
+                                            <span className="lv-up-stat-new">+{catalogCls!.skillPointsPerLevel}</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* New features */}
+                                {newFeatures.length > 0 && (
+                                    <div className="lv-up-feats-section">
+                                        <div className="lv-up-feats-title">Nuovi privilegi al livello {newLevel}</div>
+                                        <div className="lv-up-feats-list">
+                                            {newFeatures.map(f => (
+                                                <div key={f.id} className="lv-up-feat-row">
+                                                    <span className={`lv-feature-tag ${f.subcategory}`}>
+                                                        {f.subcategory === 'active' ? 'Attivo' : 'Passivo'}
+                                                    </span>
+                                                    <div className="lv-up-feat-info">
+                                                        <span className="lv-up-feat-name">{pickLocalized(f.name, 'it')}</span>
+                                                        {f.description && (
+                                                            <span className="lv-up-feat-desc">{pickLocalized(f.description as any, 'it')}</span>
+                                                        )}
+                                                        {(f.modifiers?.length ?? 0) + (f.creatureModifiers?.length ?? 0) > 0 && (
+                                                            <span className="lv-feature-modcount" title="Modificatori meccanici">
+                                                                +{(f.modifiers?.length ?? 0) + (f.creatureModifiers?.length ?? 0)} mod
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {newFeatures.length === 0 && !catalogCls && (
+                                    <div className="lv-up-no-feats">Nessuna classe dal catalogo associata — i privilegi non vengono importati automaticamente.</div>
+                                )}
+                            </div>
+
+                            <div className="lv-up-footer">
+                                <button className="btn-ghost" onClick={() => setLevelUpPreview(null)}>Annulla</button>
+                                <button className="btn-primary lv-up-confirm" onClick={confirmLevelUp}>
+                                    <GiUpgrade size={14} /> Conferma livello {newLevel}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
         </>
     );
 };

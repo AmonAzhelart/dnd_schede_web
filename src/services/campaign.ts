@@ -14,6 +14,7 @@ import {
     serverTimestamp,
     arrayUnion,
     arrayRemove,
+    type Timestamp,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { Campaign, CampaignMessage, CampaignGlossaryEntry, GlossarySection, MasterNote } from '../types/campaign';
@@ -215,6 +216,44 @@ export async function sendCampaignMessage(
         { lastMessage: trimmed, lastUpdated: serverTimestamp(), playerId },
         { merge: true },
     );
+}
+
+/** Mark all messages in a chat as read by the given role. */
+export async function markChatRead(
+    campaignId: string,
+    playerId: string,
+    role: 'player' | 'master',
+): Promise<void> {
+    const field = role === 'player' ? 'playerReadAt' : 'masterReadAt';
+    await setDoc(
+        chatRef(campaignId, playerId),
+        { [field]: serverTimestamp() },
+        { merge: true },
+    );
+}
+
+export interface ChatMeta {
+    playerReadAt: Timestamp | null;
+    masterReadAt: Timestamp | null;
+}
+
+/** Subscribe to chat-level read timestamps. */
+export function subscribeToChatMeta(
+    campaignId: string,
+    playerId: string,
+    cb: (meta: ChatMeta) => void,
+): () => void {
+    return onSnapshot(chatRef(campaignId, playerId), snap => {
+        if (!snap.exists()) {
+            cb({ playerReadAt: null, masterReadAt: null });
+            return;
+        }
+        const data = snap.data();
+        cb({
+            playerReadAt: data.playerReadAt ?? null,
+            masterReadAt: data.masterReadAt ?? null,
+        });
+    });
 }
 
 // ─────────────────────── campaign glossary ───────────────────────

@@ -784,6 +784,28 @@
     padding: 0 4px;
 }
 
+/* Footer row: timestamp + read tick */
+.campaign-chat-footer {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 0 4px;
+}
+
+/* Read-status tick (shown on "my" messages) */
+.chat-read-tick {
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    transition: color 0.2s;
+}
+
+.chat-read-tick.is-read {
+    color: #4fc3f7;
+    /* WhatsApp-style blue for "read" */
+}
+
 /* Input row */
 .campaign-chat-input-row {
     display: flex;
@@ -2132,6 +2154,7 @@
     border-radius: var(--radius-sm);
     border: 1px solid rgba(255, 255, 255, 0.05);
 }
+
 /* ─────────────────────── Master Glossary Panel (mg-*) ───────────── */
 
 .mg-panel {
@@ -2146,16 +2169,16 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.7rem 1rem;
-    border-bottom: 1px solid rgba(255,255,255,0.07);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
     flex-shrink: 0;
-    background: rgba(0,0,0,0.15);
+    background: rgba(0, 0, 0, 0.15);
     font-family: var(--font-heading);
     font-size: 0.9rem;
     color: var(--text-primary);
 }
 
 .mg-count {
-    background: rgba(255,255,255,0.08);
+    background: rgba(255, 255, 255, 0.08);
     border-radius: 10px;
     padding: 1px 7px;
     font-size: 0.7rem;
@@ -2168,7 +2191,7 @@
     display: flex;
     gap: 0.35rem;
     padding: 0.5rem 1rem;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     flex-shrink: 0;
     flex-wrap: wrap;
 }
@@ -2176,7 +2199,7 @@
 .mg-cat-btn {
     padding: 0.2rem 0.6rem;
     border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     background: transparent;
     color: var(--text-muted);
     font-size: 0.72rem;
@@ -2191,7 +2214,7 @@
 }
 
 .mg-cat-btn:hover {
-    background: rgba(255,255,255,0.06);
+    background: rgba(255, 255, 255, 0.06);
     color: var(--text-secondary);
 }
 
@@ -2222,12 +2245,12 @@
     align-items: flex-start;
     gap: 0.6rem;
     padding: 0.55rem 1rem;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     transition: background 0.1s;
 }
 
 .mg-entry:hover {
-    background: rgba(255,255,255,0.04);
+    background: rgba(255, 255, 255, 0.04);
 }
 
 .mg-entry-dot {
@@ -2272,25 +2295,25 @@
     font-size: 0.65rem;
     padding: 1px 7px;
     border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     color: var(--text-muted);
     margin-left: auto;
 }
 
 .mg-share-badge.public {
-    border-color: rgba(100,220,100,0.3);
+    border-color: rgba(100, 220, 100, 0.3);
     color: #6aff9e;
-    background: rgba(100,220,100,0.08);
+    background: rgba(100, 220, 100, 0.08);
 }
 
 .mg-share-badge.partial {
-    border-color: rgba(201,168,76,0.3);
+    border-color: rgba(201, 168, 76, 0.3);
     color: var(--accent-gold);
-    background: rgba(201,168,76,0.08);
+    background: rgba(201, 168, 76, 0.08);
 }
 
 .mg-share-badge.hidden {
-    border-color: rgba(255,255,255,0.07);
+    border-color: rgba(255, 255, 255, 0.07);
     color: var(--text-muted);
 }
 
@@ -2318,14 +2341,14 @@
     flex-direction: column;
     gap: 0.5rem;
     padding: 0.75rem 1rem;
-    background: rgba(201,168,76,0.04);
-    border-bottom: 1px solid rgba(201,168,76,0.12);
+    background: rgba(201, 168, 76, 0.04);
+    border-bottom: 1px solid rgba(201, 168, 76, 0.12);
 }
 
 .mg-inp {
     flex: 1;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
     padding: 0.4rem 0.65rem;
@@ -2336,13 +2359,13 @@
 
 .mg-inp:focus {
     outline: none;
-    border-color: rgba(201,168,76,0.5);
+    border-color: rgba(201, 168, 76, 0.5);
 }
 
 .mg-ta {
     width: 100%;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
     padding: 0.4rem 0.65rem;
@@ -2354,7 +2377,7 @@
 
 .mg-ta:focus {
     outline: none;
-    border-color: rgba(201,168,76,0.5);
+    border-color: rgba(201, 168, 76, 0.5);
 }
 
 .mg-cat-sel {
@@ -2379,16 +2402,16 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.7rem 1rem;
-    border-bottom: 1px solid rgba(255,255,255,0.07);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
     flex-shrink: 0;
-    background: rgba(0,0,0,0.15);
+    background: rgba(0, 0, 0, 0.15);
     font-family: var(--font-heading);
     font-size: 0.9rem;
     color: var(--text-primary);
 }
 
 .mg-count {
-    background: rgba(255,255,255,0.08);
+    background: rgba(255, 255, 255, 0.08);
     border-radius: 10px;
     padding: 1px 7px;
     font-size: 0.7rem;
@@ -2401,7 +2424,7 @@
     display: flex;
     gap: 0.35rem;
     padding: 0.5rem 1rem;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     flex-shrink: 0;
     flex-wrap: wrap;
 }
@@ -2409,7 +2432,7 @@
 .mg-cat-btn {
     padding: 0.2rem 0.6rem;
     border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     background: transparent;
     color: var(--text-muted);
     font-size: 0.72rem;
@@ -2424,7 +2447,7 @@
 }
 
 .mg-cat-btn:hover {
-    background: rgba(255,255,255,0.06);
+    background: rgba(255, 255, 255, 0.06);
     color: var(--text-secondary);
 }
 
@@ -2455,12 +2478,12 @@
     align-items: flex-start;
     gap: 0.6rem;
     padding: 0.55rem 1rem;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     transition: background 0.1s;
 }
 
 .mg-entry:hover {
-    background: rgba(255,255,255,0.04);
+    background: rgba(255, 255, 255, 0.04);
 }
 
 .mg-entry-dot {
@@ -2505,25 +2528,25 @@
     font-size: 0.65rem;
     padding: 1px 7px;
     border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     color: var(--text-muted);
     margin-left: auto;
 }
 
 .mg-share-badge.public {
-    border-color: rgba(100,220,100,0.3);
+    border-color: rgba(100, 220, 100, 0.3);
     color: #6aff9e;
-    background: rgba(100,220,100,0.08);
+    background: rgba(100, 220, 100, 0.08);
 }
 
 .mg-share-badge.partial {
-    border-color: rgba(201,168,76,0.3);
+    border-color: rgba(201, 168, 76, 0.3);
     color: var(--accent-gold);
-    background: rgba(201,168,76,0.08);
+    background: rgba(201, 168, 76, 0.08);
 }
 
 .mg-share-badge.hidden {
-    border-color: rgba(255,255,255,0.07);
+    border-color: rgba(255, 255, 255, 0.07);
     color: var(--text-muted);
 }
 
@@ -2551,14 +2574,14 @@
     flex-direction: column;
     gap: 0.5rem;
     padding: 0.75rem 1rem;
-    background: rgba(201,168,76,0.04);
-    border-bottom: 1px solid rgba(201,168,76,0.12);
+    background: rgba(201, 168, 76, 0.04);
+    border-bottom: 1px solid rgba(201, 168, 76, 0.12);
 }
 
 .mg-inp {
     flex: 1;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
     padding: 0.4rem 0.65rem;
@@ -2569,13 +2592,13 @@
 
 .mg-inp:focus {
     outline: none;
-    border-color: rgba(201,168,76,0.5);
+    border-color: rgba(201, 168, 76, 0.5);
 }
 
 .mg-ta {
     width: 100%;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
     padding: 0.4rem 0.65rem;
@@ -2587,7 +2610,7 @@
 
 .mg-ta:focus {
     outline: none;
-    border-color: rgba(201,168,76,0.5);
+    border-color: rgba(201, 168, 76, 0.5);
 }
 
 .mg-cat-sel {
@@ -2620,8 +2643,8 @@
 }
 
 .mg-share-section {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-sm);
     padding: 0.65rem 0.85rem;
     display: flex;
@@ -2656,7 +2679,7 @@
     gap: 0.25rem;
     padding: 0.2rem 0.55rem;
     border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.12);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     background: transparent;
     color: var(--text-muted);
     font-size: 0.7rem;
@@ -2667,25 +2690,25 @@
 }
 
 .mg-mode-btn:hover {
-    background: rgba(255,255,255,0.07);
+    background: rgba(255, 255, 255, 0.07);
     color: var(--text-secondary);
 }
 
 .mg-mode-btn.active-private {
-    background: rgba(255,255,255,0.08);
-    border-color: rgba(255,255,255,0.2);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
     color: var(--text-secondary);
 }
 
 .mg-mode-btn.active-public {
-    background: rgba(100,220,100,0.12);
-    border-color: rgba(100,220,100,0.35);
+    background: rgba(100, 220, 100, 0.12);
+    border-color: rgba(100, 220, 100, 0.35);
     color: #6aff9e;
 }
 
 .mg-mode-btn.active-select {
-    background: rgba(201,168,76,0.12);
-    border-color: rgba(201,168,76,0.35);
+    background: rgba(201, 168, 76, 0.12);
+    border-color: rgba(201, 168, 76, 0.35);
     color: var(--accent-gold);
 }
 
@@ -2705,7 +2728,7 @@
     flex-direction: column;
     gap: 0.2rem;
     padding: 0.35rem 0 0.1rem;
-    border-top: 1px solid rgba(255,255,255,0.06);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
     margin-top: 0.2rem;
 }
 
@@ -2733,21 +2756,21 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.35rem 0;
-    border-top: 1px solid rgba(255,255,255,0.06);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
     flex-shrink: 0;
 }
 
 /* ─────────────────────── Entry Form — sections editing ──────────── */
 
 .mg-section-row {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-sm);
     padding: 0.5rem 0.7rem;
     margin-bottom: 0.4rem;
 }
 
-.mg-section-row + .mg-section-row {
+.mg-section-row+.mg-section-row {
     margin-top: 0;
 }
 
@@ -2769,12 +2792,12 @@
     justify-content: center;
     font-size: 0.75rem;
     margin-top: 0.3rem;
-    border: 1px dashed rgba(255,255,255,0.12) !important;
+    border: 1px dashed rgba(255, 255, 255, 0.12) !important;
     color: var(--text-muted) !important;
 }
 
 .mg-add-section-btn:hover {
-    border-color: rgba(201,168,76,0.3) !important;
+    border-color: rgba(201, 168, 76, 0.3) !important;
     color: var(--accent-gold) !important;
 }
 
@@ -2785,7 +2808,7 @@
     align-items: flex-start;
     gap: 0.3rem;
     font-size: 0.72rem;
-    color: rgba(255,255,255,0.25);
+    color: rgba(255, 255, 255, 0.25);
     margin-top: 3px;
     font-style: italic;
     line-height: 1.4;
@@ -2816,7 +2839,7 @@
 
 .mg-no-sections {
     font-size: 0.72rem;
-    color: rgba(255,255,255,0.25);
+    color: rgba(255, 255, 255, 0.25);
     margin-top: 4px;
     font-style: italic;
 }
@@ -2825,7 +2848,7 @@
     background: none;
     border: none;
     padding: 0;
-    color: rgba(201,168,76,0.6);
+    color: rgba(201, 168, 76, 0.6);
     cursor: pointer;
     font-size: inherit;
     font-family: inherit;
@@ -2859,8 +2882,8 @@
 }
 
 .mg-share-section {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-sm);
     padding: 0.65rem 0.85rem;
     display: flex;
@@ -2895,7 +2918,7 @@
     gap: 0.25rem;
     padding: 0.2rem 0.55rem;
     border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.12);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     background: transparent;
     color: var(--text-muted);
     font-size: 0.7rem;
@@ -2906,25 +2929,25 @@
 }
 
 .mg-mode-btn:hover {
-    background: rgba(255,255,255,0.07);
+    background: rgba(255, 255, 255, 0.07);
     color: var(--text-secondary);
 }
 
 .mg-mode-btn.active-private {
-    background: rgba(255,255,255,0.08);
-    border-color: rgba(255,255,255,0.2);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
     color: var(--text-secondary);
 }
 
 .mg-mode-btn.active-public {
-    background: rgba(100,220,100,0.12);
-    border-color: rgba(100,220,100,0.35);
+    background: rgba(100, 220, 100, 0.12);
+    border-color: rgba(100, 220, 100, 0.35);
     color: #6aff9e;
 }
 
 .mg-mode-btn.active-select {
-    background: rgba(201,168,76,0.12);
-    border-color: rgba(201,168,76,0.35);
+    background: rgba(201, 168, 76, 0.12);
+    border-color: rgba(201, 168, 76, 0.35);
     color: var(--accent-gold);
 }
 
@@ -2944,7 +2967,7 @@
     flex-direction: column;
     gap: 0.2rem;
     padding: 0.35rem 0 0.1rem;
-    border-top: 1px solid rgba(255,255,255,0.06);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
     margin-top: 0.2rem;
 }
 
@@ -2972,21 +2995,21 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.35rem 0;
-    border-top: 1px solid rgba(255,255,255,0.06);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
     flex-shrink: 0;
 }
 
 /* ─────────────────────── Entry Form — sections editing ──────────── */
 
 .mg-section-row {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-sm);
     padding: 0.5rem 0.7rem;
     margin-bottom: 0.4rem;
 }
 
-.mg-section-row + .mg-section-row {
+.mg-section-row+.mg-section-row {
     margin-top: 0;
 }
 
@@ -3008,12 +3031,12 @@
     justify-content: center;
     font-size: 0.75rem;
     margin-top: 0.3rem;
-    border: 1px dashed rgba(255,255,255,0.12) !important;
+    border: 1px dashed rgba(255, 255, 255, 0.12) !important;
     color: var(--text-muted) !important;
 }
 
 .mg-add-section-btn:hover {
-    border-color: rgba(201,168,76,0.3) !important;
+    border-color: rgba(201, 168, 76, 0.3) !important;
     color: var(--accent-gold) !important;
 }
 
@@ -3024,7 +3047,7 @@
     align-items: flex-start;
     gap: 0.3rem;
     font-size: 0.72rem;
-    color: rgba(255,255,255,0.25);
+    color: rgba(255, 255, 255, 0.25);
     margin-top: 3px;
     font-style: italic;
     line-height: 1.4;
@@ -3055,7 +3078,7 @@
 
 .mg-no-sections {
     font-size: 0.72rem;
-    color: rgba(255,255,255,0.25);
+    color: rgba(255, 255, 255, 0.25);
     margin-top: 4px;
     font-style: italic;
 }
@@ -3064,7 +3087,7 @@
     background: none;
     border: none;
     padding: 0;
-    color: rgba(201,168,76,0.6);
+    color: rgba(201, 168, 76, 0.6);
     cursor: pointer;
     font-size: inherit;
     font-family: inherit;
