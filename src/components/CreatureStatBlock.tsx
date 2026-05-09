@@ -323,29 +323,29 @@ export const StatBlock: React.FC<StatBlockProps> = ({
     return (
         <div className="creature-sheet">
             {!headless && (
-            <div className="creature-sheet-header">
-                <CreaturePortrait creature={creature} size={96} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                    <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.4rem' }}>{creature.name}</h3>
-                    <div className="text-sm text-muted" style={{ marginTop: 2 }}>
-                        {creature.size} {creature.type}{creature.subtype ? ` (${creature.subtype})` : ''} · {creature.alignment ?? 'N'}
+                <div className="creature-sheet-header">
+                    <CreaturePortrait creature={creature} size={96} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.4rem' }}>{creature.name}</h3>
+                        <div className="text-sm text-muted" style={{ marginTop: 2 }}>
+                            {creature.size} {creature.type}{creature.subtype ? ` (${creature.subtype})` : ''} · {creature.alignment ?? 'N'}
+                        </div>
+                        <div className="flex gap-2" style={{ marginTop: 6, flexWrap: 'wrap' }}>
+                            {creature.challengeRating && <span className="badge-cr">CR {creature.challengeRating}</span>}
+                            <span className="badge-type">{creature.type}</span>
+                            {(creature.tags ?? []).map(t => <span key={t} className="badge-type" style={{ opacity: 0.75 }}>{t}</span>)}
+                        </div>
                     </div>
-                    <div className="flex gap-2" style={{ marginTop: 6, flexWrap: 'wrap' }}>
-                        {creature.challengeRating && <span className="badge-cr">CR {creature.challengeRating}</span>}
-                        <span className="badge-type">{creature.type}</span>
-                        {(creature.tags ?? []).map(t => <span key={t} className="badge-type" style={{ opacity: 0.75 }}>{t}</span>)}
+                    <div className="flex flex-col gap-2">
+                        {actionLabel && onAction && (
+                            <button className="btn-primary text-sm" onClick={onAction}>{actionIcon} {actionLabel}</button>
+                        )}
+                        {actionLabel2 && onAction2 && (
+                            <button className="btn-secondary text-sm" onClick={onAction2}>{actionIcon2} {actionLabel2}</button>
+                        )}
+                        <button className="btn-ghost text-sm" onClick={onClose}><FaTimes /> Chiudi</button>
                     </div>
                 </div>
-                <div className="flex flex-col gap-2">
-                    {actionLabel && onAction && (
-                        <button className="btn-primary text-sm" onClick={onAction}>{actionIcon} {actionLabel}</button>
-                    )}
-                    {actionLabel2 && onAction2 && (
-                        <button className="btn-secondary text-sm" onClick={onAction2}>{actionIcon2} {actionLabel2}</button>
-                    )}
-                    <button className="btn-ghost text-sm" onClick={onClose}><FaTimes /> Chiudi</button>
-                </div>
-            </div>
             )}
 
             {/* Static override chips (from feats/items at summon time) */}

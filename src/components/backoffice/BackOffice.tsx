@@ -390,24 +390,24 @@ const SPELL_SCHOOLS = [
 ] as const;
 
 const SP_SCHOOL_COLOR: Record<string, string> = {
-    'Evocazione':    'var(--accent-crimson)',
-    'Invocazione':   'var(--accent-gold)',
-    'Abiurazione':   'var(--accent-ice)',
-    'Ammaliamento':  'var(--accent-arcane)',
-    'Divinazione':   'var(--accent-success)',
-    'Illusione':     '#a29bfe',
-    'Necromanzia':   '#636e72',
+    'Evocazione': 'var(--accent-crimson)',
+    'Invocazione': 'var(--accent-gold)',
+    'Abiurazione': 'var(--accent-ice)',
+    'Ammaliamento': 'var(--accent-arcane)',
+    'Divinazione': 'var(--accent-success)',
+    'Illusione': '#a29bfe',
+    'Necromanzia': '#636e72',
     'Trasmutazione': '#fdcb6e',
 };
 
 const SP_SCHOOL_SLUG: Record<string, string> = {
-    'Abiurazione':   'abjuration',
-    'Ammaliamento':  'enchantment',
-    'Divinazione':   'divination',
-    'Evocazione':    'conjuration',
-    'Illusione':     'illusion',
-    'Invocazione':   'evocation',
-    'Necromanzia':   'necromancy',
+    'Abiurazione': 'abjuration',
+    'Ammaliamento': 'enchantment',
+    'Divinazione': 'divination',
+    'Evocazione': 'conjuration',
+    'Illusione': 'illusion',
+    'Invocazione': 'evocation',
+    'Necromanzia': 'necromancy',
     'Trasmutazione': 'transmutation',
 };
 
@@ -445,7 +445,7 @@ function SpellsPanel({ currentUserEmail }: { currentUserEmail: string }) {
     // Schools present in the catalog, in canonical order
     const presentSchools = useMemo(() =>
         SPELL_SCHOOLS.filter(s => items.some(i => i.school === s)),
-    [items]);
+        [items]);
 
     // Levels present in the active school
     const levelsInSchool = useMemo(() => {
@@ -522,7 +522,7 @@ function SpellsPanel({ currentUserEmail }: { currentUserEmail: string }) {
                         <select className="input w-full" value={editing.level}
                             onChange={e => setEditing({ ...editing, level: Number(e.target.value) })}>
                             <option value={0}>0 — Trucchetto</option>
-                            {[1,2,3,4,5,6,7,8,9].map(l => (
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(l => (
                                 <option key={l} value={l}>{l}° livello</option>
                             ))}
                         </select>
