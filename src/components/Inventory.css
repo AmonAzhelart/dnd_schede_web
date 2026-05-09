@@ -2518,6 +2518,8 @@
         flex-direction: column;
         overflow: hidden;
         border-bottom: none;
+        padding: 12px 12px 8px;
+        gap: 8px;
     }
 
     /* Hide desktop timeline and form panel: both go to drawers on mobile */
@@ -2531,12 +2533,51 @@
         min-height: 0;
         grid-template-columns: repeat(2, 1fr);
         grid-template-rows: 1fr 1fr;
+        gap: 8px;
     }
 
-    /* Coin cards: stretch to fill rows */
+    /* Coin cards: compact for mobile */
     .inv-cw-card {
-        padding: 16px 8px 14px;
-        gap: 8px;
+        padding: 10px 8px 10px;
+        gap: 5px;
+    }
+
+    .inv-cw-disc {
+        width: 44px;
+        height: 44px;
+    }
+
+    .inv-cw-abbr {
+        font-size: 0.6rem;
+    }
+
+    .inv-cw-val {
+        font-size: 1.3rem;
+    }
+
+    .inv-cw-lbl {
+        font-size: 0.45rem;
+    }
+
+    .inv-cw-total {
+        padding: 8px 0 2px;
+        gap: 2px;
+    }
+
+    .inv-cw-total-lbl {
+        font-size: 0.48rem;
+    }
+
+    .inv-cw-total-val {
+        font-size: 1.2rem;
+    }
+
+    .inv-cw-total-unit {
+        font-size: 0.72rem;
+    }
+
+    .inv-cw-hdr-title {
+        font-size: 0.6rem;
     }
 }
 
