@@ -799,6 +799,128 @@ function EntryForm({ entry, onChange, onSave, onCancel }: EntryFormProps) {
     );
 }
 
+// ── Entry detail modal ────────────────────────────────────────────────────────
+
+interface EntryDetailModalProps {
+    entry: CampaignGlossaryEntry;
+    playerCharacters: Campaign['playerCharacters'];
+    onEdit: () => void;
+    onShare: () => void;
+    onDelete: () => void;
+    onClose: () => void;
+    playerCount: number;
+}
+
+function EntryDetailModal({ entry, playerCharacters, onEdit, onShare, onDelete, onClose, playerCount }: EntryDetailModalProps) {
+    const sections = entry.sections ?? [];
+    const status = (() => {
+        if (sections.some(s => s.isPublic)) return 'public';
+        if (sections.some(s => s.visibleToPlayerIds.length > 0)) return 'partial';
+        return 'hidden';
+    })();
+
+    function sectionLabel(sec: GlossarySection): React.ReactNode {
+        if (sec.isPublic) return <span style={{ color: '#6aff9e', fontSize: '0.62rem' }}><FaGlobe size={8} /> Tutti</span>;
+        if (sec.visibleToPlayerIds.length > 0) {
+            const names = sec.visibleToPlayerIds.map(uid => playerCharacters[uid]?.characterName ?? uid).join(', ');
+            return <span style={{ color: 'var(--accent-gold)', fontSize: '0.62rem' }}><FaLock size={8} /> {names}</span>;
+        }
+        return <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.62rem' }}><FaLock size={8} /> Nascosta</span>;
+    }
+
+    return (
+        <div className="mg-detail-overlay" onClick={onClose}>
+            <div className="mg-detail-modal glass-panel" onClick={e => e.stopPropagation()}>
+                <div className="mg-detail-header">
+                    <div className="mg-entry-dot" style={{ background: CAT_COLORS_GLOSS[entry.category], width: 10, height: 10, flexShrink: 0 }} />
+                    <span className="mg-detail-term">{entry.term}</span>
+                    <span className="mg-cat-badge" style={{ '--cat-c': CAT_COLORS_GLOSS[entry.category] } as React.CSSProperties}>
+                        {CAT_LABELS_GLOSS[entry.category]}
+                    </span>
+                    <span className={`mg-share-badge ${status}`} style={{ marginLeft: 4 }}>
+                        {status === 'public' ? <FaGlobe size={9} /> : <FaLock size={9} />}
+                        {' '}{status === 'public' ? 'Tutti' : status === 'partial' ? 'Parziale' : 'Nascosta'}
+                    </span>
+                    <button className="mg-detail-close" onClick={onClose} title="Chiudi">
+                        <FaTimes size={13} />
+                    </button>
+                </div>
+
+                {entry.info && (
+                    <div className="mg-detail-private">
+                        <FaLock size={9} style={{ flexShrink: 0, marginTop: 1 }} />
+                        <span>{entry.info}</span>
+                    </div>
+                )}
+
+                {sections.length > 0 && (
+                    <div className="mg-detail-sections">
+                        {sections.map(sec => (
+                            <div key={sec.id} className="mg-detail-section">
+                                <div className="mg-detail-sec-header">
+                                    <span className="mg-detail-sec-label">{sec.label || <em style={{ fontWeight: 400 }}>Sezione</em>}</span>
+                                    {sectionLabel(sec)}
+                                </div>
+                                {sec.content && <div className="mg-detail-sec-content">{sec.content}</div>}
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {sections.length === 0 && !entry.info && (
+                    <div className="mg-detail-empty">
+                        <p>Nessun contenuto. Modifica la voce per aggiungere sezioni.</p>
+                    </div>
+                )}
+
+                <div className="mg-detail-actions">
+                    {playerCount > 0 && sections.length > 0 && (
+                        <button className="btn-ghost" style={{ fontSize: '0.8rem', color: 'var(--accent-gold)' }} onClick={onShare}>
+                            <FaShare size={10} /> Condividi
+                        </button>
+                    )}
+                    <button className="btn-secondary" style={{ fontSize: '0.8rem' }} onClick={onEdit}>
+                        <FaEdit size={10} /> Modifica
+                    </button>
+                    <button className="btn-ghost" style={{ fontSize: '0.8rem', color: 'var(--accent-crimson)' }} onClick={onDelete}>
+                        <FaTrash size={10} /> Elimina
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ── Glossary edit modal ────────────────────────────────────────────────────────
+
+interface GlossaryEditModalProps {
+    editState: NonNullable<GlossaryEditState>;
+    onChange: (entry: CampaignGlossaryEntry) => void;
+    onSave: () => void;
+    onCancel: () => void;
+}
+
+function GlossaryEditModal({ editState, onChange, onSave, onCancel }: GlossaryEditModalProps) {
+    return (
+        <div className="mg-edit-overlay" onClick={onCancel}>
+            <div className="mg-edit-modal glass-panel" onClick={e => e.stopPropagation()}>
+                <div className="mg-modal-header">
+                    <span>{editState.isNew ? 'Nuova voce' : `Modifica: ${editState.entry.term}`}</span>
+                    <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 4px' }} onClick={onCancel} title="Chiudi">
+                        <FaTimes size={13} />
+                    </button>
+                </div>
+                <EntryForm
+                    entry={editState.entry}
+                    onChange={onChange}
+                    onSave={onSave}
+                    onCancel={onCancel}
+                />
+            </div>
+        </div>
+    );
+}
+
 // ── MasterGlossaryPanel ──────────────────────────────────────────────────────
 
 interface MasterGlossaryPanelProps {
@@ -815,6 +937,7 @@ type GlossaryEditState = {
 function MasterGlossaryPanel({ campaignId, masterId, playerCharacters }: MasterGlossaryPanelProps) {
     const [entries, setEntries] = useState<CampaignGlossaryEntry[]>([]);
     const [editState, setEditState] = useState<GlossaryEditState>(null);
+    const [viewEntry, setViewEntry] = useState<CampaignGlossaryEntry | null>(null);
     const [shareEntry, setShareEntry] = useState<CampaignGlossaryEntry | null>(null);
     const [catFilter, setCatFilter] = useState<CampaignGlossaryEntry['category'] | 'all'>('all');
 
@@ -895,17 +1018,7 @@ function MasterGlossaryPanel({ campaignId, masterId, playerCharacters }: MasterG
             </div>
 
             <div className="mg-body">
-                {/* New entry form */}
-                {editState?.isNew && (
-                    <EntryForm
-                        entry={editState.entry}
-                        onChange={entry => setEditState({ ...editState, entry })}
-                        onSave={handleSave}
-                        onCancel={() => setEditState(null)}
-                    />
-                )}
-
-                {filtered.length === 0 && !editState?.isNew && (
+                {filtered.length === 0 && (
                     <div className="mg-empty">
                         <FaBook size={36} style={{ color: 'rgba(255,255,255,0.07)', marginBottom: '1rem' }} />
                         <p className="text-muted text-sm">Nessuna voce nel glossario. Creane una per iniziare.</p>
@@ -913,23 +1026,12 @@ function MasterGlossaryPanel({ campaignId, masterId, playerCharacters }: MasterG
                 )}
 
                 {filtered.map(entry => {
-                    const isEditing = editState?.entry.id === entry.id && !editState.isNew;
-                    if (isEditing && editState) {
-                        return (
-                            <EntryForm key={entry.id}
-                                entry={editState.entry}
-                                onChange={e => setEditState({ ...editState, entry: e })}
-                                onSave={handleSave}
-                                onCancel={() => setEditState(null)}
-                            />
-                        );
-                    }
-
                     const status = entrySharingStatus(entry);
                     const sections = entry.sections ?? [];
 
                     return (
-                        <div key={entry.id} className="mg-entry">
+                        <div key={entry.id} className="mg-entry" style={{ cursor: 'pointer' }}
+                            onClick={() => setViewEntry(entry)}>
                             <div className="mg-entry-dot" style={{ background: CAT_COLORS_GLOSS[entry.category] }} />
                             <div className="mg-entry-body">
                                 <div className="mg-entry-top">
@@ -943,14 +1045,12 @@ function MasterGlossaryPanel({ campaignId, masterId, playerCharacters }: MasterG
                                     </span>
                                 </div>
 
-                                {/* Private notes (faded) */}
                                 {entry.info && (
                                     <div className="mg-private-note">
                                         <FaLock size={8} /> {entry.info}
                                     </div>
                                 )}
 
-                                {/* Sections summary */}
                                 {sections.length > 0 && (
                                     <div className="mg-sections-summary">
                                         {sections.map(sec => (
@@ -962,10 +1062,10 @@ function MasterGlossaryPanel({ campaignId, masterId, playerCharacters }: MasterG
                                     </div>
                                 )}
                                 {sections.length === 0 && (
-                                    <div className="mg-no-sections">Nessuna sezione &mdash; <button className="mg-inline-btn" onClick={() => setEditState({ entry: { ...entry }, isNew: false })}>aggiungi sezioni</button> per condividere.</div>
+                                    <div className="mg-no-sections">Nessuna sezione &mdash; clicca per aggiungerne.</div>
                                 )}
                             </div>
-                            <div className="mg-entry-acts">
+                            <div className="mg-entry-acts" onClick={e => e.stopPropagation()}>
                                 {playerCount > 0 && sections.length > 0 && (
                                     <button className="btn-ghost" style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem', color: 'var(--accent-gold)' }}
                                         onClick={() => setShareEntry(entry)} title="Gestisci condivisione sezioni">
@@ -992,6 +1092,27 @@ function MasterGlossaryPanel({ campaignId, masterId, playerCharacters }: MasterG
                     playerCharacters={playerCharacters}
                     onConfirm={handleShareSections}
                     onClose={() => setShareEntry(null)}
+                />
+            )}
+
+            {viewEntry && (
+                <EntryDetailModal
+                    entry={viewEntry}
+                    playerCharacters={playerCharacters}
+                    onEdit={() => { setEditState({ entry: { ...viewEntry }, isNew: false }); setViewEntry(null); }}
+                    onShare={() => { setShareEntry(viewEntry); setViewEntry(null); }}
+                    onDelete={() => { handleDelete(viewEntry.id); setViewEntry(null); }}
+                    onClose={() => setViewEntry(null)}
+                    playerCount={playerCount}
+                />
+            )}
+
+            {editState && (
+                <GlossaryEditModal
+                    editState={editState}
+                    onChange={entry => setEditState({ ...editState, entry })}
+                    onSave={handleSave}
+                    onCancel={() => setEditState(null)}
                 />
             )}
         </div>

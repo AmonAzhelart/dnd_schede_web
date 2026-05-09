@@ -1406,6 +1406,32 @@ input[type="number"] {
   color: var(--accent-gold);
 }
 
+/* === NAV UNREAD BADGE === */
+.nav-badge {
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--accent-crimson);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* Badge inside mobile popup icon (positioned top-right of the icon) */
+.nav-badge--popup {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  margin-left: 0;
+}
+
 /* === PROFICIENCY DOT === */
 .prof-dot {
   width: 12px;

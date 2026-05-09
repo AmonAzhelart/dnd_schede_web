@@ -27,6 +27,7 @@ export type MobileNavItem = {
     id: string;
     label: string;
     icon: React.ReactNode;
+    badge?: number;
 };
 
 export type MobileShellProps = {
@@ -276,7 +277,12 @@ export const MobileShell: React.FC<MobileShellProps> = ({
                                     className={'mob-shell-popup-btn' + (appTab === item.id ? ' is-active' : '')}
                                     onClick={() => { setAppTab(item.id); setNavOpen(false); }}
                                 >
-                                    <span className="mob-shell-popup-ico">{item.icon}</span>
+                                    <span className="mob-shell-popup-ico" style={{ position: 'relative' }}>
+                                        {item.icon}
+                                        {!!item.badge && (
+                                            <span className="nav-badge nav-badge--popup">{item.badge > 9 ? '9+' : item.badge}</span>
+                                        )}
+                                    </span>
                                     <span className="mob-shell-popup-lbl">{item.label}</span>
                                 </button>
                             ))}

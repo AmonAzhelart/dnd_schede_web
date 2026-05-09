@@ -54,6 +54,8 @@ function App() {
   const [campaignCreateDesc, setCampaignCreateDesc] = useState('');
   const [campaignCreating, setCampaignCreating] = useState(false);
   const [showLandingFeedback, setShowLandingFeedback] = useState(false);
+  /** Unread campaign messages count (player side). */
+  const [unreadCampaignCount, setUnreadCampaignCount] = useState(0);
 
   // ── Auto-save ──────────────────────────────────────────
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -516,11 +518,11 @@ function App() {
   }
 
   // ── MAIN APP ───────────────────────────────────────────
-  const navItems: { id: Tab; label: string; icon: React.ReactNode }[] = [
+  const navItems: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: 'scheda', label: 'Scheda', icon: <GiSwordman size={18} /> },
     { id: 'note', label: 'Note & Glossario', icon: <FaBookOpen size={16} /> },
     { id: 'mappe', label: 'Mappe', icon: <GiTreasureMap size={18} /> },
-    { id: 'campagna', label: 'Campagna', icon: <GiCastle size={17} /> },
+    { id: 'campagna', label: 'Campagna', icon: <GiCastle size={17} />, badge: unreadCampaignCount || undefined },
     ...(!superAdmin ? [{ id: 'feedback' as Tab, label: 'Feedback', icon: <FaCommentDots size={15} /> }] : []),
     ...(hasBackofficeAccess ? [{ id: 'backoffice' as Tab, label: 'Back-Office', icon: <FaCog size={16} /> }] : []),
   ];
@@ -551,6 +553,7 @@ function App() {
           {navItems.map(item => (
             <button key={item.id} className={`nav-item ${activeTab === item.id ? 'active' : ''}`} onClick={() => setActiveTab(item.id)}>
               {item.icon} {item.label}
+              {!!item.badge && <span className="nav-badge">{item.badge > 9 ? '9+' : item.badge}</span>}
             </button>
           ))}
         </nav>
@@ -615,6 +618,7 @@ function App() {
         <PlayerChatNotifier
           isCampaignTabActive={activeTab === 'campagna'}
           onNavigateToCampaign={() => setActiveTab('campagna')}
+          onUnreadCountChange={setUnreadCampaignCount}
         />
       )}
 
