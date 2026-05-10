@@ -43,6 +43,7 @@ interface InitCombatant {
     initiative: number;
     currentHp: number;
     maxHp: number;
+    ac?: number;
     isPlayer: boolean;
     playerId?: string;
     conditions: string[];
@@ -1165,8 +1166,31 @@ function InitiativeTracker({
     const [addName, setAddName] = useState('');
     const [addInit, setAddInit] = useState('');
     const [addHp, setAddHp] = useState('');
+    const [addAc, setAddAc] = useState('');
     const [showAdd, setShowAdd] = useState(false);
     const [showCondMenu, setShowCondMenu] = useState<string | null>(null);
+    const [hpEditId, setHpEditId] = useState<string | null>(null);
+    const [hpDeltaStr, setHpDeltaStr] = useState('');
+
+    // Sync player HP and AC from real-time linkedChars
+    useEffect(() => {
+        setCombatants(prev => {
+            if (prev.length === 0) return prev;
+            let changed = false;
+            const next = prev.map(c => {
+                if (!c.isPlayer || !c.playerId) return c;
+                const char = linkedChars[c.playerId];
+                if (!char) return c;
+                const currentHp = char.hpDetails?.current ?? char.baseStats?.hp ?? c.currentHp;
+                const maxHp = char.hpDetails?.max ?? computeTotalMaxHp(char);
+                const ac = computeEffectiveStat(char, 'ac');
+                if (c.currentHp === currentHp && c.maxHp === maxHp && c.ac === ac) return c;
+                changed = true;
+                return { ...c, currentHp, maxHp, ac };
+            });
+            return changed ? next : prev;
+        });
+    }, [linkedChars]);
 
     const sorted = useMemo(
         () => [...combatants].sort((a, b) => b.initiative - a.initiative),
@@ -1197,17 +1221,19 @@ function InitiativeTracker({
 
     function addCombatant() {
         if (!addName.trim()) return;
+        const hp = parseInt(addHp) || 10;
         const entry: InitCombatant = {
             id: crypto.randomUUID(),
             name: addName.trim(),
             initiative: parseInt(addInit) || 0,
-            currentHp: parseInt(addHp) || 10,
-            maxHp: parseInt(addHp) || 10,
+            currentHp: hp,
+            maxHp: hp,
+            ac: parseInt(addAc) || undefined,
             isPlayer: false,
             conditions: [],
         };
         setCombatants(prev => [...prev, entry]);
-        setAddName(''); setAddInit(''); setAddHp('');
+        setAddName(''); setAddInit(''); setAddHp(''); setAddAc('');
         setShowAdd(false);
     }
 
@@ -1219,12 +1245,14 @@ function InitiativeTracker({
             const char = linkedChars[uid];
             const hp = char?.hpDetails?.current ?? char?.baseStats?.hp ?? 10;
             const maxHp = char ? (char.hpDetails?.max ?? computeTotalMaxHp(char)) : hp;
+            const ac = char ? computeEffectiveStat(char, 'ac') : undefined;
             toAdd.push({
                 id: crypto.randomUUID(),
                 name: info.characterName,
                 initiative: 0,
                 currentHp: hp,
                 maxHp,
+                ac,
                 isPlayer: true,
                 playerId: uid,
                 conditions: [],
@@ -1233,11 +1261,13 @@ function InitiativeTracker({
         setCombatants(prev => [...prev, ...toAdd]);
     }
 
-    function adjustHp(id: string, delta: number) {
+    function applyHpDelta(id: string, delta: number) {
         setCombatants(prev => prev.map(c => c.id === id
-            ? { ...c, currentHp: Math.min(c.maxHp, c.currentHp + delta) }
+            ? { ...c, currentHp: Math.max(0, Math.min(c.maxHp, c.currentHp + delta)) }
             : c,
         ));
+        setHpEditId(null);
+        setHpDeltaStr('');
     }
 
     function updateInit(id: string, val: string) {
@@ -1260,33 +1290,56 @@ function InitiativeTracker({
         if (idx <= currentIdx && currentIdx > 0) setCurrentIdx(i => i - 1);
     }
 
+    const hpDelta = Math.abs(parseInt(hpDeltaStr) || 0);
+
     return (
         <div className="init-tracker">
-            {/* Header */}
+            {/* ── Header ── */}
             <div className="init-header">
-                <span className="init-round-badge">Round {round}</span>
-                <div className="init-turn-nav">
-                    <button className="btn-ghost" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={prevTurn} disabled={sorted.length === 0}>
+                {/* Top row: round + turn counter + actions */}
+                <div className="init-header-top">
+                    <div className="init-round-badge">
+                        <GiCrossedSwords size={10} />
+                        Round {round}
+                    </div>
+                    {sorted.length > 0 && (
+                        <span className="init-turn-counter">
+                            Turno&nbsp;{(currentIdx % sorted.length) + 1}&nbsp;/&nbsp;{sorted.length}
+                        </span>
+                    )}
+                    <div className="init-header-actions">
+                        {Object.keys(playerCharacters).length > 0 && (
+                            <button className="init-action-btn" onClick={populateFromPlayers} title="Aggiungi tutti i PG alla scena">
+                                <FaUsers size={10} /> PG
+                            </button>
+                        )}
+                        <button className={`init-action-btn${showAdd ? ' active' : ''}`} onClick={() => setShowAdd(v => !v)}>
+                            <FaPlus size={9} /> Mostro
+                        </button>
+                        <button className="init-action-btn init-reset-btn" onClick={resetCombat} title="Resetta il combattimento">
+                            Reset
+                        </button>
+                    </div>
+                </div>
+                {/* Bottom row: turn navigation */}
+                <div className="init-header-nav">
+                    <button className="init-nav-btn" onClick={prevTurn} disabled={sorted.length === 0} title="Turno precedente">
                         <FaChevronLeft size={10} />
                     </button>
-                    <span className="init-current-name">
-                        {sorted.length === 0 ? '— nessun combattente —' : (sorted[currentIdx % sorted.length]?.name ?? '—')}
-                    </span>
-                    <button className="btn-ghost" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={nextTurn} disabled={sorted.length === 0}>
-                        <GiCrossedSwords size={12} />
-                    </button>
-                </div>
-                <div style={{ display: 'flex', gap: '0.4rem', marginLeft: 'auto' }}>
-                    {Object.keys(playerCharacters).length > 0 && (
-                        <button className="btn-ghost" style={{ padding: '0.25rem 0.5rem', fontSize: '0.72rem' }} onClick={populateFromPlayers} title="Aggiungi PG">
-                            <FaUsers size={11} /> PG
-                        </button>
-                    )}
-                    <button className="btn-ghost" style={{ padding: '0.25rem 0.5rem', fontSize: '0.72rem' }} onClick={() => setShowAdd(v => !v)}>
-                        <FaPlus size={10} /> Aggiungi
-                    </button>
-                    <button className="btn-ghost" style={{ padding: '0.25rem 0.5rem', fontSize: '0.72rem', color: 'var(--accent-crimson)' }} onClick={resetCombat}>
-                        Reset
+                    <div className="init-current-info">
+                        {sorted.length > 0 ? (
+                            <>
+                                <GiCrossedSwords size={13} className="init-current-sword" />
+                                <span className="init-current-name">
+                                    {sorted[currentIdx % sorted.length]?.name ?? '—'}
+                                </span>
+                            </>
+                        ) : (
+                            <span className="init-current-empty">— nessun combattente —</span>
+                        )}
+                    </div>
+                    <button className="init-nav-btn init-nav-next" onClick={nextTurn} disabled={sorted.length === 0} title="Fine turno">
+                        Fine turno <GiCrossedSwords size={10} />
                     </button>
                 </div>
             </div>
@@ -1294,186 +1347,304 @@ function InitiativeTracker({
             {/* Add form */}
             {showAdd && (
                 <div className="init-add-form">
-                    <input className="init-form-input" style={{ flex: 2 }} placeholder="Nome combattente" value={addName} onChange={e => setAddName(e.target.value)} onKeyDown={e => e.key === 'Enter' && addCombatant()} autoFocus />
-                    <input className="init-form-input" style={{ width: 60 }} placeholder="Init" type="number" value={addInit} onChange={e => setAddInit(e.target.value)} />
-                    <input className="init-form-input" style={{ width: 60 }} placeholder="PF" type="number" value={addHp} onChange={e => setAddHp(e.target.value)} />
-                    <button className="btn-primary" style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }} onClick={addCombatant} disabled={!addName.trim()}>
-                        <FaPlus size={10} />
-                    </button>
-                    <button className="btn-ghost" style={{ padding: '0.3rem 0.5rem' }} onClick={() => setShowAdd(false)}>
-                        <FaTimes size={11} />
-                    </button>
-                </div>
-            )}
-
-            {/* Combatant list */}
-            <div className="init-list">
-                {sorted.length === 0 && (
-                    <div className="init-empty">
-                        <GiCrossedSwords size={36} style={{ color: 'rgba(255,255,255,0.1)', marginBottom: '0.75rem' }} />
-                        <p className="text-muted text-sm">Nessun combattente. Aggiungi PG o nemici.</p>
-                    </div>
-                )}
-                {sorted.map((c) => {
-                    const isCurrent = c.id === currentId;
-                    const hpPct = c.maxHp > 0 ? Math.max(0, c.currentHp / c.maxHp) : 0;
-                    const hpColor = c.currentHp <= 0 ? 'var(--accent-crimson)' : hpPct > 0.5 ? '#4caf7d' : hpPct > 0.25 ? '#f0c040' : 'var(--accent-crimson)';
-                    return (
-                        <div key={c.id} className={`init-entry ${isCurrent ? 'current' : ''}`}>
-                            <div className="init-init-badge">{c.initiative >= 0 ? `+${c.initiative}` : c.initiative}</div>
-                            <div className="init-entry-main">
-                                <div className="init-entry-name">
-                                    {isCurrent && <GiCrossedSwords size={11} style={{ color: 'var(--accent-gold)', marginRight: 4, flexShrink: 0 }} />}
-                                    {c.name}
-                                    {c.isPlayer && <span className="init-pg-badge">PG</span>}
-                                </div>
-                                {c.conditions.length > 0 && (
-                                    <div className="init-conditions">
-                                        {c.conditions.map(cond => (
-                                            <span key={cond} className="init-cond-badge" onClick={() => toggleCondition(c.id, cond)}>
-                                                {cond} ×
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
+                    {/* ── Add form ── */}
+                    {showAdd && (
+                        <div className="init-add-form">
+                            <input
+                                className="init-form-input init-form-name"
+                                placeholder="Nome mostro / NPC"
+                                value={addName}
+                                onChange={e => setAddName(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && addCombatant()}
+                                autoFocus
+                            />
+                            <div className="init-form-field">
+                                <label className="init-form-label">Init</label>
+                                <input className="init-form-input init-form-short" type="number" value={addInit} onChange={e => setAddInit(e.target.value)} />
                             </div>
-                            <div className="init-hp-controls">
-                                <button onClick={() => adjustHp(c.id, -1)} title="-1 PF"><FaMinus size={8} /></button>
-                                <span className="init-hp-val" style={{ color: hpColor }}>{c.currentHp}/{c.maxHp}</span>
-                                <button onClick={() => adjustHp(c.id, 1)} title="+1 PF"><FaPlus size={8} /></button>
+                            <div className="init-form-field">
+                                <label className="init-form-label">PF</label>
+                                <input className="init-form-input init-form-short" type="number" value={addHp} onChange={e => setAddHp(e.target.value)} />
                             </div>
-                            <div style={{ position: 'relative' }}>
-                                <button
-                                    className="btn-ghost"
-                                    style={{ padding: '0.2rem 0.4rem', fontSize: '0.7rem', color: 'var(--text-muted)' }}
-                                    onClick={() => setShowCondMenu(m => m === c.id ? null : c.id)}
-                                    title="Condizioni"
-                                >
-                                    <FaSkull size={10} />
+                            <div className="init-form-field">
+                                <label className="init-form-label">CA</label>
+                                <input className="init-form-input init-form-short" type="number" value={addAc} onChange={e => setAddAc(e.target.value)} />
+                            </div>
+                            <div className="init-form-actions">
+                                <button className="btn-primary" style={{ padding: '0.28rem 0.7rem' }} onClick={addCombatant} disabled={!addName.trim()}>
+                                    <FaPlus size={10} />
                                 </button>
-                                {showCondMenu === c.id && (
-                                    <div className="init-cond-menu" onClick={e => e.stopPropagation()}>
-                                        {DND_CONDITIONS.map(cond => (
-                                            <button
-                                                key={cond}
-                                                className={`init-cond-menu-item ${c.conditions.includes(cond) ? 'active' : ''}`}
-                                                onClick={() => toggleCondition(c.id, cond)}
-                                            >
-                                                {cond}
-                                            </button>
-                                        ))}
-                                        <button className="init-cond-menu-close" onClick={() => setShowCondMenu(null)}>Chiudi</button>
-                                    </div>
-                                )}
+                                <button className="btn-ghost" style={{ padding: '0.28rem 0.5rem' }} onClick={() => setShowAdd(false)}>
+                                    <FaTimes size={11} />
+                                </button>
                             </div>
-                            <button
-                                className="btn-ghost"
-                                style={{ padding: '0.2rem 0.4rem', color: 'rgba(192,57,43,0.6)' }}
-                                onClick={() => removeCombatant(c.id)}
-                                title="Rimuovi"
-                            >
-                                <FaTimes size={10} />
-                            </button>
                         </div>
-                    );
-                })}
-            </div>
-        </div>
-    );
+                    )}
+
+                    {/* ── Column headers ── */}
+                    {sorted.length > 0 && (
+                        <div className="init-col-headers">
+                            <span>Init</span>
+                            <span>Combattente</span>
+                            <span>PF</span>
+                            <span>CA</span>
+                            <span />
+                        </div>
+                    )}
+
+                    {/* ── List ── */}
+                    <div className="init-list">
+                        {sorted.length === 0 && (
+                            <div className="init-empty">
+                                <div className="init-empty-watermark">⚔</div>
+                                <p className="init-empty-title">Nessun combattente</p>
+                                <p className="init-empty-sub">
+                                    Usa <strong>PG</strong> per aggiungere i giocatori<br />
+                                    o <strong>Mostro</strong> per nemici e NPC
+                                </p>
+                            </div>
+                        )}
+                        {sorted.map((c) => {
+                            const isCurrent = c.id === currentId;
+                            const hpPct = c.maxHp > 0 ? Math.max(0, c.currentHp / c.maxHp) : 0;
+                            const hpColor = c.currentHp <= 0 ? '#c0392b' : hpPct > 0.5 ? '#4caf7d' : hpPct > 0.25 ? '#f0c040' : '#e05030';
+                            const isHpEditing = hpEditId === c.id;
+
+                            return (
+                                <div
+                                    key={c.id}
+                                    className={[
+                                        'init-entry',
+                                        isCurrent ? 'current' : '',
+                                        c.currentHp <= 0 ? 'dead' : '',
+                                        c.isPlayer ? 'is-player' : 'is-monster',
+                                    ].filter(Boolean).join(' ')}
+                                >
+                                    {/* Initiative */}
+                                    <div className="init-init-col">
+                                        <input
+                                            className="init-init-input"
+                                            type="number"
+                                            value={c.initiative}
+                                            onChange={e => updateInit(c.id, e.target.value)}
+                                            title="Modifica iniziativa"
+                                        />
+                                    </div>
+
+                                    {/* Name + HP bar + conditions */}
+                                    <div className="init-entry-main">
+                                        <div className="init-entry-name">
+                                            {isCurrent && <GiCrossedSwords size={10} className="init-entry-sword" />}
+                                            <span className="init-name-text">{c.name}</span>
+                                            {c.isPlayer && <span className="init-pg-badge">PG</span>}
+                                            {c.currentHp <= 0 && <span className="init-ko-badge">KO</span>}
+                                        </div>
+                                        <div className="init-hp-bar-wrap">
+                                            <div
+                                                className="init-hp-bar"
+                                                style={{ width: `${hpPct * 100}%`, background: hpColor, boxShadow: `0 0 5px ${hpColor}55` }}
+                                            />
+                                        </div>
+                                        {c.conditions.length > 0 && (
+                                            <div className="init-conditions">
+                                                {c.conditions.map(cond => (
+                                                    <span key={cond} className="init-cond-badge" onClick={() => toggleCondition(c.id, cond)}>
+                                                        {cond} ×
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* HP */}
+                                    <div className="init-hp-col">
+                                        {isHpEditing ? (
+                                            <div className="init-hp-edit">
+                                                <input
+                                                    className="init-hp-edit-input"
+                                                    type="number"
+                                                    min="0"
+                                                    value={hpDeltaStr}
+                                                    onChange={e => setHpDeltaStr(e.target.value)}
+                                                    placeholder="0"
+                                                    autoFocus
+                                                    onKeyDown={e => {
+                                                        if (e.key === 'Enter') applyHpDelta(c.id, -hpDelta);
+                                                        if (e.key === 'Escape') { setHpEditId(null); setHpDeltaStr(''); }
+                                                    }}
+                                                />
+                                                <button className="init-hp-dmg-btn" onClick={() => applyHpDelta(c.id, -hpDelta)} disabled={hpDelta === 0} title={`-${hpDelta} PF (danno)`}>
+                                                    <FaMinus size={8} />
+                                                </button>
+                                                <button className="init-hp-heal-btn" onClick={() => applyHpDelta(c.id, hpDelta)} disabled={hpDelta === 0} title={`+${hpDelta} PF (cura)`}>
+                                                    <FaPlus size={8} />
+                                                </button>
+                                                <button className="init-hp-cancel-btn" onClick={() => { setHpEditId(null); setHpDeltaStr(''); }}>
+                                                    <FaTimes size={8} />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <span
+                                                className={`init-hp-chip${!c.isPlayer ? ' editable' : ''}`}
+                                                style={{ color: hpColor }}
+                                                onClick={() => !c.isPlayer && setHpEditId(c.id)}
+                                                title={c.isPlayer ? 'PF in tempo reale dal personaggio' : 'Clicca per modificare PF'}
+                                            >
+                                                {c.isPlayer && <FaHeart size={8} className="init-hp-sync-icon" />}
+                                                <span className="init-hp-current">{c.currentHp}</span>
+                                                <span className="init-hp-sep">/{c.maxHp}</span>
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* CA */}
+                                    <div className="init-ac-col">
+                                        {c.ac != null ? (
+                                            <span className="init-ac-chip">
+                                                <FaShieldAlt size={9} />
+                                                {c.ac}
+                                            </span>
+                                        ) : (
+                                            <span className="init-ac-empty">—</span>
+                                        )}
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div className="init-entry-actions">
+                                        <div style={{ position: 'relative' }}>
+                                            <button
+                                                className="init-action-icon-btn"
+                                                onClick={() => setShowCondMenu(m => m === c.id ? null : c.id)}
+                                                title="Condizioni"
+                                            >
+                                                <FaSkull size={9} />
+                                                {c.conditions.length > 0 && (
+                                                    <span className="init-cond-count">{c.conditions.length}</span>
+                                                )}
+                                            </button>
+                                            {showCondMenu === c.id && (
+                                                <div className="init-cond-menu" onClick={e => e.stopPropagation()}>
+                                                    {DND_CONDITIONS.map(cond => (
+                                                        <button
+                                                            key={cond}
+                                                            className={`init-cond-menu-item ${c.conditions.includes(cond) ? 'active' : ''}`}
+                                                            onClick={() => toggleCondition(c.id, cond)}
+                                                        >
+                                                            {cond}
+                                                        </button>
+                                                    ))}
+                                                    <button className="init-cond-menu-close" onClick={() => setShowCondMenu(null)}>Chiudi</button>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <button
+                                            className="init-action-icon-btn init-remove-btn"
+                                            onClick={() => removeCombatant(c.id)}
+                                            title="Rimuovi dal combattimento"
+                                        >
+                                            <FaTimes size={9} />
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
 }
 
-// ─────────────────────── Campaign info panel ─────────────────────────────────
+            // ─────────────────────── Campaign info panel ─────────────────────────────────
 
-function CampaignInfoPanel({
-    campaign, onDelete, onCopyCode, copied,
+            function CampaignInfoPanel({
+                campaign, onDelete, onCopyCode, copied,
 }: {
-    campaign: Campaign;
+                campaign: Campaign;
     onDelete: () => void;
     onCopyCode: () => void;
-    copied: boolean;
+            copied: boolean;
 }) {
-    const playerCount = Object.keys(campaign.playerCharacters ?? {}).length;
-    return (
-        <div className="camp-info-panel">
-            <section className="camp-info-section">
-                <h4 className="mcv-section-title">Dettagli Campagna</h4>
-                <div className="camp-info-row">
-                    <span className="camp-info-label">Nome</span>
-                    <span className="camp-info-value">{campaign.name}</span>
-                </div>
-                {campaign.description && (
-                    <div className="camp-info-row">
-                        <span className="camp-info-label">Descrizione</span>
-                        <span className="camp-info-value">{campaign.description}</span>
-                    </div>
-                )}
-                <div className="camp-info-row">
-                    <span className="camp-info-label">Codice Invito</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <code className="campaign-invite-code" style={{ fontSize: '1rem' }}>{campaign.inviteCode}</code>
-                        <button className="btn-ghost" style={{ padding: '0.25rem 0.5rem' }} onClick={onCopyCode}>
-                            {copied ? <FaCheck style={{ color: 'var(--accent-gold)' }} /> : <FaCopy size={12} />}
-                        </button>
-                    </div>
-                </div>
-                <div className="camp-info-row">
-                    <span className="camp-info-label">Giocatori</span>
-                    <span className="camp-info-value">{playerCount}</span>
-                </div>
-            </section>
-
-            {playerCount > 0 && (
+    const playerCount = Object.keys(campaign.playerCharacters ?? { }).length;
+            return (
+            <div className="camp-info-panel">
                 <section className="camp-info-section">
-                    <h4 className="mcv-section-title">Avventurieri Collegati</h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                        {Object.entries(campaign.playerCharacters ?? {}).map(([, info]) => (
-                            <div key={info.characterId} className="camp-info-player-row">
-                                <div>
-                                    <div style={{ color: 'var(--text-primary)', fontSize: '0.88rem', fontWeight: 500 }}>{info.characterName}</div>
-                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{info.playerName}</div>
-                                </div>
-                            </div>
-                        ))}
+                    <h4 className="mcv-section-title">Dettagli Campagna</h4>
+                    <div className="camp-info-row">
+                        <span className="camp-info-label">Nome</span>
+                        <span className="camp-info-value">{campaign.name}</span>
+                    </div>
+                    {campaign.description && (
+                        <div className="camp-info-row">
+                            <span className="camp-info-label">Descrizione</span>
+                            <span className="camp-info-value">{campaign.description}</span>
+                        </div>
+                    )}
+                    <div className="camp-info-row">
+                        <span className="camp-info-label">Codice Invito</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <code className="campaign-invite-code" style={{ fontSize: '1rem' }}>{campaign.inviteCode}</code>
+                            <button className="btn-ghost" style={{ padding: '0.25rem 0.5rem' }} onClick={onCopyCode}>
+                                {copied ? <FaCheck style={{ color: 'var(--accent-gold)' }} /> : <FaCopy size={12} />}
+                            </button>
+                        </div>
+                    </div>
+                    <div className="camp-info-row">
+                        <span className="camp-info-label">Giocatori</span>
+                        <span className="camp-info-value">{playerCount}</span>
                     </div>
                 </section>
-            )}
 
-            <section className="camp-info-section">
-                <h4 className="mcv-section-title" style={{ color: 'var(--accent-crimson)' }}>Zona Pericolosa</h4>
-                <button
-                    className="btn-ghost w-full"
-                    style={{ justifyContent: 'center', color: 'var(--accent-crimson)', border: '1px solid rgba(192,57,43,0.3)' }}
-                    onClick={onDelete}
-                >
-                    <FaTrash size={11} /> Elimina Campagna
-                </button>
-            </section>
-        </div>
-    );
+                {playerCount > 0 && (
+                    <section className="camp-info-section">
+                        <h4 className="mcv-section-title">Avventurieri Collegati</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                            {Object.entries(campaign.playerCharacters ?? {}).map(([, info]) => (
+                                <div key={info.characterId} className="camp-info-player-row">
+                                    <div>
+                                        <div style={{ color: 'var(--text-primary)', fontSize: '0.88rem', fontWeight: 500 }}>{info.characterName}</div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{info.playerName}</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                <section className="camp-info-section">
+                    <h4 className="mcv-section-title" style={{ color: 'var(--accent-crimson)' }}>Zona Pericolosa</h4>
+                    <button
+                        className="btn-ghost w-full"
+                        style={{ justifyContent: 'center', color: 'var(--accent-crimson)', border: '1px solid rgba(192,57,43,0.3)' }}
+                        onClick={onDelete}
+                    >
+                        <FaTrash size={11} /> Elimina Campagna
+                    </button>
+                </section>
+            </div>
+            );
 }
 
-// ─────────────────────── Campaign list view ───────────────────────────────────
+            // ─────────────────────── Campaign list view ───────────────────────────────────
 
-function CampaignListView({
-    campaigns,
-    loading,
-    showCreate,
-    createName,
-    createDesc,
-    creating,
-    onSelect,
-    onShowCreate,
-    onCreateName,
-    onCreateDesc,
-    onCreate,
-    onCancelCreate,
+            function CampaignListView({
+                campaigns,
+                loading,
+                showCreate,
+                createName,
+                createDesc,
+                creating,
+                onSelect,
+                onShowCreate,
+                onCreateName,
+                onCreateDesc,
+                onCreate,
+                onCancelCreate,
 }: {
-    campaigns: Campaign[];
-    loading: boolean;
-    showCreate: boolean;
-    createName: string;
-    createDesc: string;
-    creating: boolean;
+                campaigns: Campaign[];
+            loading: boolean;
+            showCreate: boolean;
+            createName: string;
+            createDesc: string;
+            creating: boolean;
     onSelect: (c: Campaign) => void;
     onShowCreate: () => void;
     onCreateName: (v: string) => void;
@@ -1482,117 +1653,117 @@ function CampaignListView({
     onCancelCreate: () => void;
 }) {
     return (
-        <div className="cl-page">
-            {/* Header */}
-            <div className="cl-page-header">
-                <div className="md-sidebar-title" style={{ fontSize: '0.95rem' }}>
-                    <GiCastle size={16} />
-                    Le Mie Campagne
-                    <span className="md-count">{campaigns.length}</span>
-                </div>
-                {!showCreate && (
-                    <button className="btn-ghost" style={{ padding: '0.3rem 0.65rem', fontSize: '0.8rem' }} onClick={onShowCreate}>
-                        <FaPlus size={10} /> Nuova
-                    </button>
-                )}
-            </div>
-
-            {/* Create form */}
-            {showCreate && (
-                <div className="cl-create-form animate-fade-in">
-                    <div className="campaign-field">
-                        <label>Nome campagna *</label>
-                        <input value={createName} onChange={e => onCreateName(e.target.value)} placeholder="Es. La Torre Oscura" maxLength={80} autoFocus
-                            onKeyDown={e => e.key === 'Enter' && onCreate()} />
+            <div className="cl-page">
+                {/* Header */}
+                <div className="cl-page-header">
+                    <div className="md-sidebar-title" style={{ fontSize: '0.95rem' }}>
+                        <GiCastle size={16} />
+                        Le Mie Campagne
+                        <span className="md-count">{campaigns.length}</span>
                     </div>
-                    <div className="campaign-field">
-                        <label>Descrizione</label>
-                        <textarea value={createDesc} onChange={e => onCreateDesc(e.target.value)} placeholder="Descrizione breve…" rows={2} maxLength={500} />
-                    </div>
-                    <div className="cl-create-actions">
-                        <button className="btn-secondary" onClick={onCancelCreate} disabled={creating}>Annulla</button>
-                        <button className="btn-primary" onClick={onCreate} disabled={!createName.trim() || creating}>
-                            {creating ? 'Creazione…' : <><FaPlus size={10} /> Crea</>}
+                    {!showCreate && (
+                        <button className="btn-ghost" style={{ padding: '0.3rem 0.65rem', fontSize: '0.8rem' }} onClick={onShowCreate}>
+                            <FaPlus size={10} /> Nuova
                         </button>
-                    </div>
+                    )}
                 </div>
-            )}
 
-            {/* List */}
-            <div className="cl-list">
-                {loading && (
-                    <div className="campaign-loading" style={{ height: 'auto', padding: '2rem' }}>Caricamento…</div>
-                )}
-
-                {!loading && campaigns.length === 0 && !showCreate && (
-                    <div className="md-empty" style={{ alignItems: 'center', padding: '3rem 1.5rem' }}>
-                        <GiCastle size={40} style={{ color: 'rgba(201,168,76,0.2)', marginBottom: '1rem' }} />
-                        <p className="text-muted text-sm" style={{ textAlign: 'center', marginBottom: '1rem' }}>Nessuna campagna ancora.</p>
-                        <button className="btn-primary" onClick={onShowCreate}>
-                            <FaPlus size={10} /> Crea la tua prima campagna
-                        </button>
+                {/* Create form */}
+                {showCreate && (
+                    <div className="cl-create-form animate-fade-in">
+                        <div className="campaign-field">
+                            <label>Nome campagna *</label>
+                            <input value={createName} onChange={e => onCreateName(e.target.value)} placeholder="Es. La Torre Oscura" maxLength={80} autoFocus
+                                onKeyDown={e => e.key === 'Enter' && onCreate()} />
+                        </div>
+                        <div className="campaign-field">
+                            <label>Descrizione</label>
+                            <textarea value={createDesc} onChange={e => onCreateDesc(e.target.value)} placeholder="Descrizione breve…" rows={2} maxLength={500} />
+                        </div>
+                        <div className="cl-create-actions">
+                            <button className="btn-secondary" onClick={onCancelCreate} disabled={creating}>Annulla</button>
+                            <button className="btn-primary" onClick={onCreate} disabled={!createName.trim() || creating}>
+                                {creating ? 'Creazione…' : <><FaPlus size={10} /> Crea</>}
+                            </button>
+                        </div>
                     </div>
                 )}
 
-                {campaigns.map(c => {
-                    const playerCount = Object.keys(c.playerCharacters ?? {}).length;
-                    return (
-                        <button key={c.id} className="cl-item" onClick={() => onSelect(c)}>
-                            <div className="cl-item-avatar"><GiCastle /></div>
-                            <div className="cl-item-info">
-                                <div className="cl-item-name">{c.name}</div>
-                                {c.description && (
-                                    <div className="cl-item-desc">{c.description}</div>
-                                )}
-                                <div className="cl-item-meta">
-                                    <span><FaUsers size={10} /> {playerCount} giocator{playerCount === 1 ? 'e' : 'i'}</span>
-                                    <code className="campaign-invite-code" style={{ fontSize: '0.7rem' }}>{c.inviteCode}</code>
+                {/* List */}
+                <div className="cl-list">
+                    {loading && (
+                        <div className="campaign-loading" style={{ height: 'auto', padding: '2rem' }}>Caricamento…</div>
+                    )}
+
+                    {!loading && campaigns.length === 0 && !showCreate && (
+                        <div className="md-empty" style={{ alignItems: 'center', padding: '3rem 1.5rem' }}>
+                            <GiCastle size={40} style={{ color: 'rgba(201,168,76,0.2)', marginBottom: '1rem' }} />
+                            <p className="text-muted text-sm" style={{ textAlign: 'center', marginBottom: '1rem' }}>Nessuna campagna ancora.</p>
+                            <button className="btn-primary" onClick={onShowCreate}>
+                                <FaPlus size={10} /> Crea la tua prima campagna
+                            </button>
+                        </div>
+                    )}
+
+                    {campaigns.map(c => {
+                        const playerCount = Object.keys(c.playerCharacters ?? {}).length;
+                        return (
+                            <button key={c.id} className="cl-item" onClick={() => onSelect(c)}>
+                                <div className="cl-item-avatar"><GiCastle /></div>
+                                <div className="cl-item-info">
+                                    <div className="cl-item-name">{c.name}</div>
+                                    {c.description && (
+                                        <div className="cl-item-desc">{c.description}</div>
+                                    )}
+                                    <div className="cl-item-meta">
+                                        <span><FaUsers size={10} /> {playerCount} giocator{playerCount === 1 ? 'e' : 'i'}</span>
+                                        <code className="campaign-invite-code" style={{ fontSize: '0.7rem' }}>{c.inviteCode}</code>
+                                    </div>
                                 </div>
-                            </div>
-                        </button>
-                    );
-                })}
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
-        </div>
-    );
+            );
 }
 
-// ─────────────────────── Master page ─────────────────────────────────────────
+            // ─────────────────────── Master page ─────────────────────────────────────────
 
-export function CampaignPage({ userId, userEmail, userDisplayName, initialCampaign, onBack }: Props) {
+            export function CampaignPage({userId, userEmail, userDisplayName, initialCampaign, onBack}: Props) {
     const toast = useChatToast();
 
-    // ── Campaign list state ───────────────────────────────
-    const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-    const [view, setView] = useState<MasterView>(initialCampaign ? 'master' : 'loading');
-    const [showCreateForm, setShowCreateForm] = useState(false);
-    const [createName, setCreateName] = useState('');
-    const [createDesc, setCreateDesc] = useState('');
-    const [creating, setCreating] = useState(false);
+            // ── Campaign list state ───────────────────────────────
+            const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+            const [view, setView] = useState<MasterView>(initialCampaign ? 'master' : 'loading');
+                const [showCreateForm, setShowCreateForm] = useState(false);
+                const [createName, setCreateName] = useState('');
+                const [createDesc, setCreateDesc] = useState('');
+                const [creating, setCreating] = useState(false);
 
-    // ── Master view state ─────────────────────────────────
-    const [masterCampaign, setMasterCampaign] = useState<Campaign | null>(initialCampaign ?? null);
-    const [section, setSection] = useState<MasterSection>('players');
-    const [linkedChars, setLinkedChars] = useState<Record<string, CharacterBase>>({});
-    const [selectedUid, setSelectedUid] = useState<string | null>(null);
-    const [detailTab, setDetailTab] = useState<DetailTab>('chat');
-    const [mobileDetail, setMobileDetail] = useState(false);
-    const [playerSearch, setPlayerSearch] = useState('');
-    const [allMessages, setAllMessages] = useState<Record<string, CampaignMessage[]>>({});
-    const [chatReadAt, setChatReadAt] = useState<Record<string, number>>({});
-    const [copied, setCopied] = useState(false);
-    const [confirmDelete, setConfirmDelete] = useState(false);
+                // ── Master view state ─────────────────────────────────
+                const [masterCampaign, setMasterCampaign] = useState<Campaign | null>(initialCampaign ?? null);
+                const [section, setSection] = useState<MasterSection>('players');
+                    const [linkedChars, setLinkedChars] = useState<Record<string, CharacterBase>>({ });
+                        const [selectedUid, setSelectedUid] = useState<string | null>(null);
+                        const [detailTab, setDetailTab] = useState<DetailTab>('chat');
+                            const [mobileDetail, setMobileDetail] = useState(false);
+                            const [playerSearch, setPlayerSearch] = useState('');
+                            const [allMessages, setAllMessages] = useState<Record<string, CampaignMessage[]>>({ });
+                                const [chatReadAt, setChatReadAt] = useState<Record<string, number>>({ });
+                                    const [copied, setCopied] = useState(false);
+                                    const [confirmDelete, setConfirmDelete] = useState(false);
 
-    const prevMsgCountsRef = useRef<Record<string, number>>({});
-    const initialLoadDoneRef = useRef<Record<string, boolean>>({});
+                                    const prevMsgCountsRef = useRef<Record<string, number>>({ });
+                                        const initialLoadDoneRef = useRef<Record<string, boolean>>({ });
 
     // ── When opened via initialCampaign, restore chatReadAt from localStorage ──
     useEffect(() => {
         if (!initialCampaign?.id) return;
-        try {
+                                            try {
             const stored = localStorage.getItem(`dnd_chatReadAt_${userId}_${initialCampaign.id}`);
-            if (stored) setChatReadAt(JSON.parse(stored));
-        } catch { /* ignore */ }
+                                            if (stored) setChatReadAt(JSON.parse(stored));
+        } catch { /* ignore */}
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -1600,7 +1771,7 @@ export function CampaignPage({ userId, userEmail, userDisplayName, initialCampai
     useEffect(() => {
         if (initialCampaign) return; // skip — we came from inline list, no need
         return subscribeMasterCampaigns(userId, (camps) => {
-            setCampaigns(camps);
+                                                setCampaigns(camps);
             setView(prev => prev === 'loading' ? 'list' : prev);
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1615,394 +1786,394 @@ export function CampaignPage({ userId, userEmail, userDisplayName, initialCampai
     // ── Subscribe to linked characters ───────────────────
     useEffect(() => {
         if (view !== 'master' || !masterCampaign?.playerCharacters) return;
-        const entries = Object.entries(masterCampaign.playerCharacters);
+                                            const entries = Object.entries(masterCampaign.playerCharacters);
         const unsubs = entries.map(([uid, info]) =>
             subscribeToCharacter(info.characterId, char => {
-                if (char) setLinkedChars(prev => ({ ...prev, [uid]: char }));
+                if (char) setLinkedChars(prev => ({...prev, [uid]: char }));
             }),
-        );
+                                            );
         return () => unsubs.forEach(u => u());
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [view, masterCampaign?.id, JSON.stringify(Object.keys(masterCampaign?.playerCharacters ?? {}))]);
+    }, [view, masterCampaign?.id, JSON.stringify(Object.keys(masterCampaign?.playerCharacters ?? { }))]);
 
     // ── Subscribe to player chats ─────────────────────────
     useEffect(() => {
         if (view !== 'master' || !masterCampaign?.id) return;
-        const playerIds = Object.keys(masterCampaign.playerCharacters ?? {});
+                                            const playerIds = Object.keys(masterCampaign.playerCharacters ?? { });
         const unsubs = playerIds.map(uid =>
             subscribeToPlayerChat(masterCampaign!.id, uid, msgs =>
-                setAllMessages(prev => ({ ...prev, [uid]: msgs })),
-            ),
-        );
+                setAllMessages(prev => ({...prev, [uid]: msgs })),
+                                            ),
+                                            );
         return () => unsubs.forEach(u => u());
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [view, masterCampaign?.id, JSON.stringify(Object.keys(masterCampaign?.playerCharacters ?? {}))]);
+    }, [view, masterCampaign?.id, JSON.stringify(Object.keys(masterCampaign?.playerCharacters ?? { }))]);
 
     // ── Toast notifications ───────────────────────────────
     useEffect(() => {
-        Object.entries(allMessages).forEach(([uid, msgs]) => {
-            const prev = prevMsgCountsRef.current[uid] ?? 0;
-            const curr = msgs.length;
-            if (!initialLoadDoneRef.current[uid]) {
-                prevMsgCountsRef.current[uid] = curr;
-                initialLoadDoneRef.current[uid] = true;
-                // Auto-mark all pre-existing messages as read so no stale badge appears
-                setChatReadAt(prevRead => {
-                    if (prevRead[uid] != null) return prevRead; // already have a stored timestamp
-                    const lastPlayerTs = msgs
-                        .filter(m => m.from === 'player' && m.timestamp != null)
-                        .reduce((max, m) => {
-                            try { return Math.max(max, m.timestamp!.toDate().getTime()); } catch { return max; }
-                        }, 0);
-                    const readAt = lastPlayerTs > 0 ? lastPlayerTs : Date.now();
-                    const updated = { ...prevRead, [uid]: readAt };
-                    if (masterCampaign?.id) {
-                        try { localStorage.setItem(`dnd_chatReadAt_${userId}_${masterCampaign.id}`, JSON.stringify(updated)); } catch { }
-                    }
-                    return updated;
-                });
-                return;
-            }
-            if (curr > prev) {
-                const fromPlayer = msgs.slice(prev).filter(m => m.from === 'player');
-                if (fromPlayer.length > 0 && (selectedUid !== uid || detailTab !== 'chat')) {
-                    const last = fromPlayer[fromPlayer.length - 1];
-                    const info = masterCampaign?.playerCharacters?.[uid];
-                    const title = info ? `${info.playerName} (${info.characterName})` : 'Giocatore';
-                    const preview = last.text.length > 70 ? last.text.slice(0, 70) + '…' : last.text;
-                    toast.push(title, preview, () => selectPlayer(uid));
-                }
-            }
-            prevMsgCountsRef.current[uid] = curr;
-        });
+                                                Object.entries(allMessages).forEach(([uid, msgs]) => {
+                                                    const prev = prevMsgCountsRef.current[uid] ?? 0;
+                                                    const curr = msgs.length;
+                                                    if (!initialLoadDoneRef.current[uid]) {
+                                                        prevMsgCountsRef.current[uid] = curr;
+                                                        initialLoadDoneRef.current[uid] = true;
+                                                        // Auto-mark all pre-existing messages as read so no stale badge appears
+                                                        setChatReadAt(prevRead => {
+                                                            if (prevRead[uid] != null) return prevRead; // already have a stored timestamp
+                                                            const lastPlayerTs = msgs
+                                                                .filter(m => m.from === 'player' && m.timestamp != null)
+                                                                .reduce((max, m) => {
+                                                                    try { return Math.max(max, m.timestamp!.toDate().getTime()); } catch { return max; }
+                                                                }, 0);
+                                                            const readAt = lastPlayerTs > 0 ? lastPlayerTs : Date.now();
+                                                            const updated = { ...prevRead, [uid]: readAt };
+                                                            if (masterCampaign?.id) {
+                                                                try { localStorage.setItem(`dnd_chatReadAt_${userId}_${masterCampaign.id}`, JSON.stringify(updated)); } catch { }
+                                                            }
+                                                            return updated;
+                                                        });
+                                                        return;
+                                                    }
+                                                    if (curr > prev) {
+                                                        const fromPlayer = msgs.slice(prev).filter(m => m.from === 'player');
+                                                        if (fromPlayer.length > 0 && (selectedUid !== uid || detailTab !== 'chat')) {
+                                                            const last = fromPlayer[fromPlayer.length - 1];
+                                                            const info = masterCampaign?.playerCharacters?.[uid];
+                                                            const title = info ? `${info.playerName} (${info.characterName})` : 'Giocatore';
+                                                            const preview = last.text.length > 70 ? last.text.slice(0, 70) + '…' : last.text;
+                                                            toast.push(title, preview, () => selectPlayer(uid));
+                                                        }
+                                                    }
+                                                    prevMsgCountsRef.current[uid] = curr;
+                                                });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [allMessages]);
 
-    // ── Helpers ───────────────────────────────────────────
+                                            // ── Helpers ───────────────────────────────────────────
 
-    function getUnreadCount(uid: string): number {
+                                            function getUnreadCount(uid: string): number {
         const msgs = allMessages[uid] ?? [];
-        const readAt = chatReadAt[uid] ?? 0;
+                                            const readAt = chatReadAt[uid] ?? 0;
         return msgs.filter(m =>
             m.from === 'player' && m.timestamp != null && m.timestamp.toDate().getTime() > readAt,
-        ).length;
+                                            ).length;
     }
 
-    function markRead(uid: string) {
+                                            function markRead(uid: string) {
         const now = Date.now();
         setChatReadAt(p => {
-            const updated = { ...p, [uid]: now };
-            if (masterCampaign?.id) {
-                try { localStorage.setItem(`dnd_chatReadAt_${userId}_${masterCampaign.id}`, JSON.stringify(updated)); } catch { }
+            const updated = {...p, [uid]: now };
+                                            if (masterCampaign?.id) {
+                try {localStorage.setItem(`dnd_chatReadAt_${userId}_${masterCampaign.id}`, JSON.stringify(updated)); } catch { }
             }
-            return updated;
+                                            return updated;
         });
     }
 
-    function selectPlayer(uid: string) {
-        setSelectedUid(uid);
-        setDetailTab('chat');
-        setMobileDetail(true);
-        markRead(uid);
-        setSection('players');
+                                            function selectPlayer(uid: string) {
+                                                setSelectedUid(uid);
+                                            setDetailTab('chat');
+                                            setMobileDetail(true);
+                                            markRead(uid);
+                                            setSection('players');
     }
 
-    function openCampaign(c: Campaign) {
+                                            function openCampaign(c: Campaign) {
         // Restore persisted read timestamps for this campaign
         try {
             const stored = localStorage.getItem(`dnd_chatReadAt_${userId}_${c.id}`);
-            setChatReadAt(stored ? JSON.parse(stored) : {});
-        } catch { setChatReadAt({}); }
+                                            setChatReadAt(stored ? JSON.parse(stored) : { });
+        } catch {setChatReadAt({}); }
 
-        setMasterCampaign(c);
-        setSection('players');
-        setSelectedUid(null);
-        setMobileDetail(false);
-        setPlayerSearch('');
-        setAllMessages({});
-        prevMsgCountsRef.current = {};
-        initialLoadDoneRef.current = {};
-        setView('master');
+                                            setMasterCampaign(c);
+                                            setSection('players');
+                                            setSelectedUid(null);
+                                            setMobileDetail(false);
+                                            setPlayerSearch('');
+                                            setAllMessages({ });
+                                            prevMsgCountsRef.current = { };
+                                            initialLoadDoneRef.current = { };
+                                            setView('master');
     }
 
-    function backToList() {
-        if (onBack) { onBack(); return; }
-        setMasterCampaign(null);
-        setSelectedUid(null);
-        setLinkedChars({});
-        setAllMessages({});
-        setConfirmDelete(false);
-        setView('list');
+                                            function backToList() {
+        if (onBack) {onBack(); return; }
+                                            setMasterCampaign(null);
+                                            setSelectedUid(null);
+                                            setLinkedChars({ });
+                                            setAllMessages({ });
+                                            setConfirmDelete(false);
+                                            setView('list');
     }
 
-    async function handleCreate() {
+                                            async function handleCreate() {
         if (!createName.trim()) return;
-        setCreating(true);
-        try {
+                                            setCreating(true);
+                                            try {
             const c = await createCampaign(userId, userEmail, userDisplayName, createName, createDesc);
-            setCreateName(''); setCreateDesc('');
-            setShowCreateForm(false);
-            openCampaign(c);
-        } finally { setCreating(false); }
+                                            setCreateName(''); setCreateDesc('');
+                                            setShowCreateForm(false);
+                                            openCampaign(c);
+        } finally {setCreating(false); }
     }
 
-    async function handleDeleteCampaign() {
+                                            async function handleDeleteCampaign() {
         if (!masterCampaign) return;
-        const charIds = Object.values(masterCampaign.playerCharacters || {}).map(p => p.characterId);
-        await deleteCampaign(masterCampaign.id, charIds);
-        backToList();
+                                            const charIds = Object.values(masterCampaign.playerCharacters || { }).map(p => p.characterId);
+                                            await deleteCampaign(masterCampaign.id, charIds);
+                                            backToList();
     }
 
-    function handleCopyCode() {
+                                            function handleCopyCode() {
         if (!masterCampaign) return;
         navigator.clipboard.writeText(masterCampaign.inviteCode).catch(() => { });
-        setCopied(true);
+                                            setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     }
 
-    // ── Views ─────────────────────────────────────────────
+                                            // ── Views ─────────────────────────────────────────────
 
-    if (view === 'loading') {
+                                            if (view === 'loading') {
         return <div className="campaign-page"><div className="campaign-loading">Caricamento…</div></div>;
     }
 
-    if (view === 'list') {
+                                            if (view === 'list') {
         return (
-            <div className="campaign-page">
-                <CampaignListView
-                    campaigns={campaigns}
-                    loading={false}
-                    showCreate={showCreateForm}
-                    createName={createName}
-                    createDesc={createDesc}
-                    creating={creating}
-                    onSelect={openCampaign}
-                    onShowCreate={() => setShowCreateForm(true)}
-                    onCreateName={setCreateName}
-                    onCreateDesc={setCreateDesc}
-                    onCreate={handleCreate}
-                    onCancelCreate={() => { setShowCreateForm(false); setCreateName(''); setCreateDesc(''); }}
-                />
-            </div>
-        );
+                                            <div className="campaign-page">
+                                                <CampaignListView
+                                                    campaigns={campaigns}
+                                                    loading={false}
+                                                    showCreate={showCreateForm}
+                                                    createName={createName}
+                                                    createDesc={createDesc}
+                                                    creating={creating}
+                                                    onSelect={openCampaign}
+                                                    onShowCreate={() => setShowCreateForm(true)}
+                                                    onCreateName={setCreateName}
+                                                    onCreateDesc={setCreateDesc}
+                                                    onCreate={handleCreate}
+                                                    onCancelCreate={() => { setShowCreateForm(false); setCreateName(''); setCreateDesc(''); }}
+                                                />
+                                            </div>
+                                            );
     }
 
-    if (view === 'master' && masterCampaign) {
-        const playerEntries = Object.entries(masterCampaign.playerCharacters || {});
-        const filteredPlayers = playerSearch.trim()
+                                            if (view === 'master' && masterCampaign) {
+        const playerEntries = Object.entries(masterCampaign.playerCharacters || { });
+                                            const filteredPlayers = playerSearch.trim()
             ? playerEntries.filter(([, info]) =>
-                info.characterName.toLowerCase().includes(playerSearch.toLowerCase()) ||
-                info.playerName.toLowerCase().includes(playerSearch.toLowerCase()),
-            )
-            : playerEntries;
+                                            info.characterName.toLowerCase().includes(playerSearch.toLowerCase()) ||
+                                            info.playerName.toLowerCase().includes(playerSearch.toLowerCase()),
+                                            )
+                                            : playerEntries;
 
         const totalUnread = playerEntries.reduce((s, [uid]) => s + getUnreadCount(uid), 0);
-        const selectedInfo = selectedUid ? masterCampaign.playerCharacters?.[selectedUid] : null;
-        const selectedChar = selectedUid ? linkedChars[selectedUid] : undefined;
+                                            const selectedInfo = selectedUid ? masterCampaign.playerCharacters?.[selectedUid] : null;
+                                            const selectedChar = selectedUid ? linkedChars[selectedUid] : undefined;
 
-        const metaNav: { id: MasterSection; label: string; icon: React.ReactNode; badge?: number }[] = [
-            { id: 'players', label: 'Avventurieri', icon: <FaUsers size={16} />, badge: totalUnread || undefined },
-            { id: 'notes', label: 'Note DM', icon: <FaStickyNote size={16} /> },
-            { id: 'glossary', label: 'Glossario', icon: <FaBook size={15} /> },
-            { id: 'initiative', label: 'Iniziativa', icon: <GiCrossedSwords size={18} /> },
-            { id: 'info', label: 'Campagna', icon: <FaCog size={15} /> },
-        ];
+                                            const metaNav: {id: MasterSection; label: string; icon: React.ReactNode; badge?: number }[] = [
+                                            {id: 'players', label: 'Avventurieri', icon: <FaUsers size={16} />, badge: totalUnread || undefined },
+                                            {id: 'notes', label: 'Note DM', icon: <FaStickyNote size={16} /> },
+                                            {id: 'glossary', label: 'Glossario', icon: <FaBook size={15} /> },
+                                            {id: 'initiative', label: 'Iniziativa', icon: <GiCrossedSwords size={18} /> },
+                                            {id: 'info', label: 'Campagna', icon: <FaCog size={15} /> },
+                                            ];
 
-        return (
-            <div className="campaign-page campaign-master">
-                {/* ── Top header ── */}
-                <div className="campaign-header">
-                    <button className="btn-ghost" style={{ padding: '0.3rem 0.6rem', flexShrink: 0 }} onClick={backToList}>
-                        <FaChevronLeft size={11} /> Campagne
-                    </button>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                        <h2>{masterCampaign.name}</h2>
-                        {masterCampaign.description && (
-                            <p className="text-muted text-sm" style={{ margin: 0 }}>{masterCampaign.description}</p>
-                        )}
-                    </div>
-                    <div className="campaign-invite-row" style={{ flexShrink: 0 }}>
-                        <span className="text-muted" style={{ fontSize: '0.72rem' }}>Codice:</span>
-                        <code className="campaign-invite-code">{masterCampaign.inviteCode}</code>
-                        <button className="btn-ghost" onClick={handleCopyCode} title="Copia codice" style={{ padding: '0.25rem 0.5rem' }}>
-                            {copied ? <FaCheck style={{ color: 'var(--accent-gold)' }} /> : <FaCopy size={12} />}
-                        </button>
-                    </div>
-                </div>
-
-                {/* ── Master body: meta-nav + section content ── */}
-                <div className="master-body">
-
-                    {/* ── Left meta-nav ── */}
-                    <nav className="master-meta-nav">
-                        {metaNav.map(item => (
-                            <button
-                                key={item.id}
-                                className={`master-meta-btn ${section === item.id ? 'active' : ''}`}
-                                onClick={() => setSection(item.id)}
-                                title={item.label}
-                            >
-                                <span className="meta-icon">{item.icon}</span>
-                                <span className="meta-label">{item.label}</span>
-                                {item.badge != null && item.badge > 0 && (
-                                    <span className="meta-badge">{item.badge > 9 ? '9+' : item.badge}</span>
-                                )}
-                            </button>
-                        ))}
-                    </nav>
-
-                    {/* ── Section content ── */}
-                    <div className="master-section-content">
-
-                        {/* PLAYERS section */}
-                        {section === 'players' && (
-                            <div className={`md-layout ${mobileDetail ? 'mobile-detail' : ''}`}>
-                                <aside className="md-sidebar">
-                                    <div className="md-sidebar-header">
-                                        <div className="md-sidebar-title">
-                                            <FaUsers size={13} />
-                                            Avventurieri
-                                            <span className="md-count">{playerEntries.length}</span>
-                                            {totalUnread > 0 && (
-                                                <span className="campaign-unread-badge" style={{ position: 'static', marginLeft: 2 }}>
-                                                    {totalUnread > 9 ? '9+' : totalUnread}
-                                                </span>
-                                            )}
-                                        </div>
-                                        {playerEntries.length > 2 && (
-                                            <div className="md-search-box">
-                                                <FaSearch size={11} className="md-search-icon" />
-                                                <input
-                                                    className="md-search-input"
-                                                    placeholder="Cerca giocatore…"
-                                                    value={playerSearch}
-                                                    onChange={e => setPlayerSearch(e.target.value)}
-                                                />
-                                                {playerSearch && (
-                                                    <button className="md-search-clear" onClick={() => setPlayerSearch('')}>
-                                                        <FaTimes size={10} />
+                                            return (
+                                            <div className="campaign-page campaign-master">
+                                                {/* ── Top header ── */}
+                                                <div className="campaign-header">
+                                                    <button className="btn-ghost" style={{ padding: '0.3rem 0.6rem', flexShrink: 0 }} onClick={backToList}>
+                                                        <FaChevronLeft size={11} /> Campagne
                                                     </button>
+                                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                                        <h2>{masterCampaign.name}</h2>
+                                                        {masterCampaign.description && (
+                                                            <p className="text-muted text-sm" style={{ margin: 0 }}>{masterCampaign.description}</p>
+                                                        )}
+                                                    </div>
+                                                    <div className="campaign-invite-row" style={{ flexShrink: 0 }}>
+                                                        <span className="text-muted" style={{ fontSize: '0.72rem' }}>Codice:</span>
+                                                        <code className="campaign-invite-code">{masterCampaign.inviteCode}</code>
+                                                        <button className="btn-ghost" onClick={handleCopyCode} title="Copia codice" style={{ padding: '0.25rem 0.5rem' }}>
+                                                            {copied ? <FaCheck style={{ color: 'var(--accent-gold)' }} /> : <FaCopy size={12} />}
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {/* ── Master body: meta-nav + section content ── */}
+                                                <div className="master-body">
+
+                                                    {/* ── Left meta-nav ── */}
+                                                    <nav className="master-meta-nav">
+                                                        {metaNav.map(item => (
+                                                            <button
+                                                                key={item.id}
+                                                                className={`master-meta-btn ${section === item.id ? 'active' : ''}`}
+                                                                onClick={() => setSection(item.id)}
+                                                                title={item.label}
+                                                            >
+                                                                <span className="meta-icon">{item.icon}</span>
+                                                                <span className="meta-label">{item.label}</span>
+                                                                {item.badge != null && item.badge > 0 && (
+                                                                    <span className="meta-badge">{item.badge > 9 ? '9+' : item.badge}</span>
+                                                                )}
+                                                            </button>
+                                                        ))}
+                                                    </nav>
+
+                                                    {/* ── Section content ── */}
+                                                    <div className="master-section-content">
+
+                                                        {/* PLAYERS section */}
+                                                        {section === 'players' && (
+                                                            <div className={`md-layout ${mobileDetail ? 'mobile-detail' : ''}`}>
+                                                                <aside className="md-sidebar">
+                                                                    <div className="md-sidebar-header">
+                                                                        <div className="md-sidebar-title">
+                                                                            <FaUsers size={13} />
+                                                                            Avventurieri
+                                                                            <span className="md-count">{playerEntries.length}</span>
+                                                                            {totalUnread > 0 && (
+                                                                                <span className="campaign-unread-badge" style={{ position: 'static', marginLeft: 2 }}>
+                                                                                    {totalUnread > 9 ? '9+' : totalUnread}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        {playerEntries.length > 2 && (
+                                                                            <div className="md-search-box">
+                                                                                <FaSearch size={11} className="md-search-icon" />
+                                                                                <input
+                                                                                    className="md-search-input"
+                                                                                    placeholder="Cerca giocatore…"
+                                                                                    value={playerSearch}
+                                                                                    onChange={e => setPlayerSearch(e.target.value)}
+                                                                                />
+                                                                                {playerSearch && (
+                                                                                    <button className="md-search-clear" onClick={() => setPlayerSearch('')}>
+                                                                                        <FaTimes size={10} />
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="md-player-list">
+                                                                        {filteredPlayers.length === 0 ? (
+                                                                            <div className="md-empty">
+                                                                                {playerEntries.length === 0
+                                                                                    ? <>
+                                                                                        <p className="text-muted text-sm" style={{ textAlign: 'center' }}>Nessun giocatore ancora.</p>
+                                                                                        <p className="text-muted text-sm" style={{ textAlign: 'center' }}>
+                                                                                            Condividi <code className="campaign-invite-code" style={{ fontSize: '0.9rem' }}>{masterCampaign.inviteCode}</code>
+                                                                                        </p>
+                                                                                    </>
+                                                                                    : <p className="text-muted text-sm" style={{ textAlign: 'center' }}>Nessun risultato.</p>
+                                                                                }
+                                                                            </div>
+                                                                        ) : (
+                                                                            filteredPlayers.map(([uid, info]) => (
+                                                                                <PlayerListItem
+                                                                                    key={uid}
+                                                                                    uid={uid}
+                                                                                    info={info}
+                                                                                    char={linkedChars[uid]}
+                                                                                    unread={getUnreadCount(uid)}
+                                                                                    selected={selectedUid === uid}
+                                                                                    onClick={() => selectPlayer(uid)}
+                                                                                />
+                                                                            ))
+                                                                        )}
+                                                                    </div>
+                                                                </aside>
+
+                                                                <div className="md-detail-area">
+                                                                    {mobileDetail && (
+                                                                        <button className="md-back-btn" onClick={() => setMobileDetail(false)}>
+                                                                            <FaChevronLeft size={12} /> Giocatori
+                                                                        </button>
+                                                                    )}
+                                                                    {selectedUid && selectedInfo ? (
+                                                                        <DetailPanel
+                                                                            uid={selectedUid}
+                                                                            info={selectedInfo}
+                                                                            char={selectedChar}
+                                                                            messages={allMessages[selectedUid] ?? []}
+                                                                            campaignId={masterCampaign.id}
+                                                                            masterName={userDisplayName}
+                                                                            unread={getUnreadCount(selectedUid)}
+                                                                            onMarkRead={() => markRead(selectedUid)}
+                                                                            tab={detailTab}
+                                                                            onTabChange={setDetailTab}
+                                                                        />
+                                                                    ) : (
+                                                                        <div className="md-empty-detail">
+                                                                            <GiCastle size={48} style={{ color: 'rgba(201,168,76,0.2)', marginBottom: '1rem' }} />
+                                                                            <p className="text-muted">Seleziona un avventuriero dalla lista</p>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* NOTES section */}
+                                                        {section === 'notes' && (
+                                                            <NotesPanel campaign={masterCampaign} campaignId={masterCampaign.id} />
+                                                        )}
+
+                                                        {/* GLOSSARY section */}
+                                                        {section === 'glossary' && (
+                                                            <MasterGlossaryPanel
+                                                                campaignId={masterCampaign.id}
+                                                                masterId={userId}
+                                                                playerCharacters={masterCampaign.playerCharacters ?? {}}
+                                                            />
+                                                        )}
+
+                                                        {/* INITIATIVE section — always mounted to preserve combat state across tab changes */}
+                                                        <div style={{ display: section === 'initiative' ? 'flex' : 'none', flexDirection: 'column', flex: 1, overflow: 'hidden', minHeight: 0 }}>
+                                                            <InitiativeTracker
+                                                                linkedChars={linkedChars}
+                                                                playerCharacters={masterCampaign.playerCharacters ?? {}}
+                                                            />
+                                                        </div>
+
+                                                        {/* INFO section */}
+                                                        {section === 'info' && (
+                                                            <CampaignInfoPanel
+                                                                campaign={masterCampaign}
+                                                                onDelete={() => setConfirmDelete(true)}
+                                                                onCopyCode={handleCopyCode}
+                                                                copied={copied}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Confirm delete modal */}
+                                                {confirmDelete && (
+                                                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.82)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+                                                        <div className="glass-panel animate-fade-in" style={{ width: 360, textAlign: 'center' }}>
+                                                            <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>⚠️</div>
+                                                            <h3 style={{ fontFamily: 'var(--font-heading)', color: 'var(--accent-crimson)', marginBottom: '0.5rem' }}>Elimina Campagna</h3>
+                                                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginBottom: '0.5rem' }}>
+                                                                Sei sicuro di voler eliminare <strong style={{ color: 'var(--text-primary)' }}>{masterCampaign.name}</strong>?
+                                                            </p>
+                                                            <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginBottom: '1.5rem' }}>
+                                                                Tutti i giocatori verranno scollegati e le chat eliminate.
+                                                            </p>
+                                                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                                                <button className="btn-secondary w-full" style={{ justifyContent: 'center' }} onClick={() => setConfirmDelete(false)}>Annulla</button>
+                                                                <button className="btn-primary w-full" style={{ justifyContent: 'center', background: 'var(--accent-crimson)', borderColor: 'var(--accent-crimson)' }} onClick={handleDeleteCampaign}>
+                                                                    <FaTrash size={11} /> Elimina
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 )}
                                             </div>
-                                        )}
-                                    </div>
-                                    <div className="md-player-list">
-                                        {filteredPlayers.length === 0 ? (
-                                            <div className="md-empty">
-                                                {playerEntries.length === 0
-                                                    ? <>
-                                                        <p className="text-muted text-sm" style={{ textAlign: 'center' }}>Nessun giocatore ancora.</p>
-                                                        <p className="text-muted text-sm" style={{ textAlign: 'center' }}>
-                                                            Condividi <code className="campaign-invite-code" style={{ fontSize: '0.9rem' }}>{masterCampaign.inviteCode}</code>
-                                                        </p>
-                                                    </>
-                                                    : <p className="text-muted text-sm" style={{ textAlign: 'center' }}>Nessun risultato.</p>
-                                                }
-                                            </div>
-                                        ) : (
-                                            filteredPlayers.map(([uid, info]) => (
-                                                <PlayerListItem
-                                                    key={uid}
-                                                    uid={uid}
-                                                    info={info}
-                                                    char={linkedChars[uid]}
-                                                    unread={getUnreadCount(uid)}
-                                                    selected={selectedUid === uid}
-                                                    onClick={() => selectPlayer(uid)}
-                                                />
-                                            ))
-                                        )}
-                                    </div>
-                                </aside>
-
-                                <div className="md-detail-area">
-                                    {mobileDetail && (
-                                        <button className="md-back-btn" onClick={() => setMobileDetail(false)}>
-                                            <FaChevronLeft size={12} /> Giocatori
-                                        </button>
-                                    )}
-                                    {selectedUid && selectedInfo ? (
-                                        <DetailPanel
-                                            uid={selectedUid}
-                                            info={selectedInfo}
-                                            char={selectedChar}
-                                            messages={allMessages[selectedUid] ?? []}
-                                            campaignId={masterCampaign.id}
-                                            masterName={userDisplayName}
-                                            unread={getUnreadCount(selectedUid)}
-                                            onMarkRead={() => markRead(selectedUid)}
-                                            tab={detailTab}
-                                            onTabChange={setDetailTab}
-                                        />
-                                    ) : (
-                                        <div className="md-empty-detail">
-                                            <GiCastle size={48} style={{ color: 'rgba(201,168,76,0.2)', marginBottom: '1rem' }} />
-                                            <p className="text-muted">Seleziona un avventuriero dalla lista</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* NOTES section */}
-                        {section === 'notes' && (
-                            <NotesPanel campaign={masterCampaign} campaignId={masterCampaign.id} />
-                        )}
-
-                        {/* GLOSSARY section */}
-                        {section === 'glossary' && (
-                            <MasterGlossaryPanel
-                                campaignId={masterCampaign.id}
-                                masterId={userId}
-                                playerCharacters={masterCampaign.playerCharacters ?? {}}
-                            />
-                        )}
-
-                        {/* INITIATIVE section */}
-                        {section === 'initiative' && (
-                            <InitiativeTracker
-                                linkedChars={linkedChars}
-                                playerCharacters={masterCampaign.playerCharacters ?? {}}
-                            />
-                        )}
-
-                        {/* INFO section */}
-                        {section === 'info' && (
-                            <CampaignInfoPanel
-                                campaign={masterCampaign}
-                                onDelete={() => setConfirmDelete(true)}
-                                onCopyCode={handleCopyCode}
-                                copied={copied}
-                            />
-                        )}
-                    </div>
-                </div>
-
-                {/* Confirm delete modal */}
-                {confirmDelete && (
-                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.82)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-                        <div className="glass-panel animate-fade-in" style={{ width: 360, textAlign: 'center' }}>
-                            <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>⚠️</div>
-                            <h3 style={{ fontFamily: 'var(--font-heading)', color: 'var(--accent-crimson)', marginBottom: '0.5rem' }}>Elimina Campagna</h3>
-                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginBottom: '0.5rem' }}>
-                                Sei sicuro di voler eliminare <strong style={{ color: 'var(--text-primary)' }}>{masterCampaign.name}</strong>?
-                            </p>
-                            <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginBottom: '1.5rem' }}>
-                                Tutti i giocatori verranno scollegati e le chat eliminate.
-                            </p>
-                            <div style={{ display: 'flex', gap: '0.75rem' }}>
-                                <button className="btn-secondary w-full" style={{ justifyContent: 'center' }} onClick={() => setConfirmDelete(false)}>Annulla</button>
-                                <button className="btn-primary w-full" style={{ justifyContent: 'center', background: 'var(--accent-crimson)', borderColor: 'var(--accent-crimson)' }} onClick={handleDeleteCampaign}>
-                                    <FaTrash size={11} /> Elimina
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
-        );
+                                            );
     }
 
-    return null;
+                                            return null;
 }
 
