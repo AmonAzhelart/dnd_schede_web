@@ -17,7 +17,7 @@ import {
     type Timestamp,
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import type { Campaign, CampaignMessage, CampaignGlossaryEntry, GlossarySection, MasterNote } from '../types/campaign';
+import type { Campaign, CampaignMessage, CampaignGlossaryEntry, GlossarySection, MasterNote, InitiativeCombatState } from '../types/campaign';
 import { loadCharacterFromDb } from './db';
 import type { CharacterBase } from '../types/dnd';
 
@@ -345,4 +345,19 @@ export async function loadLinkedCharacters(
         }),
     );
     return result;
+}
+
+// ─────────────────────── initiative persistence ───────────────────────
+
+/** Save (or clear) the current initiative combat state for a campaign. */
+export async function saveInitiativeCombat(
+    campaignId: string,
+    state: InitiativeCombatState | null,
+): Promise<void> {
+    const ref = doc(db, 'campaigns', campaignId);
+    if (state === null) {
+        await updateDoc(ref, { initiativeCombat: deleteField() });
+    } else {
+        await updateDoc(ref, { initiativeCombat: { ...state, savedAt: Date.now() } });
+    }
 }

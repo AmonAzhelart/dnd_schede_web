@@ -64,6 +64,27 @@ export interface Campaign {
     }>;
     /** DM-only notes (stored per-campaign) */
     masterNotes?: MasterNote[];
+    /** Active combat state (initiative tracker) — persisted so fights can be resumed */
+    initiativeCombat?: InitiativeCombatState;
+}
+
+export interface InitiativeCombatant {
+    id: string;
+    name: string;
+    initiative: number;
+    currentHp: number;
+    maxHp: number;
+    ac?: number;
+    isPlayer: boolean;
+    playerId?: string;
+    conditions: string[];
+}
+
+export interface InitiativeCombatState {
+    combatants: InitiativeCombatant[];
+    round: number;
+    currentIdx: number;
+    savedAt?: number;
 }
 
 export interface CampaignMessage {

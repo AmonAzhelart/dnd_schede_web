@@ -9,6 +9,7 @@ import {
     createCampaign,
     deleteCampaign,
     saveMasterNotes,
+    saveInitiativeCombat,
     sendCampaignMessage,
     subscribeMasterCampaigns,
     subscribeToPlayerChat,
@@ -22,7 +23,7 @@ import {
     type ChatMeta,
 } from '../../services/campaign';
 import { subscribeToCharacter } from '../../services/db';
-import type { Campaign, CampaignMessage, CampaignGlossaryEntry, GlossarySection, MasterNote } from '../../types/campaign';
+import type { Campaign, CampaignMessage, CampaignGlossaryEntry, GlossarySection, MasterNote, InitiativeCombatState } from '../../types/campaign';
 import type { CharacterBase } from '../../types/dnd';
 import {
     StatsTab, SkillsTab, InventoryTab, SpellsTab, FeatsTab,
@@ -1155,14 +1156,16 @@ function MasterGlossaryPanel({ campaignId, masterId, playerCharacters }: MasterG
 // ─────────────────────── Initiative tracker ───────────────────────────────────
 
 function InitiativeTracker({
-    linkedChars, playerCharacters,
+    linkedChars, playerCharacters, campaignId, savedCombat,
 }: {
     linkedChars: Record<string, CharacterBase>;
     playerCharacters: Campaign['playerCharacters'];
+    campaignId: string;
+    savedCombat?: InitiativeCombatState;
 }) {
-    const [combatants, setCombatants] = useState<InitCombatant[]>([]);
-    const [round, setRound] = useState(1);
-    const [currentIdx, setCurrentIdx] = useState(0);
+    const [combatants, setCombatants] = useState<InitCombatant[]>(() => savedCombat?.combatants ?? []);
+    const [round, setRound] = useState(() => savedCombat?.round ?? 1);
+    const [currentIdx, setCurrentIdx] = useState(() => savedCombat?.currentIdx ?? 0);
     const [addName, setAddName] = useState('');
     const [addInit, setAddInit] = useState('');
     const [addHp, setAddHp] = useState('');
@@ -1171,6 +1174,8 @@ function InitiativeTracker({
     const [showCondMenu, setShowCondMenu] = useState<string | null>(null);
     const [hpEditId, setHpEditId] = useState<string | null>(null);
     const [hpDeltaStr, setHpDeltaStr] = useState('');
+    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const isFirstMount = useRef(true);
 
     // Sync player HP and AC from real-time linkedChars
     useEffect(() => {
@@ -1191,6 +1196,22 @@ function InitiativeTracker({
             return changed ? next : prev;
         });
     }, [linkedChars]);
+
+    // Auto-save to Firestore (debounced 1.5 s) whenever combat state changes
+    useEffect(() => {
+        if (isFirstMount.current) {
+            isFirstMount.current = false;
+            return;
+        }
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(() => {
+            saveInitiativeCombat(campaignId, { combatants, round, currentIdx });
+        }, 1500);
+        return () => {
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [combatants, round, currentIdx]);
 
     const sorted = useMemo(
         () => [...combatants].sort((a, b) => b.initiative - a.initiative),
@@ -1217,6 +1238,7 @@ function InitiativeTracker({
         setCombatants([]);
         setRound(1);
         setCurrentIdx(0);
+        saveInitiativeCombat(campaignId, null);
     }
 
     function addCombatant() {
@@ -1347,39 +1369,36 @@ function InitiativeTracker({
             {/* Add form */}
             {showAdd && (
                 <div className="init-add-form">
-                    {/* ── Add form ── */}
-                    {showAdd && (
-                        <div className="init-add-form">
-                            <input
-                                className="init-form-input init-form-name"
-                                placeholder="Nome mostro / NPC"
-                                value={addName}
-                                onChange={e => setAddName(e.target.value)}
-                                onKeyDown={e => e.key === 'Enter' && addCombatant()}
-                                autoFocus
-                            />
-                            <div className="init-form-field">
-                                <label className="init-form-label">Init</label>
-                                <input className="init-form-input init-form-short" type="number" value={addInit} onChange={e => setAddInit(e.target.value)} />
-                            </div>
-                            <div className="init-form-field">
-                                <label className="init-form-label">PF</label>
-                                <input className="init-form-input init-form-short" type="number" value={addHp} onChange={e => setAddHp(e.target.value)} />
-                            </div>
-                            <div className="init-form-field">
-                                <label className="init-form-label">CA</label>
-                                <input className="init-form-input init-form-short" type="number" value={addAc} onChange={e => setAddAc(e.target.value)} />
-                            </div>
-                            <div className="init-form-actions">
-                                <button className="btn-primary" style={{ padding: '0.28rem 0.7rem' }} onClick={addCombatant} disabled={!addName.trim()}>
-                                    <FaPlus size={10} />
-                                </button>
-                                <button className="btn-ghost" style={{ padding: '0.28rem 0.5rem' }} onClick={() => setShowAdd(false)}>
-                                    <FaTimes size={11} />
-                                </button>
-                            </div>
-                        </div>
-                    )}
+                    <input
+                        className="init-form-input init-form-name"
+                        placeholder="Nome mostro / NPC"
+                        value={addName}
+                        onChange={e => setAddName(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && addCombatant()}
+                        autoFocus
+                    />
+                    <div className="init-form-field">
+                        <label className="init-form-label">Init</label>
+                        <input className="init-form-input init-form-short" type="number" value={addInit} onChange={e => setAddInit(e.target.value)} />
+                    </div>
+                    <div className="init-form-field">
+                        <label className="init-form-label">PF</label>
+                        <input className="init-form-input init-form-short" type="number" value={addHp} onChange={e => setAddHp(e.target.value)} />
+                    </div>
+                    <div className="init-form-field">
+                        <label className="init-form-label">CA</label>
+                        <input className="init-form-input init-form-short" type="number" value={addAc} onChange={e => setAddAc(e.target.value)} />
+                    </div>
+                    <div className="init-form-actions">
+                        <button className="btn-primary" style={{ padding: '0.28rem 0.7rem' }} onClick={addCombatant} disabled={!addName.trim()}>
+                            <FaPlus size={10} />
+                        </button>
+                        <button className="btn-ghost" style={{ padding: '0.28rem 0.5rem' }} onClick={() => setShowAdd(false)}>
+                            <FaTimes size={11} />
+                        </button>
+                    </div>
+                </div>
+            )}
 
                     {/* ── Column headers ── */}
                     {sorted.length > 0 && (
@@ -1549,22 +1568,22 @@ function InitiativeTracker({
                             );
                         })}
                     </div>
-                </div>
-            );
+        </div>
+    );
 }
 
-            // ─────────────────────── Campaign info panel ─────────────────────────────────
+// ─────────────────────── Campaign info panel ─────────────────────────────────
 
-            function CampaignInfoPanel({
-                campaign, onDelete, onCopyCode, copied,
+function CampaignInfoPanel({
+    campaign, onDelete, onCopyCode, copied,
 }: {
-                campaign: Campaign;
+    campaign: Campaign;
     onDelete: () => void;
     onCopyCode: () => void;
-            copied: boolean;
+    copied: boolean;
 }) {
-    const playerCount = Object.keys(campaign.playerCharacters ?? { }).length;
-            return (
+    const playerCount = Object.keys(campaign.playerCharacters ?? {}).length;
+    return (
             <div className="camp-info-panel">
                 <section className="camp-info-section">
                     <h4 className="mcv-section-title">Dettagli Campagna</h4>
@@ -2134,6 +2153,8 @@ function InitiativeTracker({
                                                             <InitiativeTracker
                                                                 linkedChars={linkedChars}
                                                                 playerCharacters={masterCampaign.playerCharacters ?? {}}
+                                                                campaignId={masterCampaign.id}
+                                                                savedCombat={masterCampaign.initiativeCombat}
                                                             />
                                                         </div>
 
