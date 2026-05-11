@@ -140,6 +140,9 @@ export const LevelsTab: React.FC = () => {
     const [isClassPickerOpen, setIsClassPickerOpen] = useState(false);
     const [classPickerForId, setClassPickerForId] = useState<string | null>(null);
 
+    // Mobile tab navigation
+    const [mobileTab, setMobileTab] = useState<'stats' | 'xp' | 'classi' | 'pf'>('stats');
+
     // For each log entry (position = total char level), compute HP per class
     const logEntriesByClass = new Map<string, { totalLevel: number; hp: number }[]>();
     hpLevelLog.forEach((entry, idx) => {
@@ -227,7 +230,30 @@ export const LevelsTab: React.FC = () => {
 
     return (
         <>
-            <div className="levels-tab animate-fade-in">
+            <div className="levels-tab animate-fade-in" data-mobile-tab={mobileTab}>
+
+                {/* ─── Mobile tab navigation ─────────────────────── */}
+                <div className="lv-mob-tabs">
+                    <button className={`lv-mob-tab${mobileTab === 'stats' ? ' active' : ''}`} onClick={() => setMobileTab('stats')}>
+                        <GiUpgrade size={16} />
+                        <span>Sommario</span>
+                    </button>
+                    <button className={`lv-mob-tab${mobileTab === 'xp' ? ' active' : ''}`} onClick={() => setMobileTab('xp')}>
+                        <FaStar size={14} />
+                        <span>PE</span>
+                    </button>
+                    <button className={`lv-mob-tab${mobileTab === 'classi' ? ' active' : ''}`} onClick={() => setMobileTab('classi')}>
+                        <GiDragonHead size={16} />
+                        <span>Classi</span>
+                    </button>
+                    <button className={`lv-mob-tab${mobileTab === 'pf' ? ' active' : ''}`} onClick={() => setMobileTab('pf')}>
+                        <FaHeart size={14} />
+                        <span>PF</span>
+                    </button>
+                </div>
+
+                {/* ─── STATS SECTION ──────────────────────────────── */}
+                <div className="lv-section lv-section-stats">
 
                 {/* ─── Hero summary ─────────────────────────────── */}
                 <div className="lv-hero">
@@ -321,6 +347,11 @@ export const LevelsTab: React.FC = () => {
                         </div>
                     </div>
                 )}
+
+                </div>{/* /lv-section-stats */}
+
+                {/* ─── XP SECTION ─────────────────────────────────── */}
+                <div className="lv-section lv-section-xp">
 
                 {/* ─── XP Panel ──────────────────────────────────── */}
                 <div className="lv-xp-panel">
@@ -536,6 +567,11 @@ export const LevelsTab: React.FC = () => {
                     </div>
                 </details>
 
+                </div>{/* /lv-section-xp */}
+
+                {/* ─── CLASSI SECTION ─────────────────────────────── */}
+                <div className="lv-section lv-section-classi">
+
                 {/* ─── Section header ────────────────────────────── */}
                 <div className="lv-section-head">
                     <h3>Classi del Personaggio</h3>
@@ -602,7 +638,7 @@ export const LevelsTab: React.FC = () => {
                                     >+</button>
                                 </div>
 
-                                <div title="Progressione del Bonus di Attacco Base">
+                                <div className="lv-bab-wrap" title="Progressione del Bonus di Attacco Base">
                                     <div style={{ fontSize: '0.55rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 3, textAlign: 'center' }}>
                                         BAB
                                     </div>
@@ -620,7 +656,7 @@ export const LevelsTab: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <div title="Dado Vita (Hit Die)">
+                                <div className="lv-hd-wrap" title="Dado Vita (Hit Die)">
                                     <div style={{ fontSize: '0.55rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 3, textAlign: 'center' }}>
                                         Dado Vita
                                     </div>
@@ -793,6 +829,11 @@ export const LevelsTab: React.FC = () => {
                     );
                 })}
 
+                </div>{/* /lv-section-classi */}
+
+                {/* ─── PF SECTION ─────────────────────────────────── */}
+                <div className="lv-section lv-section-pf">
+
                 {/* ─── HP Acquisition log ──────────────────────── */}
                 {hpLevelLog.length > 0 && (
                     <details className="lv-formula lv-hp-log-details" open>
@@ -865,6 +906,8 @@ export const LevelsTab: React.FC = () => {
                         </ul>
                     </div>
                 </details>
+
+                </div>{/* /lv-section-pf */}
             </div>
 
             {/* Class Picker Modal */}

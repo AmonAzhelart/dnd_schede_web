@@ -542,15 +542,7 @@
     gap: 0;
 }
 
-@media (max-width: 700px) {
-    .lv-saves-grid {
-        grid-template-columns: 1fr;
-    }
 
-    .lv-card-head {
-        grid-template-columns: 1fr 1fr;
-    }
-}
 
 .lv-save-cell {
     padding: 0.7rem 0.9rem;
@@ -1006,16 +998,7 @@
     cursor: default;
 }
 
-@media (max-width: 700px) {
-    .lv-card-head {
-        grid-template-columns: 1fr 1fr;
-    }
 
-    .lv-log-row {
-        grid-template-columns: 20px 1fr 44px 66px auto;
-        gap: 0.35rem;
-    }
-}
 
 /* ─── Level-up alert ─────────────────────────────────────────── */
 .lv-levelup-alert {
@@ -1388,4 +1371,246 @@
     color: var(--accent-crimson);
     border-color: rgba(192, 57, 43, 0.3);
     background: rgba(192, 57, 43, 0.08);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE TAB NAVIGATION + SECTION LAYOUT
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Desktop: section wrappers are transparent (children merge into parent flex) */
+.lv-section {
+    display: contents;
+}
+
+/* Desktop: hide mobile tab bar */
+.lv-mob-tabs {
+    display: none;
+}
+
+/* ─── Mobile breakpoint ≤ 600px ─────────────────────────────── */
+@media (max-width: 600px) {
+
+    /* ── Tab bar ── */
+    .lv-mob-tabs {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        background: rgba(10, 10, 18, 0.97);
+        border: 1px solid rgba(201, 168, 76, 0.22);
+        border-radius: 10px;
+        overflow: hidden;
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+
+    .lv-mob-tab {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        padding: 9px 4px 7px;
+        border: none;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 0.58rem;
+        letter-spacing: 0.07em;
+        font-family: var(--font-heading);
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: color 0.15s, background 0.15s, border-color 0.15s;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+    }
+
+    .lv-mob-tab.active {
+        color: var(--accent-gold);
+        background: rgba(201, 168, 76, 0.09);
+        border-bottom-color: var(--accent-gold);
+    }
+
+    /* ── Sections: hide all, show only active ── */
+    .lv-section {
+        display: none;
+        flex-direction: column;
+        gap: 0.85rem;
+    }
+
+    .levels-tab[data-mobile-tab="stats"] .lv-section-stats,
+    .levels-tab[data-mobile-tab="xp"] .lv-section-xp,
+    .levels-tab[data-mobile-tab="classi"] .lv-section-classi,
+    .levels-tab[data-mobile-tab="pf"] .lv-section-pf {
+        display: flex;
+    }
+
+    /* ── Hero grid: 2×3 on mobile ── */
+    .lv-hero {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .lv-hero-cell {
+        padding: 0.6rem 0.75rem;
+    }
+
+    .lv-hero-cell .lv-big {
+        font-size: 1.5rem;
+    }
+
+    /* Hide chip detail rows in hero to keep it compact */
+    .lv-hero-cell .lv-sub {
+        display: none;
+    }
+
+    /* ── Level-up alert ── */
+    .lv-levelup-alert {
+        padding: 0.7rem 0.85rem;
+        font-size: 0.82rem;
+    }
+
+    /* ── XP panel inputs: stack vertically ── */
+    .lv-xp-panel {
+        padding: 0.75rem 0.85rem;
+    }
+
+    .lv-xp-row {
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+
+    .lv-xp-field {
+        width: 100%;
+    }
+
+    .lv-xp-input,
+    .lv-xp-field--la .lv-xp-input {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .lv-xp-next {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* XP progress bar label wraps */
+    .lv-xp-bar-wrap {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .lv-xp-bar-label {
+        min-width: unset;
+        white-space: normal;
+        font-size: 0.65rem;
+    }
+
+    /* Custom XP toggle: stack */
+    .lv-xp-custom-toggle {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    /* ── XP log form: stack inputs ── */
+    .lv-xp-log-form {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .lv-xp-log-input:not(.lv-xp-log-desc) {
+        width: 100%;
+    }
+
+    .lv-xp-log-desc {
+        min-width: unset;
+        width: 100%;
+    }
+
+    /* ── Section head ── */
+    .lv-section-head h3 {
+        font-size: 0.9rem;
+    }
+
+    /* ── Class card head: flex-wrap for touch-friendly layout ── */
+    .lv-card-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 0.65rem 0.75rem;
+    }
+
+    /* Row 1: class picker takes full width */
+    .lv-class-picker {
+        flex: 1 1 100%;
+        min-width: unset;
+    }
+
+    /* Row 2: stepper grows, delete button at end */
+    .lv-stepper {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .lv-del-btn {
+        flex-shrink: 0;
+    }
+
+    /* Row 3: BAB control full width */
+    .lv-bab-wrap {
+        flex: 1 1 100%;
+    }
+
+    .lv-bab-wrap .lv-seg {
+        width: 100%;
+    }
+
+    .lv-bab-wrap .lv-seg button {
+        flex: 1;
+        text-align: center;
+        padding: 6px 4px;
+    }
+
+    /* Row 4: Hit die control full width */
+    .lv-hd-wrap {
+        flex: 1 1 100%;
+    }
+
+    .lv-hd-wrap .lv-seg {
+        width: 100%;
+    }
+
+    .lv-hd-wrap .lv-seg button {
+        flex: 1;
+        text-align: center;
+        padding: 6px 4px;
+    }
+
+    /* ── Saves grid: keep 3-col but tighter ── */
+    .lv-saves-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .lv-save-cell {
+        padding: 0.5rem 0.55rem;
+    }
+
+    .lv-save-head .lv-save-val {
+        font-size: 0.95rem;
+    }
+
+    /* ── HP / log rows ── */
+    .lv-log-row {
+        grid-template-columns: 20px minmax(55px, 1fr) 38px 60px auto;
+        gap: 0.3rem;
+        font-size: 0.7rem;
+    }
+
+    /* ── Class card catalog bar: wrap chips ── */
+    .lv-catalog-bar {
+        padding: 0.4rem 0.75rem;
+    }
 }
