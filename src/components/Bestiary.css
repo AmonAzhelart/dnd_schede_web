@@ -1,56 +1,160 @@
 /* ══════════════════════════════════════════════════════════════════
-   Bestiary – main page styles
+   Bestiary – main page styles  (v2 – master-detail, mobile-first)
    ══════════════════════════════════════════════════════════════════ */
 
-/* ── Tabs ── */
+/* ── Page root ─────────────────────────────────────────────────── */
+.bestiary-page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+}
+
+/* ── Tabs ────────────────────────────────────────────────────────  */
 .bestiary-tabs {
   display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
+  gap: 4px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   flex-shrink: 0;
+  padding-bottom: 2px;
+  scrollbar-width: none;
 }
+.bestiary-tabs::-webkit-scrollbar { display: none; }
 
-/* ── Creature grid ── */
-.creature-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: var(--space-3);
-}
-
-/* ── Creature card ── */
-.creature-card {
-  background: var(--bg-panel);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  transition: border-color 0.18s, transform 0.12s;
+.bestiary-tab-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.03);
+  color: var(--text-muted);
+  transition: all 0.18s;
   cursor: pointer;
+  white-space: nowrap;
+}
+.bestiary-tab-btn:hover { border-color: rgba(201,168,76,0.3); color: var(--accent-gold); }
+.bestiary-tab-btn.active {
+  background: rgba(201,168,76,0.12);
+  border-color: rgba(201,168,76,0.55);
+  color: var(--accent-gold);
 }
 
-.creature-card:hover {
+/* ── Master-detail split ─────────────────────────────────────────  */
+.bestiary-split {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  overflow: hidden;
+  min-height: 0;
+}
+
+@media (min-width: 860px) {
+  .bestiary-split {
+    grid-template-columns: 360px minmax(0, 1fr);
+    gap: 0;
+  }
+}
+
+/* ── List pane ───────────────────────────────────────────────────  */
+.bestiary-list-pane {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-3);
+  border-right: 1px solid rgba(255,255,255,0.05);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+}
+
+/* On mobile when detail is open, hide the list */
+@media (max-width: 859px) {
+  .bestiary-list-pane.hidden-mobile { display: none; }
+  .bestiary-detail-pane.hidden-mobile { display: none; }
+}
+
+/* ── Detail pane ─────────────────────────────────────────────────  */
+.bestiary-detail-pane {
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg-surface);
+}
+
+.bestiary-detail-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-muted);
+  opacity: 0.45;
+  height: 100%;
+  min-height: 200px;
+  text-align: center;
+  padding: var(--space-5);
+}
+.bestiary-detail-placeholder svg { font-size: 3rem; opacity: 0.3; }
+
+/* ── Creature grid (list pane) ──────────────────────────────────  */
+.creature-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── Creature list-item card ─────────────────────────────────────  */
+.creature-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--bg-panel);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color 0.16s, background 0.16s;
+}
+.creature-card:hover,
+.creature-card.selected {
+  border-color: rgba(201,168,76,0.45);
+  background: rgba(201,168,76,0.06);
+}
+.creature-card.selected {
   border-color: var(--accent-gold);
-  transform: translateY(-2px);
 }
 
 .creature-card-img {
-  width: 100%;
-  height: 120px;
-  object-fit: cover;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
   background: var(--bg-surface);
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--accent-gold);
-  font-size: 3rem;
+  font-size: 1.3rem;
+  overflow: hidden;
 }
 
 .creature-card-body {
-  padding: var(--space-2) var(--space-3);
+  flex: 1;
+  min-width: 0;
 }
 
 .creature-card-name {
   font-family: var(--font-heading);
-  font-size: 1rem;
+  font-size: 0.92rem;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -58,17 +162,55 @@
 }
 
 .creature-card-meta {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* ── Stat block (detail sheet) ── */
+.creature-card-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+/* ── Stat block (detail sheet) ──────────────────────────────────── */
 .creature-sheet {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  max-width: 760px;
+  padding: var(--space-4);
+}
+
+/* Hero header in detail pane */
+.creature-sheet-hero {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  background: linear-gradient(135deg, rgba(201,168,76,0.07), transparent 70%);
+  border-bottom: 1px solid rgba(201,168,76,0.12);
+  padding: var(--space-4);
+  margin: calc(-1 * var(--space-4));
+  margin-bottom: 0;
+}
+
+.creature-sheet-portrait-large {
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-gold);
+  font-size: 2.5rem;
+  border: 1px solid rgba(201,168,76,0.2);
 }
 
 .creature-sheet-header {
@@ -92,38 +234,112 @@
   font-size: 3rem;
 }
 
+/* Combat stats strip */
+.creature-stat-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+  gap: 6px;
+}
+
+.creature-stat-chip {
+  background: var(--bg-panel);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  text-align: center;
+}
+
+.creature-stat-chip-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.creature-stat-chip-val {
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+}
+
+/* Ability grid */
 .creature-ability-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: var(--space-2);
+  gap: 6px;
   text-align: center;
 }
 
 .creature-ability-box {
-  background: var(--bg-surface);
+  background: var(--bg-panel);
+  border: 1px solid rgba(255,255,255,0.05);
   border-radius: var(--radius-sm);
   padding: var(--space-2) var(--space-1);
 }
 
 .creature-ability-score {
   font-family: var(--font-heading);
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   font-weight: 700;
 }
 
 .creature-ability-mod {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
 }
 
 .creature-ability-label {
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
 }
 
-/* ── Summon / Pet tracker ── */
+/* Section titles inside stat block */
+.creature-section-title {
+  font-family: var(--font-heading);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-gold);
+  border-bottom: 1px solid rgba(201,168,76,0.18);
+  padding-bottom: 4px;
+  margin-bottom: 6px;
+}
+
+/* Action bars */
+.creature-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid rgba(255,255,255,0.05);
+  background: var(--bg-panel);
+  flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+}
+
+/* Detail back button (mobile) */
+.bestiary-back-btn {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.bestiary-back-btn:hover { color: var(--accent-gold); }
+@media (max-width: 859px) {
+  .bestiary-back-btn { display: flex; }
+}
+
+/* ── Summon / Pet tracker ─────────────────────────────────────────  */
 .tracker-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -132,71 +348,97 @@
 
 .tracker-card {
   background: var(--bg-panel);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid rgba(255,255,255,0.06);
   border-radius: var(--radius-md);
   overflow: hidden;
+  transition: border-color 0.18s;
 }
+.tracker-card:hover { border-color: rgba(201,168,76,0.3); }
 
 .tracker-card-header {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  background: rgba(201, 168, 76, 0.06);
-  border-bottom: 1px solid var(--border-subtle);
+  padding: 8px 12px;
+  background: rgba(201, 168, 76, 0.05);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
 .tracker-hp-bar {
-  height: 8px;
+  height: 7px;
   border-radius: 4px;
-  background: var(--bg-surface);
+  background: rgba(255,255,255,0.06);
   overflow: hidden;
-  margin: 6px 0;
+  margin: 5px 0;
 }
 
 .tracker-hp-fill {
   height: 100%;
   border-radius: 4px;
-  transition: width 0.3s ease;
+  transition: width 0.35s ease;
 }
 
-.tracker-hp-fill.healthy {
-  background: #2ecc71;
-}
+.tracker-hp-fill.healthy  { background: #27ae60; }
+.tracker-hp-fill.wounded  { background: #e0a020; }
+.tracker-hp-fill.critical { background: #e74c3c; }
+.tracker-hp-fill.dead     { background: #636e72; }
 
-.tracker-hp-fill.wounded {
-  background: #f0c040;
-}
+.tracker-body { padding: 8px 12px; }
 
-.tracker-hp-fill.critical {
-  background: #e74c3c;
-}
-
-.tracker-hp-fill.dead {
-  background: #636e72;
-}
-
-.tracker-body {
-  padding: var(--space-2) var(--space-3);
-}
-
+/* ── Badges ───────────────────────────────────────────────────────  */
 .badge-cr {
-  background: rgba(201, 168, 76, 0.15);
+  background: rgba(201, 168, 76, 0.13);
   border: 1px solid rgba(201, 168, 76, 0.3);
-  border-radius: var(--radius-pill);
-  padding: 2px 8px;
-  font-size: 0.68rem;
+  border-radius: 99px;
+  padding: 2px 7px;
+  font-size: 0.65rem;
   color: var(--accent-gold);
   font-family: var(--font-heading);
+  white-space: nowrap;
 }
 
 .badge-type {
-  background: rgba(114, 137, 218, 0.12);
-  border: 1px solid rgba(114, 137, 218, 0.3);
-  border-radius: var(--radius-pill);
+  background: rgba(114, 137, 218, 0.1);
+  border: 1px solid rgba(114, 137, 218, 0.28);
+  border-radius: 99px;
+  padding: 2px 7px;
+  font-size: 0.65rem;
+  color: var(--accent-arcane);
+  white-space: nowrap;
+}
+
+/* ── Override / modifier chips ────────────────────────────────────  */
+.override-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(39,174,96,0.12);
+  border: 1px solid rgba(39,174,96,0.28);
+  border-radius: 99px;
   padding: 2px 8px;
   font-size: 0.68rem;
-  color: var(--accent-arcane);
+  color: #27ae60;
+}
+.override-chip.negative {
+  background: rgba(192,57,43,0.12);
+  border-color: rgba(192,57,43,0.28);
+  color: var(--accent-crimson);
+}
+
+/* ── Empty state ──────────────────────────────────────────────────  */
+.bestiary-empty {
+  padding: var(--space-5);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* ── Mobile fullscreen search overlay ────────────────────────────  */
+@media (max-width: 540px) {
+  .bestiary-list-pane { padding: var(--space-2); }
+  .creature-ability-grid { grid-template-columns: repeat(3, 1fr); }
+  .creature-stat-strip { grid-template-columns: repeat(3, 1fr); }
+  .tracker-grid { grid-template-columns: 1fr; }
 }
 
 /* ── Modifier preview chips in summon dialog ── */

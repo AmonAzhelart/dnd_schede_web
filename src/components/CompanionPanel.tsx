@@ -543,7 +543,7 @@ export const CompanionPanel: React.FC<CompanionPanelProps> = ({
                                                 <span className="cp-attack-name">{a.name}</span>
                                                 {a.attackBonus != null && (
                                                     <span className="cp-attack-bonus">
-                                                        {sign((a.attackBonus ?? 0) + eff.attackDelta)}
+                                                        {sign((a.attackBonus ?? 0) + ((!a.range || a.range.toLowerCase() === 'mischia') ? eff.meleeDelta : eff.rangedDelta))}
                                                     </span>
                                                 )}
                                                 {a.damage && (

@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuid } from 'uuid';
 import {
-    FaPlus, FaTrash, FaEdit, FaTimes, FaSave, FaSearch, FaHeart, FaSkull,
-    FaChevronLeft, FaDragon, FaUpload, FaBolt, FaPaw, FaMagic,
-    FaChevronDown, FaChevronUp, FaMinus,
+    FaPlus, FaTrash, FaEdit, FaTimes, FaSave, FaSearch, FaSkull,
+    FaChevronLeft, FaDragon, FaUpload, FaBolt, FaPaw,
+    FaMinus,
 } from 'react-icons/fa';
 import { GiScrollUnfurled, GiMagicSwirl } from 'react-icons/gi';
 import { useCharacterStore } from '../store/characterStore';
@@ -11,9 +11,9 @@ import { creatureCatalog, type CatalogCreature } from '../services/admin';
 import type {
     BestiaryEntry, ActiveSummon, ActivePet, Creature, CreatureSize,
     CreatureTypeCategory, CreatureAlignment, CreatureAction, CreatureSpecialAbility,
-    CreatureStatOverride, CreatureRuntimeModifier, CompanionFeature, CompanionEquipment,
+    CreatureStatOverride, CreatureRuntimeModifier,
 } from '../types/dnd';
-import { mod, signMod, CreaturePortrait, StatBlock, computeEffectiveCreatureStats, type StatBlockProps } from './CreatureStatBlock';
+import { CreaturePortrait, StatBlock, computeEffectiveCreatureStats } from './CreatureStatBlock';
 import { CompanionPanel } from './CompanionPanel';
 import './Bestiary.css';
 const pctColor = (p: number) => p > 0.6 ? 'healthy' : p > 0.3 ? 'wounded' : p > 0 ? 'critical' : 'dead';
@@ -442,6 +442,8 @@ export const BestiaryPage: React.FC = () => {
     const [search, setSearch] = useState('');
     const [catalogItems, setCatalogItems] = useState<CatalogCreature[]>([]);
     const [catalogLoading, setCatalogLoading] = useState(false);
+    // Master-detail: what's selected in the list pane
+    const [selectedId, setSelectedId] = useState<string | null>(null);
     const [viewingCreature, setViewingCreature] = useState<{ creature: Creature; overrides?: CreatureStatOverride[]; entry?: BestiaryEntry } | null>(null);
     const [summonDialog, setSummonDialog] = useState<{ creature: Creature; overrides: CreatureStatOverride[]; entryId?: string } | null>(null);
     const [petDialog, setPetDialog] = useState<{ creature: Creature; overrides: CreatureStatOverride[]; entryId?: string } | null>(null);
@@ -546,57 +548,16 @@ export const BestiaryPage: React.FC = () => {
 
     if (!character) return <div className="text-muted text-center" style={{ padding: 40 }}>Carica un personaggio per accedere al bestiario.</div>;
 
-    /* ─────────────────── Editing personal creature ─────────────────── */
+    /* ── Full-screen overlays (editor, companion panel) ── */
     if (editingEntry) {
         return (
-            <div style={{ flex: 1, overflow: 'hidden auto', padding: 'var(--space-5)' }}>
+            <div style={{ flex: 1, overflow: 'hidden auto', padding: 'var(--space-4)' }}>
                 <CreatureEditor initial={editingEntry.creature} onSave={saveEdit} onCancel={() => setEditingEntry(null)} />
             </div>
         );
     }
 
-    /* ─────────────────── Stat block detail sheet ─────────────────── */
-    if (viewingCreature) {
-        const { creature, overrides, entry } = viewingCreature;
-        return (
-            <div style={{ flex: 1, overflow: 'hidden auto', padding: 'var(--space-5)' }}>
-                <StatBlock
-                    creature={creature}
-                    overrides={overrides ?? []}
-                    onClose={() => setViewingCreature(null)}
-                    actionLabel="Evoca"
-                    actionIcon={<GiMagicSwirl />}
-                    onAction={() => { setViewingCreature(null); openSummonDialog(creature, entry?.id); }}
-                    actionLabel2="Aggiungi come Compagno"
-                    actionIcon2={<FaPaw />}
-                    onAction2={() => { setViewingCreature(null); openPetDialog(creature, entry?.id); }}
-                />
-            </div>
-        );
-    }
-
-    /* ─────────────────── Editing active summon ─────────────────── */
-    if (editingSummon) {
-        return (
-            <div style={{ flex: 1, overflow: 'hidden auto', padding: 'var(--space-5)' }}>
-                <StatBlock
-                    creature={editingSummon.creature}
-                    overrides={editingSummon.appliedOverrides}
-                    runtimeModifiers={editingSummon.runtimeModifiers ?? []}
-                    onAddRuntimeModifier={(m) => addCreatureRuntimeModifier('summon', editingSummon.id, m)}
-                    onRemoveRuntimeModifier={(mid) => removeCreatureRuntimeModifier('summon', editingSummon.id, mid)}
-                    onClose={() => setEditingSummon(null)}
-                    actionLabel="Rimuovi evocazione"
-                    actionIcon={<FaTimes />}
-                    onAction={() => { removeSummon(editingSummon.id); setEditingSummon(null); }}
-                />
-            </div>
-        );
-    }
-
-    /* ─────────────────── Editing active pet (new CompanionPanel) ─────────────── */
     if (viewingPet) {
-        // Always get fresh pet from store
         const freshPet = (character?.activePets ?? []).find(p => p.id === viewingPet.id) ?? viewingPet;
         return (
             <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -621,217 +582,314 @@ export const BestiaryPage: React.FC = () => {
         );
     }
 
+    /* ── Determine what shows in the detail pane ── */
+    const detailContent = (() => {
+        // Summon stat-block detail
+        if (editingSummon) {
+            return (
+                <>
+                    <button className="bestiary-back-btn" onClick={() => setEditingSummon(null)}>
+                        <FaChevronLeft /> Evocazioni
+                    </button>
+                    <StatBlock
+                        creature={editingSummon.creature}
+                        overrides={editingSummon.appliedOverrides}
+                        runtimeModifiers={editingSummon.runtimeModifiers ?? []}
+                        onAddRuntimeModifier={(m) => addCreatureRuntimeModifier('summon', editingSummon.id, m)}
+                        onRemoveRuntimeModifier={(mid) => removeCreatureRuntimeModifier('summon', editingSummon.id, mid)}
+                        onClose={() => setEditingSummon(null)}
+                        actionLabel="Rimuovi evocazione"
+                        actionIcon={<FaTimes />}
+                        onAction={() => { removeSummon(editingSummon.id); setEditingSummon(null); }}
+                    />
+                </>
+            );
+        }
+        // Creature from catalog / personal bestiary
+        if (viewingCreature) {
+            const { creature, overrides, entry } = viewingCreature;
+            return (
+                <>
+                    <button className="bestiary-back-btn" onClick={() => { setViewingCreature(null); setSelectedId(null); }}>
+                        <FaChevronLeft /> {tab === 'personale' ? 'Personale' : 'Catalogo'}
+                    </button>
+                    <StatBlock
+                        creature={creature}
+                        overrides={overrides ?? []}
+                        onClose={() => { setViewingCreature(null); setSelectedId(null); }}
+                        actionLabel="Evoca"
+                        actionIcon={<GiMagicSwirl />}
+                        onAction={() => openSummonDialog(creature, entry?.id)}
+                        actionLabel2="Aggiungi come Compagno"
+                        actionIcon2={<FaPaw />}
+                        onAction2={() => openPetDialog(creature, entry?.id)}
+                    />
+                </>
+            );
+        }
+        return null;
+    })();
+
+    const hasDetail = detailContent !== null;
+    const tabsConfig = [
+        { id: 'catalogo' as const, label: 'Catalogo', icon: <FaDragon />, count: null },
+        { id: 'personale' as const, label: 'Personale', icon: <GiScrollUnfurled />, count: bestiary.length },
+        { id: 'evocazioni' as const, label: 'Evocazioni', icon: <GiMagicSwirl />, count: summons.length },
+        { id: 'compagni' as const, label: 'Compagni', icon: <FaPaw />, count: pets.length },
+    ];
+
     return (
-        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: 'var(--space-5)', gap: 'var(--space-3)' }} className="animate-fade-in">
-            {/* Header */}
-            <div className="section-header" style={{ flexShrink: 0 }}>
-                <div>
-                    <h2 style={{ margin: 0, fontSize: '1.4rem', display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <FaDragon style={{ color: 'var(--accent-gold)' }} /> Bestiario
-                    </h2>
-                    <span className="text-muted text-sm">Creature, evocazioni e compagni</span>
+        <div className="bestiary-page animate-fade-in" style={{ padding: 0 }}>
+            {/* ── Top toolbar ── */}
+            <div style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 16px 0',
+                flexShrink: 0,
+            }}>
+                {/* Title — only shown when no detail open on mobile */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+                    <FaDragon style={{ color: 'var(--accent-gold)', fontSize: '1.1rem', flexShrink: 0 }} />
+                    <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', letterSpacing: '0.03em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        Bestiario
+                    </span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-                    {tab === 'personale' && (
-                        <button className="btn-primary text-sm" onClick={() => {
-                            const entry: BestiaryEntry = { id: uuid(), creature: EMPTY_CREATURE(), addedAt: new Date().toISOString() };
-                            setEditingEntry(entry);
-                        }}>
-                            <FaPlus /> Nuova Creatura
-                        </button>
-                    )}
-                    <div className="flex items-center gap-2" style={{ background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', padding: '0.35rem 0.75rem' }}>
-                        <FaSearch className="text-muted" style={{ fontSize: '0.8rem' }} />
-                        <input style={{ background: 'transparent', border: 'none', color: 'inherit', outline: 'none', fontSize: '0.85rem', width: 160 }}
-                            placeholder="Cerca…" value={search} onChange={e => setSearch(e.target.value)} />
-                    </div>
+                {tab === 'personale' && (
+                    <button className="btn-primary text-sm" style={{ padding: '5px 12px', flexShrink: 0 }} onClick={() => {
+                        const entry: BestiaryEntry = { id: uuid(), creature: EMPTY_CREATURE(), addedAt: new Date().toISOString() };
+                        setEditingEntry(entry);
+                    }}>
+                        <FaPlus /> Nuova
+                    </button>
+                )}
+                {/* Search */}
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)',
+                    padding: '5px 10px', border: '1px solid rgba(255,255,255,0.07)',
+                    flexShrink: 0,
+                }}>
+                    <FaSearch style={{ fontSize: '0.75rem', color: 'var(--text-muted)', flexShrink: 0 }} />
+                    <input
+                        style={{ background: 'transparent', border: 'none', color: 'inherit', outline: 'none', fontSize: '0.82rem', width: 130 }}
+                        placeholder="Cerca…" value={search} onChange={e => setSearch(e.target.value)}
+                    />
                 </div>
             </div>
 
-            {/* Tabs */}
-            <div className="bestiary-tabs" style={{ flexShrink: 0 }}>
-                {([
-                    { id: 'catalogo', label: 'Catalogo', icon: <FaDragon /> },
-                    { id: 'personale', label: `Personale (${bestiary.length})`, icon: <GiScrollUnfurled /> },
-                    { id: 'evocazioni', label: `Evocazioni (${summons.length})`, icon: <GiMagicSwirl /> },
-                    { id: 'compagni', label: `Compagni (${pets.length})`, icon: <FaPaw /> },
-                ] as const).map(t => (
-                    <button key={t.id} className={`btn-secondary text-sm ${tab === t.id ? 'active' : ''}`}
-                        style={tab === t.id ? { background: 'rgba(201,168,76,0.15)', borderColor: 'var(--accent-gold)', color: 'var(--accent-gold)' } : undefined}
-                        onClick={() => setTab(t.id)}>
-                        {t.icon} {t.label}
+            {/* ── Tabs ── */}
+            <div className="bestiary-tabs" style={{ padding: '8px 16px 0' }}>
+                {tabsConfig.map(t => (
+                    <button
+                        key={t.id}
+                        className={`bestiary-tab-btn${tab === t.id ? ' active' : ''}`}
+                        onClick={() => { setTab(t.id); setViewingCreature(null); setSelectedId(null); setEditingSummon(null); }}
+                    >
+                        {t.icon}
+                        <span className="tab-label-text">{t.label}</span>
+                        {t.count !== null && t.count > 0 && (
+                            <span style={{
+                                background: tab === t.id ? 'rgba(201,168,76,0.25)' : 'rgba(255,255,255,0.07)',
+                                borderRadius: 99, padding: '0 5px', fontSize: '0.65rem', minWidth: 18, textAlign: 'center',
+                            }}>{t.count}</span>
+                        )}
                     </button>
                 ))}
             </div>
 
-            {/* Content */}
-            <div style={{ flex: 1, overflowY: 'auto' }}>
+            {/* ── Master-detail split ── */}
+            <div className="bestiary-split" style={{ marginTop: 10 }}>
 
-                {/* ── CATALOGO ── */}
-                {tab === 'catalogo' && (
-                    <div>
-                        {catalogLoading && <div className="text-muted text-sm">Caricamento catalogo…</div>}
-                        {!catalogLoading && filteredCatalog.length === 0 && (
-                            <div className="text-muted text-sm">Nessuna creatura nel catalogo. Il SuperAdmin può aggiungerne dal BackOffice.</div>
-                        )}
-                        <div className="creature-grid">
-                            {filteredCatalog.map(c => (
-                                <div key={c.id} className="creature-card" onClick={() => setViewingCreature({ creature: c, overrides: computeSummonOverrides(c) })}>
-                                    <div className="creature-card-img">
-                                        {c.imageData && c.imageType === 'svg'
-                                            ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }} dangerouslySetInnerHTML={{ __html: c.imageData }} />
-                                            : c.imageData
-                                                ? <img src={c.imageData} alt={c.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                                : <FaDragon />
-                                        }
-                                    </div>
-                                    <div className="creature-card-body">
-                                        <div className="creature-card-name">{c.name}</div>
-                                        <div className="creature-card-meta">{c.size} {c.type}{c.subtype ? ` (${c.subtype})` : ''}{c.alignment ? ` · ${c.alignment}` : ''}</div>
-                                        <div className="creature-card-meta">CR {c.challengeRating ?? '?'} · CA {c.ac} · PF {c.hp}</div>
-                                        <div className="flex gap-2" style={{ marginTop: 8, flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
-                                            <button className="btn-secondary text-xs" onClick={() => openSummonDialog(c, undefined)}><GiMagicSwirl /> Evoca</button>
-                                            <button className="btn-secondary text-xs" onClick={() => openPetDialog(c, undefined)}><FaPaw /> Compagno</button>
-                                            {!bestiary.some(e => e.catalogId === c.id) && (
-                                                <button className="btn-ghost text-xs" onClick={() => addToBestiary(c)}><FaPlus /> Personale</button>
-                                            )}
+                {/* LIST PANE */}
+                <div className={`bestiary-list-pane${hasDetail ? ' hidden-mobile' : ''}`}>
+
+                    {/* ── CATALOGO list ── */}
+                    {tab === 'catalogo' && (
+                        <>
+                            {catalogLoading && <div className="bestiary-empty">Caricamento catalogo…</div>}
+                            {!catalogLoading && filteredCatalog.length === 0 && (
+                                <div className="bestiary-empty">Nessuna creatura nel catalogo.</div>
+                            )}
+                            <div className="creature-grid">
+                                {filteredCatalog.map(c => (
+                                    <div
+                                        key={c.id}
+                                        className={`creature-card${selectedId === c.id ? ' selected' : ''}`}
+                                        onClick={() => { setSelectedId(c.id); setViewingCreature({ creature: c, overrides: [] }); }}
+                                    >
+                                        <div className="creature-card-img">
+                                            {c.imageData && c.imageType === 'svg'
+                                                ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }} dangerouslySetInnerHTML={{ __html: c.imageData }} />
+                                                : c.imageData ? <img src={c.imageData} alt={c.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                    : <FaDragon />}
+                                        </div>
+                                        <div className="creature-card-body">
+                                            <div className="creature-card-name">{c.name}</div>
+                                            <div className="creature-card-meta">{c.size} {c.type}{c.subtype ? ` (${c.subtype})` : ''}</div>
+                                        </div>
+                                        <div className="creature-card-badges">
+                                            {c.challengeRating && <span className="badge-cr">CR {c.challengeRating}</span>}
+                                            <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>CA {c.ac}</span>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
+                                ))}
+                            </div>
+                        </>
+                    )}
 
-                {/* ── PERSONALE ── */}
-                {tab === 'personale' && (
-                    <div>
-                        {filteredBestiary.length === 0 && (
-                            <div className="text-muted text-sm">Nessuna creatura nel bestiario personale. Aggiungila dal catalogo o creane una nuova.</div>
-                        )}
-                        <div className="creature-grid">
-                            {filteredBestiary.map(entry => (
-                                <div key={entry.id} className="creature-card" onClick={() => setViewingCreature({ creature: entry.creature, overrides: computeSummonOverrides(entry.creature), entry })}>
-                                    <div className="creature-card-img">
-                                        {entry.creature.imageData && entry.creature.imageType === 'svg'
-                                            ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }} dangerouslySetInnerHTML={{ __html: entry.creature.imageData }} />
-                                            : entry.creature.imageData
-                                                ? <img src={entry.creature.imageData} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                                : <FaDragon />
-                                        }
-                                    </div>
-                                    <div className="creature-card-body">
-                                        <div className="creature-card-name">{entry.creature.name}</div>
-                                        <div className="creature-card-meta">{entry.creature.size} {entry.creature.type}</div>
-                                        <div className="creature-card-meta">CR {entry.creature.challengeRating ?? '?'} · CA {entry.creature.ac} · PF {entry.creature.hp}</div>
-                                        {entry.characterNotes && <div className="creature-card-meta" style={{ fontStyle: 'italic', marginTop: 4 }}>"{entry.characterNotes}"</div>}
-                                        <div className="flex gap-2" style={{ marginTop: 8, flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
-                                            <button className="btn-secondary text-xs" onClick={() => openSummonDialog(entry.creature, entry.id)}><GiMagicSwirl /> Evoca</button>
-                                            <button className="btn-secondary text-xs" onClick={() => openPetDialog(entry.creature, entry.id)}><FaPaw /> Compagno</button>
-                                            <button className="btn-ghost text-xs" onClick={() => setEditingEntry(entry)}><FaEdit /></button>
-                                            <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => { if (confirm(`Rimuovere ${entry.creature.name} dal bestiario personale?`)) removeBestiaryEntry(entry.id); }}><FaTrash /></button>
+                    {/* ── PERSONALE list ── */}
+                    {tab === 'personale' && (
+                        <>
+                            {filteredBestiary.length === 0 && (
+                                <div className="bestiary-empty">Nessuna creatura nel bestiario personale.</div>
+                            )}
+                            <div className="creature-grid">
+                                {filteredBestiary.map(entry => (
+                                    <div
+                                        key={entry.id}
+                                        className={`creature-card${selectedId === entry.id ? ' selected' : ''}`}
+                                        onClick={() => { setSelectedId(entry.id); setViewingCreature({ creature: entry.creature, overrides: [], entry }); }}
+                                    >
+                                        <div className="creature-card-img">
+                                            {entry.creature.imageData && entry.creature.imageType === 'svg'
+                                                ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }} dangerouslySetInnerHTML={{ __html: entry.creature.imageData }} />
+                                                : entry.creature.imageData ? <img src={entry.creature.imageData} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                    : <FaDragon />}
+                                        </div>
+                                        <div className="creature-card-body">
+                                            <div className="creature-card-name">{entry.creature.name}</div>
+                                            <div className="creature-card-meta">{entry.creature.size} {entry.creature.type}</div>
+                                        </div>
+                                        <div className="creature-card-badges">
+                                            {entry.creature.challengeRating && <span className="badge-cr">CR {entry.creature.challengeRating}</span>}
+                                            <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
+                                                <button className="btn-ghost" style={{ padding: '2px 5px', fontSize: '0.75rem' }} title="Modifica" onClick={() => setEditingEntry(entry)}><FaEdit /></button>
+                                                <button className="btn-ghost" style={{ padding: '2px 5px', fontSize: '0.75rem', color: 'var(--accent-crimson)' }} title="Elimina"
+                                                    onClick={() => { if (confirm(`Rimuovere ${entry.creature.name}?`)) { removeBestiaryEntry(entry.id); if (selectedId === entry.id) { setSelectedId(null); setViewingCreature(null); } } }}><FaTrash /></button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
+                                ))}
+                            </div>
+                        </>
+                    )}
 
-                {/* ── EVOCAZIONI ── */}
-                {tab === 'evocazioni' && (
-                    <div>
-                        {summons.length === 0 && <div className="text-muted text-sm">Nessuna creatura evocata. Vai al catalogo o al bestiario personale per evocare.</div>}
-                        <div className="tracker-grid">
-                            {summons.map(s => {
-                                const eff = computeEffectiveCreatureStats(s.creature, s.appliedOverrides, s.runtimeModifiers ?? []);
-                                return (
-                                    <TrackerCard
-                                        key={s.id}
-                                        name={s.creature.name}
-                                        creature={s.creature}
-                                        currentHp={s.currentHp}
-                                        maxHp={eff.hp}
-                                        overrides={s.appliedOverrides}
-                                        runtimeModifiers={s.runtimeModifiers}
-                                        conditions={s.conditions}
-                                        onHpDelta={delta => updateSummonHp(s.id, delta)}
-                                        onDismiss={() => { if (confirm(`Rimuovere evocazione di ${s.creature.name}?`)) removeSummon(s.id); }}
-                                        onEdit={() => setEditingSummon(s)}
-                                        extra={
-                                            <div style={{ marginTop: 6, fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                                {s.summonSpellName && <span><FaBolt style={{ color: 'var(--accent-arcane)' }} /> {s.summonSpellName}</span>}
-                                                {s.roundsRemaining !== null && s.roundsRemaining !== undefined && (
-                                                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                        ⏱ {s.roundsRemaining} round
-                                                        <button className="btn-ghost" style={{ fontSize: '0.65rem', padding: '1px 4px' }}
-                                                            onClick={() => updateSummon({ ...s, roundsRemaining: Math.max(0, (s.roundsRemaining ?? 0) - 1) })}>-1</button>
-                                                    </span>
-                                                )}
-                                            </div>
-                                        }
-                                    />
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
+                    {/* ── EVOCAZIONI list ── */}
+                    {tab === 'evocazioni' && (
+                        <>
+                            {summons.length === 0 && <div className="bestiary-empty">Nessuna evocazione attiva.</div>}
+                            <div className="tracker-grid">
+                                {summons.map(s => {
+                                    const eff = computeEffectiveCreatureStats(s.creature, s.appliedOverrides, s.runtimeModifiers ?? []);
+                                    return (
+                                        <TrackerCard
+                                            key={s.id}
+                                            name={s.creature.name}
+                                            creature={s.creature}
+                                            currentHp={s.currentHp}
+                                            maxHp={eff.hp}
+                                            overrides={s.appliedOverrides}
+                                            runtimeModifiers={s.runtimeModifiers}
+                                            conditions={s.conditions}
+                                            onHpDelta={delta => updateSummonHp(s.id, delta)}
+                                            onDismiss={() => { if (confirm(`Rimuovere evocazione di ${s.creature.name}?`)) removeSummon(s.id); }}
+                                            onEdit={() => { setEditingSummon(s); setSelectedId(s.id); }}
+                                            extra={
+                                                <div style={{ marginTop: 6, fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                                    {s.summonSpellName && <span><FaBolt style={{ color: 'var(--accent-arcane)' }} /> {s.summonSpellName}</span>}
+                                                    {s.roundsRemaining !== null && s.roundsRemaining !== undefined && (
+                                                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                            ⏱ {s.roundsRemaining} round
+                                                            <button className="btn-ghost" style={{ fontSize: '0.65rem', padding: '1px 4px' }}
+                                                                onClick={() => updateSummon({ ...s, roundsRemaining: Math.max(0, (s.roundsRemaining ?? 0) - 1) })}>-1</button>
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            }
+                                        />
+                                    );
+                                })}
+                            </div>
+                        </>
+                    )}
 
-                {/* ── COMPAGNI ── */}
-                {tab === 'compagni' && (
-                    <div>
-                        {pets.length === 0 && <div className="text-muted text-sm">Nessun compagno. Vai al catalogo o al bestiario personale e usa "Aggiungi come Compagno".</div>}
-                        <div className="tracker-grid">
-                            {pets.map(p => {
-                                const eff = computeEffectiveCreatureStats(p.creature, p.appliedOverrides, [
-                                    ...(p.runtimeModifiers ?? []),
-                                    ...(p.equipment ?? []).filter(e => e.equipped).flatMap(e => e.modifiers.map(m => ({ id: `eq-${e.id}`, name: e.name, stat: m.stat, value: m.value, type: m.type }))),
-                                    ...(p.features ?? []).filter(f => f.active).flatMap(f => f.modifiers.map(m => ({ id: `feat-${f.id}`, name: f.name, stat: m.stat, value: m.value, type: m.type }))),
-                                ]);
-                                const featCount = (p.features ?? []).length;
-                                const equipCount = (p.equipment ?? []).filter(e => e.equipped).length;
-                                return (
-                                    <TrackerCard
-                                        key={p.id}
-                                        name={p.nickname ?? p.creature.name}
-                                        creature={p.creature}
-                                        currentHp={p.currentHp}
-                                        maxHp={eff.hp}
-                                        overrides={p.appliedOverrides}
-                                        runtimeModifiers={p.runtimeModifiers}
-                                        conditions={p.conditions}
-                                        onHpDelta={delta => updatePetHp(p.id, delta)}
-                                        onDismiss={() => { if (confirm(`Rimuovere ${p.nickname ?? p.creature.name}?`)) removePet(p.id); }}
-                                        onEdit={() => setViewingPet(p)}
-                                        extra={
-                                            <div style={{ display: 'flex', gap: 8, marginTop: 6, fontSize: '0.72rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
-                                                {featCount > 0 && (
-                                                    <span style={{ color: 'var(--accent-gold)' }}>
-                                                        <GiScrollUnfurled style={{ marginRight: 3 }} />{featCount} privilegi
-                                                    </span>
-                                                )}
-                                                {equipCount > 0 && (
-                                                    <span style={{ color: 'var(--accent-arcane)' }}>
-                                                        🛡 {equipCount} oggetti
-                                                    </span>
-                                                )}
-                                                {p.bondLevel ? (
-                                                    <span style={{ color: 'var(--accent-gold)' }}>
-                                                        {'★'.repeat(p.bondLevel)}
-                                                    </span>
-                                                ) : null}
-                                                <button
-                                                    className="btn-ghost text-xs"
-                                                    style={{ marginLeft: 'auto', color: 'var(--accent-gold)', fontSize: '0.7rem', padding: '2px 8px', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 'var(--radius-sm)' }}
-                                                    onClick={() => setViewingPet(p)}
-                                                >
-                                                    Scheda completa →
-                                                </button>
-                                            </div>
-                                        }
-                                    />
-                                );
-                            })}
+                    {/* ── COMPAGNI list ── */}
+                    {tab === 'compagni' && (
+                        <>
+                            {pets.length === 0 && <div className="bestiary-empty">Nessun compagno attivo.</div>}
+                            <div className="tracker-grid">
+                                {pets.map(p => {
+                                    const eff = computeEffectiveCreatureStats(p.creature, p.appliedOverrides, [
+                                        ...(p.runtimeModifiers ?? []),
+                                        ...(p.equipment ?? []).filter(e => e.equipped).flatMap(e => e.modifiers.map(m => ({ id: `eq-${e.id}`, name: e.name, stat: m.stat, value: m.value, type: m.type }))),
+                                        ...(p.features ?? []).filter(f => f.active).flatMap(f => f.modifiers.map(m => ({ id: `feat-${f.id}`, name: f.name, stat: m.stat, value: m.value, type: m.type }))),
+                                    ]);
+                                    const featCount = (p.features ?? []).length;
+                                    const equipCount = (p.equipment ?? []).filter(e => e.equipped).length;
+                                    return (
+                                        <TrackerCard
+                                            key={p.id}
+                                            name={p.nickname ?? p.creature.name}
+                                            creature={p.creature}
+                                            currentHp={p.currentHp}
+                                            maxHp={eff.hp}
+                                            overrides={p.appliedOverrides}
+                                            runtimeModifiers={p.runtimeModifiers}
+                                            conditions={p.conditions}
+                                            onHpDelta={delta => updatePetHp(p.id, delta)}
+                                            onDismiss={() => { if (confirm(`Rimuovere ${p.nickname ?? p.creature.name}?`)) removePet(p.id); }}
+                                            onEdit={() => setViewingPet(p)}
+                                            extra={
+                                                <div style={{ display: 'flex', gap: 8, marginTop: 6, fontSize: '0.72rem', color: 'var(--text-muted)', flexWrap: 'wrap', alignItems: 'center' }}>
+                                                    {featCount > 0 && <span style={{ color: 'var(--accent-gold)' }}><GiScrollUnfurled style={{ marginRight: 3 }} />{featCount} privilegi</span>}
+                                                    {equipCount > 0 && <span style={{ color: 'var(--accent-arcane)' }}>🛡 {equipCount} equipaggiati</span>}
+                                                    {p.bondLevel ? <span style={{ color: 'var(--accent-gold)' }}>{'★'.repeat(p.bondLevel)}</span> : null}
+                                                    <button
+                                                        className="btn-ghost text-xs"
+                                                        style={{ marginLeft: 'auto', color: 'var(--accent-gold)', fontSize: '0.7rem', padding: '2px 8px', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 'var(--radius-sm)' }}
+                                                        onClick={() => setViewingPet(p)}
+                                                    >Scheda →</button>
+                                                </div>
+                                            }
+                                        />
+                                    );
+                                })}
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                {/* DETAIL PANE */}
+                {hasDetail ? (
+                    <div className="bestiary-detail-pane">
+                        {detailContent}
+                        {/* Sticky action bar for catalog / personal (summon / add-to-bestiary) */}
+                        {viewingCreature && !editingSummon && (
+                            <div className="creature-detail-actions">
+                                <button className="btn-primary text-sm" onClick={() => openSummonDialog(viewingCreature.creature, viewingCreature.entry?.id)}>
+                                    <GiMagicSwirl /> Evoca
+                                </button>
+                                <button className="btn-secondary text-sm" onClick={() => openPetDialog(viewingCreature.creature, viewingCreature.entry?.id)}>
+                                    <FaPaw /> Compagno
+                                </button>
+                                {tab === 'catalogo' && !bestiary.some(e => e.catalogId === viewingCreature.creature.id) && (
+                                    <button className="btn-ghost text-sm" onClick={() => addToBestiary(viewingCreature.creature as CatalogCreature)}>
+                                        <FaPlus /> Aggiungi a Personale
+                                    </button>
+                                )}
+                                {tab === 'personale' && viewingCreature.entry && (
+                                    <button className="btn-ghost text-sm" onClick={() => setEditingEntry(viewingCreature.entry!)}>
+                                        <FaEdit /> Modifica
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    /* Empty state placeholder — always visible on desktop */
+                    <div className="bestiary-detail-pane">
+                        <div className="bestiary-detail-placeholder">
+                            <FaDragon />
+                            <span style={{ fontSize: '0.85rem' }}>Seleziona una creatura per vedere i dettagli</span>
                         </div>
                     </div>
                 )}

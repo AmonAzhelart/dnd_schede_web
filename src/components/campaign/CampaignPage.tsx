@@ -940,13 +940,14 @@ function MasterGlossaryPanel({ campaignId, masterId, playerCharacters }: MasterG
     const [viewEntry, setViewEntry] = useState<CampaignGlossaryEntry | null>(null);
     const [shareEntry, setShareEntry] = useState<CampaignGlossaryEntry | null>(null);
     const [catFilter, setCatFilter] = useState<CampaignGlossaryEntry['category'] | 'all'>('all');
+    const [confirmDeleteEntry, setConfirmDeleteEntry] = useState<CampaignGlossaryEntry | null>(null);
 
     useEffect(() => subscribeCampaignGlossary(campaignId, setEntries), [campaignId]);
 
     const filtered = catFilter === 'all' ? entries : entries.filter(e => e.category === catFilter);
 
     function newEntry(): CampaignGlossaryEntry {
-        return { id: '', term: '', info: '', category: 'other', createdAt: null, sharedByMasterId: masterId, isPublic: false, visibleToPlayerIds: [], sections: [] };
+        return { id: '', term: '', info: '', category: catFilter !== 'all' ? catFilter : 'other', createdAt: null, sharedByMasterId: masterId, isPublic: false, visibleToPlayerIds: [], sections: [] };
     }
 
     async function handleSave() {
@@ -966,8 +967,15 @@ function MasterGlossaryPanel({ campaignId, masterId, playerCharacters }: MasterG
         setEditState(null);
     }
 
-    async function handleDelete(id: string) {
-        await deleteCampaignGlossaryEntry(campaignId, id);
+    function requestDelete(entry: CampaignGlossaryEntry) {
+        setViewEntry(null);
+        setConfirmDeleteEntry(entry);
+    }
+
+    async function handleDelete() {
+        if (!confirmDeleteEntry) return;
+        await deleteCampaignGlossaryEntry(campaignId, confirmDeleteEntry.id);
+        setConfirmDeleteEntry(null);
     }
 
     async function handleShareSections(sections: GlossarySection[]) {
@@ -1077,7 +1085,7 @@ function MasterGlossaryPanel({ campaignId, masterId, playerCharacters }: MasterG
                                     <FaEdit size={10} />
                                 </button>
                                 <button className="btn-ghost" style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem', color: 'var(--accent-crimson)' }}
-                                    onClick={() => handleDelete(entry.id)} title="Elimina">
+                                    onClick={() => requestDelete(entry)} title="Elimina">
                                     <FaTrash size={10} />
                                 </button>
                             </div>
@@ -1101,10 +1109,30 @@ function MasterGlossaryPanel({ campaignId, masterId, playerCharacters }: MasterG
                     playerCharacters={playerCharacters}
                     onEdit={() => { setEditState({ entry: { ...viewEntry }, isNew: false }); setViewEntry(null); }}
                     onShare={() => { setShareEntry(viewEntry); setViewEntry(null); }}
-                    onDelete={() => { handleDelete(viewEntry.id); setViewEntry(null); }}
+                    onDelete={() => requestDelete(viewEntry)}
                     onClose={() => setViewEntry(null)}
                     playerCount={playerCount}
                 />
+            )}
+
+            {confirmDeleteEntry && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.82)', zIndex: 2100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+                    onClick={() => setConfirmDeleteEntry(null)}>
+                    <div className="glass-panel animate-fade-in" style={{ width: 360, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                        <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🗑️</div>
+                        <h3 style={{ fontFamily: 'var(--font-heading)', color: 'var(--accent-crimson)', marginBottom: '0.5rem' }}>Elimina voce</h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginBottom: '1.5rem' }}>
+                            Sei sicuro di voler eliminare <strong style={{ color: 'var(--text-primary)' }}>"{confirmDeleteEntry.term}"</strong>?<br />
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Tutte le sezioni condivise verranno rimosse.</span>
+                        </p>
+                        <div style={{ display: 'flex', gap: '0.75rem' }}>
+                            <button className="btn-secondary w-full" style={{ justifyContent: 'center' }} onClick={() => setConfirmDeleteEntry(null)}>Annulla</button>
+                            <button className="btn-primary w-full" style={{ justifyContent: 'center', background: 'var(--accent-crimson)', borderColor: 'var(--accent-crimson)' }} onClick={handleDelete}>
+                                <FaTrash size={11} /> Elimina
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {editState && (

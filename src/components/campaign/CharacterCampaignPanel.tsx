@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { FaBook, FaComments, FaSignOutAlt, FaUserShield } from 'react-icons/fa';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { FaBook, FaComments, FaSearch, FaSignOutAlt, FaTimes, FaUserShield } from 'react-icons/fa';
 import { GiCastle } from 'react-icons/gi';
+import { GlossaryDetailsModal, type GlossaryHoverEntry } from '../notes/notesShared';
+import '../dashboard/widgets/styles/notes.css';
 import {
     findCampaignByCode,
     joinCampaign,
@@ -20,6 +22,126 @@ const CAT_COLORS_CCP: Record<CampaignGlossaryEntry['category'], string> = {
 const CAT_LABELS_CCP: Record<CampaignGlossaryEntry['category'], string> = {
     person: 'Persona', place: 'Luogo', item: 'Oggetto', lore: 'Lore', other: 'Altro',
 };
+const ALL_CATS_CCP = ['person', 'place', 'item', 'lore', 'other'] as const;
+
+// ─── Glossary tab sub-component ───────────────────────────────────────────────
+
+interface GlossaryTabProps {
+    entries: CampaignGlossaryEntry[];
+    glossSearch: string;
+    setGlossSearch: (v: string) => void;
+    glossCatFilter: CampaignGlossaryEntry['category'] | 'all';
+    setGlossCatFilter: (v: CampaignGlossaryEntry['category'] | 'all') => void;
+    onOpenModal: (entry: GlossaryHoverEntry) => void;
+}
+
+function GlossaryTabContent({ entries, glossSearch, setGlossSearch, glossCatFilter, setGlossCatFilter, onOpenModal }: GlossaryTabProps) {
+    const filtered = useMemo(() => entries.filter(e => {
+        if (glossCatFilter !== 'all' && e.category !== glossCatFilter) return false;
+        if (glossSearch.trim()) {
+            const q = glossSearch.toLowerCase();
+            const infoText = (e.sections ?? []).map(s => `${s.label} ${s.content}`).join(' ') || e.info || '';
+            return e.term.toLowerCase().includes(q) || infoText.toLowerCase().includes(q);
+        }
+        return true;
+    }), [entries, glossSearch, glossCatFilter]);
+
+    // Group by category (preserve ALL_CATS_CCP order)
+    const grouped = useMemo(() => {
+        const map = new Map<CampaignGlossaryEntry['category'], CampaignGlossaryEntry[]>();
+        for (const cat of ALL_CATS_CCP) map.set(cat, []);
+        for (const e of filtered) map.get(e.category)?.push(e);
+        return map;
+    }, [filtered]);
+
+    function openEntry(entry: CampaignGlossaryEntry) {
+        const info = (entry.sections ?? []).length > 0
+            ? entry.sections.map(sec => sec.label ? `${sec.label}\n${sec.content}` : sec.content).join('\n\n')
+            : (entry.info || 'Nessuna descrizione disponibile.');
+        onOpenModal({ id: `cmp-${entry.id}`, term: entry.term, info, category: entry.category });
+    }
+
+    return (
+        <div className="campaign-player-tab-content campaign-glossary-tab">
+            <div className="campaign-gloss-search">
+                <FaSearch size={9} className="campaign-gloss-search-ico" />
+                <input
+                    className="campaign-gloss-search-inp"
+                    placeholder="Cerca voci…"
+                    value={glossSearch}
+                    onChange={e => setGlossSearch(e.target.value)}
+                />
+                {glossSearch && (
+                    <button className="campaign-gloss-clear-btn" onClick={() => setGlossSearch('')}>
+                        <FaTimes size={8} />
+                    </button>
+                )}
+            </div>
+
+            {/* Category filters */}
+            <div className="campaign-gloss-filters">
+                {(['all', ...ALL_CATS_CCP] as const).map(c => (
+                    <button
+                        key={c}
+                        className={`campaign-gloss-cat-filter ${glossCatFilter === c ? 'active' : ''}`}
+                        style={{ '--filter-c': c === 'all' ? 'var(--accent-gold)' : CAT_COLORS_CCP[c as CampaignGlossaryEntry['category']] } as React.CSSProperties}
+                        onClick={() => setGlossCatFilter(c === glossCatFilter ? 'all' : c as CampaignGlossaryEntry['category'])}
+                    >
+                        {c === 'all' ? 'Tutti' : CAT_LABELS_CCP[c as CampaignGlossaryEntry['category']]}
+                    </button>
+                ))}
+            </div>
+
+            {entries.length === 0 ? (
+                <div className="campaign-player-tab-empty">
+                    <FaBook size={24} style={{ opacity: 0.25, marginBottom: '0.5rem' }} />
+                    <span>Il Master non ha ancora condiviso voci di glossario.</span>
+                </div>
+            ) : filtered.length === 0 ? (
+                <div className="campaign-player-tab-empty">
+                    <FaSearch size={20} style={{ opacity: 0.2, marginBottom: '0.5rem' }} />
+                    <span>Nessun risultato per "{glossSearch || CAT_LABELS_CCP[glossCatFilter as CampaignGlossaryEntry['category']]}"</span>
+                </div>
+            ) : (
+                <div className="campaign-glossary-list">
+                    {ALL_CATS_CCP.map(cat => {
+                        const group = grouped.get(cat) ?? [];
+                        if (group.length === 0) return null;
+                        return (
+                            <div key={cat} className="campaign-glossary-group">
+                                <div className="campaign-glossary-group-header" style={{ '--group-c': CAT_COLORS_CCP[cat] } as React.CSSProperties}>
+                                    <span className="campaign-glossary-dot" style={{ background: CAT_COLORS_CCP[cat] }} />
+                                    {CAT_LABELS_CCP[cat]}
+                                    <span className="campaign-player-tab-badge">{group.length}</span>
+                                </div>
+                                {group.map(entry => {
+                                    const preview = (entry.sections ?? []).length > 0
+                                        ? (entry.sections[0].content ?? '').slice(0, 70)
+                                        : (entry.info ?? '').slice(0, 70);
+                                    return (
+                                        <button
+                                            key={entry.id}
+                                            className="campaign-glossary-entry"
+                                            onClick={() => openEntry(entry)}
+                                        >
+                                            <span className="campaign-glossary-dot" style={{ background: CAT_COLORS_CCP[entry.category] }} />
+                                            <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                                                <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>{entry.term}</div>
+                                                {preview && <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{preview}{preview.length >= 70 ? '…' : ''}</div>}
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 interface Props {
     userId: string;
@@ -36,6 +158,10 @@ export function CharacterCampaignPanel({ userId, userDisplayName }: Props) {
     const [joining, setJoining] = useState(false);
     const [joinError, setJoinError] = useState('');
     const [confirmLeave, setConfirmLeave] = useState(false);
+    const [playerTab, setPlayerTab] = useState<'chat' | 'glossary'>('chat');
+    const [glossSearch, setGlossSearch] = useState('');
+    const [glossCatFilter, setGlossCatFilter] = useState<CampaignGlossaryEntry['category'] | 'all'>('all');
+    const [glossModal, setGlossModal] = useState<GlossaryHoverEntry | null>(null);
 
     // ── Subscribe to linked campaign (real-time) ──────────
     useEffect(() => {
@@ -179,51 +305,50 @@ export function CharacterCampaignPanel({ userId, userDisplayName }: Props) {
                     </div>
                 </div>
 
-                {/* Campaign Glossary */}
-                {campaignGlossary.length > 0 && (
-                    <div style={{ flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.6rem 1.5rem 0.4rem', fontFamily: 'var(--font-heading)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                            <FaBook size={12} style={{ color: 'var(--accent-gold)' }} />
-                            Glossario Campagna
-                            <span style={{ marginLeft: '0.25rem', background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '1px 7px', fontSize: '0.68rem', color: 'var(--text-muted)' }}>{campaignGlossary.length}</span>
-                        </div>
-                        <div style={{ maxHeight: 220, overflowY: 'auto', padding: '0 1rem 0.5rem' }}>
-                            {campaignGlossary.map(entry => (
-                                <div key={entry.id} style={{ display: 'flex', gap: '0.5rem', padding: '0.35rem 0.5rem', borderBottom: '1px solid rgba(255,255,255,0.04)', alignItems: 'flex-start' }}>
-                                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: CAT_COLORS_CCP[entry.category], flexShrink: 0, marginTop: 6 }} />
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', marginBottom: '0.15rem' }}>
-                                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{entry.term}</span>
-                                            <span style={{ fontSize: '0.62rem', padding: '1px 6px', borderRadius: 10, border: `1px solid ${CAT_COLORS_CCP[entry.category]}55`, color: CAT_COLORS_CCP[entry.category], opacity: 0.85 }}>{CAT_LABELS_CCP[entry.category]}</span>
-                                        </div>
-                                        {/* Sections revealed by master */}
-                                        {(entry.sections ?? []).length > 0
-                                            ? (entry.sections ?? []).map(sec => (
-                                                <div key={sec.id} style={{ marginTop: '0.3rem', paddingLeft: '0.5rem', borderLeft: `2px solid ${CAT_COLORS_CCP[entry.category]}44` }}>
-                                                    {sec.label && <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.15rem' }}>{sec.label}</div>}
-                                                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>{sec.content}</div>
-                                                </div>
-                                            ))
-                                            : entry.info && <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>{entry.info}</div>
-                                        }
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                {/* Sub-tabs */}
+                <div className="campaign-player-tabs">
+                    <button
+                        className={`campaign-player-tab${playerTab === 'chat' ? ' active' : ''}`}
+                        onClick={() => setPlayerTab('chat')}
+                    >
+                        <FaComments size={12} />
+                        Chat con il Master
+                    </button>
+                    <button
+                        className={`campaign-player-tab${playerTab === 'glossary' ? ' active' : ''}`}
+                        onClick={() => setPlayerTab('glossary')}
+                    >
+                        <FaBook size={12} />
+                        Glossario
+                        {campaignGlossary.length > 0 && (
+                            <span className="campaign-player-tab-badge">{campaignGlossary.length}</span>
+                        )}
+                    </button>
+                </div>
+
+                {/* Tab content */}
+                {playerTab === 'glossary' && (
+                    <GlossaryTabContent
+                        entries={campaignGlossary}
+                        glossSearch={glossSearch}
+                        setGlossSearch={setGlossSearch}
+                        glossCatFilter={glossCatFilter}
+                        setGlossCatFilter={setGlossCatFilter}
+                        onOpenModal={setGlossModal}
+                    />
                 )}
 
-                {/* Chat */}
-                <div className="campaign-chat-section">
-                    <h3><FaComments /> Chat con il Master</h3>
-                    <CampaignChatPanel
-                        campaignId={character.campaignId}
-                        playerId={userId}
-                        from="player"
-                        fromName={userDisplayName}
-                        messages={chatMessages}
-                    />
-                </div>
+                {playerTab === 'chat' && (
+                    <div className="campaign-chat-section">
+                        <CampaignChatPanel
+                            campaignId={character.campaignId}
+                            playerId={userId}
+                            from="player"
+                            fromName={userDisplayName}
+                            messages={chatMessages}
+                        />
+                    </div>
+                )}
 
                 {/* Footer */}
                 <div className="campaign-player-footer">
@@ -236,6 +361,14 @@ export function CharacterCampaignPanel({ userId, userDisplayName }: Props) {
                     </button>
                 </div>
             </div>
+
+            {/* Glossary popup */}
+            {glossModal && (
+                <GlossaryDetailsModal
+                    entry={glossModal}
+                    onClose={() => setGlossModal(null)}
+                />
+            )}
 
             {/* Confirm leave modal */}
             {confirmLeave && (

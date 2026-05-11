@@ -32,9 +32,11 @@ export interface EffectiveCreatureStats {
     fort: number;
     reflex: number;
     will: number;
-    /** Delta to add to all stored attackBonus values */
-    attackDelta: number;
-    /** Delta to add to all stored damage values */
+    /** Add to stored attackBonus for melee attacks (BAB stored → add full STR mod) */
+    meleeDelta: number;
+    /** Add to stored attackBonus for ranged attacks (BAB stored → add full DEX mod) */
+    rangedDelta: number;
+    /** Add to damage rolls (full STR mod) */
     damageDelta: number;
 }
 
@@ -64,6 +66,14 @@ export function computeEffectiveCreatureStats(
     const hdMatch = creature.hpDice?.match(/^(\d+)d\d+/);
     const hdCount = hdMatch ? parseInt(hdMatch[1], 10) : 0;
 
+    // creature.hp stores the raw dice average WITHOUT the CON contribution.
+    // creature.actions[n].attackBonus stores BAB only (no STR/DEX).
+    // creature.actions[n].damage stores dice WITHOUT the STR contribution.
+    // Use FULL ability modifiers (not deltas) for all derived values.
+    const newConMod = mod(creature.con + conB);
+    const newStrMod = mod(creature.str + strB);
+    const newDexMod = mod(creature.dex + dexB);
+
     return {
         str: creature.str + strB,
         dex: creature.dex + dexB,
@@ -72,12 +82,13 @@ export function computeEffectiveCreatureStats(
         wis: creature.wis + wisB,
         cha: creature.cha + bonus('cha'),
         ac: creature.ac + bonus('ac') + dDexMod,
-        hp: creature.hp + bonus('hp') + dConMod * hdCount,
+        hp: creature.hp + bonus('hp') + newConMod * hdCount,
         fort: creature.fortitude + bonus('fort') + dConMod,
         reflex: creature.reflex + bonus('ref') + dDexMod,
         will: creature.will + bonus('will') + dWisMod,
-        attackDelta: bonus('attack') + dStrMod,
-        damageDelta: bonus('damage') + dStrMod,
+        meleeDelta: bonus('attack') + newStrMod,
+        rangedDelta: bonus('attack') + newDexMod,
+        damageDelta: bonus('damage') + newStrMod,
     };
 }
 
@@ -314,27 +325,26 @@ export const StatBlock: React.FC<StatBlockProps> = ({
     return (
         <div className="creature-sheet">
             {!headless && (
-            <div className="creature-sheet-header">
-                <CreaturePortrait creature={creature} size={96} />
+            <div className="creature-sheet-hero">
+                <CreaturePortrait creature={creature} size={80} className="creature-sheet-portrait-large" />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                    <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.4rem' }}>{creature.name}</h3>
-                    <div className="text-sm text-muted" style={{ marginTop: 2 }}>
+                    <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.25rem', lineHeight: 1.2 }}>{creature.name}</h3>
+                    <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: 3, lineHeight: 1.3 }}>
                         {creature.size} {creature.type}{creature.subtype ? ` (${creature.subtype})` : ''} · {creature.alignment ?? 'N'}
                     </div>
-                    <div className="flex gap-2" style={{ marginTop: 6, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
                         {creature.challengeRating && <span className="badge-cr">CR {creature.challengeRating}</span>}
-                        <span className="badge-type">{creature.type}</span>
-                        {(creature.tags ?? []).map(t => <span key={t} className="badge-type" style={{ opacity: 0.75 }}>{t}</span>)}
+                        {(creature.tags ?? []).map(t => <span key={t} className="badge-type" style={{ opacity: 0.8 }}>{t}</span>)}
                     </div>
                 </div>
-                <div className="flex flex-col gap-2">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end', flexShrink: 0 }}>
                     {actionLabel && onAction && (
-                        <button className="btn-primary text-sm" onClick={onAction}>{actionIcon} {actionLabel}</button>
+                        <button className="btn-primary text-sm" style={{ padding: '5px 12px' }} onClick={onAction}>{actionIcon} {actionLabel}</button>
                     )}
                     {actionLabel2 && onAction2 && (
-                        <button className="btn-secondary text-sm" onClick={onAction2}>{actionIcon2} {actionLabel2}</button>
+                        <button className="btn-secondary text-sm" style={{ padding: '5px 12px' }} onClick={onAction2}>{actionIcon2} {actionLabel2}</button>
                     )}
-                    <button className="btn-ghost text-sm" onClick={onClose}><FaTimes /> Chiudi</button>
+                    <button className="btn-ghost text-sm" style={{ color: 'var(--text-muted)' }} onClick={onClose}><FaTimes /></button>
                 </div>
             </div>
             )}
@@ -361,24 +371,29 @@ export const StatBlock: React.FC<StatBlockProps> = ({
             )}
 
             {/* Defenses row */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-                {[
-                    { label: 'PF', val: `${eff.hp}${creature.hpDice ? ` (${creature.hpDice})` : ''}`, color: 'var(--accent-crimson)' },
-                    { label: 'CA', val: eff.ac.toString(), color: 'var(--accent-gold)' },
-                    { label: 'BAB', val: `+${creature.bab}` },
-                    { label: 'VEL', val: `${creature.speed}m` },
-                    ...(creature.fly ? [{ label: 'VOLO', val: `${creature.fly}m` }] : []),
-                    ...(creature.swim ? [{ label: 'NUOTO', val: `${creature.swim}m` }] : []),
-                ].map(s => (
-                    <div key={s.label} style={{ background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', textAlign: 'center', minWidth: 72 }}>
-                        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 2 }}>{s.label}</div>
-                        <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', color: s.color ?? 'inherit' }}>{s.val}</div>
-                    </div>
-                ))}
+            <div>
+                <div className="creature-section-title">Combattimento</div>
+                <div className="creature-stat-strip">
+                    {[
+                        { label: 'PF', val: `${eff.hp}${creature.hpDice ? ` (${creature.hpDice})` : ''}`, color: 'var(--accent-crimson)' },
+                        { label: 'CA', val: eff.ac.toString(), color: 'var(--accent-gold)' },
+                        { label: 'BAB', val: `+${creature.bab}` },
+                        { label: 'VEL', val: `${creature.speed}m` },
+                        ...(creature.fly ? [{ label: 'VOLO', val: `${creature.fly}m` }] : []),
+                        ...(creature.swim ? [{ label: 'NUOTO', val: `${creature.swim}m` }] : []),
+                    ].map(s => (
+                        <div key={s.label} className="creature-stat-chip">
+                            <div className="creature-stat-chip-label">{s.label}</div>
+                            <div className="creature-stat-chip-val" style={s.color ? { color: s.color } : undefined}>{s.val}</div>
+                        </div>
+                    ))}
+                </div>
             </div>
 
             {/* Ability scores */}
-            <div className="creature-ability-grid">
+            <div>
+                <div className="creature-section-title">Caratteristiche</div>
+                <div className="creature-ability-grid">
                 {[
                     { key: 'str', label: 'FOR', val: eff.str }, { key: 'dex', label: 'DES', val: eff.dex },
                     { key: 'con', label: 'COS', val: eff.con }, { key: 'int', label: 'INT', val: eff.int },
@@ -390,26 +405,31 @@ export const StatBlock: React.FC<StatBlockProps> = ({
                         <div className="creature-ability-mod">{signMod(s.val)}</div>
                     </div>
                 ))}
+                </div>
             </div>
 
-            {/* Saves — fully computed including ability propagation */}
-            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                {[
-                    { label: 'Tempra', val: eff.fort, base: creature.fortitude, hint: 'base + CON + bonus' },
-                    { label: 'Riflessi', val: eff.reflex, base: creature.reflex, hint: 'base + DES + bonus' },
-                    { label: 'Volontà', val: eff.will, base: creature.will, hint: 'base + SAG + bonus' },
-                ].map(s => (
-                    <div key={s.label}
-                        style={{ flex: 1, background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', padding: '6px 8px', textAlign: 'center' }}
-                        title={`${s.hint} = ${sign(s.val)} (base: ${sign(s.base)})`}
-                    >
-                        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{s.label}</div>
-                        <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9rem' }}>{sign(s.val)}</div>
-                        {s.val !== s.base && (
-                            <div style={{ fontSize: '0.58rem', color: 'var(--text-muted)', opacity: 0.7 }}>base {sign(s.base)}</div>
-                        )}
-                    </div>
-                ))}
+            {/* Saves */}
+            <div>
+                <div className="creature-section-title">Tiri Salvezza</div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                    {[
+                        { label: 'Tempra', val: eff.fort, base: creature.fortitude, hint: 'base + CON + bonus' },
+                        { label: 'Riflessi', val: eff.reflex, base: creature.reflex, hint: 'base + DES + bonus' },
+                        { label: 'Volontà', val: eff.will, base: creature.will, hint: 'base + SAG + bonus' },
+                    ].map(s => (
+                        <div key={s.label}
+                            className="creature-stat-chip"
+                            style={{ flex: 1 }}
+                            title={`${s.hint} = ${sign(s.val)} (base: ${sign(s.base)})`}
+                        >
+                            <div className="creature-stat-chip-label">{s.label}</div>
+                            <div className="creature-stat-chip-val">{sign(s.val)}</div>
+                            {s.val !== s.base && (
+                                <div style={{ fontSize: '0.58rem', color: 'var(--text-muted)', opacity: 0.7, marginTop: 1 }}>base {sign(s.base)}</div>
+                            )}
+                        </div>
+                    ))}
+                </div>
             </div>
 
             {/* Defense extras */}
@@ -423,20 +443,22 @@ export const StatBlock: React.FC<StatBlockProps> = ({
                 </div>
             )}
 
-            {/* Actions — attack bonus and damage include modifier deltas */}
+            {/* Actions — attackBonus stores BAB; add full STR (melee) or DEX (ranged) */}
             {(creature.actions ?? []).length > 0 && (
                 <div>
-                    <h4 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9rem', marginBottom: 6, color: 'var(--accent-gold)' }}>Attacchi</h4>
+                    <div className="creature-section-title">Attacchi</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         {creature.actions.map(a => {
-                            const effAtk = a.attackBonus !== undefined ? a.attackBonus + eff.attackDelta : undefined;
+                            const isMelee = !a.range || a.range.toLowerCase() === 'mischia';
+                            const atkDelta = isMelee ? eff.meleeDelta : eff.rangedDelta;
+                            const effAtk = a.attackBonus !== undefined ? a.attackBonus + atkDelta : undefined;
                             return (
                                 <div key={a.id} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', background: 'var(--bg-surface)', padding: '6px 10px', borderRadius: 'var(--radius-sm)' }}>
                                     <span style={{ fontWeight: 600 }}>{a.name}</span>
                                     {effAtk !== undefined && (
                                         <span className="text-sm text-muted">
                                             Att: {sign(effAtk)}
-                                            {eff.attackDelta !== 0 && (
+                                            {atkDelta !== 0 && (
                                                 <span style={{ opacity: 0.6 }}> (base {sign(a.attackBonus!)})</span>
                                             )}
                                         </span>
@@ -459,7 +481,7 @@ export const StatBlock: React.FC<StatBlockProps> = ({
             {/* Special abilities */}
             {(creature.specialAbilities ?? []).length > 0 && (
                 <div>
-                    <h4 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9rem', marginBottom: 6, color: 'var(--accent-arcane)' }}>Capacità Speciali</h4>
+                    <div className="creature-section-title" style={{ color: 'var(--accent-arcane)', borderColor: 'rgba(155,89,182,0.22)' }}>Capacità Speciali</div>
                     {creature.specialAbilities.map(a => (
                         <div key={a.id} style={{ background: 'var(--bg-surface)', padding: '6px 10px', borderRadius: 'var(--radius-sm)', marginBottom: 4 }}>
                             <span style={{ fontWeight: 600 }}>{a.name}</span> <span className="text-xs text-muted">({a.abilityType})</span>
@@ -472,7 +494,7 @@ export const StatBlock: React.FC<StatBlockProps> = ({
             {/* Spells */}
             {(creature.spellsKnown ?? []).length > 0 && (
                 <div>
-                    <h4 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9rem', marginBottom: 6, color: 'var(--accent-arcane)' }}>Incantesimi Conosciuti</h4>
+                    <div className="creature-section-title" style={{ color: 'var(--accent-arcane)', borderColor: 'rgba(155,89,182,0.22)' }}>Incantesimi Conosciuti</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {creature.spellsKnown!.map(s => (
                             <span key={s.id} className="badge-type" title={s.description}>{s.name} (lv. {s.level})</span>
