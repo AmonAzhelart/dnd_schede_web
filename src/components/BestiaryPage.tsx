@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { v4 as uuid } from 'uuid';
 import {
     FaPlus, FaTrash, FaEdit, FaTimes, FaSave, FaSearch, FaSkull,
@@ -14,7 +15,9 @@ import type {
     CreatureStatOverride, CreatureRuntimeModifier,
 } from '../types/dnd';
 import { CreaturePortrait, StatBlock, computeEffectiveCreatureStats } from './CreatureStatBlock';
+import { CreaturePopup } from './CreaturePopup';
 import { CompanionPanel } from './CompanionPanel';
+import { useMediaQuery } from './mobile/MobileShell';
 import './Bestiary.css';
 const pctColor = (p: number) => p > 0.6 ? 'healthy' : p > 0.3 ? 'wounded' : p > 0 ? 'critical' : 'dead';
 
@@ -84,15 +87,20 @@ interface CreatureEditorProps {
     initial: Creature;
     onSave: (c: Creature) => void;
     onCancel: () => void;
+    compact?: boolean;
 }
+interface CreatureEditorHandle { save: () => void; }
 
-const CreatureEditor: React.FC<CreatureEditorProps> = ({ initial, onSave, onCancel }) => {
+const CreatureEditor = React.forwardRef<CreatureEditorHandle, CreatureEditorProps>(
+    ({ initial, onSave, onCancel, compact }, ref) => {
     const [form, setForm] = useState<Creature>(initial);
     const imgInputRef = useRef<HTMLInputElement>(null);
     const [imgBusy, setImgBusy] = useState(false);
 
     const set = (patch: Partial<Creature>) => setForm(f => ({ ...f, ...patch }));
     const n = (v: string) => Number(v) || 0;
+
+    useImperativeHandle(ref, () => ({ save: () => { if (form.name.trim()) onSave(form); } }));
 
     const addAction = () => set({ actions: [...(form.actions ?? []), { id: uuid(), name: '', range: 'Mischia' }] });
     const updAction = (a: CreatureAction) => set({ actions: (form.actions ?? []).map(x => x.id === a.id ? a : x) });
@@ -110,13 +118,15 @@ const CreatureEditor: React.FC<CreatureEditorProps> = ({ initial, onSave, onCanc
 
     return (
         <div className="glass-panel flex-col gap-3 animate-fade-in">
-            <div className="section-header">
-                <span className="section-title">Modifica Creatura</span>
-                <div className="flex gap-2">
-                    <button className="btn-secondary text-sm" onClick={onCancel}><FaTimes /> Annulla</button>
-                    <button className="btn-primary text-sm" onClick={() => form.name.trim() && onSave(form)}><FaSave /> Salva</button>
+            {!compact && (
+                <div className="section-header">
+                    <span className="section-title">Modifica Creatura</span>
+                    <div className="flex gap-2">
+                        <button className="btn-secondary text-sm" onClick={onCancel}><FaTimes /> Annulla</button>
+                        <button className="btn-primary text-sm" onClick={() => form.name.trim() && onSave(form)}><FaSave /> Salva</button>
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Image */}
             <div className="flex gap-3 items-start">
@@ -228,7 +238,7 @@ const CreatureEditor: React.FC<CreatureEditorProps> = ({ initial, onSave, onCanc
             </div>
         </div>
     );
-};
+});
 
 /* ─── inline Field helper ─── */
 const Fld: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
@@ -246,13 +256,14 @@ interface TrackerCardProps {
     overrides: CreatureStatOverride[];
     runtimeModifiers?: CreatureRuntimeModifier[];
     conditions?: string[];
+    onClick?: () => void;
     onHpDelta: (delta: number) => void;
     onDismiss: () => void;
     onEdit: () => void;
     extra?: React.ReactNode;
 }
 
-const TrackerCard: React.FC<TrackerCardProps> = ({ name, creature, currentHp, maxHp, overrides, runtimeModifiers, conditions, onHpDelta, onDismiss, onEdit, extra }) => {
+const TrackerCard: React.FC<TrackerCardProps> = ({ name, creature, currentHp, maxHp, overrides, runtimeModifiers, conditions, onClick, onHpDelta, onDismiss, onEdit, extra }) => {
     const pct = maxHp > 0 ? Math.max(0, currentHp / maxHp) : 0;
     const [delta, setDelta] = useState(1);
 
@@ -260,18 +271,18 @@ const TrackerCard: React.FC<TrackerCardProps> = ({ name, creature, currentHp, ma
     const sign = (n: number) => (n >= 0 ? '+' : '') + n;
 
     return (
-        <div className="tracker-card">
+        <div className="tracker-card" onClick={onClick} style={{ cursor: onClick ? 'pointer' : undefined }}>
             <div className="tracker-card-header">
                 <CreaturePortrait creature={creature} size={36} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
                     <div className="text-xs text-muted">{creature.size} {creature.type}</div>
                 </div>
-                <button className="btn-ghost text-xs" style={{ color: 'var(--accent-gold)' }} onClick={onEdit} title="Dettaglio"><GiScrollUnfurled /></button>
-                <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={onDismiss} title="Rimuovi"><FaTimes /></button>
+                <button className="btn-ghost text-xs" style={{ color: 'var(--accent-gold)' }} onClick={e => { e.stopPropagation(); onEdit(); }} title="Dettaglio"><GiScrollUnfurled /></button>
+                <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={e => { e.stopPropagation(); onDismiss(); }} title="Rimuovi"><FaTimes /></button>
             </div>
 
-            <div className="tracker-body">
+            <div className="tracker-body" onClick={e => e.stopPropagation()}>
                 {/* HP bar */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 2 }}>
                     <span>PF</span><span>{currentHp} / {maxHp}</span>
@@ -349,7 +360,7 @@ interface SummonDialogProps {
 const SummonDialog: React.FC<SummonDialogProps> = ({ creature, overrides, onConfirm, onCancel }) => {
     const [spellName, setSpellName] = useState('');
     const [rounds, setRounds] = useState<string>('');
-    const effHp = creature.hp + overrides.filter(o => o.stat === 'hp').reduce((s, o) => s + o.value, 0);
+    const effHp = computeEffectiveCreatureStats(creature, overrides, []).hp;
 
     return (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
@@ -457,6 +468,10 @@ export const BestiaryPage: React.FC = () => {
     const [editingEntry, setEditingEntry] = useState<BestiaryEntry | null>(null);
     const [editingSummon, setEditingSummon] = useState<ActiveSummon | null>(null);
     const [viewingPet, setViewingPet] = useState<ActivePet | null>(null);
+    const creatorRef = useRef<CreatureEditorHandle>(null);
+    const [editorClosing, setEditorClosing] = useState(false);
+
+    const isMobile = useMediaQuery('(max-width: 859px)');
 
     const bestiary = character?.bestiary ?? [];
     const summons = character?.activeSummons ?? [];
@@ -490,7 +505,7 @@ export const BestiaryPage: React.FC = () => {
     const confirmSummon = (spellName: string, rounds: number | null) => {
         if (!summonDialog) return;
         const { creature, overrides, entryId } = summonDialog;
-        const effHp = creature.hp + overrides.filter(o => o.stat === 'hp').reduce((s, o) => s + o.value, 0);
+        const effHp = computeEffectiveCreatureStats(creature, overrides, []).hp;
         const summon: ActiveSummon = {
             id: uuid(),
             creature: { ...creature, imageData: undefined } as Creature, // strip image to save space
@@ -518,7 +533,7 @@ export const BestiaryPage: React.FC = () => {
     const confirmPet = (nickname: string) => {
         if (!petDialog) return;
         const { creature, overrides, entryId } = petDialog;
-        const effHp = creature.hp + overrides.filter(o => o.stat === 'hp').reduce((s, o) => s + o.value, 0);
+        const effHp = computeEffectiveCreatureStats(creature, overrides, []).hp;
         const pet: ActivePet = {
             id: uuid(),
             creature: { ...creature, imageData: undefined } as Creature,
@@ -553,10 +568,20 @@ export const BestiaryPage: React.FC = () => {
         setEditingEntry(null);
     };
 
+    const closeMobileEditor = (creature?: Creature) => {
+        const entry = editingEntry;
+        setEditorClosing(true);
+        setTimeout(() => {
+            if (creature && entry) updateBestiaryEntry({ ...entry, creature });
+            setEditingEntry(null);
+            setEditorClosing(false);
+        }, 210);
+    };
+
     if (!character) return <div className="text-muted text-center" style={{ padding: 40 }}>Carica un personaggio per accedere al bestiario.</div>;
 
     /* ── Full-screen overlays (editor, companion panel) ── */
-    if (editingEntry) {
+    if (editingEntry && !isMobile) {
         return (
             <div style={{ flex: 1, overflow: 'hidden auto', padding: 'var(--space-4)' }}>
                 <CreatureEditor initial={editingEntry.creature} onSave={saveEdit} onCancel={() => setEditingEntry(null)} />
@@ -567,7 +592,7 @@ export const BestiaryPage: React.FC = () => {
     if (viewingPet) {
         const freshPet = (character?.activePets ?? []).find(p => p.id === viewingPet.id) ?? viewingPet;
         return (
-            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div className="bestiary-pet-overlay">
                 <CompanionPanel
                     pet={freshPet}
                     onClose={() => setViewingPet(null)}
@@ -707,7 +732,7 @@ export const BestiaryPage: React.FC = () => {
             <div className="bestiary-split" style={{ marginTop: 10 }}>
 
                 {/* LIST PANE */}
-                <div className={`bestiary-list-pane${hasDetail ? ' hidden-mobile' : ''}`}>
+                <div className="bestiary-list-pane">
 
                     {/* ── CATALOGO list ── */}
                     {tab === 'catalogo' && (
@@ -797,6 +822,7 @@ export const BestiaryPage: React.FC = () => {
                                             overrides={s.appliedOverrides}
                                             runtimeModifiers={s.runtimeModifiers}
                                             conditions={s.conditions}
+                                            onClick={() => { setEditingSummon(s); setSelectedId(s.id); }}
                                             onHpDelta={delta => updateSummonHp(s.id, delta)}
                                             onDismiss={() => { if (confirm(`Rimuovere evocazione di ${s.creature.name}?`)) removeSummon(s.id); }}
                                             onEdit={() => { setEditingSummon(s); setSelectedId(s.id); }}
@@ -842,6 +868,7 @@ export const BestiaryPage: React.FC = () => {
                                             overrides={p.appliedOverrides}
                                             runtimeModifiers={p.runtimeModifiers}
                                             conditions={p.conditions}
+                                            onClick={() => setViewingPet(p)}
                                             onHpDelta={delta => updatePetHp(p.id, delta)}
                                             onDismiss={() => { if (confirm(`Rimuovere ${p.nickname ?? p.creature.name}?`)) removePet(p.id); }}
                                             onEdit={() => setViewingPet(p)}
@@ -865,42 +892,119 @@ export const BestiaryPage: React.FC = () => {
                     )}
                 </div>
 
-                {/* DETAIL PANE */}
-                {hasDetail ? (
-                    <div className="bestiary-detail-pane">
-                        {detailContent}
-                        {/* Sticky action bar for catalog / personal (summon / add-to-bestiary) */}
-                        {viewingCreature && !editingSummon && (
-                            <div className="creature-detail-actions">
-                                <button className="btn-primary text-sm" onClick={() => openSummonDialog(viewingCreature.creature, viewingCreature.entry?.id)}>
-                                    <GiMagicSwirl /> Evoca
-                                </button>
-                                <button className="btn-secondary text-sm" onClick={() => openPetDialog(viewingCreature.creature, viewingCreature.entry?.id)}>
-                                    <FaPaw /> Compagno
-                                </button>
-                                {tab === 'catalogo' && !bestiary.some(e => e.catalogId === viewingCreature.creature.id) && (
-                                    <button className="btn-ghost text-sm" onClick={() => addToBestiary(viewingCreature.creature as CatalogCreature)}>
-                                        <FaPlus /> Aggiungi a Personale
+                {/* DETAIL PANE — desktop only, CSS hides it on mobile */}
+                <div className="bestiary-detail-pane">
+                    {hasDetail ? (
+                        <>
+                            {detailContent}
+                            {/* Sticky action bar for catalog / personal (desktop) */}
+                            {viewingCreature && (
+                                <div className="creature-detail-actions">
+                                    <button className="btn-primary text-sm" onClick={() => openSummonDialog(viewingCreature.creature, viewingCreature.entry?.id)}>
+                                        <GiMagicSwirl /> Evoca
                                     </button>
-                                )}
-                                {tab === 'personale' && viewingCreature.entry && (
-                                    <button className="btn-ghost text-sm" onClick={() => setEditingEntry(viewingCreature.entry!)}>
-                                        <FaEdit /> Modifica
+                                    <button className="btn-secondary text-sm" onClick={() => openPetDialog(viewingCreature.creature, viewingCreature.entry?.id)}>
+                                        <FaPaw /> Compagno
                                     </button>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                ) : (
-                    /* Empty state placeholder — always visible on desktop */
-                    <div className="bestiary-detail-pane">
+                                    {tab === 'catalogo' && !bestiary.some(e => e.catalogId === viewingCreature.creature.id) && (
+                                        <button className="btn-ghost text-sm" onClick={() => addToBestiary(viewingCreature.creature as CatalogCreature)}>
+                                            <FaPlus /> Aggiungi a Personale
+                                        </button>
+                                    )}
+                                    {tab === 'personale' && viewingCreature.entry && (
+                                        <button className="btn-ghost text-sm" onClick={() => setEditingEntry(viewingCreature.entry!)}>
+                                            <FaEdit /> Modifica
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </>
+                    ) : (
                         <div className="bestiary-detail-placeholder">
                             <FaDragon />
                             <span style={{ fontSize: '0.85rem' }}>Seleziona una creatura per vedere i dettagli</span>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
+
+            {/* Mobile popup portals */}
+            {isMobile && viewingCreature && (() => {
+                const { creature, overrides, entry } = viewingCreature;
+                return (
+                    <CreaturePopup
+                        kind="preview"
+                        entry={{ id: '_preview', creature, currentHp: 0, appliedOverrides: overrides ?? [], runtimeModifiers: [] }}
+                        liveOverrides={overrides ?? []}
+                        onClose={() => { setViewingCreature(null); setSelectedId(null); }}
+                        extraActions={
+                            <>
+                                <button className="btn-primary text-sm" onClick={() => openSummonDialog(creature, entry?.id)}>
+                                    <GiMagicSwirl /> Evoca
+                                </button>
+                                <button className="btn-secondary text-sm" onClick={() => openPetDialog(creature, entry?.id)}>
+                                    <FaPaw /> Compagno
+                                </button>
+                                {tab === 'catalogo' && !bestiary.some(e => e.catalogId === creature.id) && (
+                                    <button className="btn-ghost text-sm" onClick={() => { addToBestiary(creature as CatalogCreature); setViewingCreature(null); }}>
+                                        <FaPlus /> Personale
+                                    </button>
+                                )}
+                                {tab === 'personale' && entry && (
+                                    <button className="btn-ghost text-sm" onClick={() => setEditingEntry(entry!)}>
+                                        <FaEdit /> Modifica
+                                    </button>
+                                )}
+                            </>
+                        }
+                    />
+                );
+            })()}
+            {isMobile && editingSummon && (() => {
+                const s = editingSummon;
+                return (
+                    <CreaturePopup
+                        kind="summon"
+                        entry={s}
+                        liveOverrides={s.appliedOverrides}
+                        runtimeModifiers={s.runtimeModifiers ?? []}
+                        onAddRuntimeModifier={m => addCreatureRuntimeModifier('summon', s.id, m)}
+                        onRemoveRuntimeModifier={mid => removeCreatureRuntimeModifier('summon', s.id, mid)}
+                        onClose={() => setEditingSummon(null)}
+                        onHpDelta={d => updateSummonHp(s.id, d)}
+                        onRemove={() => { if (confirm(`Rimuovere evocazione di ${s.creature.name}?`)) { removeSummon(s.id); setEditingSummon(null); } }}
+                    />
+                );
+            })()}
+
+            {/* Mobile creature editor bottom sheet */}
+            {isMobile && (editingEntry || editorClosing) && createPortal(
+                <div
+                    className={`ceditor-overlay${editorClosing ? ' closing' : ''}`}
+                    onClick={e => { if (e.target === e.currentTarget) closeMobileEditor(); }}
+                >
+                    <div className={`ceditor-sheet${editorClosing ? ' closing' : ''}`}>
+                        <div className="mob-detail-pill" />
+                        <div className="ceditor-header">
+                            <span className="ceditor-title">Modifica Creatura</span>
+                            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                                <button className="btn-ghost" style={{ padding: '4px 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 4 }} onClick={() => closeMobileEditor()}><FaTimes size={11} /> Annulla</button>
+                                <button className="btn-primary" style={{ padding: '4px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 4 }} onClick={() => creatorRef.current?.save()}><FaSave size={11} /> Salva</button>
+                            </div>
+                        </div>
+                        <div className="ceditor-scroll">
+                            <CreatureEditor
+                                ref={creatorRef}
+                                compact
+                                initial={editingEntry?.creature ?? { name: '' } as Creature}
+                                onSave={c => closeMobileEditor(c)}
+                                onCancel={() => closeMobileEditor()}
+                            />
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
 
             {/* Dialogs */}
             {summonDialog && (

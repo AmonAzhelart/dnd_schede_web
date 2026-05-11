@@ -73,10 +73,9 @@
   min-height: 0;
 }
 
-/* On mobile when detail is open, hide the list */
+/* Detail pane always hidden on mobile — mobile uses full-page navigation */
 @media (max-width: 859px) {
-  .bestiary-list-pane.hidden-mobile { display: none; }
-  .bestiary-detail-pane.hidden-mobile { display: none; }
+  .bestiary-detail-pane { display: none !important; }
 }
 
 /* ── Detail pane ─────────────────────────────────────────────────  */
@@ -385,6 +384,140 @@
 
 .tracker-body { padding: 8px 12px; }
 
+/* ── Pet / companion panel overlay (fills the tab area on all devices) ── */
+.bestiary-pet-overlay {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border-top: 2px solid rgba(201, 168, 76, 0.35);
+  border-radius: 16px 16px 0 0;
+  animation: mob-slide-up 0.22s ease-out;
+}
+
+@keyframes mob-slide-up {
+  from { transform: translateY(100%); opacity: 0.4; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ── Mobile full-page detail view (creature / summon) ───────────── */
+.mob-detail-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  height: 100%;
+  background: var(--bg-panel);
+  border-top: 2px solid rgba(201, 168, 76, 0.35);
+  border-radius: 16px 16px 0 0;
+  animation: mob-slide-up 0.22s ease-out;
+}
+
+/* Pill drag handle at very top */
+.mob-detail-pill {
+  width: 38px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 99px;
+  margin: 10px auto 4px;
+  flex-shrink: 0;
+}
+
+/* Sticky header: back chevron + creature name */
+.mob-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--bg-panel);
+  flex-shrink: 0;
+}
+
+.mob-detail-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 0;
+  background: none;
+  border: none;
+  color: var(--accent-gold);
+  font-family: var(--font-heading);
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.mob-detail-back:hover { opacity: 0.75; }
+
+.mob-detail-title {
+  font-family: var(--font-heading);
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  color: var(--text-primary);
+}
+
+/* The only scrollable region — fills all space between header and action bar */
+.mob-detail-scroll {
+  flex: 1 1 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  min-height: 0;
+}
+
+/* Compact stat block inside the scroll area */
+.mob-detail-scroll .creature-sheet {
+  padding: 12px 14px 20px;
+  gap: 10px;
+}
+.mob-detail-scroll .creature-sheet-hero {
+  padding: 10px 14px;
+  margin: -12px -14px 0;
+  gap: 10px;
+  align-items: center;
+}
+.mob-detail-scroll .creature-sheet-portrait-large {
+  width: 52px !important;
+  height: 52px !important;
+  font-size: 1.4rem !important;
+}
+.mob-detail-scroll .creature-sheet-hero h3 { font-size: 1rem; }
+/* Action buttons in hero are hidden — they live in mob-detail-actions */
+.mob-detail-scroll .creature-hero-actions { display: none !important; }
+.mob-detail-scroll .creature-ability-grid { gap: 4px; }
+.mob-detail-scroll .creature-ability-box  { padding: 5px 2px; }
+.mob-detail-scroll .creature-ability-score { font-size: 1rem; }
+.mob-detail-scroll .creature-stat-strip {
+  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+  gap: 4px;
+}
+.mob-detail-scroll .creature-stat-chip { padding: 5px 6px; }
+
+/* Sticky action bar pinned at the bottom */
+.mob-detail-actions {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--bg-panel);
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.mob-detail-actions > button {
+  flex: 1;
+  justify-content: center;
+  min-width: 80px;
+}
+
+/* ── Badges ───────────────────────────────────────────────────────  */
+
 /* ── Badges ───────────────────────────────────────────────────────  */
 .badge-cr {
   background: rgba(201, 168, 76, 0.13);
@@ -458,6 +591,87 @@
   background: rgba(231, 76, 60, 0.1);
   border-color: rgba(231, 76, 60, 0.3);
   color: #e74c3c;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Creature Editor — mobile bottom sheet (ceditor-*)
+   ══════════════════════════════════════════════════════════════════ */
+
+.ceditor-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: flex-end;
+  backdrop-filter: blur(3px);
+}
+
+.ceditor-sheet {
+  width: 100%;
+  max-height: 92dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border-top: 2px solid rgba(201, 168, 76, 0.4);
+  border-radius: 16px 16px 0 0;
+  overflow: hidden;
+  animation: mob-slide-up 0.22s ease-out;
+}
+
+.ceditor-sheet.closing {
+  animation: mob-slide-down 0.2s ease-in forwards;
+}
+
+.ceditor-overlay.closing {
+  animation: ceditor-fade-out 0.2s ease-in forwards;
+}
+
+@keyframes mob-slide-down {
+  from { transform: translateY(0);    opacity: 1; }
+  to   { transform: translateY(100%); opacity: 0; }
+}
+
+@keyframes ceditor-fade-out {
+  from { background: rgba(0, 0, 0, 0.65); }
+  to   { background: rgba(0, 0, 0, 0); }
+}
+
+.ceditor-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Sticky action header inside the sheet */
+.ceditor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
+  background: var(--bg-panel);
+}
+
+.ceditor-title {
+  font-family: var(--font-heading);
+  font-size: 0.88rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-gold);
+  white-space: nowrap;
+}
+
+/* Strip the glass-panel nesting inside the scroll area */
+.ceditor-scroll .glass-panel {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -607,6 +821,20 @@
   height: 100%;
   border-radius: 4px;
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1), background 0.4s;
+}
+
+/* ── Extra actions bar (e.g. Evoca / Compagno in bestiary preview) ── */
+.cpop-extra-actions {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px 12px;
+  flex-wrap: wrap;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+.cpop-extra-actions > button {
+  flex: 1;
+  justify-content: center;
+  min-width: 80px;
 }
 
 /* ── Body: tab bar + layout container ── */
@@ -974,6 +1202,7 @@
   /* Both .cpop-left and .cpop-right collapse to transparent containers;
      the actual panels (.cpop-group and .cpop-right itself) fill the layout area */
   .cpop-layout {
+    flex-direction: column;
     position: relative;
   }
 
@@ -981,41 +1210,53 @@
     display: contents; /* transparent – groups become direct children of layout */
   }
 
-  /* All groups hidden on mobile by default */
+  /* All groups hidden on mobile by default; active group fills the layout */
   .cpop-group {
     display: none;
-    position: absolute;
-    inset: 0;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
     padding: 6px 14px 18px;
     flex-direction: column;
+    -webkit-overflow-scrolling: touch;
   }
   .cpop-group.cpop-ms {
     display: flex;
   }
 
-  /* Right aside also becomes an absolute panel on mobile */
+  /* Right aside also becomes a flex panel on mobile */
   .cpop-right {
     display: none;
-    position: absolute;
-    inset: 0;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
     padding: 6px 14px 18px;
     flex-direction: column;
     width: auto;
     border-left: none;
+    -webkit-overflow-scrolling: touch;
   }
   .cpop-right.cpop-ms {
     display: flex;
   }
 }
 
-/* ── Smallest phones: slide-up sheet ── */
-@media (max-width: 480px) {
+/* ── Mobile: slide-up sheet ── */
+@media (max-width: 859px) {
   .cpop {
-    max-height: 98dvh;
-    border-radius: 10px 10px 0 0;
+    height: 85dvh;
+    max-height: none;
+    border-radius: 16px 16px 0 0;
     align-self: flex-end;
+    animation: mob-slide-up 0.22s ease-out;
+  }
+
+  .cpop.closing {
+    animation: mob-slide-down 0.2s ease-in forwards;
+  }
+
+  .cpop-overlay.closing {
+    animation: ceditor-fade-out 0.2s ease-in forwards;
   }
 
   .cpop-overlay {

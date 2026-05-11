@@ -336,7 +336,7 @@ export const StatBlock: React.FC<StatBlockProps> = ({
                         {(creature.tags ?? []).map(t => <span key={t} className="badge-type" style={{ opacity: 0.8 }}>{t}</span>)}
                     </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end', flexShrink: 0 }}>
+                <div className="creature-hero-actions" style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end', flexShrink: 0 }}>
                     {actionLabel && onAction && (
                         <button className="btn-primary text-sm" style={{ padding: '5px 12px' }} onClick={onAction}>{actionIcon} {actionLabel}</button>
                     )}
