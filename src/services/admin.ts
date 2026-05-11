@@ -304,6 +304,8 @@ export interface ClassLevelFeature {
     subcategory: 'active' | 'passive';
     /** Optional mechanical modifiers. */
     modifiers?: Modifier[];
+    /** Optional creature modifiers (like feats). */
+    creatureModifiers?: CreatureModifier[];
     /** For active abilities: name of the daily/encounter resource. */
     resourceName?: string;
     /** For active abilities: max uses. */

@@ -67,6 +67,8 @@ interface CharacterState {
   spendClassFeatureResource: (featureId: string) => void;
   recoverClassFeatureResource: (featureId: string) => void;
   resetClassFeatureResources: () => void;
+  /** Replace the full classFeatures array (used for catalog sync). */
+  setClassFeatures: (features: ClassFeature[]) => void;
   // Extended data
   setCurrency: (currency: Currency) => void;
   addCurrencyTransaction: (tx: CurrencyTransaction) => void;
@@ -389,6 +391,11 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     if (!state.character) return state;
     const classFeatures = (state.character.classFeatures ?? []).map(f => ({ ...f, resourceUsed: 0 }));
     return { character: { ...state.character, classFeatures } };
+  }),
+
+  setClassFeatures: (features) => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, classFeatures: features } };
   }),
 
   setCurrency: (currency) => set((state) => {
@@ -947,7 +954,7 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
           const modType: ModifierType =
             item.type === 'shield' ? 'shield' :
               item.type === 'protectiveItem' ? 'deflection' :
-                'armor';
+                'enhancement';
           activeModifiers.push({
             target: 'ac', value: item.armorDetails.armorBonus, type: modType, source: item.name,
           });
@@ -960,6 +967,11 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         activeModifiers.push(...feat.modifiers.filter(m => m.target === target));
       }
     });
+
+    // Include user-managed active modifiers in the same stacking pool
+    (character.activeModifiers ?? [])
+      .filter(m => !m.paused && m.target === target)
+      .forEach(m => activeModifiers.push({ target: m.target, value: m.value, type: m.type, source: m.source ?? '' }));
 
     // If target is 'ac', also add Dex modifier (capped by tightest Max Dex from equipped armor)
     if (target === 'ac') {
@@ -1001,9 +1013,6 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         if (negatives.length) totalBonus += Math.min(...negatives);
       }
     });
-
-    // Add free-standing user-managed active modifiers (buffs/malus).
-    totalBonus += get().getActiveModifierDelta(target);
 
     return baseValue + totalBonus;
   },
@@ -1238,10 +1247,10 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         ...s.appliedOverrides.filter(o => o.stat === 'con').map(o => ({ type: o.type, value: o.value })),
         ...(s.runtimeModifiers ?? []).filter(m => m.stat === 'con').map(m => ({ type: m.type, value: m.value })),
       ]);
-      const dConMod = Math.floor((s.creature.con + conBonus - 10) / 2) - Math.floor((s.creature.con - 10) / 2);
+      const currentConMod = Math.floor((s.creature.con + conBonus - 10) / 2);
       const hdMatch = s.creature.hpDice?.match(/^(\d+)d\d+/);
       const hdCount = hdMatch ? parseInt(hdMatch[1], 10) : 0;
-      const effective = s.creature.hp + hpFromStatic + hpFromRuntime + dConMod * hdCount;
+      const effective = s.creature.hp + hpFromStatic + hpFromRuntime + currentConMod * hdCount;
       return { ...s, currentHp: Math.max(0, Math.min(effective, s.currentHp + delta)) };
     });
     return { character: { ...state.character, activeSummons } };
@@ -1298,10 +1307,10 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         ...p.appliedOverrides.filter(o => o.stat === 'con').map(o => ({ type: o.type, value: o.value })),
         ...(p.runtimeModifiers ?? []).filter(m => m.stat === 'con').map(m => ({ type: m.type, value: m.value })),
       ]);
-      const dConMod = Math.floor((p.creature.con + conBonus - 10) / 2) - Math.floor((p.creature.con - 10) / 2);
+      const currentConMod = Math.floor((p.creature.con + conBonus - 10) / 2);
       const hdMatch = p.creature.hpDice?.match(/^(\d+)d\d+/);
       const hdCount = hdMatch ? parseInt(hdMatch[1], 10) : 0;
-      const effective = p.creature.hp + hpFromStatic + hpFromRuntime + dConMod * hdCount;
+      const effective = p.creature.hp + hpFromStatic + hpFromRuntime + currentConMod * hdCount;
       return { ...p, currentHp: Math.max(0, Math.min(effective, p.currentHp + delta)) };
     });
     return { character: { ...state.character, activePets } };

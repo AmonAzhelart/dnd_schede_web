@@ -184,6 +184,13 @@ const CreatureEditor: React.FC<CreatureEditorProps> = ({ initial, onSave, onCanc
                 <div key={a.id} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px,1fr))', gap: 4, background: 'var(--bg-surface)', padding: 8, borderRadius: 'var(--radius-sm)' }}>
                     <Fld label="Nome"><input className="input w-full" value={a.name} onChange={e => updAction({ ...a, name: e.target.value })} /></Fld>
                     <Fld label="Bonus"><input className="input w-full" type="number" value={a.attackBonus ?? 0} onChange={e => updAction({ ...a, attackBonus: Number(e.target.value) })} /></Fld>
+                    <Fld label="Scala su">
+                        <select className="input w-full" value={a.attackStat ?? 'str'} onChange={e => updAction({ ...a, attackStat: e.target.value as 'str' | 'dex' | 'none' })}>
+                            <option value="str">Forza</option>
+                            <option value="dex">Destrezza</option>
+                            <option value="none">Nessuna</option>
+                        </select>
+                    </Fld>
                     <Fld label="Danno"><input className="input w-full" value={a.damage ?? ''} onChange={e => updAction({ ...a, damage: e.target.value })} placeholder="1d8+3" /></Fld>
                     <Fld label="Tipo danno"><input className="input w-full" value={a.damageType ?? ''} onChange={e => updAction({ ...a, damageType: e.target.value })} /></Fld>
                     <Fld label="Gittata"><input className="input w-full" value={a.range ?? 'Mischia'} onChange={e => updAction({ ...a, range: e.target.value })} /></Fld>

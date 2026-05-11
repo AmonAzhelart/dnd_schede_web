@@ -6,7 +6,7 @@
  * persisted across sessions via localStorage.
  */
 import { useEffect, useRef } from 'react';
-import { subscribeToPlayerChat, subscribeToCampaign } from '../../services/campaign';
+import { subscribeToPlayerChat, subscribeToCampaign, markChatRead } from '../../services/campaign';
 import { useCharacterStore } from '../../store/characterStore';
 import { useChatToast } from '../../contexts/chatToastContext';
 import type { CampaignMessage } from '../../types/campaign';
@@ -117,6 +117,7 @@ export function PlayerChatNotifier({ isCampaignTabActive, onNavigateToCampaign, 
         const now = Date.now();
         saveReadAt(campaignId, userId, now);
         onUnreadCountChange?.(0);
+        markChatRead(campaignId, userId, 'player').catch(() => { });
     }, [isCampaignTabActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return null;

@@ -16,6 +16,8 @@ export interface ClassLevel {
   willSave?: SaveProgression;
   /** Hit die size for this class (4, 6, 8, 10, or 12) */
   hitDie?: number;
+  /** Reference to the catalog_classes document id (if selected from catalog). */
+  catalogClassId?: string;
 }
 
 /** Preset class → BAB progression mappings for D&D 3.5 */
@@ -591,6 +593,10 @@ export interface ClassFeature {
   resourceUsed?: number;
   /** Modifiers automatically applied to summoned/pet creatures when this feature is active */
   creatureModifiers?: CreatureModifier[];
+  /** If imported from the class catalog: id of the ClassLevelFeature in catalog_classes. */
+  catalogFeatureId?: string;
+  /** If imported from the class catalog: id of the ClassLevel in character.classLevels that granted this. */
+  catalogClassLevelId?: string;
 }
 
 export interface Skill {
@@ -923,6 +929,8 @@ export interface CreatureAction {
   id: string;
   name: string;
   attackBonus?: number;
+  /** Which ability score the attack (and damage) scales on. Defaults to 'str'. */
+  attackStat?: 'str' | 'dex' | 'none';
   /** Damage expression, e.g. "1d8+3" */
   damage?: string;
   damageType?: string;

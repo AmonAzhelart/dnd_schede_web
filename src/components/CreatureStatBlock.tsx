@@ -56,7 +56,6 @@ export function computeEffectiveCreatureStats(
     const wisB = bonus('wis');
 
     // Ability mod deltas after bonuses
-    const dStrMod = mod(creature.str + strB) - mod(creature.str);
     const dDexMod = mod(creature.dex + dexB) - mod(creature.dex);
     const dConMod = mod(creature.con + conB) - mod(creature.con);
     const dWisMod = mod(creature.wis + wisB) - mod(creature.wis);

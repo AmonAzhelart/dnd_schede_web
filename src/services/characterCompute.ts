@@ -84,7 +84,7 @@ export function computeEffectiveStat(char: CharacterBase, target: StatType | str
             const modType: ModifierType =
                 item.type === 'shield' ? 'shield' :
                     item.type === 'protectiveItem' ? 'deflection' :
-                        'armor';
+                        'enhancement';
             mods.push({ target: 'ac', value: item.armorDetails.armorBonus, type: modType, source: item.name });
         }
     });
@@ -98,6 +98,10 @@ export function computeEffectiveStat(char: CharacterBase, target: StatType | str
     (char.classFeatures ?? []).forEach(cf => {
         if (cf.active) (cf.modifiers ?? []).filter(m => m.target === target).forEach(m => mods.push(m));
     });
+
+    // Include user-managed active modifiers in the same stacking pool
+    (char.activeModifiers ?? []).filter(m => !m.paused && m.target === target)
+        .forEach(m => mods.push({ type: m.type, value: m.value }));
 
     // AC: add DEX mod (capped by max dex from armors)
     if (target === 'ac') {
@@ -115,10 +119,7 @@ export function computeEffectiveStat(char: CharacterBase, target: StatType | str
         mods.push({ target: 'ac', value: dexMod, type: 'untyped', source: 'dex' });
     }
 
-    let bonus = aggregateMods(mods);
-    bonus += activeModDelta(char, target);
-
-    return baseValue + bonus;
+    return baseValue + aggregateMods(mods);
 }
 
 /** Compute the ability modifier for a stat. */

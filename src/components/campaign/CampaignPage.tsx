@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    FaCopy, FaCheck, FaComments, FaPaperPlane, FaUsers, FaTrash,
+    FaCopy, FaCheck, FaCheckDouble, FaComments, FaPaperPlane, FaUsers, FaTrash,
     FaSearch, FaTimes, FaChevronLeft, FaShieldAlt, FaHeart, FaBolt,
     FaBoxOpen, FaStar, FaStickyNote, FaCog, FaPlus, FaMinus, FaSkull, FaBook, FaEdit, FaShare, FaGlobe, FaLock,
 } from 'react-icons/fa';
@@ -9,6 +9,7 @@ import {
     createCampaign,
     deleteCampaign,
     saveMasterNotes,
+    saveInitiativeCombat,
     sendCampaignMessage,
     subscribeMasterCampaigns,
     subscribeToPlayerChat,
@@ -17,9 +18,12 @@ import {
     addCampaignGlossaryEntry,
     updateCampaignGlossaryEntry,
     deleteCampaignGlossaryEntry,
+    markChatRead,
+    subscribeToChatMeta,
+    type ChatMeta,
 } from '../../services/campaign';
 import { subscribeToCharacter } from '../../services/db';
-import type { Campaign, CampaignMessage, CampaignGlossaryEntry, GlossarySection, MasterNote } from '../../types/campaign';
+import type { Campaign, CampaignMessage, CampaignGlossaryEntry, GlossarySection, MasterNote, InitiativeCombatState } from '../../types/campaign';
 import type { CharacterBase } from '../../types/dnd';
 import {
     StatsTab, SkillsTab, InventoryTab, SpellsTab, FeatsTab,
@@ -40,6 +44,7 @@ interface InitCombatant {
     initiative: number;
     currentHp: number;
     maxHp: number;
+    ac?: number;
     isPlayer: boolean;
     playerId?: string;
     conditions: string[];
@@ -101,6 +106,7 @@ export function CampaignChatPanel({ campaignId, playerId, from, fromName, messag
     const [sending, setSending] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchOpen, setSearchOpen] = useState(false);
+    const [chatMeta, setChatMeta] = useState<ChatMeta>({ playerReadAt: null, masterReadAt: null });
     const bottomRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -109,11 +115,30 @@ export function CampaignChatPanel({ campaignId, playerId, from, fromName, messag
         return subscribeToPlayerChat(campaignId, playerId, setLocalMessages);
     }, [campaignId, playerId, externalMessages]);
 
+    // Subscribe to read timestamps
+    useEffect(() => {
+        return subscribeToChatMeta(campaignId, playerId, setChatMeta);
+    }, [campaignId, playerId]);
+
+    // Mark our side as read whenever we mount or new messages arrive
+    useEffect(() => {
+        markChatRead(campaignId, playerId, from).catch(() => { });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [campaignId, playerId, from, (externalMessages ?? localMessages).length]);
+
     const serverMessages = externalMessages ?? localMessages;
     const allMessages: CampaignMessage[] = [
         ...serverMessages,
         ...pendingMsgs.filter(p => !serverMessages.some(m => m.text === p.text && m.from === p.from)),
     ];
+
+    // Timestamp at which the OTHER party last read the chat
+    const otherReadAt = from === 'player' ? chatMeta.masterReadAt : chatMeta.playerReadAt;
+
+    function isMessageRead(msg: CampaignMessage): boolean {
+        return msg.timestamp != null && otherReadAt != null &&
+            otherReadAt.toMillis() >= msg.timestamp.toMillis();
+    }
 
     const filteredMessages = useMemo(() => {
         if (!searchQuery.trim()) return allMessages;
@@ -194,17 +219,26 @@ export function CampaignChatPanel({ campaignId, playerId, from, fromName, messag
                 )}
                 {filteredMessages.map(msg => {
                     const isPending = msg.id.startsWith('__pend_');
+                    const isMe = msg.from === from;
+                    const read = isMe && !isPending && isMessageRead(msg);
                     return (
-                        <div key={msg.id} className={`campaign-chat-bubble ${msg.from === from ? 'is-me' : 'is-other'} ${isPending ? 'is-pending' : ''}`}>
-                            {msg.from !== from && (
+                        <div key={msg.id} className={`campaign-chat-bubble ${isMe ? 'is-me' : 'is-other'} ${isPending ? 'is-pending' : ''}`}>
+                            {!isMe && (
                                 <span className="campaign-chat-sender">{msg.fromName}</span>
                             )}
                             <span className="campaign-chat-text">
                                 <HighlightText text={msg.text} query={searchQuery} />
                             </span>
-                            <span className="campaign-chat-ts">
-                                {isPending ? '…' : msg.timestamp ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                            </span>
+                            <div className="campaign-chat-footer">
+                                <span className="campaign-chat-ts">
+                                    {isPending ? '…' : msg.timestamp ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                </span>
+                                {isMe && !isPending && (
+                                    <span className={`chat-read-tick${read ? ' is-read' : ''}`} title={read ? 'Letto' : 'Inviato'}>
+                                        {read ? <FaCheckDouble size={10} /> : <FaCheck size={10} />}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     );
                 })}
@@ -1150,19 +1184,62 @@ function MasterGlossaryPanel({ campaignId, masterId, playerCharacters }: MasterG
 // ─────────────────────── Initiative tracker ───────────────────────────────────
 
 function InitiativeTracker({
-    linkedChars, playerCharacters,
+    linkedChars, playerCharacters, campaignId, savedCombat,
 }: {
     linkedChars: Record<string, CharacterBase>;
     playerCharacters: Campaign['playerCharacters'];
+    campaignId: string;
+    savedCombat?: InitiativeCombatState;
 }) {
-    const [combatants, setCombatants] = useState<InitCombatant[]>([]);
-    const [round, setRound] = useState(1);
-    const [currentIdx, setCurrentIdx] = useState(0);
+    const [combatants, setCombatants] = useState<InitCombatant[]>(() => savedCombat?.combatants ?? []);
+    const [round, setRound] = useState(() => savedCombat?.round ?? 1);
+    const [currentIdx, setCurrentIdx] = useState(() => savedCombat?.currentIdx ?? 0);
     const [addName, setAddName] = useState('');
     const [addInit, setAddInit] = useState('');
     const [addHp, setAddHp] = useState('');
+    const [addAc, setAddAc] = useState('');
     const [showAdd, setShowAdd] = useState(false);
     const [showCondMenu, setShowCondMenu] = useState<string | null>(null);
+    const [hpEditId, setHpEditId] = useState<string | null>(null);
+    const [hpDeltaStr, setHpDeltaStr] = useState('');
+    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const isFirstMount = useRef(true);
+
+    // Sync player HP and AC from real-time linkedChars
+    useEffect(() => {
+        setCombatants(prev => {
+            if (prev.length === 0) return prev;
+            let changed = false;
+            const next = prev.map(c => {
+                if (!c.isPlayer || !c.playerId) return c;
+                const char = linkedChars[c.playerId];
+                if (!char) return c;
+                const currentHp = char.hpDetails?.current ?? char.baseStats?.hp ?? c.currentHp;
+                const maxHp = char.hpDetails?.max ?? computeTotalMaxHp(char);
+                const ac = computeEffectiveStat(char, 'ac');
+                if (c.currentHp === currentHp && c.maxHp === maxHp && c.ac === ac) return c;
+                changed = true;
+                return { ...c, currentHp, maxHp, ac };
+            });
+            return changed ? next : prev;
+        });
+    }, [linkedChars]);
+
+    // Auto-save to Firestore (debounced 1.5 s) whenever combat state changes
+    useEffect(() => {
+        if (isFirstMount.current) {
+            isFirstMount.current = false;
+            return;
+        }
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(() => {
+            saveInitiativeCombat(campaignId, { combatants, round, currentIdx });
+        }, 1500);
+        return () => {
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [combatants, round, currentIdx]);
 
     const sorted = useMemo(
         () => [...combatants].sort((a, b) => b.initiative - a.initiative),
@@ -1189,21 +1266,24 @@ function InitiativeTracker({
         setCombatants([]);
         setRound(1);
         setCurrentIdx(0);
+        saveInitiativeCombat(campaignId, null);
     }
 
     function addCombatant() {
         if (!addName.trim()) return;
+        const hp = parseInt(addHp) || 10;
         const entry: InitCombatant = {
             id: crypto.randomUUID(),
             name: addName.trim(),
             initiative: parseInt(addInit) || 0,
-            currentHp: parseInt(addHp) || 10,
-            maxHp: parseInt(addHp) || 10,
+            currentHp: hp,
+            maxHp: hp,
+            ac: parseInt(addAc) || undefined,
             isPlayer: false,
             conditions: [],
         };
         setCombatants(prev => [...prev, entry]);
-        setAddName(''); setAddInit(''); setAddHp('');
+        setAddName(''); setAddInit(''); setAddHp(''); setAddAc('');
         setShowAdd(false);
     }
 
@@ -1215,12 +1295,14 @@ function InitiativeTracker({
             const char = linkedChars[uid];
             const hp = char?.hpDetails?.current ?? char?.baseStats?.hp ?? 10;
             const maxHp = char ? (char.hpDetails?.max ?? computeTotalMaxHp(char)) : hp;
+            const ac = char ? computeEffectiveStat(char, 'ac') : undefined;
             toAdd.push({
                 id: crypto.randomUUID(),
                 name: info.characterName,
                 initiative: 0,
                 currentHp: hp,
                 maxHp,
+                ac,
                 isPlayer: true,
                 playerId: uid,
                 conditions: [],
@@ -1229,11 +1311,13 @@ function InitiativeTracker({
         setCombatants(prev => [...prev, ...toAdd]);
     }
 
-    function adjustHp(id: string, delta: number) {
+    function applyHpDelta(id: string, delta: number) {
         setCombatants(prev => prev.map(c => c.id === id
-            ? { ...c, currentHp: Math.min(c.maxHp, c.currentHp + delta) }
+            ? { ...c, currentHp: Math.max(0, Math.min(c.maxHp, c.currentHp + delta)) }
             : c,
         ));
+        setHpEditId(null);
+        setHpDeltaStr('');
     }
 
     function updateInit(id: string, val: string) {
@@ -1256,33 +1340,56 @@ function InitiativeTracker({
         if (idx <= currentIdx && currentIdx > 0) setCurrentIdx(i => i - 1);
     }
 
+    const hpDelta = Math.abs(parseInt(hpDeltaStr) || 0);
+
     return (
         <div className="init-tracker">
-            {/* Header */}
+            {/* ── Header ── */}
             <div className="init-header">
-                <span className="init-round-badge">Round {round}</span>
-                <div className="init-turn-nav">
-                    <button className="btn-ghost" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={prevTurn} disabled={sorted.length === 0}>
+                {/* Top row: round + turn counter + actions */}
+                <div className="init-header-top">
+                    <div className="init-round-badge">
+                        <GiCrossedSwords size={10} />
+                        Round {round}
+                    </div>
+                    {sorted.length > 0 && (
+                        <span className="init-turn-counter">
+                            Turno&nbsp;{(currentIdx % sorted.length) + 1}&nbsp;/&nbsp;{sorted.length}
+                        </span>
+                    )}
+                    <div className="init-header-actions">
+                        {Object.keys(playerCharacters).length > 0 && (
+                            <button className="init-action-btn" onClick={populateFromPlayers} title="Aggiungi tutti i PG alla scena">
+                                <FaUsers size={10} /> PG
+                            </button>
+                        )}
+                        <button className={`init-action-btn${showAdd ? ' active' : ''}`} onClick={() => setShowAdd(v => !v)}>
+                            <FaPlus size={9} /> Mostro
+                        </button>
+                        <button className="init-action-btn init-reset-btn" onClick={resetCombat} title="Resetta il combattimento">
+                            Reset
+                        </button>
+                    </div>
+                </div>
+                {/* Bottom row: turn navigation */}
+                <div className="init-header-nav">
+                    <button className="init-nav-btn" onClick={prevTurn} disabled={sorted.length === 0} title="Turno precedente">
                         <FaChevronLeft size={10} />
                     </button>
-                    <span className="init-current-name">
-                        {sorted.length === 0 ? '— nessun combattente —' : (sorted[currentIdx % sorted.length]?.name ?? '—')}
-                    </span>
-                    <button className="btn-ghost" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={nextTurn} disabled={sorted.length === 0}>
-                        <GiCrossedSwords size={12} />
-                    </button>
-                </div>
-                <div style={{ display: 'flex', gap: '0.4rem', marginLeft: 'auto' }}>
-                    {Object.keys(playerCharacters).length > 0 && (
-                        <button className="btn-ghost" style={{ padding: '0.25rem 0.5rem', fontSize: '0.72rem' }} onClick={populateFromPlayers} title="Aggiungi PG">
-                            <FaUsers size={11} /> PG
-                        </button>
-                    )}
-                    <button className="btn-ghost" style={{ padding: '0.25rem 0.5rem', fontSize: '0.72rem' }} onClick={() => setShowAdd(v => !v)}>
-                        <FaPlus size={10} /> Aggiungi
-                    </button>
-                    <button className="btn-ghost" style={{ padding: '0.25rem 0.5rem', fontSize: '0.72rem', color: 'var(--accent-crimson)' }} onClick={resetCombat}>
-                        Reset
+                    <div className="init-current-info">
+                        {sorted.length > 0 ? (
+                            <>
+                                <GiCrossedSwords size={13} className="init-current-sword" />
+                                <span className="init-current-name">
+                                    {sorted[currentIdx % sorted.length]?.name ?? '—'}
+                                </span>
+                            </>
+                        ) : (
+                            <span className="init-current-empty">— nessun combattente —</span>
+                        )}
+                    </div>
+                    <button className="init-nav-btn init-nav-next" onClick={nextTurn} disabled={sorted.length === 0} title="Fine turno">
+                        Fine turno <GiCrossedSwords size={10} />
                     </button>
                 </div>
             </div>
@@ -1290,38 +1397,100 @@ function InitiativeTracker({
             {/* Add form */}
             {showAdd && (
                 <div className="init-add-form">
-                    <input className="init-form-input" style={{ flex: 2 }} placeholder="Nome combattente" value={addName} onChange={e => setAddName(e.target.value)} onKeyDown={e => e.key === 'Enter' && addCombatant()} autoFocus />
-                    <input className="init-form-input" style={{ width: 60 }} placeholder="Init" type="number" value={addInit} onChange={e => setAddInit(e.target.value)} />
-                    <input className="init-form-input" style={{ width: 60 }} placeholder="PF" type="number" value={addHp} onChange={e => setAddHp(e.target.value)} />
-                    <button className="btn-primary" style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }} onClick={addCombatant} disabled={!addName.trim()}>
-                        <FaPlus size={10} />
-                    </button>
-                    <button className="btn-ghost" style={{ padding: '0.3rem 0.5rem' }} onClick={() => setShowAdd(false)}>
-                        <FaTimes size={11} />
-                    </button>
+                    <input
+                        className="init-form-input init-form-name"
+                        placeholder="Nome mostro / NPC"
+                        value={addName}
+                        onChange={e => setAddName(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && addCombatant()}
+                        autoFocus
+                    />
+                    <div className="init-form-field">
+                        <label className="init-form-label">Init</label>
+                        <input className="init-form-input init-form-short" type="number" value={addInit} onChange={e => setAddInit(e.target.value)} />
+                    </div>
+                    <div className="init-form-field">
+                        <label className="init-form-label">PF</label>
+                        <input className="init-form-input init-form-short" type="number" value={addHp} onChange={e => setAddHp(e.target.value)} />
+                    </div>
+                    <div className="init-form-field">
+                        <label className="init-form-label">CA</label>
+                        <input className="init-form-input init-form-short" type="number" value={addAc} onChange={e => setAddAc(e.target.value)} />
+                    </div>
+                    <div className="init-form-actions">
+                        <button className="btn-primary" style={{ padding: '0.28rem 0.7rem' }} onClick={addCombatant} disabled={!addName.trim()}>
+                            <FaPlus size={10} />
+                        </button>
+                        <button className="btn-ghost" style={{ padding: '0.28rem 0.5rem' }} onClick={() => setShowAdd(false)}>
+                            <FaTimes size={11} />
+                        </button>
+                    </div>
                 </div>
             )}
 
-            {/* Combatant list */}
+            {/* ── Column headers ── */}
+            {sorted.length > 0 && (
+                <div className="init-col-headers">
+                    <span>Init</span>
+                    <span>Combattente</span>
+                    <span>PF</span>
+                    <span>CA</span>
+                    <span />
+                </div>
+            )}
+
+            {/* ── List ── */}
             <div className="init-list">
                 {sorted.length === 0 && (
                     <div className="init-empty">
-                        <GiCrossedSwords size={36} style={{ color: 'rgba(255,255,255,0.1)', marginBottom: '0.75rem' }} />
-                        <p className="text-muted text-sm">Nessun combattente. Aggiungi PG o nemici.</p>
+                        <div className="init-empty-watermark">⚔</div>
+                        <p className="init-empty-title">Nessun combattente</p>
+                        <p className="init-empty-sub">
+                            Usa <strong>PG</strong> per aggiungere i giocatori<br />
+                            o <strong>Mostro</strong> per nemici e NPC
+                        </p>
                     </div>
                 )}
                 {sorted.map((c) => {
                     const isCurrent = c.id === currentId;
                     const hpPct = c.maxHp > 0 ? Math.max(0, c.currentHp / c.maxHp) : 0;
-                    const hpColor = c.currentHp <= 0 ? 'var(--accent-crimson)' : hpPct > 0.5 ? '#4caf7d' : hpPct > 0.25 ? '#f0c040' : 'var(--accent-crimson)';
+                    const hpColor = c.currentHp <= 0 ? '#c0392b' : hpPct > 0.5 ? '#4caf7d' : hpPct > 0.25 ? '#f0c040' : '#e05030';
+                    const isHpEditing = hpEditId === c.id;
+
                     return (
-                        <div key={c.id} className={`init-entry ${isCurrent ? 'current' : ''}`}>
-                            <div className="init-init-badge">{c.initiative >= 0 ? `+${c.initiative}` : c.initiative}</div>
+                        <div
+                            key={c.id}
+                            className={[
+                                'init-entry',
+                                isCurrent ? 'current' : '',
+                                c.currentHp <= 0 ? 'dead' : '',
+                                c.isPlayer ? 'is-player' : 'is-monster',
+                            ].filter(Boolean).join(' ')}
+                        >
+                            {/* Initiative */}
+                            <div className="init-init-col">
+                                <input
+                                    className="init-init-input"
+                                    type="number"
+                                    value={c.initiative}
+                                    onChange={e => updateInit(c.id, e.target.value)}
+                                    title="Modifica iniziativa"
+                                />
+                            </div>
+
+                            {/* Name + HP bar + conditions */}
                             <div className="init-entry-main">
                                 <div className="init-entry-name">
-                                    {isCurrent && <GiCrossedSwords size={11} style={{ color: 'var(--accent-gold)', marginRight: 4, flexShrink: 0 }} />}
-                                    {c.name}
+                                    {isCurrent && <GiCrossedSwords size={10} className="init-entry-sword" />}
+                                    <span className="init-name-text">{c.name}</span>
                                     {c.isPlayer && <span className="init-pg-badge">PG</span>}
+                                    {c.currentHp <= 0 && <span className="init-ko-badge">KO</span>}
+                                </div>
+                                <div className="init-hp-bar-wrap">
+                                    <div
+                                        className="init-hp-bar"
+                                        style={{ width: `${hpPct * 100}%`, background: hpColor, boxShadow: `0 0 5px ${hpColor}55` }}
+                                    />
                                 </div>
                                 {c.conditions.length > 0 && (
                                     <div className="init-conditions">
@@ -1333,43 +1502,96 @@ function InitiativeTracker({
                                     </div>
                                 )}
                             </div>
-                            <div className="init-hp-controls">
-                                <button onClick={() => adjustHp(c.id, -1)} title="-1 PF"><FaMinus size={8} /></button>
-                                <span className="init-hp-val" style={{ color: hpColor }}>{c.currentHp}/{c.maxHp}</span>
-                                <button onClick={() => adjustHp(c.id, 1)} title="+1 PF"><FaPlus size={8} /></button>
-                            </div>
-                            <div style={{ position: 'relative' }}>
-                                <button
-                                    className="btn-ghost"
-                                    style={{ padding: '0.2rem 0.4rem', fontSize: '0.7rem', color: 'var(--text-muted)' }}
-                                    onClick={() => setShowCondMenu(m => m === c.id ? null : c.id)}
-                                    title="Condizioni"
-                                >
-                                    <FaSkull size={10} />
-                                </button>
-                                {showCondMenu === c.id && (
-                                    <div className="init-cond-menu" onClick={e => e.stopPropagation()}>
-                                        {DND_CONDITIONS.map(cond => (
-                                            <button
-                                                key={cond}
-                                                className={`init-cond-menu-item ${c.conditions.includes(cond) ? 'active' : ''}`}
-                                                onClick={() => toggleCondition(c.id, cond)}
-                                            >
-                                                {cond}
-                                            </button>
-                                        ))}
-                                        <button className="init-cond-menu-close" onClick={() => setShowCondMenu(null)}>Chiudi</button>
+
+                            {/* HP */}
+                            <div className="init-hp-col">
+                                {isHpEditing ? (
+                                    <div className="init-hp-edit">
+                                        <input
+                                            className="init-hp-edit-input"
+                                            type="number"
+                                            min="0"
+                                            value={hpDeltaStr}
+                                            onChange={e => setHpDeltaStr(e.target.value)}
+                                            placeholder="0"
+                                            autoFocus
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter') applyHpDelta(c.id, -hpDelta);
+                                                if (e.key === 'Escape') { setHpEditId(null); setHpDeltaStr(''); }
+                                            }}
+                                        />
+                                        <button className="init-hp-dmg-btn" onClick={() => applyHpDelta(c.id, -hpDelta)} disabled={hpDelta === 0} title={`-${hpDelta} PF (danno)`}>
+                                            <FaMinus size={8} />
+                                        </button>
+                                        <button className="init-hp-heal-btn" onClick={() => applyHpDelta(c.id, hpDelta)} disabled={hpDelta === 0} title={`+${hpDelta} PF (cura)`}>
+                                            <FaPlus size={8} />
+                                        </button>
+                                        <button className="init-hp-cancel-btn" onClick={() => { setHpEditId(null); setHpDeltaStr(''); }}>
+                                            <FaTimes size={8} />
+                                        </button>
                                     </div>
+                                ) : (
+                                    <span
+                                        className={`init-hp-chip${!c.isPlayer ? ' editable' : ''}`}
+                                        style={{ color: hpColor }}
+                                        onClick={() => !c.isPlayer && setHpEditId(c.id)}
+                                        title={c.isPlayer ? 'PF in tempo reale dal personaggio' : 'Clicca per modificare PF'}
+                                    >
+                                        {c.isPlayer && <FaHeart size={8} className="init-hp-sync-icon" />}
+                                        <span className="init-hp-current">{c.currentHp}</span>
+                                        <span className="init-hp-sep">/{c.maxHp}</span>
+                                    </span>
                                 )}
                             </div>
-                            <button
-                                className="btn-ghost"
-                                style={{ padding: '0.2rem 0.4rem', color: 'rgba(192,57,43,0.6)' }}
-                                onClick={() => removeCombatant(c.id)}
-                                title="Rimuovi"
-                            >
-                                <FaTimes size={10} />
-                            </button>
+
+                            {/* CA */}
+                            <div className="init-ac-col">
+                                {c.ac != null ? (
+                                    <span className="init-ac-chip">
+                                        <FaShieldAlt size={9} />
+                                        {c.ac}
+                                    </span>
+                                ) : (
+                                    <span className="init-ac-empty">—</span>
+                                )}
+                            </div>
+
+                            {/* Actions */}
+                            <div className="init-entry-actions">
+                                <div style={{ position: 'relative' }}>
+                                    <button
+                                        className="init-action-icon-btn"
+                                        onClick={() => setShowCondMenu(m => m === c.id ? null : c.id)}
+                                        title="Condizioni"
+                                    >
+                                        <FaSkull size={9} />
+                                        {c.conditions.length > 0 && (
+                                            <span className="init-cond-count">{c.conditions.length}</span>
+                                        )}
+                                    </button>
+                                    {showCondMenu === c.id && (
+                                        <div className="init-cond-menu" onClick={e => e.stopPropagation()}>
+                                            {DND_CONDITIONS.map(cond => (
+                                                <button
+                                                    key={cond}
+                                                    className={`init-cond-menu-item ${c.conditions.includes(cond) ? 'active' : ''}`}
+                                                    onClick={() => toggleCondition(c.id, cond)}
+                                                >
+                                                    {cond}
+                                                </button>
+                                            ))}
+                                            <button className="init-cond-menu-close" onClick={() => setShowCondMenu(null)}>Chiudi</button>
+                                        </div>
+                                    )}
+                                </div>
+                                <button
+                                    className="init-action-icon-btn init-remove-btn"
+                                    onClick={() => removeCombatant(c.id)}
+                                    title="Rimuovi dal combattimento"
+                                >
+                                    <FaTimes size={9} />
+                                </button>
+                            </div>
                         </div>
                     );
                 })}
@@ -1954,13 +2176,15 @@ export function CampaignPage({ userId, userEmail, userDisplayName, initialCampai
                             />
                         )}
 
-                        {/* INITIATIVE section */}
-                        {section === 'initiative' && (
+                        {/* INITIATIVE section — always mounted to preserve combat state across tab changes */}
+                        <div style={{ display: section === 'initiative' ? 'flex' : 'none', flexDirection: 'column', flex: 1, overflow: 'hidden', minHeight: 0 }}>
                             <InitiativeTracker
                                 linkedChars={linkedChars}
                                 playerCharacters={masterCampaign.playerCharacters ?? {}}
+                                campaignId={masterCampaign.id}
+                                savedCombat={masterCampaign.initiativeCombat}
                             />
-                        )}
+                        </div>
 
                         {/* INFO section */}
                         {section === 'info' && (
