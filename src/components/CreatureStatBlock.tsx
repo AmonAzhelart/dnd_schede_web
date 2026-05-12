@@ -7,6 +7,7 @@ import { FaTimes, FaDragon, FaPlus, FaTrash } from 'react-icons/fa';
 import { v4 as uuid } from 'uuid';
 import type { Creature, CreatureStatOverride, CreatureRuntimeModifier, CreatureRuntimeStat, ModifierType } from '../types/dnd';
 import { aggregateBonuses } from '../services/modifiers';
+import { SIZE_ATTACK_MODIFIER } from '../types/dnd';
 import './Bestiary.css';
 
 /* ── helpers ───────────────────────────────────────────────────── */
@@ -85,8 +86,8 @@ export function computeEffectiveCreatureStats(
         fort: creature.fortitude + bonus('fort') + dConMod,
         reflex: creature.reflex + bonus('ref') + dDexMod,
         will: creature.will + bonus('will') + dWisMod,
-        meleeDelta: bonus('attack') + newStrMod,
-        rangedDelta: bonus('attack') + newDexMod,
+        meleeDelta: bonus('attack') + newStrMod + (SIZE_ATTACK_MODIFIER[creature.size] ?? 0),
+        rangedDelta: bonus('attack') + newDexMod + (SIZE_ATTACK_MODIFIER[creature.size] ?? 0),
         damageDelta: bonus('damage') + newStrMod,
     };
 }
@@ -324,28 +325,28 @@ export const StatBlock: React.FC<StatBlockProps> = ({
     return (
         <div className="creature-sheet">
             {!headless && (
-            <div className="creature-sheet-hero">
-                <CreaturePortrait creature={creature} size={80} className="creature-sheet-portrait-large" />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                    <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.25rem', lineHeight: 1.2 }}>{creature.name}</h3>
-                    <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: 3, lineHeight: 1.3 }}>
-                        {creature.size} {creature.type}{creature.subtype ? ` (${creature.subtype})` : ''} · {creature.alignment ?? 'N'}
+                <div className="creature-sheet-hero">
+                    <CreaturePortrait creature={creature} size={80} className="creature-sheet-portrait-large" />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.25rem', lineHeight: 1.2 }}>{creature.name}</h3>
+                        <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: 3, lineHeight: 1.3 }}>
+                            {creature.size} {creature.type}{creature.subtype ? ` (${creature.subtype})` : ''} · {creature.alignment ?? 'N'}
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
+                            {creature.challengeRating && <span className="badge-cr">CR {creature.challengeRating}</span>}
+                            {(creature.tags ?? []).map(t => <span key={t} className="badge-type" style={{ opacity: 0.8 }}>{t}</span>)}
+                        </div>
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
-                        {creature.challengeRating && <span className="badge-cr">CR {creature.challengeRating}</span>}
-                        {(creature.tags ?? []).map(t => <span key={t} className="badge-type" style={{ opacity: 0.8 }}>{t}</span>)}
+                    <div className="creature-hero-actions" style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end', flexShrink: 0 }}>
+                        {actionLabel && onAction && (
+                            <button className="btn-primary text-sm" style={{ padding: '5px 12px' }} onClick={onAction}>{actionIcon} {actionLabel}</button>
+                        )}
+                        {actionLabel2 && onAction2 && (
+                            <button className="btn-secondary text-sm" style={{ padding: '5px 12px' }} onClick={onAction2}>{actionIcon2} {actionLabel2}</button>
+                        )}
+                        <button className="btn-ghost text-sm" style={{ color: 'var(--text-muted)' }} onClick={onClose}><FaTimes /></button>
                     </div>
                 </div>
-                <div className="creature-hero-actions" style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end', flexShrink: 0 }}>
-                    {actionLabel && onAction && (
-                        <button className="btn-primary text-sm" style={{ padding: '5px 12px' }} onClick={onAction}>{actionIcon} {actionLabel}</button>
-                    )}
-                    {actionLabel2 && onAction2 && (
-                        <button className="btn-secondary text-sm" style={{ padding: '5px 12px' }} onClick={onAction2}>{actionIcon2} {actionLabel2}</button>
-                    )}
-                    <button className="btn-ghost text-sm" style={{ color: 'var(--text-muted)' }} onClick={onClose}><FaTimes /></button>
-                </div>
-            </div>
             )}
 
             {/* Static override chips (from feats/items at summon time) */}
@@ -393,17 +394,17 @@ export const StatBlock: React.FC<StatBlockProps> = ({
             <div>
                 <div className="creature-section-title">Caratteristiche</div>
                 <div className="creature-ability-grid">
-                {[
-                    { key: 'str', label: 'FOR', val: eff.str }, { key: 'dex', label: 'DES', val: eff.dex },
-                    { key: 'con', label: 'COS', val: eff.con }, { key: 'int', label: 'INT', val: eff.int },
-                    { key: 'wis', label: 'SAG', val: eff.wis }, { key: 'cha', label: 'CAR', val: eff.cha },
-                ].map(s => (
-                    <div key={s.key} className="creature-ability-box">
-                        <div className="creature-ability-label">{s.label}</div>
-                        <div className="creature-ability-score">{s.val}</div>
-                        <div className="creature-ability-mod">{signMod(s.val)}</div>
-                    </div>
-                ))}
+                    {[
+                        { key: 'str', label: 'FOR', val: eff.str }, { key: 'dex', label: 'DES', val: eff.dex },
+                        { key: 'con', label: 'COS', val: eff.con }, { key: 'int', label: 'INT', val: eff.int },
+                        { key: 'wis', label: 'SAG', val: eff.wis }, { key: 'cha', label: 'CAR', val: eff.cha },
+                    ].map(s => (
+                        <div key={s.key} className="creature-ability-box">
+                            <div className="creature-ability-label">{s.label}</div>
+                            <div className="creature-ability-score">{s.val}</div>
+                            <div className="creature-ability-mod">{signMod(s.val)}</div>
+                        </div>
+                    ))}
                 </div>
             </div>
 

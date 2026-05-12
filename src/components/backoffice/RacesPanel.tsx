@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { v4 as uuid } from 'uuid';
 import { useTranslation } from 'react-i18next';
-import { FaPlus, FaTrash, FaSave, FaTimes, FaEdit, FaSearch } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaSave, FaTimes, FaEdit, FaSearch, FaChevronDown, FaChevronRight } from 'react-icons/fa';
 import {
     raceCatalog, languageCatalog, classCatalog, iconCatalog,
     type CatalogRace, type CatalogLanguage, type CatalogClass, type CatalogIcon,
@@ -10,6 +10,9 @@ import {
 import { pickLocalized } from '../../i18n';
 import { LocalizedFieldEditor } from './LocalizedFieldEditor';
 import { IconPicker } from './IconPicker';
+import { ModifierEditor } from '../ModifierEditor';
+import { CreatureModifierEditor } from '../CreatureModifierEditor';
+import type { Modifier, CreatureModifier } from '../../types/dnd';
 
 interface Props { currentUserEmail: string; }
 
@@ -41,6 +44,13 @@ export function RacesPanel({ currentUserEmail }: Props) {
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState<CatalogRace | null>(null);
     const [search, setSearch] = useState('');
+    const [openSection, setOpenSection] = useState<string | null>('traits');
+    const [expandedTraits, setExpandedTraits] = useState<Set<string>>(new Set());
+    const toggleTrait = (id: string) => setExpandedTraits(prev => {
+        const next = new Set(prev);
+        next.has(id) ? next.delete(id) : next.add(id);
+        return next;
+    });
 
     const iconSvgById = useMemo(() => Object.fromEntries(icons.map(i => [i.id, i.svg])), [icons]);
 
@@ -83,8 +93,11 @@ export function RacesPanel({ currentUserEmail }: Props) {
         const removeAbilityMod = (i: number) =>
             setField('abilityMods', editing.abilityMods.filter((_, idx) => idx !== i));
 
-        const addRacialFeat = () =>
-            setField('racialFeats', [...editing.racialFeats, { id: uuid(), name: '', description: '' }]);
+        const addRacialFeat = () => {
+            const newId = uuid();
+            setField('racialFeats', [...editing.racialFeats, { id: newId, name: '', description: '', subcategory: 'passive' as const }]);
+            setExpandedTraits(prev => new Set(prev).add(newId));
+        };
         const updateRacialFeat = (i: number, patch: Partial<RaceFeat>) =>
             setField('racialFeats', editing.racialFeats.map((f, idx) => idx === i ? { ...f, ...patch } : f));
         const removeRacialFeat = (i: number) =>
@@ -168,26 +181,110 @@ export function RacesPanel({ currentUserEmail }: Props) {
                     />
                 </div>
 
-                {/* Racial feats */}
-                <div className="glass-panel" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                    <div className="section-header">
-                        <span className="section-title text-sm">{t('backoffice.races.racialFeats')}</span>
-                        <button className="btn-ghost text-xs" onClick={addRacialFeat}><FaPlus /></button>
-                    </div>
-                    <div className="flex-col gap-2">
+                {/* Racial feats / privileges */}
+                <button
+                    type="button"
+                    onClick={() => setOpenSection(openSection === 'traits' ? null : 'traits')}
+                    className="section-header"
+                    style={{ width: '100%', cursor: 'pointer', background: 'transparent', border: 'none', padding: '6px 8px' }}
+                >
+                    <span className="section-title text-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {openSection === 'traits' ? <FaChevronDown size={10} /> : <FaChevronRight size={10} />}
+                        {t('backoffice.races.racialFeats')}
+                        <span className="text-xs text-muted">({editing.racialFeats.length})</span>
+                    </span>
+                </button>
+                {openSection === 'traits' && (
+                    <div className="glass-panel flex-col gap-2" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                        <div className="flex" style={{ justifyContent: 'flex-end' }}>
+                            <button className="btn-ghost text-xs" onClick={addRacialFeat}><FaPlus /> Aggiungi privilegio</button>
+                        </div>
                         {editing.racialFeats.length === 0 && <span className="text-xs text-muted">—</span>}
-                        {editing.racialFeats.map((f, i) => (
-                            <div key={f.id} className="flex-col gap-1" style={{ padding: 8, border: '1px solid rgba(255,255,255,0.05)', borderRadius: 4 }}>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xs text-muted" style={{ flex: 1 }}>#{i + 1}</span>
-                                    <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={() => removeRacialFeat(i)}><FaTrash /></button>
+                        {editing.racialFeats.map((f, i) => {
+                            const isOpen = expandedTraits.has(f.id);
+                            const subcat = f.subcategory ?? 'passive';
+                            const nameStr = pickLocalized(f.name, lang) || <em style={{ opacity: 0.4 }}>senza nome</em>;
+                            return (
+                                <div key={f.id} style={{ border: '1px solid rgba(255,255,255,0.05)', borderRadius: 4, overflow: 'hidden' }}>
+                                    {/* ── collapsed row ── */}
+                                    <div
+                                        className="flex items-center gap-2"
+                                        style={{ padding: '6px 8px', cursor: 'pointer', userSelect: 'none' }}
+                                        onClick={() => toggleTrait(f.id)}
+                                    >
+                                        {isOpen ? <FaChevronDown size={9} style={{ flexShrink: 0, opacity: 0.5 }} /> : <FaChevronRight size={9} style={{ flexShrink: 0, opacity: 0.5 }} />}
+                                        <span style={{
+                                            fontSize: '0.62rem', padding: '0.1rem 0.38rem', borderRadius: 3, flexShrink: 0,
+                                            background: subcat === 'active' ? 'rgba(200,50,50,0.2)' : 'rgba(100,100,200,0.2)',
+                                            color: subcat === 'active' ? 'var(--accent-crimson)' : 'var(--accent-arcane)',
+                                        }}>
+                                            {subcat === 'active' ? 'Attivo' : 'Passivo'}
+                                        </span>
+                                        <span className="text-sm" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {nameStr}
+                                        </span>
+                                        {subcat === 'active' && f.resourceName && (
+                                            <span className="text-xs text-muted" style={{ flexShrink: 0 }}>
+                                                {f.resourceName}{f.resourceMax ? ` ×${f.resourceMax}` : ''}
+                                            </span>
+                                        )}
+                                        {(f.modifiers?.length ?? 0) > 0 && (
+                                            <span className="text-xs text-muted" style={{ flexShrink: 0 }}>+{f.modifiers!.length} mod</span>
+                                        )}
+                                        <button
+                                            className="btn-ghost text-xs"
+                                            style={{ color: 'var(--accent-crimson)', flexShrink: 0 }}
+                                            onClick={e => { e.stopPropagation(); removeRacialFeat(i); }}
+                                        ><FaTrash /></button>
+                                    </div>
+                                    {/* ── expanded form ── */}
+                                    {isOpen && (
+                                        <div className="flex-col gap-1" style={{ padding: '0 8px 8px' }}>
+                                            <div className="flex items-center gap-2" style={{ marginBottom: 4 }}>
+                                                <select className="input" value={subcat} onClick={e => e.stopPropagation()} onChange={e => updateRacialFeat(i, { subcategory: e.target.value as RaceFeat['subcategory'] })}>
+                                                    <option value="passive">Passivo</option>
+                                                    <option value="active">Attivo</option>
+                                                </select>
+                                            </div>
+                                            <LocalizedFieldEditor label={t('common.name')} value={f.name} onChange={v => updateRacialFeat(i, { name: v })} />
+                                            <LocalizedFieldEditor label={t('common.description')} multiline value={f.description} onChange={v => updateRacialFeat(i, { description: v })} />
+                                            {subcat === 'active' && (
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        className="input"
+                                                        placeholder="Risorsa (es. 'Furia Razziale')"
+                                                        value={f.resourceName ?? ''}
+                                                        onChange={e => updateRacialFeat(i, { resourceName: e.target.value })}
+                                                    />
+                                                    <input
+                                                        type="number"
+                                                        className="input"
+                                                        style={{ width: 100 }}
+                                                        placeholder="Max usi"
+                                                        value={f.resourceMax ?? ''}
+                                                        onChange={e => updateRacialFeat(i, { resourceMax: e.target.value ? Number(e.target.value) : undefined })}
+                                                    />
+                                                </div>
+                                            )}
+                                            <ModifierEditor
+                                                modifiers={f.modifiers ?? []}
+                                                onChange={mods => updateRacialFeat(i, { modifiers: mods as Modifier[] })}
+                                                accentColor={subcat === 'active' ? 'var(--accent-crimson)' : 'var(--accent-arcane)'}
+                                                title="MODIFICATORI"
+                                                compact
+                                            />
+                                            <CreatureModifierEditor
+                                                modifiers={f.creatureModifiers ?? []}
+                                                onChange={cms => updateRacialFeat(i, { creatureModifiers: cms as CreatureModifier[] })}
+                                                accentColor={subcat === 'active' ? 'var(--accent-crimson)' : 'var(--accent-gold)'}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
-                                <LocalizedFieldEditor label={t('common.name')} value={f.name} onChange={v => updateRacialFeat(i, { name: v })} />
-                                <LocalizedFieldEditor label={t('common.description')} multiline value={f.description} onChange={v => updateRacialFeat(i, { description: v })} />
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
-                </div>
+                )}
 
                 <LocalizedFieldEditor label="Note" multiline value={editing.notes} onChange={v => setField('notes', v)} />
 
@@ -220,7 +317,18 @@ export function RacesPanel({ currentUserEmail }: Props) {
                                 ? <span style={{ width: 24, height: 24, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', filter: 'brightness(0) invert(1)' }} dangerouslySetInnerHTML={{ __html: iconSvgById[r.iconId] }} />
                                 : <span style={{ width: 24, height: 24, flexShrink: 0 }} />}
                             <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontFamily: 'var(--font-heading)' }}>{pickLocalized(r.name, lang) || t('common.untitled')}</div>
+                                <div style={{ fontFamily: 'var(--font-heading)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                    {pickLocalized(r.name, lang) || t('common.untitled')}
+                                    {r.racialFeats.length > 0 && (
+                                        <span style={{
+                                            fontSize: '0.6rem', padding: '0.1rem 0.42rem', borderRadius: 10,
+                                            background: 'rgba(100,100,200,0.18)', color: 'var(--accent-arcane)',
+                                            fontFamily: 'var(--font-body)', fontWeight: 600,
+                                        }}>
+                                            {r.racialFeats.length} privilegio{r.racialFeats.length !== 1 ? 'i' : ''}
+                                        </span>
+                                    )}
+                                </div>
                                 <div className="text-xs text-muted">
                                     {r.size} • {r.speed}m
                                     {r.abilityMods.length > 0 && (

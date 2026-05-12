@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FaCheck, FaPalette, FaPlus, FaTimes, FaUndo, FaGripVertical, FaThLarge, FaArrowsAlt, FaDesktop, FaTabletAlt, FaMobileAlt, FaCopy, FaArrowUp, FaArrowDown, FaArrowLeft, FaArrowRight, FaExpandArrowsAlt, FaCompressArrowsAlt, FaTrash, FaBan } from 'react-icons/fa';
+import { GiMagicSwirl } from 'react-icons/gi';
 import { useCharacterStore } from '../../store/characterStore';
 import { WIDGET_CATALOG, getWidgetDef } from './widgets';
 import { setWidgetJumpData, clearWidgetJumpData } from './widgetJumpBridge';
@@ -153,7 +154,7 @@ interface DragState {
 }
 
 export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModeProp, setEditMode: setEditModeProp }) => {
-    const { character } = useCharacterStore();
+    const { character, deactivateTransformation, getTotalMaxHp } = useCharacterStore();
     const charId = character?.id ?? '_';
 
     const [layout, setLayout] = useState<DashboardLayout>(() => loadLayout(charId));
@@ -779,6 +780,72 @@ export const OverviewDashboard: React.FC<Props> = ({ goTo, editMode: editModePro
                     </div>
                 </div>
             )}
+
+            {/* TRANSFORMATION BANNER */}
+            {(() => {
+                const at = character?.activeTransformation;
+                if (!at) return null;
+                const transEntry = (character?.transformations ?? []).find(t => t.id === at.transformationId);
+                const c = at.creature;
+                const maxHp = getTotalMaxHp();
+                const pct = maxHp > 0 ? Math.max(0, Math.min(1, at.currentHp / maxHp)) : 0;
+                return (
+                    <div style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        background: 'linear-gradient(90deg, rgba(139,69,19,0.55) 0%, rgba(101,40,5,0.70) 50%, rgba(139,69,19,0.55) 100%)',
+                        border: '1px solid rgba(205,133,63,0.45)',
+                        borderRadius: 8, padding: '7px 12px', margin: '0 0 10px 0',
+                        boxShadow: '0 0 18px rgba(205,133,63,0.18)',
+                        fontSize: '0.8rem', color: '#f5deb3',
+                        flexWrap: 'wrap',
+                        animation: 'dash-trans-pulse 3s ease-in-out infinite',
+                    }}>
+                        {c.portrait && (
+                            <img src={c.portrait} alt={c.name}
+                                style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(205,133,63,0.6)', flexShrink: 0 }} />
+                        )}
+                        {!c.portrait && (
+                            <GiMagicSwirl style={{ fontSize: 28, color: '#cd853f', flexShrink: 0 }} />
+                        )}
+                        <div style={{ flex: 1, minWidth: 120 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                                <span style={{
+                                    background: 'rgba(205,133,63,0.35)', color: '#ffa55a',
+                                    fontSize: '0.6rem', fontFamily: 'var(--font-heading)',
+                                    padding: '1px 6px', borderRadius: 3,
+                                    letterSpacing: '0.08em', textTransform: 'uppercase',
+                                }}>TRASFORMATO</span>
+                                <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 600 }}>{transEntry?.name || c.name}</span>
+                                {c.size && <span style={{ opacity: 0.6, fontSize: '0.7rem' }}>{c.size}</span>}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <div style={{ flex: 1, height: 6, background: 'rgba(0,0,0,0.4)', borderRadius: 3, overflow: 'hidden' }}>
+                                    <div style={{
+                                        width: `${pct * 100}%`, height: '100%', borderRadius: 3,
+                                        background: pct > 0.5 ? '#4caf72' : pct > 0.25 ? '#e6a817' : '#e04040',
+                                        transition: 'width 0.4s ease',
+                                    }} />
+                                </div>
+                                <span style={{ opacity: 0.85, whiteSpace: 'nowrap' }}>
+                                    {at.currentHp} / {maxHp} PF
+                                </span>
+                            </div>
+                        </div>
+                        <button
+                            onClick={deactivateTransformation}
+                            title="Termina trasformazione"
+                            style={{
+                                background: 'rgba(205,133,63,0.2)', border: '1px solid rgba(205,133,63,0.4)',
+                                color: '#ffa55a', borderRadius: 6, padding: '4px 10px',
+                                cursor: 'pointer', fontSize: '0.72rem', fontFamily: 'var(--font-heading)',
+                                flexShrink: 0,
+                            }}
+                        >
+                            Termina
+                        </button>
+                    </div>
+                );
+            })()}
 
             {/* PREVIEW FRAME (only in edit mode for non-desktop) */}
             <div className={`dash-frame dash-frame-${activeBp}${editMode ? ' is-edit' : ''}${drag ? ' is-dragging' : ''}${drag && dragZoom < 1 ? ' is-zoomed' : ''}`}

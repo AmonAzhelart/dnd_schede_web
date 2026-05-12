@@ -32,7 +32,7 @@ const StatChip: React.FC<{ label: string; value: number; target: StatType | stri
 };
 
 export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
-    const { character, setCharacter, getStatModifier, getTotalBab, getMultipleAttacks } = useCharacterStore();
+    const { character, setCharacter, getStatModifier, getTotalBab, getMultipleAttacks, getSizeAttackModifier } = useCharacterStore();
     const { resolveItemSvg } = useIconCatalog();
     const babAura = useModifierAura('bab');
     const [picker, setPicker] = useState<{
@@ -56,11 +56,51 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
         setCharacter({ ...character, inventory: inv });
     };
     const bab = getTotalBab() + babAura.delta;
+    const sizeMod = getSizeAttackModifier();
     const strMod = getStatModifier('str');
     const dexMod = getStatModifier('dex');
     const equippedWeapons = character.inventory.filter(i => i.equipped && i.type === 'weapon');
     const customAttacks = character.customAttacks ?? [];
     const hasAny = equippedWeapons.length > 0 || customAttacks.length > 0;
+
+    // ── Transformation attack override ─────────────────────────────────────
+    const activeTrans = character.activeTransformation;
+    const transEntry = activeTrans
+        ? (character.transformations ?? []).find(t => t.id === activeTrans.transformationId)
+        : null;
+    const isTransformed = !!activeTrans && transEntry?.overrideStats !== false;
+    const creatureActions = (isTransformed && transEntry?.overrideAttacks !== false)
+        ? (activeTrans!.creature.actions ?? [])
+        : null;
+
+    const openCreatureActionPicker = (action: { id: string; name: string; attackBonus?: number; attackStat?: 'str' | 'dex' | 'none'; damage?: string; damageType?: string; notes?: string }) => {
+        // Per Metamorfosi: usa il BAB del personaggio, non quello della creatura.
+        const charBab = getTotalBab();
+        const atkStat = action.attackStat ?? 'str';
+        const atkMod = atkStat === 'none' ? 0 : getStatModifier(atkStat);
+        const sizeModVal = getSizeAttackModifier();
+        setPicker({
+            title: `Attacco · ${action.name}`,
+            subtitle: [action.damageType, action.notes].filter(Boolean).join(' · ') || undefined,
+            segments: [
+                {
+                    ctx: { channel: 'attack', isRanged: false, customAttackName: action.name },
+                    label: 'Tiro per colpire',
+                    baseBreakdown: [
+                        { label: 'BAB (personaggio)', value: charBab },
+                        ...(atkStat !== 'none' ? [{ label: `Mod. ${atkStat.toUpperCase()}`, value: atkMod }] : []),
+                        ...(sizeModVal !== 0 ? [{ label: 'Mod. Taglia', value: sizeModVal }] : []),
+                    ],
+                },
+                {
+                    ctx: { channel: 'damage', isRanged: false, customAttackName: action.name },
+                    label: 'Danno',
+                    baseBreakdown: atkStat !== 'none' ? [{ label: `Mod. ${atkStat.toUpperCase()}`, value: atkMod }] : [],
+                    baseDice: action.damage,
+                },
+            ],
+        });
+    };
 
     const fmtList = (arr: number[]) => arr.map(fmtSigned).join(' / ');
 
@@ -106,11 +146,70 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                     </div>
                     <StatChip label="FOR" value={strMod} target="str" title="Modificatore Forza (mischia)" />
                     <StatChip label="DES" value={dexMod} target="dex" title="Modificatore Destrezza (distanza)" />
+                    {sizeMod !== 0 && (
+                        <div className="w-atk2-chip" title="Modificatore Taglia (CA/Attacco)">
+                            <span className="w-atk2-chip-lbl">TAL</span>
+                            <span className="w-atk2-chip-val">{fmtSigned(sizeMod)}</span>
+                        </div>
+                    )}
                 </div>
                 {goTo && <button className="w-link" onClick={() => goTo('combat')}>Apri →</button>}
             </div>
 
-            {!hasAny ? (
+            {creatureActions ? (
+                creatureActions.length === 0 ? (
+                    <div className="w-empty"><GiCrossedSwords style={{ marginRight: 6 }} />La creatura non ha azioni d&apos;attacco.</div>
+                ) : (
+                    <div className="w-atk2-list w-scroll">
+                        {creatureActions.map(action => {
+                            // Per Metamorfosi: usa il BAB del personaggio + mod. caratteristica + mod. taglia creatura
+                            const atkStat = action.attackStat ?? 'str';
+                            const atkMod = atkStat === 'none' ? 0 : getStatModifier(atkStat);
+                            const totalAtk = bab + atkMod + sizeMod; // bab = character's BAB
+                            const isRangedAction = atkStat === 'dex';
+                            return (
+                                <div
+                                    key={action.id}
+                                    className="w-atk2-row custom"
+                                    style={{ cursor: 'pointer', borderLeft: '2px solid rgba(205,133,63,0.45)' }}
+                                    onClick={() => openCreatureActionPicker(action)}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') openCreatureActionPicker(action); }}
+                                >
+                                    <div className="w-atk2-row-main">
+                                        <div className="w-atk2-row-left">
+                                            <div className="w-atk2-row-nameline">
+                                                <span className="w-atk2-row-icon"><DndIcon category="combat" name={isRangedAction ? 'ranged' : 'melee'} size={icoSm} /></span>
+                                                <div className="w-atk2-row-name" title={action.name}>{action.name}</div>
+                                            </div>
+                                            {(action.damageType || action.notes) && (
+                                                <div className="w-atk2-row-meta">
+                                                    {[action.damageType, action.notes].filter(Boolean).join(' · ')}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="w-atk2-row-right">
+                                            {action.attackBonus !== undefined && (
+                                                <div className="w-atk2-row-stat atk">
+                                                    <span className="v">{fmtSigned(totalAtk)}</span>
+                                                    <span className="l">colpire</span>
+                                                </div>
+                                            )}
+                                            {action.damage && (
+                                                <div className="w-atk2-row-stat dmg">
+                                                    <span className="v">{action.damage}</span>
+                                                    <span className="l">danno</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )
+            ) : !hasAny ? (
                 <div className="w-empty"><GiCrossedSwords style={{ marginRight: 6 }} />Nessuna arma equipaggiata.</div>
             ) : (
                 <div className="w-atk2-list w-scroll">
@@ -147,7 +246,7 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                                 : `Mod. ${STAT_LABELS[dmgStat]}`)
                             : null;
                         const weaponBonus = (w.weaponDetails?.attackBonus ?? 0) + ammoAtkBonus;
-                        const attacks = getMultipleAttacks(abilityMod + weaponBonus + babAura.delta);
+                        const attacks = getMultipleAttacks(abilityMod + weaponBonus + babAura.delta + sizeMod);
                         const primary = attacks[0];
                         const wSvg = resolveItemSvg(w);
                         const ammoDmgExtra = loadedAmmo?.ammoDetails?.extraDamage;
@@ -162,6 +261,7 @@ export const AttacksWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
                                 { label: 'BAB', value: getTotalBab() },
                                 { label: atkStatLabel, value: abilityMod },
                                 ...(weaponBonus ? [{ label: 'Bonus arma', value: weaponBonus }] : []),
+                                ...(sizeMod !== 0 ? [{ label: 'Mod. Taglia', value: sizeMod }] : []),
                             ],
                             [
                                 ...(dmgStatLabel ? [{ label: dmgStatLabel, value: dmgStatMod }] : []),

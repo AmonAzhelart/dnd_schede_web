@@ -264,6 +264,14 @@ export interface RaceFeat {
     description?: LocalizedField;
     /** Optional mechanical modifiers (mirrors `Modifier[]` on Feat). */
     modifiers?: Modifier[];
+    /** 'active' | 'passive' — mirrors ClassLevelFeature.subcategory */
+    subcategory?: 'active' | 'passive';
+    /** Optional modifiers applied to summoned/pet creatures. */
+    creatureModifiers?: CreatureModifier[];
+    /** For active abilities: name of the resource pool (e.g. "Imposizione delle mani"). */
+    resourceName?: string;
+    /** For active abilities: max uses per rest/day. */
+    resourceMax?: number;
 }
 
 /** Shared race entry. Stored in `catalog_races`. */

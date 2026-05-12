@@ -894,6 +894,15 @@ export interface CharacterBase {
   /** Personal notes on campaign glossary entries: keyed by `${campaignId}::${entryId}` */
   playerGlossaryNotes?: Record<string, string>;
 
+  /** Creature size category of the character (default: Media). Affects CA and attack rolls. */
+  size?: CreatureSize;
+
+  // ── Transformations ──────────────────────────────────────────────────
+  /** Saved transformation templates (linked to personal bestiary entries) */
+  transformations?: TransformationEntry[];
+  /** Currently active transformation (only one at a time) */
+  activeTransformation?: ActiveTransformation;
+
   // ── XP & Level Adjustment ────────────────────────────────────────────
   /** Current total XP accumulated by the character. */
   currentXp?: number;
@@ -913,7 +922,20 @@ export interface CharacterBase {
 // ─────────────────────────── BESTIARY ────────────────────────────
 
 export type CreatureSize =
-  | 'Minuscola' | 'Piccola' | 'Media' | 'Grande' | 'Enorme' | 'Mastodontica' | 'Colossale';
+  | 'Piccolissima' | 'Minuta' | 'Minuscola' | 'Piccola' | 'Media' | 'Grande' | 'Enorme' | 'Mastodontica' | 'Colossale';
+
+/** D&D 3.5 Tabella 7-1: modificatore CA/Attacco per taglia (Tabella 7-1) */
+export const SIZE_ATTACK_MODIFIER: Record<CreatureSize, number> = {
+  'Piccolissima': 8,
+  'Minuta': 4,
+  'Minuscola': 2,
+  'Piccola': 1,
+  'Media': 0,
+  'Grande': -1,
+  'Enorme': -2,
+  'Mastodontica': -4,
+  'Colossale': -8,
+};
 
 export type CreatureTypeCategory =
   | 'Aberrazione' | 'Animale' | 'Costrutto' | 'Drago' | 'Elementale'
@@ -1165,4 +1187,36 @@ export interface ActivePet {
   xp?: number;
   /** Bond level (0–5) representing the relationship strength */
   bondLevel?: number;
+}
+
+// ─────────────────────────── TRANSFORMATIONS ─────────────────────────
+
+/** A saved transformation template: links to a personal bestiary creature */
+export interface TransformationEntry {
+  id: string;
+  /** Display name (defaults to creature name if omitted) */
+  name: string;
+  /** Reference to a BestiaryEntry id in character.bestiary */
+  bestiaryEntryId?: string;
+  /** Creature snapshot (copied from bestiary or custom) */
+  creature: Creature;
+  /** Whether to override base stats (STR/DEX/CON/etc, HP, AC, speed) when active. Default true. */
+  overrideStats?: boolean;
+  /** Whether to replace character attacks with creature actions when active. Default true. */
+  overrideAttacks?: boolean;
+  /** Character-specific notes about this form */
+  notes?: string;
+  addedAt: string;
+}
+
+/** The currently active transformation on the character */
+export interface ActiveTransformation {
+  /** Which TransformationEntry is active */
+  transformationId: string;
+  /** Snapshot of the creature at activation time */
+  creature: Creature;
+  /** Current HP while in this form */
+  currentHp: number;
+  /** ISO timestamp of when the transformation was activated */
+  activatedAt: string;
 }

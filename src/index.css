@@ -1478,6 +1478,18 @@ input[type="number"] {
   padding-bottom: 1.5rem;
 }
 
+@keyframes dash-trans-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 18px rgba(205, 133, 63, 0.18);
+  }
+
+  50% {
+    box-shadow: 0 0 30px rgba(205, 133, 63, 0.38);
+  }
+}
+
 .dash-toolbar {
   display: flex;
   align-items: center;

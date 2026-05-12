@@ -46,6 +46,22 @@ export const MovementWidget: React.FC<WidgetRenderProps> = ({ size }) => {
 
     if (!character) return null;
 
+    // ── Transformation speed override ───────────────────────────────────
+    const activeTrans = character.activeTransformation;
+    const transEntry = activeTrans
+        ? (character.transformations ?? []).find(t => t.id === activeTrans.transformationId)
+        : null;
+    const isTransformed = !!activeTrans && transEntry?.overrideStats !== false;
+    const effectiveMovement: Record<string, number | undefined> = isTransformed
+        ? {
+            base: activeTrans!.creature.speed,
+            fly: activeTrans!.creature.fly,
+            swim: activeTrans!.creature.swim,
+            climb: activeTrans!.creature.climb,
+            burrow: activeTrans!.creature.burrow,
+        }
+        : movement;
+
     const commit = (key: MoveKey, rawVal: string) => {
         const val = Math.max(0, parseInt(rawVal) || 0);
         setDraft(d => ({ ...d, [key]: String(val) }));
@@ -63,13 +79,13 @@ export const MovementWidget: React.FC<WidgetRenderProps> = ({ size }) => {
         commit(key, String(Math.max(0, (movement[key] ?? 0) + delta)));
     };
 
-    const effectiveBase = (movement.base ?? 0) + speedAura.delta;
-    const max = Math.max(MAX_FOR_BAR, ...MODES.map(m => movement[m.key] ?? 0));
+    const effectiveBase = (effectiveMovement.base ?? 0) + speedAura.delta;
+    const max = Math.max(MAX_FOR_BAR, ...MODES.map(m => effectiveMovement[m.key] ?? 0));
     const compact = size.pixelW < 230;
 
     const visibleModes = editMode
         ? MODES
-        : MODES.filter(m => m.key === 'base' || (movement[m.key] ?? 0) > 0);
+        : MODES.filter(m => m.key === 'base' || (effectiveMovement[m.key] ?? 0) > 0);
 
     return (
         <div className={`w-move-root${compact ? ' compact' : ''}${editMode ? ' is-editing' : ''}`}>
@@ -79,6 +95,8 @@ export const MovementWidget: React.FC<WidgetRenderProps> = ({ size }) => {
                     className={`w-move-edit-btn${editMode ? ' active' : ''}`}
                     onClick={() => setEditMode(e => !e)}
                     title={editMode ? 'Conferma' : 'Modifica velocità'}
+                    disabled={isTransformed}
+                    style={isTransformed ? { opacity: 0.3, cursor: 'not-allowed' } : undefined}
                 >
                     {editMode ? <FaCheck size={9} /> : <FaPencilAlt size={9} />}
                 </button>
@@ -86,11 +104,11 @@ export const MovementWidget: React.FC<WidgetRenderProps> = ({ size }) => {
 
             <div className="w-move-rows">
                 {visibleModes.map(({ key, label, iconName }) => {
-                    const val = movement[key] ?? 0;
+                    const val = effectiveMovement[key] ?? 0;
                     const isBase = key === 'base';
                     const effectiveVal = isBase ? effectiveBase : val;
                     const pct = max > 0 ? Math.min(100, (val / max) * 100) : 0;
-                    const isBaseAura = isBase && !!speedAura.auraClass;
+                    const isBaseAura = isBase && !!speedAura.auraClass && !isTransformed;
                     const inactive = val === 0;
 
                     return (

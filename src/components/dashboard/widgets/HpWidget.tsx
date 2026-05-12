@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useCharacterStore } from '../../../store/characterStore';
 import type { WidgetRenderProps } from '../widgetTypes';
-import { GiDeathSkull } from 'react-icons/gi';
+import { GiDeathSkull, GiMagicSwirl } from 'react-icons/gi';
 import { useModifierAura } from './ModifierAura';
 import { saveCharacterToDb } from '../../../services/db';
 
@@ -35,15 +35,28 @@ const createWavePath = (y: number, amp = 2.5) =>
     `L 200 101 L -100 101 Z`;
 
 export const HpWidget: React.FC<WidgetRenderProps> = ({ size }) => {
-    const { character, getEffectiveStat, setCharacter, getTotalMaxHp } = useCharacterStore();
+    const { character, getEffectiveStat, setCharacter, getTotalMaxHp, updateTransformationHp } = useCharacterStore();
     const hpAura = useModifierAura('hp');
     const [flashCls, setFlashCls] = useState('');
     const prevHp = useRef<number | null>(null);
     const uid = React.useId().replace(/:/g, '');
 
-    const currentHp = character?.hpDetails?.current ?? character?.baseStats.hp ?? 0;
     const classMaxHp = character ? getTotalMaxHp() : 0;
-    const maxHp = classMaxHp > 0 ? classMaxHp : (character ? (character.hpDetails?.max ?? getEffectiveStat('hp')) : 0);
+
+    // ── Transformation HP override ────────────────────────────────────
+    const activeTrans = character?.activeTransformation;
+    const transEntry = activeTrans
+        ? (character?.transformations ?? []).find(t => t.id === activeTrans.transformationId)
+        : null;
+    const isTransformed = !!activeTrans && transEntry?.overrideStats !== false;
+
+    const currentHp = isTransformed
+        ? activeTrans!.currentHp
+        : (character?.hpDetails?.current ?? character?.baseStats.hp ?? 0);
+    // classMaxHp already uses creature CON (via getEffectiveStat override), so use it always
+    const maxHp = classMaxHp > 0
+        ? classMaxHp
+        : (character ? (character.hpDetails?.max ?? getEffectiveStat('hp')) : 0);
 
     useEffect(() => {
         if (!character) return;
@@ -71,6 +84,12 @@ export const HpWidget: React.FC<WidgetRenderProps> = ({ size }) => {
     const st = getHpState(pct, isDying);
 
     const adjust = (delta: number) => {
+        // When transformed, delegate HP changes to the transformation tracker
+        if (isTransformed) {
+            updateTransformationHp(delta);
+            return;
+        }
+
         const max = maxHp;
         const hpDetails = character.hpDetails ?? {};
 
@@ -129,12 +148,20 @@ export const HpWidget: React.FC<WidgetRenderProps> = ({ size }) => {
     if (compact) {
         return (
             <div className={`w-hp3 compact ${st.cls} ${flashCls} ${tmpFromMod > 0 ? 'is-spectral' : ''}`}
-                style={{ '--hpc': st.color, '--hpg': st.glow } as React.CSSProperties}>
+                style={{ '--hpc': st.color, '--hpg': st.glow, ...(isTransformed ? { '--hpc': '#cd853f', '--hpg': '#ffa55a' } : {}) } as React.CSSProperties}>
+                {isTransformed && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.6rem', color: '#cd853f', marginBottom: 2 }}>
+                        <GiMagicSwirl />
+                        <span style={{ fontFamily: 'var(--font-heading)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {activeTrans!.creature.name}
+                        </span>
+                    </div>
+                )}
                 <div className="w-hp3-bar-row">
                     <div className="w-hp3-nums-c">
                         <span className={`w-hp3-cur-c ${malusOnHp ? 'w-mod-aura-malus' : ''}`}>{currentHp}</span>
                         <span className="w-hp3-sep-c">/{maxHp}</span>
-                        {totalTempHp > 0 && <span className="w-hp3-tag temp inline">+{totalTempHp}</span>}
+                        {!isTransformed && totalTempHp > 0 && <span className="w-hp3-tag temp inline">+{totalTempHp}</span>}
                     </div>
                     <div className="w-hp3-track">
                         <div className="w-hp3-fill" style={{ width: `${pct * 100}%` }} />
@@ -179,7 +206,24 @@ export const HpWidget: React.FC<WidgetRenderProps> = ({ size }) => {
 
     return (
         <div className={`w-hp3 ring ${st.cls} ${flashCls} ${tmpFromMod > 0 ? 'is-spectral' : ''}`}
-            style={{ '--hpc': st.color, '--hpg': st.glow } as React.CSSProperties}>
+            style={{ '--hpc': st.color, '--hpg': st.glow, ...(isTransformed ? { '--hpc': '#cd853f', '--hpg': '#ffa55a' } : {}) } as React.CSSProperties}>
+
+            {/* Transformation badge */}
+            {isTransformed && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                    background: 'linear-gradient(90deg, rgba(139,69,19,0.35), rgba(205,133,63,0.25), rgba(139,69,19,0.35))',
+                    borderBottom: '1px solid rgba(205,133,63,0.35)',
+                    padding: '3px 8px', marginBottom: 4,
+                    fontSize: '0.68rem', color: '#cd853f',
+                    fontFamily: 'var(--font-heading)', letterSpacing: '0.04em',
+                }}>
+                    <GiMagicSwirl style={{ flexShrink: 0 }} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {activeTrans!.creature.name}
+                    </span>
+                </div>
+            )}
 
             {/* ── Status label — above the heart ───────────────── */}
             <div className="w-hp3-status-row">

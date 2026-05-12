@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { CharacterBase, ClassLevel, HpLevelLogEntry, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell, ActiveModifier, DurationUnit, BestiaryEntry, ActiveSummon, ActivePet, Creature, CreatureStatOverride, CreatureRuntimeModifier, CustomSkillSynergy, NoteTab, NoteContextEntry, XpLogEntry, CompanionFeature, CompanionEquipment } from '../types/dnd';
-import { computeClassBab, computeClassSaveBase, getExpectedHpForClassLevel, computeEcl, getXpForLevel } from '../types/dnd';
+import type { CharacterBase, ClassLevel, HpLevelLogEntry, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell, ActiveModifier, DurationUnit, BestiaryEntry, ActiveSummon, ActivePet, Creature, CreatureStatOverride, CreatureRuntimeModifier, CustomSkillSynergy, NoteTab, NoteContextEntry, XpLogEntry, CompanionFeature, CompanionEquipment, TransformationEntry, ActiveTransformation } from '../types/dnd';
+import { computeClassBab, computeClassSaveBase, getExpectedHpForClassLevel, computeEcl, getXpForLevel, SIZE_ATTACK_MODIFIER } from '../types/dnd';
 import { collectModifierCandidates, resolveStatOverride, type ModifierCandidate, type RollContext } from '../services/modifiers';
 import { computeSynergyBonuses, computeCustomSynergyBonuses, type ActiveSynergy } from '../data/skillSynergies';
 
@@ -110,6 +110,8 @@ interface CharacterState {
   getTotalBab: () => number;
   /** Returns the list of attack bonuses including multiple attacks, e.g. [+8, +3] */
   getMultipleAttacks: (extraBonus?: number) => number[];
+  /** D&D 3.5 size modifier to attack/CA: uses creature size when transformed, character size otherwise. */
+  getSizeAttackModifier: () => number;
   /** Computed base saving throw bonus from classLevels (sum across classes). */
   getClassBaseSave: (save: SaveKey) => number;
   /** Returns the breakdown for a saving throw, auto-filling base+ability when classLevels exist. */
@@ -192,6 +194,19 @@ interface CharacterState {
   addCreatureRuntimeModifier: (kind: 'summon' | 'pet', id: string, mod: CreatureRuntimeModifier) => void;
   removeCreatureRuntimeModifier: (kind: 'summon' | 'pet', id: string, modId: string) => void;
   tickCreatureRuntimeModifiers: (kind: 'summon' | 'pet', id: string, by?: number) => void;
+
+  // ── Transformations ──────────────────────────────────────────────────
+  addTransformation: (entry: TransformationEntry) => void;
+  updateTransformation: (entry: TransformationEntry) => void;
+  removeTransformation: (id: string) => void;
+  /** Activate a saved transformation (snaps creature, sets currentHp to creature.hp) */
+  activateTransformation: (id: string) => void;
+  /** Deactivate the current transformation */
+  deactivateTransformation: () => void;
+  /** Change HP in the active transformation form */
+  updateTransformationHp: (delta: number) => void;
+  /** Directly set HP in the active transformation form */
+  setTransformationHp: (hp: number) => void;
 }
 
 // Helper to determine if a modifier type stacks
@@ -682,6 +697,8 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
   getTotalBab: (): number => {
     const { character } = get();
     if (!character) return 0;
+    // Per le regole di Metamorfosi D&D 3.5 il personaggio usa il proprio BAB
+    // (da livelli di classe) anche in forma trasformata.
     const levels = character.classLevels;
     if (levels && levels.length > 0) {
       return levels.reduce((sum, cl) => sum + computeClassBab(cl.level, cl.babProgression), 0);
@@ -700,6 +717,16 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     return attacks;
   },
 
+  getSizeAttackModifier: (): number => {
+    const { character } = get();
+    if (!character) return 0;
+    // When transformed, the creature's size applies (Metamorfosi D&D 3.5).
+    const size = character.activeTransformation
+      ? character.activeTransformation.creature.size
+      : character.size;
+    return size ? (SIZE_ATTACK_MODIFIER[size] ?? 0) : 0;
+  },
+
   // ── Saving throws ────────────────────────────────────────────────
   getClassBaseSave: (save: SaveKey): number => {
     const { character } = get();
@@ -711,6 +738,13 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
 
   getSaveBreakdown: (save: SaveKey) => {
     const { character, getStatModifier, getClassBaseSave } = get();
+    // Note: NO transformation override here.
+    // When transformed, STR/DEX/CON come from creature (via getEffectiveStat) and
+    // INT/WIS/CHA come from character, so saves auto-compute correctly:
+    //   FORT = class_base_fort + creature_CON_mod  (CON overridden)
+    //   RIF  = class_base_ref  + creature_DEX_mod  (DEX overridden)
+    //   VOL  = class_base_will + character_WIS_mod (WIS NOT overridden)
+
     const stored = character?.savingThrows?.[save] ?? { base: 0, ability: 0, magic: 0, misc: 0 };
     const hasClasses = (character?.classLevels?.length ?? 0) > 0;
     const base = hasClasses ? getClassBaseSave(save) : stored.base;
@@ -920,6 +954,25 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
   getEffectiveStat: (target: StatType | string): number => {
     const { character } = get();
     if (!character) return 0;
+
+    // ── Transformation stat override (Metamorfosi D&D 3.5) ──────────────
+    // Solo FOR/DES/COS vengono sostituite dalla creatura.
+    // INT/SAG/CAR rimangono quelle del personaggio.
+    const activeTrans = character.activeTransformation;
+    if (activeTrans) {
+      const transEntry = (character.transformations ?? []).find(t => t.id === activeTrans.transformationId);
+      if (transEntry?.overrideStats !== false) {
+        const c = activeTrans.creature;
+        // Base value from creature; active modifiers (spells, conditions, etc.) still apply.
+        const modDelta = () => get().getActiveModifierDelta(target);
+        if (target === 'str') return c.str + modDelta();
+        if (target === 'dex') return c.dex + modDelta();
+        if (target === 'con') return c.con + modDelta();
+        // INT/WIS/CHA intentionally NOT overridden — character keeps own mental stats.
+        if (target === 'ac') return c.ac + modDelta();
+        if (target === 'speed') return c.speed + modDelta();
+      }
+    }
 
     // Saving throws: auto-compute from classLevels + ability mod when present,
     // else fall back to the stored manual breakdown.
@@ -1453,4 +1506,77 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     );
     return { character: { ...state.character, activePets } };
   }),
+
+  // ── Transformations ──────────────────────────────────────────────────
+  addTransformation: (entry) => set((state) => {
+    if (!state.character) return state;
+    const transformations = [...(state.character.transformations ?? []), entry];
+    return { character: { ...state.character, transformations } };
+  }),
+
+  updateTransformation: (entry) => set((state) => {
+    if (!state.character) return state;
+    const transformations = (state.character.transformations ?? []).map(t => t.id === entry.id ? entry : t);
+    return { character: { ...state.character, transformations } };
+  }),
+
+  removeTransformation: (id) => set((state) => {
+    if (!state.character) return state;
+    const transformations = (state.character.transformations ?? []).filter(t => t.id !== id);
+    const activeTransformation = state.character.activeTransformation?.transformationId === id
+      ? undefined
+      : state.character.activeTransformation;
+    return { character: { ...state.character, transformations, activeTransformation } };
+  }),
+
+  activateTransformation: (id) => {
+    const { character } = get();
+    if (!character) return;
+    const entry = (character.transformations ?? []).find(t => t.id === id);
+    if (!entry) return;
+    const activeTransformation: ActiveTransformation = {
+      transformationId: id,
+      creature: entry.creature,
+      currentHp: entry.creature.hp, // placeholder; updated below
+      activatedAt: new Date().toISOString(),
+    };
+    // Step 1: activate so getTotalMaxHp() can read creature CON via getEffectiveStat
+    set({ character: { ...character, activeTransformation } });
+    // Step 2: compute proper max HP (class levels × hit die + creature CON modifier per level)
+    const maxHp = get().getTotalMaxHp();
+    if (maxHp > 0) {
+      set(state => ({
+        character: state.character?.activeTransformation
+          ? { ...state.character, activeTransformation: { ...state.character.activeTransformation, currentHp: maxHp } }
+          : state.character,
+      }));
+    }
+  },
+
+  deactivateTransformation: () => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, activeTransformation: undefined } };
+  }),
+
+  updateTransformationHp: (delta) => {
+    const maxHp = get().getTotalMaxHp();
+    set((state) => {
+      if (!state.character?.activeTransformation) return state;
+      const active = state.character.activeTransformation;
+      const effectiveMax = maxHp > 0 ? maxHp : active.creature.hp;
+      const currentHp = Math.max(0, Math.min(effectiveMax, active.currentHp + delta));
+      return { character: { ...state.character, activeTransformation: { ...active, currentHp } } };
+    });
+  },
+
+  setTransformationHp: (hp) => {
+    const maxHp = get().getTotalMaxHp();
+    set((state) => {
+      if (!state.character?.activeTransformation) return state;
+      const active = state.character.activeTransformation;
+      const effectiveMax = maxHp > 0 ? maxHp : active.creature.hp;
+      const currentHp = Math.max(0, Math.min(effectiveMax, hp));
+      return { character: { ...state.character, activeTransformation: { ...active, currentHp } } };
+    });
+  },
 }));

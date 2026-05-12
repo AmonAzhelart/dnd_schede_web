@@ -961,6 +961,24 @@ function Step2Identity({ data, setData }: StepProps) {
                   +Lingua: {r.racialLanguages.join(', ')}
                 </div>
               )}
+              {catalogRaceForCard && catalogRaceForCard.racialFeats.length > 0 && (
+                <div style={{ marginTop: '0.25rem', display: 'flex', flexWrap: 'wrap', gap: '0.2rem' }}>
+                  {catalogRaceForCard.racialFeats.map(rf => {
+                    const wLang = (typeof navigator !== 'undefined' && navigator.language?.slice(0, 2)) || 'it';
+                    const subcat = rf.subcategory ?? 'passive';
+                    return (
+                      <span key={rf.id} style={{
+                        fontSize: '0.58rem', padding: '0.1rem 0.38rem', borderRadius: 3,
+                        background: subcat === 'active' ? 'rgba(200,50,50,0.15)' : 'rgba(100,100,200,0.15)',
+                        color: subcat === 'active' ? 'var(--accent-crimson)' : 'var(--accent-arcane)',
+                        border: `1px solid ${subcat === 'active' ? 'rgba(200,50,50,0.25)' : 'rgba(100,100,200,0.25)'}`,
+                      }}>
+                        {pickLocalized(rf.name, wLang) || '—'}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}
@@ -987,6 +1005,49 @@ function Step2Identity({ data, setData }: StepProps) {
           }));
         }} />
       )}
+
+      {/* Racial traits / privileges from catalog */}
+      {data.race && data.race !== CUSTOM_RACE && (() => {
+        const catalogRace = CATALOG_RACE_BY_NAME[data.race];
+        if (!catalogRace || catalogRace.racialFeats.length === 0) return null;
+        const wLang = (typeof navigator !== 'undefined' && navigator.language?.slice(0, 2)) || 'it';
+        return (
+          <div className="wizard-info-box" style={{ marginBottom: '1rem' }}>
+            <div style={{ fontWeight: 600, fontSize: '0.8rem', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <DndIcon category="game" name="character" size={13} style={{ color: 'var(--accent-gold)' }} />
+              Privilegi Razziali
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {catalogRace.racialFeats.map(rf => (
+                <div key={rf.id} style={{ borderLeft: '2px solid var(--accent-gold)', paddingLeft: '0.6rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                    <strong style={{ fontSize: '0.78rem' }}>{pickLocalized(rf.name, wLang)}</strong>
+                    {rf.subcategory && (
+                      <span style={{
+                        fontSize: '0.6rem', padding: '0.1rem 0.35rem', borderRadius: 3,
+                        background: rf.subcategory === 'active' ? 'rgba(200,50,50,0.2)' : 'rgba(100,100,200,0.2)',
+                        color: rf.subcategory === 'active' ? 'var(--accent-crimson)' : 'var(--accent-arcane)',
+                      }}>
+                        {rf.subcategory === 'active' ? 'Attivo' : 'Passivo'}
+                      </span>
+                    )}
+                    {rf.subcategory === 'active' && rf.resourceName && (
+                      <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+                        {rf.resourceName}{rf.resourceMax ? ` ×${rf.resourceMax}` : ''}
+                      </span>
+                    )}
+                  </div>
+                  {rf.description && (
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                      {pickLocalized(rf.description, wLang)}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="form-grid form-grid-3" style={{ margin: '1rem 0 0.9rem' }}>
         <div className="form-group">
@@ -2046,17 +2107,22 @@ export function CharacterWizard({ userId, onComplete, onCancel }: CharacterWizar
     };
 
     // ── Auto-attach catalog-driven extras ────────────────────────────
-    // 1) Racial feats from `CatalogRace.racialFeats` are attached to the
-    //    character as regular `Feat[]` (active by default), so their
-    //    modifiers feed into the live dashboard.
+    // 1) Racial traits from `CatalogRace.racialFeats` are attached as
+    //    `ClassFeature[]` so their modifiers feed into the live dashboard
+    //    and they appear in the privileges panel alongside class features.
     const lang = (typeof navigator !== 'undefined' && navigator.language?.slice(0, 2)) || 'it';
     const catalogRace = CATALOG_RACE_BY_NAME[raceInfo.name];
-    const racialAutoFeats: Feat[] = (catalogRace?.racialFeats ?? []).map(rf => ({
+    const racialTraitFeatures: import('../../types/dnd').ClassFeature[] = (catalogRace?.racialFeats ?? []).map(rf => ({
       id: uuidv4(),
       name: pickLocalized(rf.name, lang),
       description: pickLocalized(rf.description ?? '', lang) || '',
+      subcategory: rf.subcategory === 'active' ? 'active' : 'passive',
       modifiers: rf.modifiers ?? [],
+      creatureModifiers: rf.creatureModifiers ?? [],
       active: true,
+      ...(rf.subcategory === 'active' && rf.resourceName
+        ? { resourceName: rf.resourceName, resourceMax: rf.resourceMax ?? 0, resourceUsed: 0 }
+        : {}),
     }));
 
     // 2) Class features for level 1 (`featuresByLevel.filter(f => f.level === 1)`)
@@ -2125,14 +2191,14 @@ export function CharacterWizard({ userId, onComplete, onCancel }: CharacterWizar
       currency: { platinum: 0, gold: 0, silver: 0, copper: 0 },
       languages: mergedLangs,
       skills: buildFullSkillRecord(data.skills, data.classSkillOverrides, classInfo.classSkills),
-      feats: [...data.feats, ...racialAutoFeats],
+      feats: [...data.feats],
       inventory: [],
       spells: [],
       notes: data.background.trim()
         ? [{ id: uuidv4(), title: 'Background', content: data.background.trim(), date: new Date().toLocaleDateString('it-IT') }]
         : [],
       npcs: [],
-      classFeatures: lvl1Features,
+      classFeatures: [...racialTraitFeatures, ...lvl1Features],
       customAttacks: [],
       classLevels: [classLevelEntry],
       hpLevelLog: [{ id: uuidv4(), classId: classLevelEntry.id, classLevelNumber: 1 }],
