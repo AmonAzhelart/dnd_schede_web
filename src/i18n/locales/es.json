@@ -131,6 +131,7 @@
             "inventory": "Inventario",
             "abilities": "Aptitudes de Clase",
             "spells": "Grimorio",
+            "powers": "Poderes",
             "bestiary": "Bestiario"
         },
         "editCharacter": "Editar personaje",

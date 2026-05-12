@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { CharacterBase, ClassLevel, HpLevelLogEntry, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell, ActiveModifier, DurationUnit, BestiaryEntry, ActiveSummon, ActivePet, Creature, CreatureStatOverride, CreatureRuntimeModifier, CustomSkillSynergy, NoteTab, NoteContextEntry, XpLogEntry, CompanionFeature, CompanionEquipment, TransformationEntry, ActiveTransformation } from '../types/dnd';
+import type { CharacterBase, ClassLevel, HpLevelLogEntry, Item, Feat, Spell, SpellSlotLevel, Modifier, ModifierType, StatType, Currency, CurrencyTransaction, Movement, HpDetails, Language, SavingThrowBreakdown, ClassFeature, PreparedSpell, ActiveModifier, DurationUnit, BestiaryEntry, ActiveSummon, ActivePet, Creature, CreatureStatOverride, CreatureRuntimeModifier, CustomSkillSynergy, NoteTab, NoteContextEntry, XpLogEntry, CompanionFeature, CompanionEquipment, TransformationEntry, ActiveTransformation, CharacterPower } from '../types/dnd';
 import { computeClassBab, computeClassSaveBase, getExpectedHpForClassLevel, computeEcl, getXpForLevel, SIZE_ATTACK_MODIFIER } from '../types/dnd';
 import { collectModifierCandidates, resolveStatOverride, type ModifierCandidate, type RollContext } from '../services/modifiers';
 import { computeSynergyBonuses, computeCustomSynergyBonuses, type ActiveSynergy } from '../data/skillSynergies';
@@ -207,6 +207,19 @@ interface CharacterState {
   updateTransformationHp: (delta: number) => void;
   /** Directly set HP in the active transformation form */
   setTransformationHp: (hp: number) => void;
+
+  // ── Powers (invocations, mysteries, utterances, psionics) ────────────
+  addPower: (power: CharacterPower) => void;
+  updatePower: (power: CharacterPower) => void;
+  deletePower: (powerId: string) => void;
+  /** Spend one use (PER_DAY) or start cooldown (COOLDOWN). AT_WILL: no-op. */
+  usePower: (powerId: string, cooldownRolled?: number) => void;
+  /** Undo one spent use (PER_DAY). */
+  recoverPower: (powerId: string) => void;
+  /** Reset all PER_DAY uses and clear all cooldowns. Called by resetDay(). */
+  resetPowerResources: () => void;
+  /** Decrement cooldownRemaining for every COOLDOWN power by `by` rounds (default 1). */
+  tickPowerCooldowns: (by?: number) => void;
 }
 
 // Helper to determine if a modifier type stacks
@@ -301,7 +314,12 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     const slots = state.character.spellSlots ?? {};
     const reset = Object.fromEntries(Object.entries(slots).map(([k, v]) => [k, { ...v, used: 0 }]));
     const classFeatures = (state.character.classFeatures ?? []).map(f => ({ ...f, resourceUsed: 0 }));
-    return { character: { ...state.character, spellSlots: reset, preparedSpellIds: [], classFeatures } };
+    const powers = (state.character.powers ?? []).map(p => ({
+      ...p,
+      usesUsed: p.usageType === 'PER_DAY' ? 0 : p.usesUsed,
+      cooldownRemaining: p.usageType === 'COOLDOWN' ? 0 : p.cooldownRemaining,
+    }));
+    return { character: { ...state.character, spellSlots: reset, preparedSpellIds: [], classFeatures, powers } };
   }),
 
   resetSpells: () => set((state) => {
@@ -1579,4 +1597,73 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       return { character: { ...state.character, activeTransformation: { ...active, currentHp } } };
     });
   },
+
+  // ── Powers ────────────────────────────────────────────────────────────────
+  addPower: (power) => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, powers: [...(state.character.powers ?? []), power] } };
+  }),
+
+  updatePower: (power) => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, powers: (state.character.powers ?? []).map(p => p.id === power.id ? power : p) } };
+  }),
+
+  deletePower: (powerId) => set((state) => {
+    if (!state.character) return state;
+    return { character: { ...state.character, powers: (state.character.powers ?? []).filter(p => p.id !== powerId) } };
+  }),
+
+  usePower: (powerId, cooldownRolled) => set((state) => {
+    if (!state.character) return state;
+    const powers = (state.character.powers ?? []).map(p => {
+      if (p.id !== powerId) return p;
+      if (p.usageType === 'AT_WILL') return p;
+      if (p.usageType === 'PER_DAY') {
+        const used = p.usesUsed ?? 0;
+        const max = p.usesMax ?? 0;
+        if (used >= max) return p;
+        return { ...p, usesUsed: used + 1 };
+      }
+      if (p.usageType === 'COOLDOWN') {
+        const rounds = cooldownRolled ?? 1;
+        return { ...p, cooldownRemaining: rounds };
+      }
+      return p;
+    });
+    return { character: { ...state.character, powers } };
+  }),
+
+  recoverPower: (powerId) => set((state) => {
+    if (!state.character) return state;
+    const powers = (state.character.powers ?? []).map(p => {
+      if (p.id !== powerId) return p;
+      if (p.usageType === 'PER_DAY') {
+        const used = p.usesUsed ?? 0;
+        if (used <= 0) return p;
+        return { ...p, usesUsed: used - 1 };
+      }
+      return p;
+    });
+    return { character: { ...state.character, powers } };
+  }),
+
+  resetPowerResources: () => set((state) => {
+    if (!state.character) return state;
+    const powers = (state.character.powers ?? []).map(p => ({
+      ...p,
+      usesUsed: p.usageType === 'PER_DAY' ? 0 : p.usesUsed,
+      cooldownRemaining: p.usageType === 'COOLDOWN' ? 0 : p.cooldownRemaining,
+    }));
+    return { character: { ...state.character, powers } };
+  }),
+
+  tickPowerCooldowns: (by = 1) => set((state) => {
+    if (!state.character) return state;
+    const powers = (state.character.powers ?? []).map(p => {
+      if (p.usageType !== 'COOLDOWN' || !p.cooldownRemaining) return p;
+      return { ...p, cooldownRemaining: Math.max(0, p.cooldownRemaining - by) };
+    });
+    return { character: { ...state.character, powers } };
+  }),
 }));

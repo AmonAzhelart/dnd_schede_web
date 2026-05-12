@@ -6,7 +6,7 @@ import { useCharacterStore } from '../store/characterStore';
 import type { CustomAttack } from '../types/dnd';
 import { RACE_PRESETS, getRaceAdjustments } from '../types/dnd';
 import { FaHeart, FaStar, FaPlus, FaMinus, FaEdit, FaSearch, FaPalette, FaCheck, FaTrash, FaCamera, FaDragon } from 'react-icons/fa';
-import { GiSwordman, GiAxeSword, GiSpellBook, GiTreasureMap, GiAbstract024, GiUpgrade } from 'react-icons/gi';
+import { GiSwordman, GiAxeSword, GiSpellBook, GiTreasureMap, GiAbstract024, GiUpgrade, GiMagicGate } from 'react-icons/gi';
 import { Inventory } from './Inventory';
 import { Spellbook } from './Spellbook';
 import { AbilitiesPage, type AbilitySubTab } from './AbilitiesPage';
@@ -24,12 +24,13 @@ import { useMediaQuery } from './mobile/MobileShell';
 import { setMobileContextActions, setMobileAvatarTapOverride, setMobileEditExit } from './mobile/mobileShellSlots';
 import { BestiaryPage } from './BestiaryPage';
 import { SkillsTab } from './SkillsTab';
+import { PowersBook } from './PowersBook';
 import { BottomDrawer } from './ui/BottomDrawer';
 import './CharacterSheetHeader.css';
 import './dashboard/widgets/styles/modifiers.css';
 import './SkillsTab.css';
 
-type SheetTab = 'overview' | 'combat' | 'levels' | 'skills' | 'inventory' | 'abilities' | 'spells' | 'bestiary';
+type SheetTab = 'overview' | 'combat' | 'levels' | 'skills' | 'inventory' | 'abilities' | 'spells' | 'powers' | 'bestiary';
 
 const STAT_NAMES: Record<string, string> = {
   str: 'Forza', dex: 'Destrezza', con: 'Costituzione',
@@ -179,6 +180,7 @@ export const CharacterSheet: React.FC = () => {
     { id: 'inventory', label: t('sheet.tabs.inventory'), icon: <GiTreasureMap /> },
     { id: 'abilities', label: t('sheet.tabs.abilities'), icon: <GiAbstract024 /> },
     { id: 'spells', label: t('sheet.tabs.spells'), icon: <GiSpellBook /> },
+    { id: 'powers', label: t('sheet.tabs.powers'), icon: <GiMagicGate /> },
     { id: 'bestiary', label: t('sheet.tabs.bestiary'), icon: <FaDragon /> },
   ];
 
@@ -1026,6 +1028,7 @@ export const CharacterSheet: React.FC = () => {
         {/* --- COMPONENT TABS ----------------------------------- */}
         {activeTab === 'inventory' && <Inventory />}
         {activeTab === 'spells' && <Spellbook />}
+        {activeTab === 'powers' && <div style={{ padding: '0 0.75rem 1rem' }}><PowersBook /></div>}
         {activeTab === 'bestiary' && <BestiaryPage />}
       </div>
 

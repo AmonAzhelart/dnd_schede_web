@@ -131,6 +131,7 @@
             "inventory": "Inventory",
             "abilities": "Class Features",
             "spells": "Spellbook",
+            "powers": "Powers",
             "bestiary": "Bestiary"
         },
         "editCharacter": "Edit character",
