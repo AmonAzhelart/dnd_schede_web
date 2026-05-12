@@ -481,19 +481,14 @@ function buildFullSkillRecord(
       ? overrides[s.name]
       : isDefaultClassSkill(s.name, classSkillIds);
     const existing = wizSkills[s.name];
+    // SP invested → effective D&D ranks: class = 1 SP/rank, cross-class = 2 SP/rank
+    const spInvested = existing?.ranks ?? 0;
     out[s.name] = {
-      id: s.name,
-      name: s.name,
-      stat: s.stat as any,
-      // Convert stored SP (ranks) to actual D&D ranks:
-      // class skill → 1 SP = 1 rank; cross-class → 2 SP = 1 rank
-      ranks: isClass ? (existing?.ranks ?? 0) : Math.floor((existing?.ranks ?? 0) / 2),
-      classSkill: isClass,
       id: s.name,
       name: s.name,
       ...(s.localizedName ? { localizedName: s.localizedName } : {}),
       stat: s.stat as any,
-      ranks: existing?.ranks ?? 0,
+      ranks: isClass ? spInvested : Math.floor(spInvested / 2),
       classSkill: isClass,
       armorCheckPenalty: s.armorCheck,
       canUseUntrained: s.untrained,
@@ -1403,8 +1398,10 @@ function Step5Skills({ data, setData }: StepProps) {
       const isClass = prev.classSkillOverrides[skill.name] !== undefined
         ? prev.classSkillOverrides[skill.name]
         : isDefaultClassSkill(skill.name, classInfo.classSkills);
+      // Cross-class skills cost 2 SP per effective rank; each +/- click = 1 effective rank
+      const spDelta = isClass ? delta : delta * 2;
       const cur = prev.skills[skill.name]?.ranks ?? 0;
-      const next = cur + delta;
+      const next = cur + spDelta;
       if (next < 0) return prev;
       const updated = { ...prev.skills };
       if (next === 0) {
