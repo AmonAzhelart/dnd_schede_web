@@ -11,26 +11,26 @@ import { RollPickerModal, type RollSegment } from '../../RollPickerModal';
 
 const CATEGORY_LABEL: Record<PowerCategory, string> = {
     INVOCATION: 'Invocazioni',
-    MYSTERY:    'Misteri',
-    UTTERANCE:  'Detti',
-    PSIONIC:    'Psionici',
-    SPELL:      'Cap. Magiche',
+    MYSTERY: 'Misteri',
+    UTTERANCE: 'Detti',
+    PSIONIC: 'Psionici',
+    SPELL: 'Cap. Magiche',
 };
 
 const USAGE_COLOR: Record<UsageType, string> = {
-    AT_WILL:     'var(--accent-success)',
-    PER_DAY:     'var(--accent-warning)',
-    VANCIAN:     'var(--accent-ice)',
+    AT_WILL: 'var(--accent-success)',
+    PER_DAY: 'var(--accent-warning)',
+    VANCIAN: 'var(--accent-ice)',
     SPONTANEOUS: 'var(--accent-arcane)',
-    COOLDOWN:    'var(--accent-crimson)',
+    COOLDOWN: 'var(--accent-crimson)',
 };
 
 const USAGE_LABEL: Record<UsageType, string> = {
-    AT_WILL:     '∞',
-    PER_DAY:     '/g',
-    VANCIAN:     'Prep.',
+    AT_WILL: '∞',
+    PER_DAY: '/g',
+    VANCIAN: 'Prep.',
     SPONTANEOUS: 'Spon.',
-    COOLDOWN:    'CD',
+    COOLDOWN: 'CD',
 };
 
 const STAT_LABELS: Partial<Record<StatType, string>> = {
@@ -111,15 +111,15 @@ interface PickerState {
 function buildFooter(p: CharacterPower, saveDC: number | null): React.ReactNode {
     const chips: { label: string; value: string }[] = [];
     if (p.castingTime) chips.push({ label: 'Tempo', value: p.castingTime });
-    if (p.range)       chips.push({ label: 'Gittata', value: p.range });
-    if (p.duration)    chips.push({ label: 'Durata', value: p.duration });
-    if (p.components)  chips.push({ label: 'Comp.', value: p.components });
+    if (p.range) chips.push({ label: 'Gittata', value: p.range });
+    if (p.duration) chips.push({ label: 'Durata', value: p.duration });
+    if (p.components) chips.push({ label: 'Comp.', value: p.components });
     if (p.savingThrow) chips.push({
         label: 'TS',
         value: saveDC !== null ? `${p.savingThrow} CD ${saveDC}` : p.savingThrow,
     });
     if (p.baseDice && p.damageType) chips.push({ label: 'Danno', value: `${p.baseDice} ${p.damageType}` });
-    else if (p.damageType)          chips.push({ label: 'Tipo danno', value: p.damageType });
+    else if (p.damageType) chips.push({ label: 'Tipo danno', value: p.damageType });
 
     if (!chips.length && !p.description) return undefined;
 
@@ -165,18 +165,18 @@ function buildFooter(p: CharacterPower, saveDC: number | null): React.ReactNode 
 
 const CATEGORY_FULL: Record<PowerCategory, string> = {
     INVOCATION: 'Invocazione',
-    MYSTERY:    'Mistero',
-    UTTERANCE:  'Detto',
-    PSIONIC:    'Psionico',
-    SPELL:      'Capacità Magica',
+    MYSTERY: 'Mistero',
+    UTTERANCE: 'Detto',
+    PSIONIC: 'Psionico',
+    SPELL: 'Capacità Magica',
 };
 
 const USAGE_FULL: Record<UsageType, string> = {
-    AT_WILL:     'A volontà',
-    PER_DAY:     'Per giorno',
-    VANCIAN:     'Preparata',
+    AT_WILL: 'A volontà',
+    PER_DAY: 'Per giorno',
+    VANCIAN: 'Preparata',
     SPONTANEOUS: 'Spontanea',
-    COOLDOWN:    'Ricarica',
+    COOLDOWN: 'Ricarica',
 };
 
 const PowerInfoModal: React.FC<{ power: CharacterPower; onClose: () => void }> = ({ power, onClose }) => {
@@ -197,10 +197,10 @@ const PowerInfoModal: React.FC<{ power: CharacterPower; onClose: () => void }> =
 
     const chips: { label: string; value: string }[] = [
         power.castingTime ? { label: 'Tempo', value: power.castingTime } : null,
-        power.range       ? { label: 'Gittata', value: power.range }     : null,
-        power.duration    ? { label: 'Durata', value: power.duration }   : null,
-        power.savingThrow ? { label: 'TS', value: power.savingThrow }    : null,
-        power.components  ? { label: 'Comp.', value: power.components }  : null,
+        power.range ? { label: 'Gittata', value: power.range } : null,
+        power.duration ? { label: 'Durata', value: power.duration } : null,
+        power.savingThrow ? { label: 'TS', value: power.savingThrow } : null,
+        power.components ? { label: 'Comp.', value: power.components } : null,
         (power.baseDice && power.damageType)
             ? { label: 'Danno', value: `${power.baseDice} ${power.damageType}` }
             : power.baseDice
@@ -383,15 +383,15 @@ export const PowersWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) => {
 
     // ── open picker ───────────────────────────────────────────────────────────
     const openPowerPicker = (p: CharacterPower) => {
-        const bab    = getTotalBab();
+        const bab = getTotalBab();
         const sizeMod = getSizeAttackModifier();
-        const mode   = p.attackMode ?? 'none';
+        const mode = p.attackMode ?? 'none';
         const isRanged = mode === 'rangedTouch' || mode === 'ray';
         const atkStat: StatType = isRanged ? 'dex' : 'str';
         const atkMod = getStatModifier(atkStat);
         const totalLevel = (character.classLevels ?? []).reduce((s, cl) => s + cl.level, 0) || 1;
-        const saveStat  = (p.saveStat as StatType | undefined) ?? 'cha';
-        const saveDC    = p.savingThrow ? 10 + Math.floor(totalLevel / 2) + getStatModifier(saveStat) : null;
+        const saveStat = (p.saveStat as StatType | undefined) ?? 'cha';
+        const saveDC = p.savingThrow ? 10 + Math.floor(totalLevel / 2) + getStatModifier(saveStat) : null;
 
         const segments: RollSegment[] = [];
 
