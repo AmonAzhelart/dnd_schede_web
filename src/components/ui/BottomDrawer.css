@@ -47,6 +47,15 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* On mobile the MobileShell (~135 px) is fixed at the bottom.
+   Lift the sheet so action buttons are not hidden behind the shell. */
+@media (max-width: 900px) {
+    .bd-sheet {
+        margin-bottom: 135px;
+        border-radius: 18px 18px 18px 18px;
+    }
+}
+
 @keyframes bd-slide-up {
     from {
         transform: translateY(100%);

@@ -605,6 +605,28 @@ button.mob-shell-stat {
     .cs-tabs {
         display: none !important;
     }
+
+    /* ── Ensure scroll containers inside the sheet clear the fixed bar ── */
+    /* SkillsTab scroll area */
+    .skills-tab-scroll {
+        padding-bottom: 140px !important;
+    }
+
+    /* Inventory scroll area */
+    .inv-scroll {
+        padding-bottom: 140px !important;
+    }
+
+    /* Spellbook list/detail scroll areas */
+    .sb-scroll-area {
+        padding-bottom: 140px !important;
+    }
+
+    /* Bestiary list & detail panes */
+    .bestiary-list-pane,
+    .bestiary-detail-pane {
+        padding-bottom: 140px !important;
+    }
 }
 
 @media (max-width: 360px) {

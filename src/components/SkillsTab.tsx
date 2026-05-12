@@ -11,7 +11,7 @@
  */
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FaPlus, FaMinus, FaSearch, FaDiceD20, FaTrash, FaEdit, FaCheck, FaTimes, FaLock, FaUnlock, FaChevronDown, FaLink } from 'react-icons/fa';
+import { FaPlus, FaMinus, FaSearch, FaDiceD20, FaTrash, FaEdit, FaCheck, FaTimes, FaLock, FaUnlock, FaLink } from 'react-icons/fa';
 import { useCharacterStore } from '../store/characterStore';
 import { CLASS_SKILL_POINTS } from '../types/dnd';
 import type { Skill, CustomSkillSynergy } from '../types/dnd';
@@ -142,7 +142,7 @@ export const SkillsTab: React.FC = () => {
 
     const [q, setQ] = useState('');
     const [filter, setFilter] = useState<FilterKey>('all');
-    const [showUnusable, setShowUnusable] = useState(false);
+    const [usabilityTab, setUsabilityTab] = useState<'usable' | 'unusable'>('usable');
     const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
     const [showImportWizard, setShowImportWizard] = useState(false);
     const [picker, setPicker] = useState<{
@@ -486,6 +486,26 @@ export const SkillsTab: React.FC = () => {
                 </button>
             </div>
 
+            {/* ─── Usable / Unusable tab switcher ───────────────────────────── */}
+            {(usable.length > 0 || unusable.length > 0) && (
+                <div className="skills-tab-usability-tabs">
+                    <button
+                        className={`skills-tab-usability-tab${usabilityTab === 'usable' ? ' active' : ''}`}
+                        onClick={() => setUsabilityTab('usable')}
+                    >
+                        Utilizzabili
+                        <span className="skills-tab-usability-count">{usable.length}</span>
+                    </button>
+                    <button
+                        className={`skills-tab-usability-tab${usabilityTab === 'unusable' ? ' active' : ''}`}
+                        onClick={() => setUsabilityTab('unusable')}
+                    >
+                        Non utilizzabili
+                        <span className="skills-tab-usability-count">{unusable.length}</span>
+                    </button>
+                </div>
+            )}
+
             {/* ─── Skill grid (scrollable) ─────────────────────────────────── */}
             <div className="skills-tab-scroll">
                 {usable.length === 0 && unusable.length === 0 && (
@@ -494,23 +514,18 @@ export const SkillsTab: React.FC = () => {
                     </p>
                 )}
 
-                {usable.length > 0 && (
+                {usabilityTab === 'usable' && usable.length > 0 && (
                     <SkillColumns skills={usable} renderRow={renderRow} />
                 )}
+                {usabilityTab === 'usable' && usable.length === 0 && (usable.length + unusable.length) > 0 && (
+                    <p className="text-muted text-sm" style={{ padding: '1rem 0', textAlign: 'center' }}>Nessuna abilità utilizzabile con i filtri correnti.</p>
+                )}
 
-                {unusable.length > 0 && (
-                    <>
-                        <button
-                            className="skills-tab-section-hdr"
-                            onClick={() => setShowUnusable(v => !v)}
-                        >
-                            <span>Non utilizzabili ({unusable.length})</span>
-                            <FaChevronDown size={10} className={`skills-tab-section-hdr-chevron${showUnusable ? ' open' : ''}`} />
-                        </button>
-                        {showUnusable && (
-                            <SkillColumns skills={unusable} renderRow={renderRow} />
-                        )}
-                    </>
+                {usabilityTab === 'unusable' && unusable.length > 0 && (
+                    <SkillColumns skills={unusable} renderRow={renderRow} />
+                )}
+                {usabilityTab === 'unusable' && unusable.length === 0 && (usable.length + unusable.length) > 0 && (
+                    <p className="text-muted text-sm" style={{ padding: '1rem 0', textAlign: 'center' }}>Nessuna abilità non utilizzabile con i filtri correnti.</p>
                 )}
             </div>
 

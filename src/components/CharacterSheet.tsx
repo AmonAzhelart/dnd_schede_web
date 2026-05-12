@@ -481,7 +481,7 @@ export const CharacterSheet: React.FC = () => {
 
         {/* --- SIMPLE SCROLL TABS (overview / combat / skills / abilities) --- */}
         {(activeTab === 'overview' || activeTab === 'combat' || activeTab === 'skills' || activeTab === 'levels' || activeTab === 'abilities') && (
-          <div style={{ flex: 1, overflowY: activeTab === 'skills' ? 'hidden' : 'auto', display: activeTab === 'skills' ? 'flex' : undefined, flexDirection: activeTab === 'skills' ? 'column' : undefined, minHeight: 0, paddingTop: '1rem', paddingBottom: activeTab === 'skills' ? 0 : '2rem' }}>
+          <div style={{ flex: 1, overflowY: activeTab === 'skills' ? 'hidden' : 'auto', display: activeTab === 'skills' ? 'flex' : undefined, flexDirection: activeTab === 'skills' ? 'column' : undefined, minHeight: 0, paddingTop: '1rem', paddingBottom: activeTab === 'skills' ? 0 : (isMobile ? '140px' : '2rem') }}>
 
             {activeTab === 'levels' && <LevelsTab />}
 
