@@ -642,107 +642,107 @@ export const CharacterSheet: React.FC = () => {
                       </div>
                     )}
                     {!isMobile && (
-                    <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-body)', fontSize: '0.9rem' }}>
-                        <thead>
-                          <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                            {['Arma', 'Bonus Att.', 'Attacchi', 'Danni', 'Tipo', 'Critico', 'Gittata', 'Note'].map(h => (
-                              <th key={h} style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontFamily: 'var(--font-heading)', fontSize: '0.7rem', color: 'var(--accent-gold)', fontWeight: 'normal', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {character.inventory
-                            .filter(i => i.equipped && i.type === 'weapon')
-                            .map(w => {
-                              const isRanged = !!(w.weaponDetails?.rangeIncrement);
-                              const atkStatOverride = resolveStatOverride(
-                                character,
-                                { channel: 'attack', weapon: w, isRanged },
-                                getStatModifier,
-                              );
-                              const abilityMod = getStatModifier(atkStatOverride ?? (isRanged ? 'dex' : 'str'));
-                              const weaponBonus = w.weaponDetails?.attackBonus ?? 0;
-                              const attacks = getMultipleAttacks(abilityMod + weaponBonus);
-                              const fmtA = (arr: number[]) => arr.map(v => (v >= 0 ? `+${v}` : `${v}`)).join('/');
-                              const primaryBonus = attacks[0];
-                              return (
-                                <tr key={w.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-primary)', fontWeight: 500 }}>{w.name}</td>
-                                  <td style={{ padding: '0.4rem 0.6rem', fontFamily: 'var(--font-heading)', color: 'var(--accent-crimson)' }}>{primaryBonus >= 0 ? '+' : ''}{primaryBonus}</td>
-                                  <td style={{ padding: '0.4rem 0.6rem', fontFamily: 'var(--font-heading)', fontSize: '0.82rem', color: attacks.length > 1 ? 'var(--accent-arcane)' : 'var(--text-muted)' }}>{fmtA(attacks)}</td>
-                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-secondary)' }}>{w.weaponDetails?.damage ?? '�'}</td>
-                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{w.weaponDetails?.damageType ?? '�'}</td>
-                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                                    {w.weaponDetails ? `${w.weaponDetails.criticalRange ? w.weaponDetails.criticalRange + '/' : ''}�${w.weaponDetails.criticalMultiplier.replace('x', '').replace('�', '')}` : '�'}
-                                  </td>
-                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{w.weaponDetails?.rangeIncrement || 'Mischia'}</td>
-                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{w.weaponDetails?.notes || '�'}</td>
-                                </tr>
-                              );
-                            })}
-                        </tbody>
-                      </table>
-                    </div>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-body)', fontSize: '0.9rem' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                              {['Arma', 'Bonus Att.', 'Attacchi', 'Danni', 'Tipo', 'Critico', 'Gittata', 'Note'].map(h => (
+                                <th key={h} style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontFamily: 'var(--font-heading)', fontSize: '0.7rem', color: 'var(--accent-gold)', fontWeight: 'normal', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {character.inventory
+                              .filter(i => i.equipped && i.type === 'weapon')
+                              .map(w => {
+                                const isRanged = !!(w.weaponDetails?.rangeIncrement);
+                                const atkStatOverride = resolveStatOverride(
+                                  character,
+                                  { channel: 'attack', weapon: w, isRanged },
+                                  getStatModifier,
+                                );
+                                const abilityMod = getStatModifier(atkStatOverride ?? (isRanged ? 'dex' : 'str'));
+                                const weaponBonus = w.weaponDetails?.attackBonus ?? 0;
+                                const attacks = getMultipleAttacks(abilityMod + weaponBonus);
+                                const fmtA = (arr: number[]) => arr.map(v => (v >= 0 ? `+${v}` : `${v}`)).join('/');
+                                const primaryBonus = attacks[0];
+                                return (
+                                  <tr key={w.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-primary)', fontWeight: 500 }}>{w.name}</td>
+                                    <td style={{ padding: '0.4rem 0.6rem', fontFamily: 'var(--font-heading)', color: 'var(--accent-crimson)' }}>{primaryBonus >= 0 ? '+' : ''}{primaryBonus}</td>
+                                    <td style={{ padding: '0.4rem 0.6rem', fontFamily: 'var(--font-heading)', fontSize: '0.82rem', color: attacks.length > 1 ? 'var(--accent-arcane)' : 'var(--text-muted)' }}>{fmtA(attacks)}</td>
+                                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-secondary)' }}>{w.weaponDetails?.damage ?? '�'}</td>
+                                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{w.weaponDetails?.damageType ?? '�'}</td>
+                                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                                      {w.weaponDetails ? `${w.weaponDetails.criticalRange ? w.weaponDetails.criticalRange + '/' : ''}�${w.weaponDetails.criticalMultiplier.replace('x', '').replace('�', '')}` : '�'}
+                                    </td>
+                                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{w.weaponDetails?.rangeIncrement || 'Mischia'}</td>
+                                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{w.weaponDetails?.notes || '�'}</td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                        </table>
+                      </div>
                     )}
                     {character.inventory.filter(i => i.equipped && (i.type === 'armor' || i.type === 'shield' || i.type === 'protectiveItem')).length > 0 && (
                       <>
                         <div className="section-header" style={{ marginTop: '0.5rem' }}>
                           <span className="section-title">Protezioni Equipaggiate</span>
                         </div>
-                          {isMobile && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
-                              {character.inventory
-                                .filter(i => i.equipped && (i.type === 'armor' || i.type === 'shield' || i.type === 'protectiveItem'))
-                                .map(a => (
-                                  <div key={a.id} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                      <span style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '1rem' }}>{a.name}</span>
-                                      <span style={{ fontFamily: 'var(--font-heading)', color: 'var(--accent-gold)', fontSize: '1.2rem' }}>CA +{a.armorDetails?.armorBonus ?? 0}</span>
-                                    </div>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                                      {a.armorDetails?.maxDex !== undefined && a.armorDetails.maxDex !== null && (
-                                        <span style={{ padding: '2px 8px', borderRadius: 8, fontSize: '0.82rem', background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.1)' }}>Max Des {a.armorDetails.maxDex}</span>
-                                      )}
-                                      {!!a.armorDetails?.checkPenalty && (
-                                        <span style={{ padding: '2px 8px', borderRadius: 8, fontSize: '0.82rem', background: 'rgba(180,40,40,0.15)', color: 'var(--accent-crimson)', border: '1px solid rgba(180,40,40,0.3)' }}>Pen {a.armorDetails.checkPenalty}</span>
-                                      )}
-                                      {!!a.armorDetails?.spellFailure && (
-                                        <span style={{ padding: '2px 8px', borderRadius: 8, fontSize: '0.82rem', background: 'rgba(255,200,50,0.1)', color: 'var(--accent-gold)', border: '1px solid rgba(255,200,50,0.2)' }}>Incant. {a.armorDetails.spellFailure}%</span>
-                                      )}
-                                      <span style={{ padding: '2px 8px', borderRadius: 8, fontSize: '0.82rem', background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.1)' }}>{a.armorDetails?.armorType ?? a.type}</span>
-                                    </div>
+                        {isMobile && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
+                            {character.inventory
+                              .filter(i => i.equipped && (i.type === 'armor' || i.type === 'shield' || i.type === 'protectiveItem'))
+                              .map(a => (
+                                <div key={a.id} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '1rem' }}>{a.name}</span>
+                                    <span style={{ fontFamily: 'var(--font-heading)', color: 'var(--accent-gold)', fontSize: '1.2rem' }}>CA +{a.armorDetails?.armorBonus ?? 0}</span>
                                   </div>
-                                ))}
-                            </div>
-                          )}
-                          {!isMobile && (
-                        <div style={{ overflowX: 'auto' }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-body)', fontSize: '0.9rem' }}>
-                            <thead>
-                              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                                {['Protezione', 'Bonus CA', 'Max Des', 'Penalit�', 'Incant.%', 'Tipo'].map(h => (
-                                  <th key={h} style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontFamily: 'var(--font-heading)', fontSize: '0.7rem', color: 'var(--accent-gold)', fontWeight: 'normal', letterSpacing: '0.08em' }}>{h}</th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {character.inventory
-                                .filter(i => i.equipped && (i.type === 'armor' || i.type === 'shield' || i.type === 'protectiveItem'))
-                                .map(a => (
-                                  <tr key={a.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-primary)', fontWeight: 500 }}>{a.name}</td>
-                                    <td style={{ padding: '0.4rem 0.6rem', fontFamily: 'var(--font-heading)', color: 'var(--accent-gold)' }}>+{a.armorDetails?.armorBonus ?? 0}</td>
-                                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)' }}>{a.armorDetails?.maxDex ?? '�'}</td>
-                                    <td style={{ padding: '0.4rem 0.6rem', color: a.armorDetails?.checkPenalty ? 'var(--accent-crimson)' : 'var(--text-muted)' }}>{a.armorDetails?.checkPenalty ?? 0}</td>
-                                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)' }}>{a.armorDetails?.spellFailure ? `${a.armorDetails.spellFailure}%` : '�'}</td>
-                                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{a.armorDetails?.armorType ?? a.type}</td>
-                                  </tr>
-                                ))}
-                            </tbody>
-                          </table>
-                        </div>
-                          )}
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                                    {a.armorDetails?.maxDex !== undefined && a.armorDetails.maxDex !== null && (
+                                      <span style={{ padding: '2px 8px', borderRadius: 8, fontSize: '0.82rem', background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.1)' }}>Max Des {a.armorDetails.maxDex}</span>
+                                    )}
+                                    {!!a.armorDetails?.checkPenalty && (
+                                      <span style={{ padding: '2px 8px', borderRadius: 8, fontSize: '0.82rem', background: 'rgba(180,40,40,0.15)', color: 'var(--accent-crimson)', border: '1px solid rgba(180,40,40,0.3)' }}>Pen {a.armorDetails.checkPenalty}</span>
+                                    )}
+                                    {!!a.armorDetails?.spellFailure && (
+                                      <span style={{ padding: '2px 8px', borderRadius: 8, fontSize: '0.82rem', background: 'rgba(255,200,50,0.1)', color: 'var(--accent-gold)', border: '1px solid rgba(255,200,50,0.2)' }}>Incant. {a.armorDetails.spellFailure}%</span>
+                                    )}
+                                    <span style={{ padding: '2px 8px', borderRadius: 8, fontSize: '0.82rem', background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.1)' }}>{a.armorDetails?.armorType ?? a.type}</span>
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
+                        )}
+                        {!isMobile && (
+                          <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-body)', fontSize: '0.9rem' }}>
+                              <thead>
+                                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                  {['Protezione', 'Bonus CA', 'Max Des', 'Penalit�', 'Incant.%', 'Tipo'].map(h => (
+                                    <th key={h} style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontFamily: 'var(--font-heading)', fontSize: '0.7rem', color: 'var(--accent-gold)', fontWeight: 'normal', letterSpacing: '0.08em' }}>{h}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {character.inventory
+                                  .filter(i => i.equipped && (i.type === 'armor' || i.type === 'shield' || i.type === 'protectiveItem'))
+                                  .map(a => (
+                                    <tr key={a.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                      <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-primary)', fontWeight: 500 }}>{a.name}</td>
+                                      <td style={{ padding: '0.4rem 0.6rem', fontFamily: 'var(--font-heading)', color: 'var(--accent-gold)' }}>+{a.armorDetails?.armorBonus ?? 0}</td>
+                                      <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)' }}>{a.armorDetails?.maxDex ?? '�'}</td>
+                                      <td style={{ padding: '0.4rem 0.6rem', color: a.armorDetails?.checkPenalty ? 'var(--accent-crimson)' : 'var(--text-muted)' }}>{a.armorDetails?.checkPenalty ?? 0}</td>
+                                      <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)' }}>{a.armorDetails?.spellFailure ? `${a.armorDetails.spellFailure}%` : '�'}</td>
+                                      <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{a.armorDetails?.armorType ?? a.type}</td>
+                                    </tr>
+                                  ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
                       </>
                     )}
 
@@ -944,64 +944,64 @@ export const CharacterSheet: React.FC = () => {
                           </div>
                         )}
                         {!isMobile && (
-                      <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-body)', fontSize: '0.9rem' }}>
-                          <thead>
-                            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                              {['Attacco', 'Bonus Att.', 'Danni', 'Tipo', 'Critico', 'Gittata', 'Collegati', 'Note', ''].map(h => (
-                                <th key={h} style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontFamily: 'var(--font-heading)', fontSize: '0.7rem', color: 'var(--accent-gold)', fontWeight: 'normal', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>{h}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(character.customAttacks ?? []).map(atk => {
-                              const atkBonus = (atk.useBab ? (character.baseStats.bab || 0) : 0)
-                                + (atk.attackStat ? getStatModifier(atk.attackStat) : 0)
-                                + (atk.attackBonusExtra ?? 0);
-                              const dmgExtra = (atk.damageStat ? getStatModifier(atk.damageStat) : 0) + (atk.damageBonusExtra ?? 0);
-                              const dmgDisplay = dmgExtra !== 0
-                                ? `${atk.damageDice} ${dmgExtra >= 0 ? '+' : ''}${dmgExtra}`
-                                : atk.damageDice;
-                              const linkedNames = (atk.linkedFeatureIds ?? []).map(id => {
-                                const f = [...(character.classFeatures ?? []), ...(character.feats ?? [])].find(x => x.id === id);
-                                return f?.name ?? null;
-                              }).filter(Boolean) as string[];
-                              return (
-                                <tr key={atk.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-primary)', fontWeight: 500 }}>{atk.name}</td>
-                                  <td style={{ padding: '0.4rem 0.6rem', fontFamily: 'var(--font-heading)', color: 'var(--accent-crimson)' }}>{atkBonus >= 0 ? '+' : ''}{atkBonus}</td>
-                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-secondary)' }}>{dmgDisplay}</td>
-                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{atk.damageType}</td>
-                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                                    {atk.criticalRange && atk.criticalMultiplier ? `${atk.criticalRange}/${atk.criticalMultiplier}` : atk.criticalMultiplier ?? '�'}
-                                  </td>
-                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{atk.range || 'Mischia'}</td>
-                                  <td style={{ padding: '0.4rem 0.6rem', maxWidth: 160 }}>
-                                    {linkedNames.length > 0 ? (
-                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                                        {linkedNames.map(n => (
-                                          <span key={n} style={{ padding: '1px 6px', borderRadius: 10, fontSize: '0.65rem', background: 'rgba(155,89,182,0.2)', color: 'var(--accent-arcane)', border: '1px solid rgba(155,89,182,0.3)', whiteSpace: 'nowrap' }}>{n}</span>
-                                        ))}
-                                      </div>
-                                    ) : <span className="text-muted">�</span>}
-                                  </td>
-                                  <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{atk.notes || '�'}</td>
-                                  <td style={{ padding: '0.4rem 0.6rem', whiteSpace: 'nowrap' }}>
-                                    <button className="btn-ghost" style={{ marginRight: 4, color: 'var(--accent-gold)' }} onClick={() => {
-                                      setCAForm({ ...atk });
-                                      setEditingCAId(atk.id);
-                                      setShowCAForm(true);
-                                    }}><FaEdit size={12} /></button>
-                                    <button className="btn-ghost" style={{ color: 'var(--accent-crimson)' }} onClick={() => {
-                                      setCharacter({ ...character, customAttacks: (character.customAttacks ?? []).filter(a => a.id !== atk.id) });
-                                    }}><FaTrash size={12} /></button>
-                                  </td>
+                          <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-body)', fontSize: '0.9rem' }}>
+                              <thead>
+                                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                  {['Attacco', 'Bonus Att.', 'Danni', 'Tipo', 'Critico', 'Gittata', 'Collegati', 'Note', ''].map(h => (
+                                    <th key={h} style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontFamily: 'var(--font-heading)', fontSize: '0.7rem', color: 'var(--accent-gold)', fontWeight: 'normal', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>{h}</th>
+                                  ))}
                                 </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
+                              </thead>
+                              <tbody>
+                                {(character.customAttacks ?? []).map(atk => {
+                                  const atkBonus = (atk.useBab ? (character.baseStats.bab || 0) : 0)
+                                    + (atk.attackStat ? getStatModifier(atk.attackStat) : 0)
+                                    + (atk.attackBonusExtra ?? 0);
+                                  const dmgExtra = (atk.damageStat ? getStatModifier(atk.damageStat) : 0) + (atk.damageBonusExtra ?? 0);
+                                  const dmgDisplay = dmgExtra !== 0
+                                    ? `${atk.damageDice} ${dmgExtra >= 0 ? '+' : ''}${dmgExtra}`
+                                    : atk.damageDice;
+                                  const linkedNames = (atk.linkedFeatureIds ?? []).map(id => {
+                                    const f = [...(character.classFeatures ?? []), ...(character.feats ?? [])].find(x => x.id === id);
+                                    return f?.name ?? null;
+                                  }).filter(Boolean) as string[];
+                                  return (
+                                    <tr key={atk.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                      <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-primary)', fontWeight: 500 }}>{atk.name}</td>
+                                      <td style={{ padding: '0.4rem 0.6rem', fontFamily: 'var(--font-heading)', color: 'var(--accent-crimson)' }}>{atkBonus >= 0 ? '+' : ''}{atkBonus}</td>
+                                      <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-secondary)' }}>{dmgDisplay}</td>
+                                      <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{atk.damageType}</td>
+                                      <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                                        {atk.criticalRange && atk.criticalMultiplier ? `${atk.criticalRange}/${atk.criticalMultiplier}` : atk.criticalMultiplier ?? '�'}
+                                      </td>
+                                      <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{atk.range || 'Mischia'}</td>
+                                      <td style={{ padding: '0.4rem 0.6rem', maxWidth: 160 }}>
+                                        {linkedNames.length > 0 ? (
+                                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                                            {linkedNames.map(n => (
+                                              <span key={n} style={{ padding: '1px 6px', borderRadius: 10, fontSize: '0.65rem', background: 'rgba(155,89,182,0.2)', color: 'var(--accent-arcane)', border: '1px solid rgba(155,89,182,0.3)', whiteSpace: 'nowrap' }}>{n}</span>
+                                            ))}
+                                          </div>
+                                        ) : <span className="text-muted">�</span>}
+                                      </td>
+                                      <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{atk.notes || '�'}</td>
+                                      <td style={{ padding: '0.4rem 0.6rem', whiteSpace: 'nowrap' }}>
+                                        <button className="btn-ghost" style={{ marginRight: 4, color: 'var(--accent-gold)' }} onClick={() => {
+                                          setCAForm({ ...atk });
+                                          setEditingCAId(atk.id);
+                                          setShowCAForm(true);
+                                        }}><FaEdit size={12} /></button>
+                                        <button className="btn-ghost" style={{ color: 'var(--accent-crimson)' }} onClick={() => {
+                                          setCharacter({ ...character, customAttacks: (character.customAttacks ?? []).filter(a => a.id !== atk.id) });
+                                        }}><FaTrash size={12} /></button>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
                         )}
                       </>
                     )}
