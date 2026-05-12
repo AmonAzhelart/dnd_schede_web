@@ -8,7 +8,7 @@
  */
 import type {
     CharacterBase, Item, Feat, ClassFeature, Modifier, ModifierType,
-    RollChannel, ModifierCondition, StatType, ActiveModifier,
+    RollChannel, ModifierCondition, StatType, ActiveModifier, PowerCategory,
 } from '../types/dnd';
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -32,6 +32,15 @@ export type RollContext =
         spellType?: string;
         spellDamageType?: string;
         attackMode?: 'none' | 'rangedTouch' | 'meleeTouch' | 'ray' | 'normal';
+    }
+    | {
+        channel: 'power.attack' | 'power.damage' | 'power.dc' | 'power.casterLevel' | `power.${string}`;
+        powerId: string;
+        powerName: string;
+        powerCategory: PowerCategory;
+        levelEquivalent?: number;
+        damageType?: string;
+        attackMode?: 'none' | 'rangedTouch' | 'meleeTouch' | 'ray' | 'normal' | 'save';
     };
 
 /** A modifier source candidate ready to be displayed in the roll picker. */
@@ -75,6 +84,7 @@ export function modifierChannels(mod: Modifier): RollChannel[] {
     // skill.xxx → keep as-is
     if (tl.startsWith('skill.')) return [tl as RollChannel];
     if (tl.startsWith('spell.')) return [tl as RollChannel];
+    if (tl.startsWith('power.')) return [tl as RollChannel];
     // saves
     if (tl in SAVE_TARGET_TO_CHANNEL) return [SAVE_TARGET_TO_CHANNEL[tl]];
     // direct channel match
@@ -179,6 +189,16 @@ function singleConditionMatches(c: ModifierCondition, ctx: RollContext): boolean
             const sc = ctx as Extract<RollContext, { channel: 'spell.attack' | 'spell.damage' | 'spell.dc' | 'spell.casterLevel' | 'spell.effectiveSlot' }>;
             return sc.spellLevel >= c.value;
         }
+        case 'powerCategory': {
+            if (!ctx.channel.startsWith('power.')) return false;
+            const pc = ctx as Extract<RollContext, { channel: `power.${string}` }>;
+            return pc.powerCategory === c.value;
+        }
+        case 'powerName': {
+            if (!ctx.channel.startsWith('power.')) return false;
+            const pc = ctx as Extract<RollContext, { channel: `power.${string}` }>;
+            return ciIncludes(pc.powerName, c.value);
+        }
     }
     return false;
 }
@@ -201,6 +221,8 @@ function describeConditions(mod: Modifier): string {
             case 'spellName': parts.push(`incantesimo ${c.value}`); break;
             case 'spellDamageType': parts.push(`magia di ${c.value}`); break;
             case 'spellMinLevel': parts.push(`liv. magia ≥ ${c.value}`); break;
+            case 'powerCategory': parts.push(`categoria ${c.value}`); break;
+            case 'powerName': parts.push(`potere ${c.value}`); break;
         }
     }
     if (mod.manualPrompt) parts.unshift(mod.manualPrompt);
@@ -382,6 +404,10 @@ export const ROLL_CHANNEL_LABELS: { value: RollChannel | string; label: string; 
     { value: 'spell.dc', label: 'CD del tiro salvezza (incantesimo)', group: 'Magie' },
     { value: 'spell.casterLevel', label: 'Livello incantatore effettivo', group: 'Magie' },
     { value: 'spell.effectiveSlot', label: 'Livello slot effettivo (upcast)', group: 'Magie' },
+    { value: 'power.attack', label: 'Tiro per colpire (potere)', group: 'Poteri' },
+    { value: 'power.damage', label: 'Danno (potere)', group: 'Poteri' },
+    { value: 'power.dc', label: 'CD del tiro salvezza (potere)', group: 'Poteri' },
+    { value: 'power.casterLevel', label: 'Livello effettivo (potere)', group: 'Poteri' },
     { value: 'check.str', label: 'Prova di Forza', group: 'Caratteristiche' },
     { value: 'check.dex', label: 'Prova di Destrezza', group: 'Caratteristiche' },
     { value: 'check.con', label: 'Prova di Costituzione', group: 'Caratteristiche' },

@@ -1,7 +1,7 @@
 import { FaHeart, FaStar, FaCoins, FaLanguage, FaDragon } from 'react-icons/fa';
 import {
     GiSwordman, GiAxeSword, GiSpellBook, GiTreasureMap, GiWalk,
-    GiHealthPotion, GiShield, GiBrain, GiAbstract024, GiMagicSwirl,
+    GiHealthPotion, GiShield, GiBrain, GiAbstract024, GiMagicSwirl, GiMagicGate,
 } from 'react-icons/gi';
 import type { WidgetDefinition } from '../widgetTypes';
 
@@ -22,6 +22,7 @@ import { ModifiersWidget } from './ModifiersWidget';
 import { SummonsWidget } from './SummonsWidget';
 import { BestiaryWidget } from './BestiaryWidget';
 import { TransformationsWidget } from './TransformationsWidget';
+import { PowersWidget } from './PowersWidget';
 
 import './widgets.css';
 
@@ -43,6 +44,7 @@ export const WIDGET_CATALOG: WidgetDefinition[] = [
     { id: 'summons', title: 'Evocazioni & Compagni', description: 'Gestisci PF e stato delle creature evocate e dei compagni', icon: <FaDragon />, defaultW: 4, defaultH: 7, minW: 2, minH: 3, render: SummonsWidget, accent: 'var(--accent-gold)' },
     { id: 'bestiary', title: 'Bestiario', description: 'Riepilogo bestiario, evocazioni e compagni attivi', icon: <GiMagicSwirl />, defaultW: 3, defaultH: 6, minW: 2, minH: 3, render: BestiaryWidget, accent: 'var(--accent-gold)' },
     { id: 'transformations', title: 'Trasformazioni', description: 'Forme del bestiario personale: attiva e traccia PF e statistiche', icon: <GiMagicSwirl />, defaultW: 3, defaultH: 7, minW: 2, minH: 3, render: TransformationsWidget, accent: '#cd853f' },
+    { id: 'powers', title: 'Poteri', description: 'Invocazioni, misteri, detti, psionici e capacità magiche', icon: <GiMagicGate />, defaultW: 4, defaultH: 7, minW: 2, minH: 3, render: PowersWidget, accent: '#a29bfe' },
 ];
 
 export const getWidgetDef = (id: string) => {

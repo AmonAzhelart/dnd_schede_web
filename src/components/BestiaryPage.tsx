@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fa';
 import { GiScrollUnfurled, GiMagicSwirl } from 'react-icons/gi';
 import { useCharacterStore } from '../store/characterStore';
+import { saveCharacterToDb } from '../services/db';
 import { creatureCatalog, type CatalogCreature } from '../services/admin';
 import type {
     BestiaryEntry, ActiveSummon, ActivePet, Creature, CreatureSize,
@@ -456,6 +457,8 @@ export const BestiaryPage: React.FC = () => {
         updatePetEquipment, removePetEquipment, togglePetEquipment,
     } = useCharacterStore();
 
+    const saveChar = () => { const c = useCharacterStore.getState().character; if (c) saveCharacterToDb(c); };
+
     const [tab, setTab] = useState<BestiaryTab>('catalogo');
     const [search, setSearch] = useState('');
     const [catalogItems, setCatalogItems] = useState<CatalogCreature[]>([]);
@@ -520,6 +523,7 @@ export const BestiaryPage: React.FC = () => {
             summonedAt: new Date().toISOString(),
         };
         addSummon(summon);
+        saveChar();
         setSummonDialog(null);
         setTab('evocazioni');
     };
@@ -546,6 +550,7 @@ export const BestiaryPage: React.FC = () => {
             addedAt: new Date().toISOString(),
         };
         addPet(pet);
+        saveChar();
         setPetDialog(null);
         setTab('compagni');
     };
@@ -559,12 +564,14 @@ export const BestiaryPage: React.FC = () => {
             addedAt: new Date().toISOString(),
         };
         addBestiaryEntry(entry);
+        saveChar();
     };
 
     /* ── Save personal creature edit ── */
     const saveEdit = (creature: Creature) => {
         if (!editingEntry) return;
         updateBestiaryEntry({ ...editingEntry, creature });
+        saveChar();
         setEditingEntry(null);
     };
 
@@ -572,7 +579,7 @@ export const BestiaryPage: React.FC = () => {
         const entry = editingEntry;
         setEditorClosing(true);
         setTimeout(() => {
-            if (creature && entry) updateBestiaryEntry({ ...entry, creature });
+            if (creature && entry) { updateBestiaryEntry({ ...entry, creature }); saveChar(); }
             setEditingEntry(null);
             setEditorClosing(false);
         }, 210);
@@ -596,19 +603,19 @@ export const BestiaryPage: React.FC = () => {
                 <CompanionPanel
                     pet={freshPet}
                     onClose={() => setViewingPet(null)}
-                    onUpdatePet={(pet) => updatePet(pet)}
-                    onUpdateHp={(delta) => updatePetHp(freshPet.id, delta)}
-                    onAddRuntimeModifier={(m) => addCreatureRuntimeModifier('pet', freshPet.id, m)}
-                    onRemoveRuntimeModifier={(mid) => removeCreatureRuntimeModifier('pet', freshPet.id, mid)}
-                    onUpdateFeature={(f) => updatePetFeature(freshPet.id, f)}
-                    onRemoveFeature={(fid) => removePetFeature(freshPet.id, fid)}
-                    onToggleFeature={(fid) => togglePetFeature(freshPet.id, fid)}
-                    onUseFeatureResource={(fid) => usePetFeatureResource(freshPet.id, fid)}
-                    onResetFeatureResource={(fid) => resetPetFeatureResource(freshPet.id, fid)}
-                    onUpdateEquipment={(e) => updatePetEquipment(freshPet.id, e)}
-                    onRemoveEquipment={(eid) => removePetEquipment(freshPet.id, eid)}
-                    onToggleEquipment={(eid) => togglePetEquipment(freshPet.id, eid)}
-                    onDismiss={() => { removePet(freshPet.id); setViewingPet(null); }}
+                    onUpdatePet={(pet) => { updatePet(pet); saveChar(); }}
+                    onUpdateHp={(delta) => { updatePetHp(freshPet.id, delta); saveChar(); }}
+                    onAddRuntimeModifier={(m) => { addCreatureRuntimeModifier('pet', freshPet.id, m); saveChar(); }}
+                    onRemoveRuntimeModifier={(mid) => { removeCreatureRuntimeModifier('pet', freshPet.id, mid); saveChar(); }}
+                    onUpdateFeature={(f) => { updatePetFeature(freshPet.id, f); saveChar(); }}
+                    onRemoveFeature={(fid) => { removePetFeature(freshPet.id, fid); saveChar(); }}
+                    onToggleFeature={(fid) => { togglePetFeature(freshPet.id, fid); saveChar(); }}
+                    onUseFeatureResource={(fid) => { usePetFeatureResource(freshPet.id, fid); saveChar(); }}
+                    onResetFeatureResource={(fid) => { resetPetFeatureResource(freshPet.id, fid); saveChar(); }}
+                    onUpdateEquipment={(e) => { updatePetEquipment(freshPet.id, e); saveChar(); }}
+                    onRemoveEquipment={(eid) => { removePetEquipment(freshPet.id, eid); saveChar(); }}
+                    onToggleEquipment={(eid) => { togglePetEquipment(freshPet.id, eid); saveChar(); }}
+                    onDismiss={() => { removePet(freshPet.id); saveChar(); setViewingPet(null); }}
                 />
             </div>
         );
@@ -632,7 +639,7 @@ export const BestiaryPage: React.FC = () => {
                         onClose={() => setEditingSummon(null)}
                         actionLabel="Rimuovi evocazione"
                         actionIcon={<FaTimes />}
-                        onAction={() => { removeSummon(editingSummon.id); setEditingSummon(null); }}
+                        onAction={() => { removeSummon(editingSummon.id); saveChar(); setEditingSummon(null); }}
                     />
                 </>
             );
@@ -796,7 +803,7 @@ export const BestiaryPage: React.FC = () => {
                                             <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
                                                 <button className="btn-ghost" style={{ padding: '2px 5px', fontSize: '0.75rem' }} title="Modifica" onClick={() => setEditingEntry(entry)}><FaEdit /></button>
                                                 <button className="btn-ghost" style={{ padding: '2px 5px', fontSize: '0.75rem', color: 'var(--accent-crimson)' }} title="Elimina"
-                                                    onClick={() => { if (confirm(`Rimuovere ${entry.creature.name}?`)) { removeBestiaryEntry(entry.id); if (selectedId === entry.id) { setSelectedId(null); setViewingCreature(null); } } }}><FaTrash /></button>
+                                                    onClick={() => { if (confirm(`Rimuovere ${entry.creature.name}?`)) { removeBestiaryEntry(entry.id); saveChar(); if (selectedId === entry.id) { setSelectedId(null); setViewingCreature(null); } } }}><FaTrash /></button>
                                             </div>
                                         </div>
                                     </div>
@@ -823,8 +830,8 @@ export const BestiaryPage: React.FC = () => {
                                             runtimeModifiers={s.runtimeModifiers}
                                             conditions={s.conditions}
                                             onClick={() => { setEditingSummon(s); setSelectedId(s.id); }}
-                                            onHpDelta={delta => updateSummonHp(s.id, delta)}
-                                            onDismiss={() => { if (confirm(`Rimuovere evocazione di ${s.creature.name}?`)) removeSummon(s.id); }}
+                                            onHpDelta={delta => { updateSummonHp(s.id, delta); saveChar(); }}
+                                            onDismiss={() => { if (confirm(`Rimuovere evocazione di ${s.creature.name}?`)) { removeSummon(s.id); saveChar(); } }}
                                             onEdit={() => { setEditingSummon(s); setSelectedId(s.id); }}
                                             extra={
                                                 <div style={{ marginTop: 6, fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -833,7 +840,7 @@ export const BestiaryPage: React.FC = () => {
                                                         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                                             ⏱ {s.roundsRemaining} round
                                                             <button className="btn-ghost" style={{ fontSize: '0.65rem', padding: '1px 4px' }}
-                                                                onClick={() => updateSummon({ ...s, roundsRemaining: Math.max(0, (s.roundsRemaining ?? 0) - 1) })}>-1</button>
+                                                                onClick={() => { updateSummon({ ...s, roundsRemaining: Math.max(0, (s.roundsRemaining ?? 0) - 1) }); saveChar(); }}>-1</button>
                                                         </span>
                                                     )}
                                                 </div>
@@ -869,8 +876,8 @@ export const BestiaryPage: React.FC = () => {
                                             runtimeModifiers={p.runtimeModifiers}
                                             conditions={p.conditions}
                                             onClick={() => setViewingPet(p)}
-                                            onHpDelta={delta => updatePetHp(p.id, delta)}
-                                            onDismiss={() => { if (confirm(`Rimuovere ${p.nickname ?? p.creature.name}?`)) removePet(p.id); }}
+                                            onHpDelta={delta => { updatePetHp(p.id, delta); saveChar(); }}
+                                            onDismiss={() => { if (confirm(`Rimuovere ${p.nickname ?? p.creature.name}?`)) { removePet(p.id); saveChar(); } }}
                                             onEdit={() => setViewingPet(p)}
                                             extra={
                                                 <div style={{ display: 'flex', gap: 8, marginTop: 6, fontSize: '0.72rem', color: 'var(--text-muted)', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -971,8 +978,8 @@ export const BestiaryPage: React.FC = () => {
                         onAddRuntimeModifier={m => addCreatureRuntimeModifier('summon', s.id, m)}
                         onRemoveRuntimeModifier={mid => removeCreatureRuntimeModifier('summon', s.id, mid)}
                         onClose={() => setEditingSummon(null)}
-                        onHpDelta={d => updateSummonHp(s.id, d)}
-                        onRemove={() => { if (confirm(`Rimuovere evocazione di ${s.creature.name}?`)) { removeSummon(s.id); setEditingSummon(null); } }}
+                        onHpDelta={d => { updateSummonHp(s.id, d); saveChar(); }}
+                        onRemove={() => { if (confirm(`Rimuovere evocazione di ${s.creature.name}?`)) { removeSummon(s.id); saveChar(); setEditingSummon(null); } }}
                     />
                 );
             })()}

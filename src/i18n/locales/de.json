@@ -131,6 +131,7 @@
             "inventory": "Inventar",
             "abilities": "Klassenmerkmale",
             "spells": "Zauberbuch",
+            "powers": "Fähigkeiten",
             "bestiary": "Bestiarium"
         },
         "editCharacter": "Charakter bearbeiten",

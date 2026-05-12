@@ -1,7 +1,8 @@
-import { doc, setDoc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { CharacterBase } from '../types/dnd';
 import type { DashboardLayout } from '../components/dashboard/widgetTypes';
+import { classCatalog } from './admin';
 
 export const saveCharacterToDb = async (character: CharacterBase) => {
   if (!character.id) return;
@@ -40,6 +41,67 @@ export const getUserCharacters = async (userId: string): Promise<CharacterBase[]
     console.error('Error fetching characters:', error);
     return [];
   }
+};
+
+/**
+ * One-time migration: for every `classLevel` that lacks a `catalogClassId`,
+ * try to match by class name (case-insensitive) against the catalog and backfill it.
+ * Only touches characters that actually need updating, and writes minimally to Firestore.
+ * Safe to call on every login — it is a no-op when everything is already linked.
+ */
+export const backfillCatalogClassIds = async (characters: CharacterBase[]): Promise<CharacterBase[]> => {
+  // Filter characters that have at least one classLevel without catalogClassId
+  const needsMigration = characters.filter(c =>
+    (c.classLevels ?? []).some(cl => !cl.catalogClassId),
+  );
+  if (needsMigration.length === 0) return characters;
+
+  // Load catalog classes once
+  let catalogClasses: Awaited<ReturnType<typeof classCatalog.list>>;
+  try {
+    catalogClasses = await classCatalog.list();
+  } catch (e) {
+    console.warn('[backfill] Could not load catalog classes, skipping migration', e);
+    return characters;
+  }
+  if (catalogClasses.length === 0) return characters;
+
+  // Build a name → id lookup (italian name preferred, then english)
+  const nameToId = new Map<string, string>();
+  for (const cc of catalogClasses) {
+    const itName = typeof cc.name === 'string' ? cc.name : (cc.name.it ?? cc.name.en ?? '');
+    const enName = typeof cc.name === 'string' ? cc.name : (cc.name.en ?? '');
+    if (itName) nameToId.set(itName.trim().toLowerCase(), cc.id);
+    if (enName && enName !== itName) nameToId.set(enName.trim().toLowerCase(), cc.id);
+  }
+
+  const updated: CharacterBase[] = [...characters];
+
+  for (const char of needsMigration) {
+    if (!(char.classLevels ?? []).some(cl => !cl.catalogClassId)) continue;
+
+    const newLevels = (char.classLevels ?? []).map(cl => {
+      if (cl.catalogClassId) return cl;
+      const matched = nameToId.get(cl.className.trim().toLowerCase());
+      return matched ? { ...cl, catalogClassId: matched } : cl;
+    });
+
+    const anyChanged = newLevels.some(
+      (nl, i) => nl.catalogClassId !== (char.classLevels ?? [])[i]?.catalogClassId,
+    );
+    if (!anyChanged) continue;
+
+    try {
+      await updateDoc(doc(db, 'characters', char.id), { classLevels: newLevels });
+      const idx = updated.findIndex(c => c.id === char.id);
+      if (idx !== -1) updated[idx] = { ...char, classLevels: newLevels };
+      console.info(`[backfill] Linked catalogClassId for ${char.name} (${newLevels.filter(nl => nl.catalogClassId).length} classi)`);
+    } catch (e) {
+      console.warn(`[backfill] Failed to update character ${char.id}`, e);
+    }
+  }
+
+  return updated;
 };
 
 export const createNewCharacterDb = async (userId: string, name: string): Promise<CharacterBase> => {

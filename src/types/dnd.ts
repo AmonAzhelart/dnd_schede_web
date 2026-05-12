@@ -394,8 +394,10 @@ export type RollChannel =
   | 'cmb' | 'cmd'
   | 'spell.attack' | 'spell.damage' | 'spell.dc'
   | 'spell.casterLevel' | 'spell.effectiveSlot'
+  | 'power.attack' | 'power.damage' | 'power.dc' | 'power.casterLevel'
   | `check.${StatType}`
-  | `skill.${string}`;
+  | `skill.${string}`
+  | `power.${string}`;
 
 /** Auto-detectable filter: when present, the modifier applies *only* if the
  *  current roll context matches. Multiple conditions on the same modifier are
@@ -424,7 +426,11 @@ export type ModifierCondition =
   /** Restrict a `spell.*` modifier to a specific damage/energy type. */
   | { kind: 'spellDamageType'; value: string }
   /** Restrict a `spell.*` modifier to spells of a minimum level. */
-  | { kind: 'spellMinLevel'; value: number };
+  | { kind: 'spellMinLevel'; value: number }
+  /** Restrict a `power.*` modifier to a specific power category (e.g. 'INVOCATION'). */
+  | { kind: 'powerCategory'; value: string }
+  /** Restrict a `power.*` modifier to a power matching this name (case-insensitive substring). */
+  | { kind: 'powerName'; value: string };
 
 /** Where this modifier may apply. When omitted the engine falls back to
  *  the legacy `target`. */
@@ -626,6 +632,58 @@ export interface CustomSkillSynergy {
   bonus: number;
   /** Optional free-text label shown in tooltips. */
   note?: string;
+}
+
+// ──────────────────── POWERS (Invocations, Mysteries, Utterances, etc.) ──────
+
+/** How a power's usage is tracked during a session. */
+export type UsageType =
+  | 'AT_WILL'     // Invocazioni Warlock/Dragonfire Adept: nessun limite di usi
+  | 'PER_DAY'     // Capacità razziali e usi limitati per giorno
+  | 'VANCIAN'     // Magia preparata — gestita dal Grimorio
+  | 'SPONTANEOUS' // Magia spontanea (Stregone, Bardo) — gestita dal Grimorio
+  | 'COOLDOWN';   // Soffi / Vestigia: ricarica dopo N round
+
+/** Broad category of a character power (for grouping/filtering in the UI). */
+export type PowerCategory =
+  | 'SPELL'       // Spell-like ability (es. capacità razziali magiche)
+  | 'INVOCATION'  // Invocazione Warlock / Dragonfire Adept
+  | 'MYSTERY'     // Mistero Shadowcaster
+  | 'UTTERANCE'   // Detto Truenamer
+  | 'PSIONIC';    // Potere psionico
+
+export interface CharacterPower {
+  id: string;
+  name: string;
+  description?: string;
+  category: PowerCategory;
+  usageType: UsageType;
+  /** Invocation grade or mystery tier (e.g. 'least' | 'lesser' | 'greater' | 'dark'). */
+  grade?: string;
+  /** Class names this power belongs to (display/filter only). */
+  allowedClasses?: string[];
+  /** Spell-level equivalent for save DC = 10 + levelEquivalent + ability mod. */
+  levelEquivalent?: number;
+  /** Verbal/Somatic/Material components (e.g. 'V, S'). */
+  components?: string;
+  // ── Spell-like details ─────────────────────────────────────────────
+  castingTime?: string;
+  range?: string;
+  duration?: string;
+  savingThrow?: string;
+  attackMode?: 'none' | 'rangedTouch' | 'meleeTouch' | 'ray' | 'normal' | 'save';
+  baseDice?: string;
+  damageType?: string;
+  saveStat?: StatType;
+  // ── Usage tracking ─────────────────────────────────────────────────
+  /** Max uses per day (PER_DAY). */
+  usesMax?: number;
+  /** Uses spent today (PER_DAY). Reset by resetDay(). */
+  usesUsed?: number;
+  /** Cooldown dice expression (COOLDOWN), e.g. '1d4' means 1d4 rounds. */
+  cooldownDice?: string;
+  /** Rounds remaining before the power can be used again (COOLDOWN). */
+  cooldownRemaining?: number;
 }
 
 export interface Spell {
@@ -896,6 +954,9 @@ export interface CharacterBase {
 
   /** Creature size category of the character (default: Media). Affects CA and attack rolls. */
   size?: CreatureSize;
+
+  // ── Powers (invocations, mysteries, utterances, psionics, racial spell-likes) ──
+  powers?: CharacterPower[];
 
   // ── Transformations ──────────────────────────────────────────────────
   /** Saved transformation templates (linked to personal bestiary entries) */

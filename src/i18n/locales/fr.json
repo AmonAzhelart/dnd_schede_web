@@ -131,6 +131,7 @@
             "inventory": "Inventaire",
             "abilities": "Aptitudes de Classe",
             "spells": "Grimoire",
+            "powers": "Pouvoirs",
             "bestiary": "Bestiaire"
         },
         "editCharacter": "Modifier le personnage",

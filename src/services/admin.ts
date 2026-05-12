@@ -89,6 +89,11 @@ export const removeInvite = async (email: string): Promise<void> => {
 
 /** Shared spell entry — extends the per-character `Spell` shape with bookkeeping. */
 export interface CatalogSpell extends Spell {
+    /** Arcane, divine, or both. Controls which classes can learn the spell. */
+    magicType?: 'arcane' | 'divine' | 'both';
+    /** IDs of `catalog_classes` entries allowed to learn this spell.
+     *  Empty / absent = no restriction (available to all). */
+    classIds?: string[];
     createdBy?: string;
     createdAt?: any;
     updatedAt?: any;
