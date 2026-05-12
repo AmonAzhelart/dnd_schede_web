@@ -6,14 +6,14 @@ import { v4 as uuidv4 } from 'uuid';
 import { FaPlus, FaTrash, FaEdit, FaCheck, FaMoon, FaBookOpen, FaCalendarDay, FaMinus, FaSearch, FaClock, FaArrowsAltH, FaHourglass, FaShieldAlt, FaFeather, FaBolt, FaDragon, FaTimes, FaGraduationCap } from 'react-icons/fa';
 import { GiSpellBook, GiCrystalBall, GiBookmarklet } from 'react-icons/gi';
 import type { Spell } from '../types/dnd';
-import { spellCatalog, creatureCatalog, type CatalogSpell, type CatalogCreature } from '../services/admin';
+import { spellCatalog, creatureCatalog, classCatalog, type CatalogSpell, type CatalogCreature, type CatalogClass } from '../services/admin';
 import { useIconCatalog } from '../services/iconCache';
 
 import { DndIcon, getDndIconSvg } from './DndIcon';
 import { useMediaQuery } from './mobile/MobileShell';
 import { BottomDrawer } from './ui/BottomDrawer';
 import { computeSpellCasterLevelBonus, computeSpellEffectiveSlotBonus } from '../services/modifiers';
-import type { CharacterBase } from '../types/dnd';
+import type { CharacterBase, ClassLevel } from '../types/dnd';
 
 /** Italian school name → english slug for `src/assets/icons/spell/<slug>.svg`. */
 const SCHOOL_ICON_SLUG: Record<string, string> = {
@@ -1071,6 +1071,18 @@ const SpellCatalogPicker: React.FC<{
                           <span style={{ fontSize: '0.63rem', color, background: `${color}16`, border: `1px solid ${color}28`, padding: '1px 6px', borderRadius: 20, fontWeight: 600, whiteSpace: 'nowrap', fontFamily: 'var(--font-body)' }}>
                             {cs.level === 0 ? 'Trucchetto' : `Lv ${cs.level}`}
                           </span>
+                          {cs.magicType && (() => {
+                            const mtColor = cs.magicType === 'arcane' ? '#a29bfe' : cs.magicType === 'divine' ? 'var(--accent-gold)' : 'var(--accent-ice)';
+                            const mtLabel = cs.magicType === 'arcane' ? 'Arcana' : cs.magicType === 'divine' ? 'Divina' : 'Entrambe';
+                            const mtIconCat = cs.magicType === 'arcane' ? 'class' : cs.magicType === 'divine' ? 'class' : 'game';
+                            const mtIconName = cs.magicType === 'arcane' ? 'wizard' : cs.magicType === 'divine' ? 'cleric' : 'spell';
+                            return (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.60rem', color: mtColor, background: `${mtColor}16`, border: `1px solid ${mtColor}30`, padding: '1px 6px 1px 4px', borderRadius: 20, whiteSpace: 'nowrap', fontFamily: 'var(--font-body)' }}>
+                                <DndIcon category={mtIconCat} name={mtIconName} size={10} style={{ color: mtColor, flexShrink: 0 }} />
+                                {mtLabel}
+                              </span>
+                            );
+                          })()}
                           {activeSchool === 'all' && <span style={{ fontSize: '0.63rem', color: '#7a6840', whiteSpace: 'nowrap', fontFamily: 'var(--font-body)' }}>{cs.school}</span>}
                           {alreadyKnown && (
                             <span style={{ fontSize: '0.60rem', color: '#27ae60', background: 'rgba(39,174,96,0.14)', border: '1px solid rgba(39,174,96,0.32)', padding: '1px 7px', borderRadius: 20, whiteSpace: 'nowrap', fontFamily: 'var(--font-body)' }}>
@@ -1179,6 +1191,7 @@ export const Spellbook: React.FC = () => {
   // Catalog picker
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [catalogItems, setCatalogItems] = useState<CatalogSpell[]>([]);
+  const [catalogClasses, setCatalogClasses] = useState<CatalogClass[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [catalogCreatureCache, setCatalogCreatureCache] = useState<CatalogCreature[]>([]);
   // Load catalog creatures once for name resolution in spell badges
@@ -1188,10 +1201,40 @@ export const Spellbook: React.FC = () => {
     setCatalogOpen(true);
     if (catalogItems.length === 0) {
       setCatalogLoading(true);
-      setCatalogItems(await spellCatalog.list());
+      const [spells, classes] = await Promise.all([spellCatalog.list(), classCatalog.list()]);
+      setCatalogItems(spells);
+      setCatalogClasses(classes);
       setCatalogLoading(false);
     }
   };
+
+  /**
+   * Set of catalog_class IDs matching the character's current class levels.
+   * Matches by `catalogClassId` when available, otherwise falls back to
+   * case-insensitive name matching against the catalog.
+   */
+  const characterCatalogClassIds = useMemo(() => {
+    const levels: ClassLevel[] = character?.classLevels ?? [];
+    const ids = new Set<string>();
+    for (const cl of levels) {
+      if (cl.catalogClassId) {
+        ids.add(cl.catalogClassId);
+      } else {
+        // Name-based fallback: match className against all catalog class names
+        const nameLower = cl.className.trim().toLowerCase();
+        for (const cc of catalogClasses) {
+          const ccName = typeof cc.name === 'string'
+            ? cc.name
+            : (cc.name.it ?? cc.name.en ?? Object.values(cc.name)[0] ?? '');
+          if (ccName.trim().toLowerCase() === nameLower) {
+            ids.add(cc.id);
+            break;
+          }
+        }
+      }
+    }
+    return ids;
+  }, [character?.classLevels, catalogClasses]);
   const importFromCatalog = (cs: CatalogSpell) => {
     addSpell({
       id: uuidv4(),
@@ -1737,7 +1780,15 @@ export const Spellbook: React.FC = () => {
 
       {catalogOpen && (
         <SpellCatalogPicker
-          items={catalogItems}
+          items={catalogItems.filter(cs => {
+            // No class restriction → visible to all
+            if (!cs.classIds || cs.classIds.length === 0) return true;
+            // Class restriction set: show only if the character has at least one matching class.
+            // If we couldn't resolve any catalog class IDs for this character (empty catalogClasses
+            // list not yet loaded), allow through to avoid hiding everything during loading.
+            if (catalogClasses.length === 0) return true;
+            return cs.classIds.some(id => characterCatalogClassIds.has(id));
+          })}
           loading={catalogLoading}
           knownNames={new Set(spells.map(s => s.name.trim().toLowerCase()))}
           onClose={() => setCatalogOpen(false)}

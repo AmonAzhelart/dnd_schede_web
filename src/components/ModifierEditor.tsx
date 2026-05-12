@@ -151,6 +151,8 @@ const COND_KINDS: { value: ModifierCondition['kind']; label: string; icon: { cat
     { value: 'spellName', label: 'Incantesimo', icon: { category: 'spell', name: 'octagon' } },
     { value: 'spellDamageType', label: 'Tipo magia', icon: { category: 'damage', name: 'lightning' } },
     { value: 'spellMinLevel', label: 'Livello min. magia', icon: { category: 'spell', name: 'upcast' } },
+    { value: 'powerCategory', label: 'Categoria potere', icon: { category: 'game', name: 'magic' } },
+    { value: 'powerName', label: 'Potere specifico', icon: { category: 'game', name: 'magic' } },
 ];
 
 // ── Migrazione legacy ─────────────────────────────────────────────────────────
@@ -200,14 +202,23 @@ export const ModifierEditor: React.FC<ModifierEditorProps> = ({
         character ? character.inventory.filter(i => i.type === 'weapon').map(i => i.name) : [],
         [character]);
 
+    const powerOptions = useMemo(() =>
+        character ? (character.powers ?? []).map(p => ({ id: p.id, name: p.name, category: p.category })) : [],
+        [character]);
+
     const channelOptions: ChannelOption[] = useMemo(() => {
         const skills = skillOptions.map(s => ({
             value: `skill.${s.id}` as RollChannel,
             label: `Abilità: ${s.name}`,
             group: 'Abilità',
         }));
-        return [...ROLL_CHANNEL_LABELS, ...skills];
-    }, [skillOptions]);
+        const powers = powerOptions.map(p => ({
+            value: `power.${p.id}` as RollChannel,
+            label: `Potere: ${p.name}`,
+            group: 'Poteri (specifici)',
+        }));
+        return [...ROLL_CHANNEL_LABELS, ...skills, ...powers];
+    }, [skillOptions, powerOptions]);
 
     const update = (i: number, fn: (m: Modifier) => Modifier) =>
         onChange(modifiers.map((m, idx) => idx === i ? fn(ensureAppliesTo(m)) : m));
@@ -304,6 +315,7 @@ export const ModifierEditor: React.FC<ModifierEditorProps> = ({
                                 channelOptions={channelOptions}
                                 skillOptions={skillOptions}
                                 weaponOptions={weaponOptions}
+                                powerOptions={powerOptions}
                                 onUpdate={fn => update(i, fn)}
                                 onRemove={() => removeMod(i)}
                                 onSetChannel={ch2 => setChannel(i, ch2)}
@@ -329,6 +341,7 @@ interface ModifierCardProps {
     channelOptions: ChannelOption[];
     skillOptions: { id: string; name: string }[];
     weaponOptions: string[];
+    powerOptions: { id: string; name: string; category: string }[];
     onUpdate: (fn: (m: Modifier) => Modifier) => void;
     onRemove: () => void;
     onSetChannel: (ch: string) => void;
@@ -338,7 +351,7 @@ interface ModifierCardProps {
 }
 
 const ModifierCard: React.FC<ModifierCardProps> = ({
-    mod, channel, accentColor, channelOptions, skillOptions, weaponOptions,
+    mod, channel, accentColor, channelOptions, skillOptions, weaponOptions, powerOptions,
     onUpdate, onRemove, onSetChannel, onAddCondition, onUpdateCondition, onRemoveCondition,
 }) => {
     const [showAdvanced, setShowAdvanced] = useState(false);
@@ -517,6 +530,7 @@ const ModifierCard: React.FC<ModifierCardProps> = ({
                                     cond={c}
                                     skills={skillOptions}
                                     weapons={weaponOptions}
+                                    powers={powerOptions}
                                     accentColor={accentColor}
                                     onChange={v => onUpdateCondition(ci, v)}
                                     onRemove={() => onRemoveCondition(ci)}
@@ -638,10 +652,11 @@ const ConditionRow: React.FC<{
     cond: ModifierCondition;
     skills: { id: string; name: string }[];
     weapons: string[];
+    powers: { id: string; name: string; category: string }[];
     accentColor: string;
     onChange: (v: string) => void;
     onRemove: () => void;
-}> = ({ cond, skills, weapons, accentColor, onChange, onRemove }) => {
+}> = ({ cond, skills, weapons, powers, accentColor, onChange, onRemove }) => {
     const meta = COND_KINDS.find(c => c.value === cond.kind);
 
     const focusSx = {
@@ -693,6 +708,34 @@ const ConditionRow: React.FC<{
                         value={cond.value} onChange={e => onChange(e.target.value)}
                         style={{ flex: 1, fontSize: '0.8rem' }} />
                 );
+            case 'powerCategory':
+                return (
+                    <MuiSelect size="small" value={cond.value} displayEmpty sx={{ flex: 1, fontSize: '0.8rem', ...focusSx }}
+                        onChange={e => onChange(e.target.value as string)}>
+                        <MenuItem value="">— Seleziona categoria —</MenuItem>
+                        <MenuItem value="INVOCATION">Invocazioni</MenuItem>
+                        <MenuItem value="MYSTERY">Misteri</MenuItem>
+                        <MenuItem value="UTTERANCE">Detti</MenuItem>
+                        <MenuItem value="PSIONIC">Poteri Psionici</MenuItem>
+                        <MenuItem value="SPELL">Capacità Magiche</MenuItem>
+                    </MuiSelect>
+                );
+            case 'powerName':
+                return (
+                    <Autocomplete<string, false, false, true>
+                        freeSolo
+                        size="small"
+                        options={powers.map(p => p.name)}
+                        value={String(cond.value)}
+                        onChange={(_, v) => { if (v) onChange(v); }}
+                        onInputChange={(_, v) => onChange(v)}
+                        sx={{ flex: 1, ...focusSx }}
+                        renderInput={params => (
+                            <TextField {...params} size="small" placeholder="es. Occhio Siniestro" />
+                        )}
+                        noOptionsText="Nessun potere nel libro"
+                    />
+                );
             case 'weaponName':
                 return (
                     <Autocomplete<string, false, false, true>
@@ -713,10 +756,11 @@ const ConditionRow: React.FC<{
                 return (
                     <input className="input" value={String(cond.value)} onChange={e => onChange(e.target.value)}
                         placeholder={
-                            cond.kind === 'weaponCategory' ? 'es. arco, spada lunga…' :
-                                cond.kind === 'spellSchool' ? 'es. Evocazione…' :
-                                    cond.kind === 'spellName' ? 'es. Palla di Fuoco' :
-                                        cond.kind === 'spellDamageType' ? 'es. fuoco, freddo…' : '…'
+                                cond.kind === 'weaponCategory' ? 'es. arco, spada lunga…' :
+                                    cond.kind === 'spellSchool' ? 'es. Evocazione…' :
+                                        cond.kind === 'spellName' ? 'es. Palla di Fuoco' :
+                                            cond.kind === 'spellDamageType' ? 'es. fuoco, freddo…' :
+                                                cond.kind === 'powerName' ? 'es. Occhio Siniestro' : '…'
                         }
                         style={{ flex: 1, fontSize: '0.8rem' }}
                     />

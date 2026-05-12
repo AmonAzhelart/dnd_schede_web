@@ -9,6 +9,7 @@ import { DndIcon, getDndIconSvg } from '../../DndIcon';
 import { RollPickerModal, type RollSegment, type RollBreakdownLine } from '../../RollPickerModal';
 import { computeSpellDamageDice } from '../../../services/modifiers';
 import { creatureCatalog } from '../../../services/admin';
+import { computeEffectiveCreatureStats } from '../../CreatureStatBlock';
 import { v4 as uuidv4 } from 'uuid';
 
 const SCHOOL_ICON_SLUG: Record<string, string> = {
@@ -571,9 +572,11 @@ export const SpellSlotsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) =>
                                     {summonableCreatures.map(entry => {
                                         const count = summonSelections[entry.id] ?? 0;
                                         const overrides = computeSummonOverrides(entry.creature);
-                                        const effHp = entry.creature.hp + overrides.filter(o => o.stat === 'hp').reduce((s, o) => s + o.value, 0);
-                                        const effStr = entry.creature.str + overrides.filter(o => o.stat === 'str').reduce((s, o) => s + o.value, 0);
-                                        const effCon = entry.creature.con + overrides.filter(o => o.stat === 'con').reduce((s, o) => s + o.value, 0);
+                                        const effStats = computeEffectiveCreatureStats(entry.creature, overrides, []);
+                                        const effHp = effStats.hp;
+                                        const effStr = effStats.str;
+                                        const effCon = effStats.con;
+                                        const effAc = effStats.ac;
                                         const hasBonus = overrides.length > 0;
                                         return (
                                             <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: count > 0 ? 'rgba(231,76,60,0.1)' : 'rgba(0,0,0,0.15)', borderRadius: 7, padding: '7px 10px', border: `1px solid ${count > 0 ? 'rgba(231,76,60,0.4)' : 'rgba(255,255,255,0.06)'}`, transition: 'all 0.15s' }}>
@@ -581,7 +584,7 @@ export const SpellSlotsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) =>
                                                 <div style={{ flex: 1, minWidth: 0 }}>
                                                     <div style={{ fontSize: '0.8rem', fontWeight: 600, color: count > 0 ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{entry.name}</div>
                                                     <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
-                                                        <span>CA {entry.creature.ac}</span>
+                                                        <span>CA {effAc}</span>
                                                         <span style={{ color: hasBonus ? 'var(--accent-success)' : undefined }}>
                                                             PF {effHp}{hasBonus && entry.creature.hp !== effHp ? ` (base ${entry.creature.hp})` : ''}
                                                         </span>

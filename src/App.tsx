@@ -8,7 +8,7 @@ import { AdventureDiary } from './components/AdventureDiary';
 import { NotesPage } from './components/NotesPage';
 import { CharacterSheet } from './components/CharacterSheet';
 import { SkeletonCharacterCard, SkeletonSheet } from './components/Skeleton';
-import { getUserCharacters, createCharacterWithDataDb, saveCharacterToDb, deleteCharacterDb } from './services/db';
+import { getUserCharacters, createCharacterWithDataDb, saveCharacterToDb, deleteCharacterDb, backfillCatalogClassIds } from './services/db';
 import type { CharacterBase } from './types/dnd';
 import { CharacterWizard } from './components/wizard/CharacterWizard';
 import { GiSwordman, GiTreasureMap, GiCastle } from 'react-icons/gi';
@@ -119,7 +119,8 @@ function App() {
         }
         setLoadingChars(true);
         const chars = await getUserCharacters(u.uid);
-        setUserCharacters(chars);
+        const migratedChars = await backfillCatalogClassIds(chars);
+        setUserCharacters(migratedChars);
         setLoadingChars(false);
       } else {
         setAccessChecked(true);

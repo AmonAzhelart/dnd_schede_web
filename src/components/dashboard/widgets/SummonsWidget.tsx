@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FaDragon, FaTimes, FaSkull } from 'react-icons/fa';
 import { GiScrollUnfurled } from 'react-icons/gi';
 import { useCharacterStore } from '../../../store/characterStore';
+import { saveCharacterToDb } from '../../../services/db';
 import { CreaturePortrait, computeEffectiveCreatureStats } from '../../CreatureStatBlock';
 import { CreaturePopup } from '../../CreaturePopup';
 import type { ActiveSummon, ActivePet, CreatureStatOverride } from '../../../types/dnd';
@@ -28,8 +29,9 @@ interface CardProps {
 }
 const MiniCard: React.FC<CardProps> = ({
     creature, label, sublabel, currentHp, maxHp, roundsRemaining,
-    onOpen, onHpDelta, onRemove, onRoundDecrement, accentColor,
+    overrides, onOpen, onHpDelta, onRemove, onRoundDecrement, accentColor,
 }) => {
+    const effectiveAc = computeEffectiveCreatureStats(creature, overrides, []).ac;
     const pct = maxHp > 0 ? Math.max(0, Math.min(1, currentHp / maxHp)) : 0;
     const dead = currentHp <= 0;
     const hc = hpColor(pct);
@@ -64,7 +66,7 @@ const MiniCard: React.FC<CardProps> = ({
             </div>
             <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 9px', borderLeft: '1px solid rgba(255,255,255,0.06)', height: '100%', justifyContent: 'center' }}>
                 <span style={{ fontSize: '0.44rem', color: 'var(--text-muted)', textTransform: 'uppercase', lineHeight: 1 }}>CA</span>
-                <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.92rem', color: 'var(--accent-gold)', lineHeight: 1.3 }}>{creature.ac}</span>
+                <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.92rem', color: 'var(--accent-gold)', lineHeight: 1.3 }}>{effectiveAc}</span>
             </div>
             {roundsRemaining != null && (
                 <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 7px', borderLeft: '1px solid rgba(255,255,255,0.06)', height: '100%', justifyContent: 'center' }} onClick={ev => ev.stopPropagation()}>
@@ -96,6 +98,8 @@ export const SummonsWidget: React.FC<WidgetRenderProps> = ({ goTo }) => {
         computeSummonOverrides, computePetOverrides,
         addCreatureRuntimeModifier, removeCreatureRuntimeModifier,
     } = useCharacterStore();
+
+    const saveChar = () => { const c = useCharacterStore.getState().character; if (c) saveCharacterToDb(c); };
 
     const summons = character?.activeSummons ?? [];
     const pets = character?.activePets ?? [];
@@ -132,8 +136,8 @@ export const SummonsWidget: React.FC<WidgetRenderProps> = ({ goTo }) => {
                                     key={s.id} creature={s.creature} label={s.creature.name} sublabel={s.summonSpellName}
                                     currentHp={s.currentHp} maxHp={maxHp} roundsRemaining={s.roundsRemaining} overrides={liveOv}
                                     accentColor="var(--accent-arcane)" onOpen={() => setPopup({ kind: 'summon', id: s.id })}
-                                    onHpDelta={d => updateSummonHp(s.id, d)} onRemove={() => removeSummon(s.id)}
-                                    onRoundDecrement={() => updateSummon({ ...s, roundsRemaining: Math.max(0, (s.roundsRemaining ?? 0) - 1) })}
+                                    onHpDelta={d => { updateSummonHp(s.id, d); saveChar(); }} onRemove={() => { removeSummon(s.id); saveChar(); }}
+                                    onRoundDecrement={() => { updateSummon({ ...s, roundsRemaining: Math.max(0, (s.roundsRemaining ?? 0) - 1) }); saveChar(); }}
                                 />
                             );
                         })}
@@ -156,7 +160,7 @@ export const SummonsWidget: React.FC<WidgetRenderProps> = ({ goTo }) => {
                                     key={p.id} creature={p.creature} label={p.nickname ?? p.creature.name}
                                     currentHp={p.currentHp} maxHp={maxHp} overrides={liveOv}
                                     accentColor="var(--accent-success)" onOpen={() => setPopup({ kind: 'pet', id: p.id })}
-                                    onHpDelta={d => updatePetHp(p.id, d)} onRemove={() => removePet(p.id)}
+                                    onHpDelta={d => { updatePetHp(p.id, d); saveChar(); }} onRemove={() => { removePet(p.id); saveChar(); }}
                                 />
                             );
                         })}
@@ -181,8 +185,8 @@ export const SummonsWidget: React.FC<WidgetRenderProps> = ({ goTo }) => {
                             runtimeModifiers={s.runtimeModifiers ?? []}
                             onAddRuntimeModifier={m => addCreatureRuntimeModifier('summon', s.id, m)}
                             onRemoveRuntimeModifier={mid => removeCreatureRuntimeModifier('summon', s.id, mid)}
-                            onClose={closePopup} onHpDelta={d => updateSummonHp(s.id, d)} onRemove={() => removeSummon(s.id)}
-                            onRoundDecrement={() => updateSummon({ ...s, roundsRemaining: Math.max(0, (s.roundsRemaining ?? 0) - 1) })}
+                            onClose={closePopup} onHpDelta={d => { updateSummonHp(s.id, d); saveChar(); }} onRemove={() => { removeSummon(s.id); saveChar(); }}
+                            onRoundDecrement={() => { updateSummon({ ...s, roundsRemaining: Math.max(0, (s.roundsRemaining ?? 0) - 1) }); saveChar(); }}
                         />
                     );
                 } else {
@@ -194,7 +198,7 @@ export const SummonsWidget: React.FC<WidgetRenderProps> = ({ goTo }) => {
                             runtimeModifiers={p.runtimeModifiers ?? []}
                             onAddRuntimeModifier={m => addCreatureRuntimeModifier('pet', p.id, m)}
                             onRemoveRuntimeModifier={mid => removeCreatureRuntimeModifier('pet', p.id, mid)}
-                            onClose={closePopup} onHpDelta={d => updatePetHp(p.id, d)} onRemove={() => removePet(p.id)}
+                            onClose={closePopup} onHpDelta={d => { updatePetHp(p.id, d); saveChar(); }} onRemove={() => { removePet(p.id); saveChar(); }}
                         />
                     );
                 }

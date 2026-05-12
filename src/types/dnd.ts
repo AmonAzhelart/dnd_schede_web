@@ -394,8 +394,10 @@ export type RollChannel =
   | 'cmb' | 'cmd'
   | 'spell.attack' | 'spell.damage' | 'spell.dc'
   | 'spell.casterLevel' | 'spell.effectiveSlot'
+  | 'power.attack' | 'power.damage' | 'power.dc' | 'power.casterLevel'
   | `check.${StatType}`
-  | `skill.${string}`;
+  | `skill.${string}`
+  | `power.${string}`;
 
 /** Auto-detectable filter: when present, the modifier applies *only* if the
  *  current roll context matches. Multiple conditions on the same modifier are
@@ -424,7 +426,11 @@ export type ModifierCondition =
   /** Restrict a `spell.*` modifier to a specific damage/energy type. */
   | { kind: 'spellDamageType'; value: string }
   /** Restrict a `spell.*` modifier to spells of a minimum level. */
-  | { kind: 'spellMinLevel'; value: number };
+  | { kind: 'spellMinLevel'; value: number }
+  /** Restrict a `power.*` modifier to a specific power category (e.g. 'INVOCATION'). */
+  | { kind: 'powerCategory'; value: string }
+  /** Restrict a `power.*` modifier to a power matching this name (case-insensitive substring). */
+  | { kind: 'powerName'; value: string };
 
 /** Where this modifier may apply. When omitted the engine falls back to
  *  the legacy `target`. */

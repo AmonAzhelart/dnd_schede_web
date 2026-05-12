@@ -74,6 +74,9 @@ export function computeEffectiveCreatureStats(
     const newStrMod = mod(creature.str + strB);
     const newDexMod = mod(creature.dex + dexB);
 
+    // AC = base + natural armor + size modifier (D&D 3.5 Table 7-1) + DEX delta + active bonuses
+    const sizeAcMod = SIZE_ATTACK_MODIFIER[creature.size] ?? 0;
+
     return {
         str: creature.str + strB,
         dex: creature.dex + dexB,
@@ -81,7 +84,7 @@ export function computeEffectiveCreatureStats(
         int: creature.int + bonus('int'),
         wis: creature.wis + wisB,
         cha: creature.cha + bonus('cha'),
-        ac: creature.ac + bonus('ac') + dDexMod,
+        ac: creature.ac + (creature.acNatural ?? 0) + sizeAcMod + bonus('ac') + dDexMod,
         hp: creature.hp + bonus('hp') + newConMod * hdCount,
         fort: creature.fortitude + bonus('fort') + dConMod,
         reflex: creature.reflex + bonus('ref') + dDexMod,
@@ -322,6 +325,26 @@ export const StatBlock: React.FC<StatBlockProps> = ({
 
     const sign = (n: number) => (n >= 0 ? '+' : '') + n;
 
+    /** Build a human-readable AC breakdown tooltip. */
+    const acTooltip = (() => {
+        const parts: string[] = [`${creature.ac} base`];
+        const natural = creature.acNatural ?? 0;
+        if (natural !== 0) parts.push(`${sign(natural)} CA naturale`);
+        const sizeMod = SIZE_ATTACK_MODIFIER[creature.size] ?? 0;
+        if (sizeMod !== 0) parts.push(`${sign(sizeMod)} taglia (${creature.size})`);
+        // DEX delta from stat overrides/runtime mods
+        const allMods = [
+            ...(overrides ?? []).map(o => ({ stat: o.stat as string, value: o.value, type: o.type })),
+            ...(runtimeModifiers ?? []).map(r => ({ stat: r.stat as string, value: r.value, type: r.type })),
+        ];
+        const dexBonus = allMods.filter(m => m.stat === 'dex').reduce((s, m) => s + m.value, 0);
+        const dDexMod = mod(creature.dex + dexBonus) - mod(creature.dex);
+        if (dDexMod !== 0) parts.push(`${sign(dDexMod)} DES (bonus)`);
+        const acBonus = allMods.filter(m => m.stat === 'ac').reduce((s, m) => s + m.value, 0);
+        if (acBonus !== 0) parts.push(`${sign(acBonus)} altri bonus`);
+        return parts.join(' ') + ` = ${eff.ac}`;
+    })();
+
     return (
         <div className="creature-sheet">
             {!headless && (
@@ -375,14 +398,14 @@ export const StatBlock: React.FC<StatBlockProps> = ({
                 <div className="creature-section-title">Combattimento</div>
                 <div className="creature-stat-strip">
                     {[
-                        { label: 'PF', val: `${eff.hp}${creature.hpDice ? ` (${creature.hpDice})` : ''}`, color: 'var(--accent-crimson)' },
-                        { label: 'CA', val: eff.ac.toString(), color: 'var(--accent-gold)' },
-                        { label: 'BAB', val: `+${creature.bab}` },
-                        { label: 'VEL', val: `${creature.speed}m` },
-                        ...(creature.fly ? [{ label: 'VOLO', val: `${creature.fly}m` }] : []),
-                        ...(creature.swim ? [{ label: 'NUOTO', val: `${creature.swim}m` }] : []),
+                        { label: 'PF', val: `${eff.hp}${creature.hpDice ? ` (${creature.hpDice})` : ''}`, color: 'var(--accent-crimson)', tooltip: undefined },
+                        { label: 'CA', val: eff.ac.toString(), color: 'var(--accent-gold)', tooltip: acTooltip },
+                        { label: 'BAB', val: `+${creature.bab}`, tooltip: undefined },
+                        { label: 'VEL', val: `${creature.speed}m`, tooltip: undefined },
+                        ...(creature.fly ? [{ label: 'VOLO', val: `${creature.fly}m`, tooltip: undefined }] : []),
+                        ...(creature.swim ? [{ label: 'NUOTO', val: `${creature.swim}m`, tooltip: undefined }] : []),
                     ].map(s => (
-                        <div key={s.label} className="creature-stat-chip">
+                        <div key={s.label} className="creature-stat-chip" title={s.tooltip}>
                             <div className="creature-stat-chip-label">{s.label}</div>
                             <div className="creature-stat-chip-val" style={s.color ? { color: s.color } : undefined}>{s.val}</div>
                         </div>

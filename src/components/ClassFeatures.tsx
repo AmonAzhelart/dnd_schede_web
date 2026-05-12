@@ -234,6 +234,8 @@ function modifierSummary(m: Modifier) {
             case 'spellName': condParts.push(`Magia: ${c.value}`); break;
             case 'spellDamageType': condParts.push(`Tipo: ${c.value}`); break;
             case 'spellMinLevel': condParts.push(`Lv ≥ ${c.value}`); break;
+            case 'powerCategory': condParts.push(`Cat.: ${c.value}`); break;
+            case 'powerName': condParts.push(`Potere: ${c.value}`); break;
         }
     });
     if (m.manualPrompt) condParts.push(m.manualPrompt);

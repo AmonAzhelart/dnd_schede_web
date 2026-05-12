@@ -16,7 +16,7 @@ import {
 import { GiMagicSwirl } from 'react-icons/gi';
 import { useCharacterStore } from '../../../store/characterStore';
 import type { TransformationEntry, BestiaryEntry } from '../../../types/dnd';
-import { CreaturePortrait } from '../../CreatureStatBlock';
+import { CreaturePortrait, computeEffectiveCreatureStats } from '../../CreatureStatBlock';
 import type { WidgetRenderProps } from '../widgetTypes';
 
 /* ─── helpers ─────────────────────────────────────────────────── */
@@ -394,7 +394,7 @@ const EditModal: React.FC<EditModalProps> = ({ initial, bestiaryEntries, onSave,
                             <div>
                                 <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.82rem' }}>{selectedEntry.creature.name}</div>
                                 <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                                    PF {selectedEntry.creature.hp} · CA {selectedEntry.creature.ac} · BAB {sign(selectedEntry.creature.bab)}
+                                    PF {selectedEntry.creature.hp} · CA {computeEffectiveCreatureStats(selectedEntry.creature, [], []).ac} · BAB {sign(selectedEntry.creature.bab)}
                                 </div>
                             </div>
                         </div>

@@ -10,8 +10,8 @@ import {
 import {
     SUPERADMIN_EMAIL, isSuperAdmin,
     listInvites, addInvite, removeInvite, updateInviteSections, type Invite,
-    spellCatalog, skillCatalog, featCatalog, iconCatalog, creatureCatalog,
-    type CatalogSpell, type CatalogSkill, type CatalogFeat, type CatalogIcon, type CatalogCreature,
+    spellCatalog, skillCatalog, featCatalog, iconCatalog, creatureCatalog, classCatalog,
+    type CatalogSpell, type CatalogSkill, type CatalogFeat, type CatalogIcon, type CatalogCreature, type CatalogClass,
 } from '../../services/admin';
 import { seedAll, type SeedReport } from '../../services/seedCatalogs';
 import { refreshIconCache, ICON_SLOT_GROUPS } from '../../services/iconCache';
@@ -419,16 +419,21 @@ function SpellSchoolIcon({ school, color, size = 14 }: { school: string; color: 
     return null;
 }
 
+const MAGIC_TYPE_LABEL: Record<string, string> = { arcane: 'Arcana', divine: 'Divina', both: 'Entrambe' };
+const MAGIC_TYPE_COLOR: Record<string, string> = { arcane: 'var(--accent-arcane)', divine: 'var(--accent-gold)', both: 'var(--accent-ice)' };
+
 const EMPTY_SPELL = (): CatalogSpell => ({
     id: uuid(), name: '', level: 0, school: 'Invocazione', spellType: '', description: '',
     castingTime: '', range: '', duration: '', savingThrow: '', components: '',
     attackMode: 'none', baseDice: '', damageType: '', saveStat: 'int',
     upcastDice: '', upcastEveryLevels: 1, upcastMaxSteps: undefined,
     upcastDuration: '', upcastDurationEveryLevels: 1,
+    magicType: 'arcane', classIds: [],
 });
 
 function SpellsPanel({ currentUserEmail }: { currentUserEmail: string }) {
     const [items, setItems] = useState<CatalogSpell[]>([]);
+    const [classes, setClasses] = useState<CatalogClass[]>([]);
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState<CatalogSpell | null>(null);
     const [search, setSearch] = useState('');
@@ -437,7 +442,9 @@ function SpellsPanel({ currentUserEmail }: { currentUserEmail: string }) {
 
     const refresh = async () => {
         setLoading(true);
-        setItems(await spellCatalog.list());
+        const [spells, cls] = await Promise.all([spellCatalog.list(), classCatalog.list()]);
+        setItems(spells);
+        setClasses(cls);
         setLoading(false);
     };
     useEffect(() => { refresh(); }, []);
@@ -513,6 +520,33 @@ function SpellsPanel({ currentUserEmail }: { currentUserEmail: string }) {
                             ))}
                         </select>
                     </Field>
+                    <Field label="Tipo Magia">
+                        <div style={{ display: 'flex', gap: 6 }}>
+                            {(['arcane', 'divine', 'both'] as const).map(mt => {
+                                const isActive = (editing.magicType ?? 'arcane') === mt;
+                                const color = MAGIC_TYPE_COLOR[mt];
+                                const label = MAGIC_TYPE_LABEL[mt];
+                                const iconCat = mt === 'arcane' ? 'class' : mt === 'divine' ? 'class' : 'game';
+                                const iconName = mt === 'arcane' ? 'wizard' : mt === 'divine' ? 'cleric' : 'spell';
+                                return (
+                                    <button key={mt} type="button"
+                                        onClick={() => setEditing({ ...editing, magicType: mt })}
+                                        style={{
+                                            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                            padding: '6px 10px', borderRadius: 8, cursor: 'pointer',
+                                            border: `1px solid ${isActive ? color : 'rgba(255,255,255,0.1)'}`,
+                                            background: isActive ? `${color}20` : 'rgba(255,255,255,0.03)',
+                                            color: isActive ? color : 'var(--text-secondary)',
+                                            fontWeight: isActive ? 700 : 400, fontSize: '0.78rem',
+                                            transition: 'all 0.15s',
+                                        }}>
+                                        <DndIcon category={iconCat} name={iconName} size={14} style={{ color: isActive ? color : 'var(--text-muted)', flexShrink: 0 }} />
+                                        {label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </Field>
                     <Field label="Tipo / Descrittore">
                         <input className="input w-full" value={editing.spellType ?? ''}
                             onChange={e => setEditing({ ...editing, spellType: e.target.value })}
@@ -532,6 +566,43 @@ function SpellsPanel({ currentUserEmail }: { currentUserEmail: string }) {
                     <Field label="Durata"><input className="input w-full" value={editing.duration ?? ''} onChange={e => setEditing({ ...editing, duration: e.target.value })} /></Field>
                     <Field label="TS"><input className="input w-full" value={editing.savingThrow ?? ''} onChange={e => setEditing({ ...editing, savingThrow: e.target.value })} /></Field>
                     <Field label="Componenti"><input className="input w-full" value={editing.components ?? ''} onChange={e => setEditing({ ...editing, components: e.target.value })} /></Field>
+                </div>
+
+                {/* ── Classi autorizzate ── */}
+                <div className="section-header" style={{ marginTop: 'var(--space-2)' }}>
+                    <span className="section-title text-sm">Classi che possono imparare questa magia</span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', opacity: 0.7 }}>
+                        {(editing.classIds ?? []).length === 0 ? 'Nessuna restrizione (tutte le classi)' : `${(editing.classIds ?? []).length} selezionate`}
+                    </span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {classes.map(cls => {
+                        const clsName = typeof cls.name === 'string' ? cls.name : (cls.name.it ?? cls.name.en ?? Object.values(cls.name)[0] ?? cls.id);
+                        const selected = (editing.classIds ?? []).includes(cls.id);
+                        const mtColor = MAGIC_TYPE_COLOR[editing.magicType ?? 'arcane'];
+                        return (
+                            <button key={cls.id} type="button"
+                                onClick={() => setEditing(prev => {
+                                    if (!prev) return prev;
+                                    const ids = prev.classIds ?? [];
+                                    return { ...prev, classIds: selected ? ids.filter(i => i !== cls.id) : [...ids, cls.id] };
+                                })}
+                                style={{
+                                    padding: '4px 12px', borderRadius: 20, fontSize: '0.75rem', cursor: 'pointer',
+                                    border: `1px solid ${selected ? mtColor : 'rgba(255,255,255,0.12)'}`,
+                                    background: selected ? `${mtColor}20` : 'rgba(255,255,255,0.04)',
+                                    color: selected ? mtColor : 'var(--text-secondary)',
+                                    fontWeight: selected ? 700 : 400, transition: 'all 0.15s',
+                                }}>
+                                {clsName}
+                            </button>
+                        );
+                    })}
+                    {classes.length === 0 && (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', opacity: 0.6 }}>
+                            Nessuna classe nel catalogo — aggiungine prima dalla sezione Classi
+                        </span>
+                    )}
                 </div>
 
                 <Field label="Descrizione">
@@ -752,6 +823,22 @@ function SpellsPanel({ currentUserEmail }: { currentUserEmail: string }) {
                                     }}>
                                         {s.level === 0 ? 'Trucchetto' : `Lv ${s.level}`}
                                     </span>
+                                    {s.magicType && (() => {
+                                        const mtColor = MAGIC_TYPE_COLOR[s.magicType!];
+                                        const mtIconCat = s.magicType === 'arcane' ? 'class' : s.magicType === 'divine' ? 'class' : 'game';
+                                        const mtIconName = s.magicType === 'arcane' ? 'wizard' : s.magicType === 'divine' ? 'cleric' : 'spell';
+                                        return (
+                                            <span style={{
+                                                display: 'inline-flex', alignItems: 'center', gap: 4,
+                                                fontSize: '0.63rem', color: mtColor,
+                                                background: `${mtColor}18`, border: `1px solid ${mtColor}30`,
+                                                padding: '1px 7px 1px 5px', borderRadius: 20, whiteSpace: 'nowrap',
+                                            }}>
+                                                <DndIcon category={mtIconCat} name={mtIconName} size={11} style={{ color: mtColor, flexShrink: 0 }} />
+                                                {MAGIC_TYPE_LABEL[s.magicType!]}
+                                            </span>
+                                        );
+                                    })()}
                                     {s.spellType?.trim() && (
                                         <span style={{
                                             fontSize: '0.63rem', color: '#c9aa5f', background: 'rgba(180,140,60,0.13)',
@@ -764,6 +851,11 @@ function SpellsPanel({ currentUserEmail }: { currentUserEmail: string }) {
                                     {activeSchool === 'all' && (
                                         <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                                             {s.school}
+                                        </span>
+                                    )}
+                                    {(s.classIds ?? []).length > 0 && (
+                                        <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', opacity: 0.65 }} title={(s.classIds ?? []).map(id => classes.find(c => c.id === id)?.name).filter(Boolean).map(n => typeof n === 'string' ? n : (n?.it ?? n?.en ?? '')).join(', ')}>
+                                            {(s.classIds ?? []).length} {(s.classIds ?? []).length === 1 ? 'classe' : 'classi'}
                                         </span>
                                     )}
                                 </div>
