@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { useCharacterStore } from '../store/characterStore';
-import type { CustomAttack } from '../types/dnd';
+import type { CustomAttack, CreatureSize } from '../types/dnd';
 import { RACE_PRESETS, getRaceAdjustments } from '../types/dnd';
 import { FaHeart, FaStar, FaPlus, FaMinus, FaEdit, FaSearch, FaPalette, FaCheck, FaTrash, FaCamera, FaDragon } from 'react-icons/fa';
 import { GiSwordman, GiAxeSword, GiSpellBook, GiTreasureMap, GiAbstract024, GiUpgrade, GiMagicGate } from 'react-icons/gi';
@@ -238,6 +238,7 @@ export const CharacterSheet: React.FC = () => {
                 <h2 className="cs-name" title={character.name}>{character.name}</h2>
                 <div className="cs-meta">
                   {character.race && <span className="cs-chip race">{character.race}</span>}
+                  {character.size && character.size !== 'Media' && <span className="cs-chip">{character.size}</span>}
                   {classDisplay && <span className="cs-chip class">{classDisplay}</span>}
                   <span className="cs-chip level">Lv. {displayLevel}</span>
                   {character.alignment && <span className="cs-align">{character.alignment}</span>}
@@ -364,6 +365,15 @@ export const CharacterSheet: React.FC = () => {
                   <span className="cs-drawer-label">Allineamento</span>
                   <input className="input" value={character.alignment}
                     onChange={e => setCharacter({ ...character, alignment: e.target.value })} />
+                </div>
+                <div className="cs-drawer-field">
+                  <span className="cs-drawer-label">Taglia</span>
+                  <select className="input" value={character.size ?? 'Media'}
+                    onChange={e => setCharacter({ ...character, size: e.target.value as CreatureSize })}>
+                    {(['Piccolissima', 'Minuta', 'Minuscola', 'Piccola', 'Media', 'Grande', 'Enorme', 'Mastodontica', 'Colossale'] as CreatureSize[]).map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="cs-drawer-field cs-drawer-field-wide">
                   <span className="cs-drawer-label">Avatar</span>

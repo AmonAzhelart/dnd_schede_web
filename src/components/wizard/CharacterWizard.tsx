@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { FaTimes, FaCheck, FaPlus, FaChevronDown, FaChevronUp, FaLink, FaSearch } from 'react-icons/fa';
 import { DndIcon } from '../DndIcon';
 import { SKILL_PRESETS } from '../../data/skillPresets';
-import type { CharacterBase, Feat, Language, ClassLevel, ClassFeature } from '../../types/dnd';
+import type { CharacterBase, Feat, Language, ClassLevel, ClassFeature, CreatureSize } from '../../types/dnd';
 import { computeClassBab, computeClassSaveBase } from '../../types/dnd';
 import {
   raceCatalog, classCatalog, languageCatalog, skillCatalog, featCatalog, iconCatalog,
@@ -29,7 +29,7 @@ export interface RaceInfo {
   extraFeat: boolean;
   extraSkills: number;
   speed: number;
-  small: boolean;
+  size: CreatureSize;
   desc: string;
   racialLanguages: string[];
 }
@@ -54,7 +54,7 @@ interface CustomRaceConfig {
   extraFeat: boolean;
   extraSkillPoints: number;
   speed: number;
-  small: boolean;
+  size: CreatureSize;
   racialLanguages: string[];
   description: string;
 }
@@ -100,104 +100,104 @@ interface WizardData {
 export const RACES: RaceInfo[] = [
   // ── PHB Core ──────────────────────────────────────────────────────────────
   {
-    name: 'Umano', category: 'phb', bonuses: {}, extraFeat: true, extraSkills: 4, speed: 9, small: false,
+    name: 'Umano', category: 'phb', bonuses: {}, extraFeat: true, extraSkills: 4, speed: 9, size: 'Media',
     desc: 'Versatili e ambiziosi. Guadagnano un talento bonus e 4 punti abilità aggiuntivi al 1° livello.',
     racialLanguages: [],
   },
   {
-    name: 'Nano delle Colline', category: 'phb', bonuses: { con: 2, cha: -2 }, extraFeat: false, extraSkills: 0, speed: 6, small: false,
+    name: 'Nano delle Colline', category: 'phb', bonuses: { con: 2, cha: -2 }, extraFeat: false, extraSkills: 0, speed: 6, size: 'Media',
     desc: '+2 Cos, −2 Car. Visione nel buio 18m, resistenza ai veleni, bonus vs maghi e negromanti.',
     racialLanguages: ['Nanico'],
   },
   {
-    name: 'Elfo', category: 'phb', bonuses: { dex: 2, con: -2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    name: 'Elfo', category: 'phb', bonuses: { dex: 2, con: -2 }, extraFeat: false, extraSkills: 0, speed: 9, size: 'Media',
     desc: '+2 Des, −2 Cos. Immunità al sonno magico, bonus ai tiri salvezza contro incantesimi, bonus Cercare/Ascoltare/Osservare.',
     racialLanguages: ['Elfico'],
   },
   {
-    name: 'Gnomo della Roccia', category: 'phb', bonuses: { con: 2, str: -2 }, extraFeat: false, extraSkills: 0, speed: 6, small: true,
+    name: 'Gnomo della Roccia', category: 'phb', bonuses: { con: 2, str: -2 }, extraFeat: false, extraSkills: 0, speed: 6, size: 'Piccola',
     desc: '+2 Cos, −2 For. Visione nel buio 18m, illusioni minori innate, bonus vs illusioni e goblinoidi.',
     racialLanguages: ['Gnomesco'],
   },
   {
-    name: 'Halfling Piede Leggero', category: 'phb', bonuses: { dex: 2, str: -2 }, extraFeat: false, extraSkills: 0, speed: 6, small: true,
+    name: 'Halfling Piede Leggero', category: 'phb', bonuses: { dex: 2, str: -2 }, extraFeat: false, extraSkills: 0, speed: 6, size: 'Piccola',
     desc: '+2 Des, −2 For. +1 ai tiri salvezza, +2 ad Ascoltare, bonus al tiro con le armi.',
     racialLanguages: ['Halfling'],
   },
   {
-    name: 'Mezzelfo', category: 'phb', bonuses: {}, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    name: 'Mezzelfo', category: 'phb', bonuses: {}, extraFeat: false, extraSkills: 0, speed: 9, size: 'Media',
     desc: 'Nessun bonus caratteristica. Immunità al sonno, bonus +2 a Diplomazia e Raccogliere Info.',
     racialLanguages: ['Elfico'],
   },
   {
-    name: 'Mezzorco', category: 'phb', bonuses: { str: 2, int: -2, cha: -2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    name: 'Mezzorco', category: 'phb', bonuses: { str: 2, int: -2, cha: -2 }, extraFeat: false, extraSkills: 0, speed: 9, size: 'Media',
     desc: '+2 For, −2 Int, −2 Car. Visione nel buio 18m. Accettato tra orchi e umani, non benvoluto da entrambi.',
     racialLanguages: ['Orco'],
   },
   // ── Forgotten Realms ──────────────────────────────────────────────────────
   {
-    name: 'Elfo del Sole', category: 'fr', bonuses: { int: 2, dex: 2, str: -2, con: -2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    name: 'Elfo del Sole', category: 'fr', bonuses: { int: 2, dex: 2, str: -2, con: -2 }, extraFeat: false, extraSkills: 0, speed: 9, size: 'Media',
     desc: '+2 Int, +2 Des, −2 For, −2 Cos. La subspecie elfica più arrogante e magicamente dotata dei Reami.',
     racialLanguages: ['Elfico'],
   },
   {
-    name: 'Elfo della Luna', category: 'fr', bonuses: { dex: 2, con: -2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    name: 'Elfo della Luna', category: 'fr', bonuses: { dex: 2, con: -2 }, extraFeat: false, extraSkills: 0, speed: 9, size: 'Media',
     desc: '+2 Des, −2 Cos. La subspecie elfica più comune nei Reami. Socievoli e avventurosi.',
     racialLanguages: ['Elfico'],
   },
   {
-    name: 'Elfo dei Boschi', category: 'fr', bonuses: { str: 2, dex: 2, con: -2, int: -2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    name: 'Elfo dei Boschi', category: 'fr', bonuses: { str: 2, dex: 2, con: -2, int: -2 }, extraFeat: false, extraSkills: 0, speed: 9, size: 'Media',
     desc: '+2 For, +2 Des, −2 Cos, −2 Int. Reclusi nei boschi profondi; eccellenti esploratori.',
     racialLanguages: ['Elfico'],
   },
   {
-    name: 'Elfo Grigio', category: 'fr', bonuses: { int: 2, dex: 2, str: -2, con: -2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    name: 'Elfo Grigio', category: 'fr', bonuses: { int: 2, dex: 2, str: -2, con: -2 }, extraFeat: false, extraSkills: 0, speed: 9, size: 'Media',
     desc: '+2 Int, +2 Des, −2 For, −2 Cos. La più antica e isolata subspecie elfica, maestri delle arti arcane.',
     racialLanguages: ['Elfico'],
   },
   {
-    name: 'Elfo Oscuro (Drow)', category: 'fr', bonuses: { dex: 2, int: 2, cha: 2, con: -2, str: -2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    name: 'Elfo Oscuro (Drow)', category: 'fr', bonuses: { dex: 2, int: 2, cha: 2, con: -2, str: -2 }, extraFeat: false, extraSkills: 0, speed: 9, size: 'Media',
     desc: '+2 Des, +2 Int, +2 Car, −2 Cos, −2 For. Elfi delle profondità. Resistenza alla magia, abilità innate, sensibilità alla luce.',
     racialLanguages: ['Elfico', 'Sottocomune'],
   },
   {
-    name: 'Nano delle Montagne', category: 'fr', bonuses: { str: 2, con: 2, cha: -2 }, extraFeat: false, extraSkills: 0, speed: 6, small: false,
+    name: 'Nano delle Montagne', category: 'fr', bonuses: { str: 2, con: 2, cha: -2 }, extraFeat: false, extraSkills: 0, speed: 6, size: 'Media',
     desc: '+2 For, +2 Cos, −2 Car. Nani robusti e temprati dall\'alta quota. Eccellenti guerrieri.',
     racialLanguages: ['Nanico'],
   },
   {
-    name: 'Gnomo dei Boschi', category: 'fr', bonuses: { dex: 2, int: 2, str: -2, cha: -2 }, extraFeat: false, extraSkills: 0, speed: 6, small: true,
+    name: 'Gnomo dei Boschi', category: 'fr', bonuses: { dex: 2, int: 2, str: -2, cha: -2 }, extraFeat: false, extraSkills: 0, speed: 6, size: 'Piccola',
     desc: '+2 Des, +2 Int, −2 For, −2 Car. Gnomi selvatici e schivi. Comunicano con gli animali forestali.',
     racialLanguages: ['Gnomesco', 'Silvano'],
   },
   {
-    name: 'Halfling Strongheart', category: 'fr', bonuses: { dex: 2, str: -2 }, extraFeat: true, extraSkills: 0, speed: 6, small: true,
+    name: 'Halfling Strongheart', category: 'fr', bonuses: { dex: 2, str: -2 }, extraFeat: true, extraSkills: 0, speed: 6, size: 'Piccola',
     desc: '+2 Des, −2 For, +1 talento bonus. Halfling coraggiosi del Chondath, ottimi avventurieri.',
     racialLanguages: ['Halfling'],
   },
   // ── Esotiche ──────────────────────────────────────────────────────────────
   {
-    name: 'Tiefling', category: 'exotic', bonuses: { dex: 2, int: 2, cha: -2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    name: 'Tiefling', category: 'exotic', bonuses: { dex: 2, int: 2, cha: -2 }, extraFeat: false, extraSkills: 0, speed: 9, size: 'Media',
     desc: '+2 Des, +2 Int, −2 Car. Discendenza diabolica. Resistenza al fuoco, capacità innate, visione nel buio.',
     racialLanguages: ['Infernale'],
   },
   {
-    name: 'Aasimar', category: 'exotic', bonuses: { wis: 2, cha: 2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    name: 'Aasimar', category: 'exotic', bonuses: { wis: 2, cha: 2 }, extraFeat: false, extraSkills: 0, speed: 9, size: 'Media',
     desc: '+2 Sag, +2 Car. Discendenza celeste. Resistenza acido/elettricità/freddo, luce innata, visione nel buio.',
     racialLanguages: ['Celestiale'],
   },
   {
-    name: 'Genasi della Terra', category: 'exotic', bonuses: { str: 2, con: 2, int: -2, cha: -2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    name: 'Genasi della Terra', category: 'exotic', bonuses: { str: 2, con: 2, int: -2, cha: -2 }, extraFeat: false, extraSkills: 0, speed: 9, size: 'Media',
     desc: '+2 For, +2 Cos, −2 Int, −2 Car. Sangue elementale terrestre. Resistenza acido, capacità innate.',
     racialLanguages: ['Terran'],
   },
   {
-    name: 'Genasi del Fuoco', category: 'exotic', bonuses: { int: 2, cha: 2, wis: -2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    name: 'Genasi del Fuoco', category: 'exotic', bonuses: { int: 2, cha: 2, wis: -2 }, extraFeat: false, extraSkills: 0, speed: 9, size: 'Media',
     desc: '+2 Int, +2 Car, −2 Sag. Sangue elementale igneo. Immunità al fuoco, fire bolt innato.',
     racialLanguages: ['Ignan'],
   },
   {
-    name: 'Githzerai', category: 'exotic', bonuses: { wis: 2, dex: 2, str: -2, cha: -2 }, extraFeat: false, extraSkills: 0, speed: 9, small: false,
+    name: 'Githzerai', category: 'exotic', bonuses: { wis: 2, dex: 2, str: -2, cha: -2 }, extraFeat: false, extraSkills: 0, speed: 9, size: 'Media',
     desc: '+2 Sag, +2 Des, −2 For, −2 Car. Guerrieri psionici dei piani astrali. Resistenza alla magia.',
     racialLanguages: ['Githzerai'],
   },
@@ -425,7 +425,7 @@ function buildRaceInfo(race: string, custom: CustomRaceConfig): RaceInfo {
     extraFeat: custom.extraFeat,
     extraSkills: custom.extraSkillPoints,
     speed: custom.speed,
-    small: custom.small,
+    size: custom.size,
     desc: custom.description,
     racialLanguages: custom.racialLanguages,
   };
@@ -511,7 +511,6 @@ function catalogRaceToRaceInfo(r: CatalogRace, lang: string): RaceInfo {
   const racialLangs = r.automaticLanguages
     .map(id => id) // names are pushed into ALL_LANGUAGES_POOL by the loader; ids are kept for now
     .filter(Boolean);
-  const small = r.size === 'Piccola' || r.size === 'Minuscola';
   return {
     name: pickLocalized(r.name, lang) || 'Razza',
     category: 'custom',
@@ -519,7 +518,7 @@ function catalogRaceToRaceInfo(r: CatalogRace, lang: string): RaceInfo {
     extraFeat: r.racialFeats.some(f => /talento bonus/i.test(pickLocalized(f.name, lang))),
     extraSkills: 0,
     speed: r.speed,
-    small,
+    size: r.size,
     desc: pickLocalized(r.description, lang) || '',
     racialLanguages: racialLangs,
   };
@@ -644,11 +643,12 @@ function CustomRaceForm({ config, onChange }: { config: CustomRaceConfig; onChan
           </button>
         </div>
         <div className="form-group">
-          <label className="form-label">Taglia piccola</label>
-          <button className={`btn-secondary w-full${config.small ? ' active' : ''}`}
-            style={{ justifyContent: 'center', height: 34 }} onClick={() => set('small', !config.small)}>
-            {config.small ? <><FaCheck size={9} style={{ marginRight: 3 }} />Piccola</> : 'Media'}
-          </button>
+          <label className="form-label">Taglia</label>
+          <select className="input" value={config.size} onChange={e => set('size', e.target.value as CreatureSize)}>
+            {(['Piccolissima', 'Minuta', 'Minuscola', 'Piccola', 'Media', 'Grande', 'Enorme', 'Mastodontica', 'Colossale'] as CreatureSize[]).map(s => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -951,6 +951,10 @@ function Step2Identity({ data, setData }: StepProps) {
               </div>
               {bonusStr && <div className="race-card-bonus">{bonusStr}</div>}
               <div className="race-card-desc">{r.desc}</div>
+              <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'flex', gap: '0.6rem' }}>
+                <span>Taglia: <strong style={{ color: 'var(--accent-gold)' }}>{r.size}</strong></span>
+                <span>Vel: {r.speed}m</span>
+              </div>
               {r.racialLanguages.length > 0 && (
                 <div style={{ fontSize: '0.6rem', color: 'var(--accent-arcane)', marginTop: '0.2rem' }}>
                   +Lingua: {r.racialLanguages.join(', ')}
@@ -1922,7 +1926,7 @@ const DEFAULT_DATA: WizardData = {
   fixedLangNames: new Set(['Comune']),
   customRaceConfig: {
     displayName: '', bonuses: {}, extraFeat: false, extraSkillPoints: 0,
-    speed: 9, small: false, racialLanguages: [], description: '',
+    speed: 9, size: 'Media', racialLanguages: [], description: '',
   },
   customClassConfig: {
     displayName: '', hitDie: 8, sp: 4, bab: 'medium',
@@ -2156,6 +2160,7 @@ export function CharacterWizard({ userId, onComplete, onCancel }: CharacterWizar
       characterClass: classInfo.name,
       level: 1,
       alignment: data.alignment,
+      size: raceInfo.size,
       baseStats: {
         str: finals.str, dex: finals.dex, con: finals.con,
         int: finals.int, wis: finals.wis, cha: finals.cha,

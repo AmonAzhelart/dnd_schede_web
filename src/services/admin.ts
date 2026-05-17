@@ -10,7 +10,7 @@ import {
     orderBy,
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import type { Spell, StatType, Modifier, Creature, CreatureModifier } from '../types/dnd';/** SuperAdmin: can manage invites and the shared back-office catalogs. */
+import type { Spell, StatType, Modifier, Creature, CreatureModifier, CreatureSize } from '../types/dnd';/** SuperAdmin: can manage invites and the shared back-office catalogs. */
 export const SUPERADMIN_EMAIL = 'fonti.alessandro98@gmail.com';
 
 export const isSuperAdmin = (email?: string | null): boolean =>
@@ -285,7 +285,7 @@ export interface CatalogRace {
     /** Localised display name. */
     name: LocalizedField;
     description?: LocalizedField;
-    size: 'Minuscola' | 'Piccola' | 'Media' | 'Grande' | 'Enorme';
+    size: CreatureSize;
     /** Base land speed in metres (D&D 3.5 default = 9 m / 30 ft). */
     speed: number;
     /** Ability score adjustments. */

@@ -3,26 +3,13 @@
  * campaign chat and fires in-app toast notifications when the master
  * sends a new message and the Campagna tab is not active.
  * Also exposes the number of unread master messages via onUnreadCountChange,
- * persisted across sessions via localStorage.
+ * persisted in Firestore (playerReadAt field on the chat document).
  */
 import { useEffect, useRef } from 'react';
-import { subscribeToPlayerChat, subscribeToCampaign, markChatRead } from '../../services/campaign';
+import { subscribeToPlayerChat, subscribeToCampaign, subscribeToChatMeta, markChatRead } from '../../services/campaign';
 import { useCharacterStore } from '../../store/characterStore';
 import { useChatToast } from '../../contexts/chatToastContext';
 import type { CampaignMessage } from '../../types/campaign';
-
-const readAtKey = (campaignId: string, userId: string) =>
-    `dnd_playerChatReadAt_${campaignId}_${userId}`;
-
-function getStoredReadAt(campaignId: string, userId: string): number {
-    try {
-        return parseInt(localStorage.getItem(readAtKey(campaignId, userId)) ?? '0', 10) || 0;
-    } catch { return 0; }
-}
-
-function saveReadAt(campaignId: string, userId: string, ts: number) {
-    try { localStorage.setItem(readAtKey(campaignId, userId), String(ts)); } catch { }
-}
 
 function countUnread(msgs: CampaignMessage[], readAt: number): number {
     return msgs.filter(
@@ -53,7 +40,10 @@ export function PlayerChatNotifier({ isCampaignTabActive, onNavigateToCampaign, 
     const prevCountRef = useRef(0);
     const initialLoadDoneRef = useRef(false);
 
-    // Latest messages snapshot — used when marking read
+    // playerReadAt from Firestore — source of truth for unread count
+    const readAtRef = useRef<number>(0);
+
+    // Latest messages snapshot — recompute unread when readAt changes
     const latestMsgsRef = useRef<CampaignMessage[]>([]);
 
     // Reset tracking whenever the character / campaign changes
@@ -61,6 +51,7 @@ export function PlayerChatNotifier({ isCampaignTabActive, onNavigateToCampaign, 
         prevCountRef.current = 0;
         initialLoadDoneRef.current = false;
         latestMsgsRef.current = [];
+        readAtRef.current = 0;
         onUnreadCountChange?.(0);
     }, [campaignId, userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -72,6 +63,17 @@ export function PlayerChatNotifier({ isCampaignTabActive, onNavigateToCampaign, 
         });
     }, [campaignId]);
 
+    // Subscribe to Firestore playerReadAt — update badge whenever it changes
+    useEffect(() => {
+        if (!campaignId || !userId) return;
+        return subscribeToChatMeta(campaignId, userId, meta => {
+            const ts = meta.playerReadAt ? meta.playerReadAt.toDate().getTime() : 0;
+            readAtRef.current = ts;
+            const unread = countUnread(latestMsgsRef.current, ts);
+            onUnreadCountChange?.(unread);
+        });
+    }, [campaignId, userId]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // Subscribe to chat — always active, regardless of active tab
     useEffect(() => {
         if (!campaignId || !userId) return;
@@ -80,9 +82,8 @@ export function PlayerChatNotifier({ isCampaignTabActive, onNavigateToCampaign, 
             latestMsgsRef.current = msgs;
             const curr = msgs.length;
 
-            // ── Unread badge (timestamp-based, persisted) ──
-            const readAt = getStoredReadAt(campaignId, userId);
-            const unread = countUnread(msgs, readAt);
+            // ── Unread badge (timestamp-based, persisted in Firestore) ──
+            const unread = countUnread(msgs, readAtRef.current);
             onUnreadCountChange?.(unread);
 
             if (!initialLoadDoneRef.current) {
@@ -111,13 +112,11 @@ export function PlayerChatNotifier({ isCampaignTabActive, onNavigateToCampaign, 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [campaignId, userId]);
 
-    // When campaign tab becomes active: mark all master messages as read
+    // When campaign tab becomes active: mark all master messages as read in Firestore
     useEffect(() => {
         if (!isCampaignTabActive || !campaignId || !userId) return;
-        const now = Date.now();
-        saveReadAt(campaignId, userId, now);
-        onUnreadCountChange?.(0);
         markChatRead(campaignId, userId, 'player').catch(() => { });
+        // onUnreadCountChange will be called reactively by subscribeToChatMeta
     }, [isCampaignTabActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return null;

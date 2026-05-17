@@ -596,7 +596,7 @@ export const BestiaryPage: React.FC = () => {
         );
     }
 
-    if (viewingPet) {
+    if (viewingPet && isMobile) {
         const freshPet = (character?.activePets ?? []).find(p => p.id === viewingPet.id) ?? viewingPet;
         return (
             <div className="bestiary-pet-overlay">
@@ -623,6 +623,29 @@ export const BestiaryPage: React.FC = () => {
 
     /* ── Determine what shows in the detail pane ── */
     const detailContent = (() => {
+        // Companion panel — desktop detail pane
+        if (viewingPet) {
+            const freshPet = (character?.activePets ?? []).find(p => p.id === viewingPet.id) ?? viewingPet;
+            return (
+                <CompanionPanel
+                    pet={freshPet}
+                    onClose={() => setViewingPet(null)}
+                    onUpdatePet={(pet) => { updatePet(pet); saveChar(); }}
+                    onUpdateHp={(delta) => { updatePetHp(freshPet.id, delta); saveChar(); }}
+                    onAddRuntimeModifier={(m) => { addCreatureRuntimeModifier('pet', freshPet.id, m); saveChar(); }}
+                    onRemoveRuntimeModifier={(mid) => { removeCreatureRuntimeModifier('pet', freshPet.id, mid); saveChar(); }}
+                    onUpdateFeature={(f) => { updatePetFeature(freshPet.id, f); saveChar(); }}
+                    onRemoveFeature={(fid) => { removePetFeature(freshPet.id, fid); saveChar(); }}
+                    onToggleFeature={(fid) => { togglePetFeature(freshPet.id, fid); saveChar(); }}
+                    onUseFeatureResource={(fid) => { usePetFeatureResource(freshPet.id, fid); saveChar(); }}
+                    onResetFeatureResource={(fid) => { resetPetFeatureResource(freshPet.id, fid); saveChar(); }}
+                    onUpdateEquipment={(e) => { updatePetEquipment(freshPet.id, e); saveChar(); }}
+                    onRemoveEquipment={(eid) => { removePetEquipment(freshPet.id, eid); saveChar(); }}
+                    onToggleEquipment={(eid) => { togglePetEquipment(freshPet.id, eid); saveChar(); }}
+                    onDismiss={() => { removePet(freshPet.id); saveChar(); setViewingPet(null); }}
+                />
+            );
+        }
         // Summon stat-block detail
         if (editingSummon) {
             return (
@@ -721,7 +744,7 @@ export const BestiaryPage: React.FC = () => {
                     <button
                         key={t.id}
                         className={`bestiary-tab-btn${tab === t.id ? ' active' : ''}`}
-                        onClick={() => { setTab(t.id); setViewingCreature(null); setSelectedId(null); setEditingSummon(null); }}
+                        onClick={() => { setTab(t.id); setViewingCreature(null); setSelectedId(null); setEditingSummon(null); setViewingPet(null); }}
                     >
                         {t.icon}
                         <span className="tab-label-text">{t.label}</span>

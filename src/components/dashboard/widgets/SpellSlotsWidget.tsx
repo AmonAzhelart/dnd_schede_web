@@ -258,7 +258,7 @@ export const SpellSlotsWidget: React.FC<WidgetRenderProps> = ({ goTo, size }) =>
                 <button className="w-spell-rest" onClick={restWizardSpells} title="Riposo (8 ore): ripristina tutti gli incantesimi preparati">
                     <GiNightSleep /> {veryNarrow ? '' : 'Riposo'}
                 </button>
-                {goTo && !veryNarrow && <button className="w-link" onClick={() => goTo('spells')}>Libro â†’</button>}
+                {goTo && !veryNarrow && <button className="w-link" onClick={() => goTo('spells')}>Libro →</button>}
             </div>
 
             {/* Level tabs */}
