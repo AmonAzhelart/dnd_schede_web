@@ -257,6 +257,7 @@ interface TrackerCardProps {
     overrides: CreatureStatOverride[];
     runtimeModifiers?: CreatureRuntimeModifier[];
     conditions?: string[];
+    selected?: boolean;
     onClick?: () => void;
     onHpDelta: (delta: number) => void;
     onDismiss: () => void;
@@ -264,86 +265,65 @@ interface TrackerCardProps {
     extra?: React.ReactNode;
 }
 
-const TrackerCard: React.FC<TrackerCardProps> = ({ name, creature, currentHp, maxHp, overrides, runtimeModifiers, conditions, onClick, onHpDelta, onDismiss, onEdit, extra }) => {
+const TrackerCard: React.FC<TrackerCardProps> = ({ name, creature, currentHp, maxHp, overrides, runtimeModifiers, conditions, selected, onClick, onHpDelta, onDismiss, onEdit, extra }) => {
     const pct = maxHp > 0 ? Math.max(0, currentHp / maxHp) : 0;
     const [delta, setDelta] = useState(1);
-
     const eff = computeEffectiveCreatureStats(creature, overrides, runtimeModifiers ?? []);
-    const sign = (n: number) => (n >= 0 ? '+' : '') + n;
 
     return (
-        <div className="tracker-card" onClick={onClick} style={{ cursor: onClick ? 'pointer' : undefined }}>
-            <div className="tracker-card-header">
-                <CreaturePortrait creature={creature} size={36} />
+        <div
+            className={`creature-card${selected ? ' selected' : ''}`}
+            style={{ flexDirection: 'column', alignItems: 'stretch', cursor: onClick ? 'pointer' : undefined, gap: 0 }}
+            onClick={onClick}
+        >
+            {/* ── Top row ── */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <CreaturePortrait creature={creature} size={44} />
+                <div className="creature-card-body">
+                    <div className="creature-card-name">{name}</div>
+                    <div className="creature-card-meta">{creature.size} {creature.type}</div>
+                </div>
+                <div className="creature-card-badges">
+                    <span className="badge-cr">CA {eff.ac}</span>
+                    {conditions && conditions.length > 0 && (
+                        <span style={{ fontSize: '0.62rem', color: 'var(--accent-crimson)', textAlign: 'right' }}>
+                            {conditions.join(', ')}
+                        </span>
+                    )}
+                </div>
+                <div style={{ display: 'flex', gap: 3, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                    <button className="btn-ghost text-xs" style={{ padding: '3px 6px', color: 'var(--accent-gold)' }} title="Dettaglio" onClick={onEdit}>
+                        <GiScrollUnfurled />
+                    </button>
+                    <button className="btn-ghost text-xs" style={{ padding: '3px 6px', color: 'var(--accent-crimson)' }} title="Rimuovi" onClick={onDismiss}>
+                        <FaTimes />
+                    </button>
+                </div>
+            </div>
+            {/* ── HP row ── */}
+            <div onClick={e => e.stopPropagation()} style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', gap: 10, alignItems: 'center' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
-                    <div className="text-xs text-muted">{creature.size} {creature.type}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 3 }}>
+                        <span>PF</span>
+                        <span style={{ color: currentHp <= 0 ? 'var(--accent-crimson)' : undefined }}>{currentHp} / {maxHp}</span>
+                    </div>
+                    <div className="tracker-hp-bar">
+                        <div className={`tracker-hp-fill ${pctColor(pct)}`} style={{ width: `${pct * 100}%` }} />
+                    </div>
                 </div>
-                <button className="btn-ghost text-xs" style={{ color: 'var(--accent-gold)' }} onClick={e => { e.stopPropagation(); onEdit(); }} title="Dettaglio"><GiScrollUnfurled /></button>
-                <button className="btn-ghost text-xs" style={{ color: 'var(--accent-crimson)' }} onClick={e => { e.stopPropagation(); onDismiss(); }} title="Rimuovi"><FaTimes /></button>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
+                    <button className="btn-secondary text-xs" style={{ padding: '2px 6px', minWidth: 24 }} onClick={() => onHpDelta(-delta)}><FaMinus /></button>
+                    <input
+                        type="number" min={1} value={delta}
+                        onChange={e => setDelta(Math.max(1, Number(e.target.value) || 1))}
+                        className="input"
+                        style={{ width: 42, textAlign: 'center', padding: '2px 4px', fontSize: '0.78rem' }}
+                    />
+                    <button className="btn-primary text-xs" style={{ padding: '2px 6px', minWidth: 24 }} onClick={() => onHpDelta(delta)}><FaPlus /></button>
+                    {currentHp <= 0 && <FaSkull style={{ color: '#636e72' }} />}
+                </div>
             </div>
-
-            <div className="tracker-body" onClick={e => e.stopPropagation()}>
-                {/* HP bar */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 2 }}>
-                    <span>PF</span><span>{currentHp} / {maxHp}</span>
-                </div>
-                <div className="tracker-hp-bar">
-                    <div className={`tracker-hp-fill ${pctColor(pct)}`} style={{ width: `${pct * 100}%` }} />
-                </div>
-
-                {/* HP controls */}
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 8 }}>
-                    <button className="btn-secondary text-xs" style={{ padding: '2px 8px', minWidth: 28 }} onClick={() => onHpDelta(-delta)}>
-                        <FaMinus />
-                    </button>
-                    <input type="number" min={1} value={delta} onChange={e => setDelta(Math.max(1, Number(e.target.value) || 1))}
-                        className="input" style={{ width: 52, textAlign: 'center', padding: '3px 4px', fontSize: '0.8rem' }} />
-                    <button className="btn-primary text-xs" style={{ padding: '2px 8px', minWidth: 28 }} onClick={() => onHpDelta(delta)}>
-                        <FaPlus />
-                    </button>
-                    {currentHp <= 0 && <FaSkull style={{ color: '#636e72', marginLeft: 4 }} />}
-                </div>
-
-                {/* Override chips (from feats/items) */}
-                {overrides.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
-                        {overrides.map((o, i) => (
-                            <span key={i} className={`override-chip${o.value < 0 ? ' negative' : ''}`} style={{ fontSize: '0.62rem' }}>
-                                {o.stat.toUpperCase()} {o.value >= 0 ? '+' : ''}{o.value} ({o.source})
-                            </span>
-                        ))}
-                    </div>
-                )}
-
-                {/* Runtime modifier chips */}
-                {(runtimeModifiers ?? []).length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
-                        {(runtimeModifiers ?? []).map(m => (
-                            <span key={m.id} className={`override-chip${m.value < 0 ? ' negative' : ''}`} style={{ fontSize: '0.62rem' }}>
-                                {m.name} {sign(m.value)}{m.roundsRemaining != null ? ` (${m.roundsRemaining}r)` : ''}
-                            </span>
-                        ))}
-                    </div>
-                )}
-
-                {/* Conditions */}
-                {conditions && conditions.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
-                        {conditions.map(c => <span key={c} className="badge-type" style={{ fontSize: '0.62rem' }}>{c}</span>)}
-                    </div>
-                )}
-
-                {/* Key stats — effective values */}
-                <div style={{ display: 'flex', gap: 8, marginTop: 8, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    <span>CA {eff.ac}</span>
-                    <span>BAB +{creature.bab}</span>
-                    <span title={`For base:${sign(creature.fortitude)} Rif base:${sign(creature.reflex)} Vol base:${sign(creature.will)}`}>
-                        For/Rif/Vol: {sign(eff.fort)}/{sign(eff.reflex)}/{sign(eff.will)}
-                    </span>
-                </div>
-                {extra}
-            </div>
+            {extra && <div style={{ marginTop: 6 }}>{extra}</div>}
         </div>
     );
 };
@@ -839,7 +819,7 @@ export const BestiaryPage: React.FC = () => {
                     {tab === 'evocazioni' && (
                         <>
                             {summons.length === 0 && <div className="bestiary-empty">Nessuna evocazione attiva.</div>}
-                            <div className="tracker-grid">
+                            <div className="creature-grid">
                                 {summons.map(s => {
                                     const eff = computeEffectiveCreatureStats(s.creature, s.appliedOverrides, s.runtimeModifiers ?? []);
                                     return (
@@ -852,12 +832,13 @@ export const BestiaryPage: React.FC = () => {
                                             overrides={s.appliedOverrides}
                                             runtimeModifiers={s.runtimeModifiers}
                                             conditions={s.conditions}
+                                            selected={selectedId === s.id}
                                             onClick={() => { setEditingSummon(s); setSelectedId(s.id); }}
                                             onHpDelta={delta => { updateSummonHp(s.id, delta); saveChar(); }}
                                             onDismiss={() => { if (confirm(`Rimuovere evocazione di ${s.creature.name}?`)) { removeSummon(s.id); saveChar(); } }}
                                             onEdit={() => { setEditingSummon(s); setSelectedId(s.id); }}
                                             extra={
-                                                <div style={{ marginTop: 6, fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                                                     {s.summonSpellName && <span><FaBolt style={{ color: 'var(--accent-arcane)' }} /> {s.summonSpellName}</span>}
                                                     {s.roundsRemaining !== null && s.roundsRemaining !== undefined && (
                                                         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -879,7 +860,7 @@ export const BestiaryPage: React.FC = () => {
                     {tab === 'compagni' && (
                         <>
                             {pets.length === 0 && <div className="bestiary-empty">Nessun compagno attivo.</div>}
-                            <div className="tracker-grid">
+                            <div className="creature-grid">
                                 {pets.map(p => {
                                     const eff = computeEffectiveCreatureStats(p.creature, p.appliedOverrides, [
                                         ...(p.runtimeModifiers ?? []),
@@ -898,21 +879,19 @@ export const BestiaryPage: React.FC = () => {
                                             overrides={p.appliedOverrides}
                                             runtimeModifiers={p.runtimeModifiers}
                                             conditions={p.conditions}
-                                            onClick={() => setViewingPet(p)}
+                                            selected={selectedId === p.id}
+                                            onClick={() => { setViewingPet(p); setSelectedId(p.id); }}
                                             onHpDelta={delta => { updatePetHp(p.id, delta); saveChar(); }}
                                             onDismiss={() => { if (confirm(`Rimuovere ${p.nickname ?? p.creature.name}?`)) { removePet(p.id); saveChar(); } }}
-                                            onEdit={() => setViewingPet(p)}
+                                            onEdit={() => { setViewingPet(p); setSelectedId(p.id); }}
                                             extra={
-                                                <div style={{ display: 'flex', gap: 8, marginTop: 6, fontSize: '0.72rem', color: 'var(--text-muted)', flexWrap: 'wrap', alignItems: 'center' }}>
-                                                    {featCount > 0 && <span style={{ color: 'var(--accent-gold)' }}><GiScrollUnfurled style={{ marginRight: 3 }} />{featCount} privilegi</span>}
-                                                    {equipCount > 0 && <span style={{ color: 'var(--accent-arcane)' }}>🛡 {equipCount} equipaggiati</span>}
-                                                    {p.bondLevel ? <span style={{ color: 'var(--accent-gold)' }}>{'★'.repeat(p.bondLevel)}</span> : null}
-                                                    <button
-                                                        className="btn-ghost text-xs"
-                                                        style={{ marginLeft: 'auto', color: 'var(--accent-gold)', fontSize: '0.7rem', padding: '2px 8px', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 'var(--radius-sm)' }}
-                                                        onClick={() => setViewingPet(p)}
-                                                    >Scheda →</button>
-                                                </div>
+                                                (featCount > 0 || equipCount > 0 || p.bondLevel) ? (
+                                                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                                                        {featCount > 0 && <span style={{ color: 'var(--accent-gold)' }}><GiScrollUnfurled style={{ marginRight: 3 }} />{featCount} privilegi</span>}
+                                                        {equipCount > 0 && <span style={{ color: 'var(--accent-arcane)' }}>🛡 {equipCount} equipaggiati</span>}
+                                                        {p.bondLevel ? <span style={{ color: 'var(--accent-gold)' }}>{'★'.repeat(p.bondLevel)}</span> : null}
+                                                    </div>
+                                                ) : undefined
                                             }
                                         />
                                     );
