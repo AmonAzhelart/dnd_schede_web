@@ -12,11 +12,11 @@ import { LocalizedFieldEditor } from './LocalizedFieldEditor';
 import { IconPicker } from './IconPicker';
 import { ModifierEditor } from '../ModifierEditor';
 import { CreatureModifierEditor } from '../CreatureModifierEditor';
-import type { Modifier, CreatureModifier } from '../../types/dnd';
+import type { Modifier, CreatureModifier, CreatureSize } from '../../types/dnd';
 
 interface Props { currentUserEmail: string; }
 
-const SIZES: CatalogRace['size'][] = ['Minuscola', 'Piccola', 'Media', 'Grande', 'Enorme'];
+const SIZES: CreatureSize[] = ['Piccolissima', 'Minuta', 'Minuscola', 'Piccola', 'Media', 'Grande', 'Enorme', 'Mastodontica', 'Colossale'];
 const STATS: RaceAbilityMod['stat'][] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
 
 const EMPTY = (): CatalogRace => ({
